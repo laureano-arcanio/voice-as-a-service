@@ -311,6 +311,8 @@ class ClientOut(ORM):
     slug: str
     active: bool
     created_via: Literal["admin", "signup"] = "admin"
+    industry: str = Field(default="", description="Rubro elegido en el asistente de primera vez; vacio = no dijo")
+    website: str = Field(default="", description="Sitio dado en el asistente de primera vez; vacio = no dijo")
     tier: TierBrief
     created_at: UTCDateTime
     agents_count: int = 0
@@ -881,6 +883,8 @@ class UserOut(ORM):
     role: str
     client_id: str | None
     client_name: str | None = None
+    phone: str | None = Field(default=None, description="Celular del registro (E.164)")
+    phone_verified_at: UTCDateTime | None = Field(default=None, description="Cuando lo verifico por WhatsApp; null = sin verificar")
     active: bool
     created_at: UTCDateTime
     last_login_at: UTCDateTime | None

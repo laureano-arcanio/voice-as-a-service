@@ -29,7 +29,7 @@ import { numberErrorTitle } from '@/features/numbers/errors';
 import { useSupportSwitch } from '@/features/support/api';
 import { useTiers } from '@/features/tiers/api';
 import { UsersTable } from '@/features/users/UsersTable';
-import { formatDate, formatDateTime, formatLimit, recentMonths } from '@/lib/format';
+import { formatDateTime, formatLimit, recentMonths } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
@@ -40,6 +40,7 @@ import { ClientUsage } from './ClientUsage';
 import { LlmConnectionsSection } from '@/features/llm/LlmConnectionsSection';
 import { LimitAdjustmentsCard } from './LimitAdjustmentsCard';
 import { NumbersSection } from './NumbersSection';
+import { RegistrationCard } from './RegistrationCard';
 
 function ClientDataCard({ client }: { client: Client }) {
   const tiers = useTiers();
@@ -138,10 +139,6 @@ function ClientDataCard({ client }: { client: Client }) {
           checked={client.active}
           onChange={(e) => void setActive(e.currentTarget.checked)}
         />
-        <Text size="xs" c="dimmed">
-          Alta: {formatDate(client.created_at)}
-          {client.created_via === 'signup' ? ' · registro desde la landing' : ''}
-        </Text>
         <Group justify="flex-end">
           <Button
             variant="subtle"
@@ -307,6 +304,7 @@ function ClientView({ client }: { client: Client }) {
             </Grid.Col>
             <Grid.Col span={{ base: 12, lg: 5 }}>
               <Stack gap="md">
+                <RegistrationCard client={client} />
                 <ClientDataCard key={client.id} client={client} />
                 <SubscriptionCard clientId={client.id} />
                 <CallEmailsCard clientId={client.id} />

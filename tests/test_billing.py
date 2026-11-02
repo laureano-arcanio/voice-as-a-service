@@ -74,6 +74,15 @@ def activate(api, signup_response) -> "object":
 
 # ---------- registro ----------
 
+def test_admin_sees_signup_data(landing, admin):
+    register(landing, phone="11 5555-1234")
+    client = next(c for c in admin.get(f"{V1}/clients").json() if c["created_via"] == "signup")
+    assert client["name"] == "Panadería Doña Rosa" and client["industry"] == "" and client["website"] == ""
+    [user] = admin.get(f"{V1}/users", params={"client_id": client["id"]}).json()
+    assert (user["email"], user["name"], user["phone"]) == ("rosa@example.com", SIGNUP["name"], "+5491155551234")
+    assert user["phone_verified_at"] is None
+
+
 def test_signup_creates_free_client_and_opens_session(landing):
     r = register(landing)
     with landing.sessions() as s:

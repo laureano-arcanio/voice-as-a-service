@@ -26,20 +26,9 @@ import { voiceName } from '@/features/voices/names';
 import { usePageTitle } from '@/branding/context';
 import { QueryState } from '@/components/QueryState';
 import { notifyError } from '@/lib/notify';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { unwrap } from '@/api/request';
-import { useCreateFirstAgent } from './api';
+import { useCreateFirstAgent, useIndustries } from './api';
 import { FEATURED_VOICES, INDUSTRY_UI, sampleOpening } from './catalog';
 import { useSample } from './useSample';
-
-function useIndustries() {
-  return useQuery({
-    queryKey: ['onboarding', 'industries'],
-    queryFn: () => unwrap(api.GET('/api/v1/onboarding/industries')),
-    staleTime: Infinity,
-  });
-}
 
 /**
  * Asistente de primera vez (docs/features/PRIMERA_VEZ.md): pantalla completa, sin el menú, mientras el cliente

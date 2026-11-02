@@ -13,6 +13,16 @@ export function useOnboarding(enabled = true) {
   });
 }
 
+/** Los rubros del asistente; no cambian durante la sesión. */
+export function useIndustries(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ['onboarding', 'industries'],
+    queryFn: () => unwrap(api.GET('/api/v1/onboarding/industries')),
+    staleTime: Infinity,
+  });
+}
+
 function useInvalidate() {
   const qc = useQueryClient();
   return () => {

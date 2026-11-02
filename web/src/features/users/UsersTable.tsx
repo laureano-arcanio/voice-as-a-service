@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/features/auth/api';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifyInvite, notifySuccess } from '@/lib/notify';
 import { useDeleteUser, useInviteUser, useUpdateUser, useUsers } from './api';
+import { PhoneVerified } from './PhoneVerified';
 import { UserModal } from './UserModal';
 
 /** Usuarios (todos, o los de un cliente) con alta, edicion, activar y borrar. Solo admin. */
@@ -79,6 +80,7 @@ export function UsersTable({
                   <Table.Tr>
                     <Table.Th>Email</Table.Th>
                     <Table.Th>Nombre</Table.Th>
+                    <Table.Th>Celular</Table.Th>
                     <Table.Th>Rol</Table.Th>
                     {!clientId && <Table.Th>Cliente</Table.Th>}
                     <Table.Th>Activo</Table.Th>
@@ -101,6 +103,15 @@ export function UsersTable({
                         </Table.Td>
                         <Table.Td>
                           {u.name || (
+                            <Text span inherit c="dimmed">
+                              –
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                          {u.phone ? (
+                            <PhoneVerified phone={u.phone} verifiedAt={u.phone_verified_at ?? null} />
+                          ) : (
                             <Text span inherit c="dimmed">
                               –
                             </Text>

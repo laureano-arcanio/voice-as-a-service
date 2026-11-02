@@ -130,7 +130,9 @@ estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys
   minutos entrantes y salientes, números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
   el **consumo de la API** del mes contra el tier (tokens de
   entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
-  no incluye lo que consumen los agentes integrados), y los datos del cliente:
+  no incluye lo que consumen los agentes integrados), los **datos de registro** (empresa, y nombre, email y celular
+  del primer usuario, con si verificó el celular; rubro y sitio si los dio en el asistente de primera vez; fecha y
+  origen del alta) y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene. Los ajustes del cliente se conservan.
   - **Ajustes de límites:** para darle algo distinto a un solo cliente sin tocar su tier (que comparten otros) ni
     armar uno nuevo. **Nuevo ajuste**: elegí el límite, si **suma** al del tier (ej. 10 minutos más, una línea más) o lo
@@ -296,7 +298,7 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - rol **cliente**: hay que elegir el cliente;
   - rol **admin**: no pertenece a ninguno.
 
-  Desde la tabla se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
+  La tabla muestra también el celular del registro, y si está verificado. Desde ahí se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
 - **API keys** (pestaña **API keys** de la ficha del cliente, o **Developers > API keys** en el menú del cliente) > **Nueva API key**
   (en la ficha del admin, el consumo de la API está en **Consumo y datos**):

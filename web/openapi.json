@@ -19061,6 +19061,18 @@
       "title": "Created Via",
       "default": "admin"
      },
+     "industry": {
+      "type": "string",
+      "title": "Industry",
+      "description": "Rubro elegido en el asistente de primera vez; vacio = no dijo",
+      "default": ""
+     },
+     "website": {
+      "type": "string",
+      "title": "Website",
+      "description": "Sitio dado en el asistente de primera vez; vacio = no dijo",
+      "default": ""
+     },
      "tier": {
       "$ref": "#/components/schemas/TierBrief"
      },
@@ -19219,6 +19231,18 @@
       ],
       "title": "Created Via",
       "default": "admin"
+     },
+     "industry": {
+      "type": "string",
+      "title": "Industry",
+      "description": "Rubro elegido en el asistente de primera vez; vacio = no dijo",
+      "default": ""
+     },
+     "website": {
+      "type": "string",
+      "title": "Website",
+      "description": "Sitio dado en el asistente de primera vez; vacio = no dijo",
+      "default": ""
      },
      "tier": {
       "$ref": "#/components/schemas/TierBrief"
@@ -31257,6 +31281,31 @@
        }
       ],
       "title": "Client Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone",
+      "description": "Celular del registro (E.164)"
+     },
+     "phone_verified_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone Verified At",
+      "description": "Cuando lo verifico por WhatsApp; null = sin verificar"
      },
      "active": {
       "type": "boolean",

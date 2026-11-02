@@ -5702,6 +5702,18 @@ export interface components {
              * @enum {string}
              */
             created_via?: "admin" | "signup";
+            /**
+             * Industry
+             * @description Rubro elegido en el asistente de primera vez; vacio = no dijo
+             * @default
+             */
+            industry?: string;
+            /**
+             * Website
+             * @description Sitio dado en el asistente de primera vez; vacio = no dijo
+             * @default
+             */
+            website?: string;
             tier: components["schemas"]["TierBrief"];
             /**
              * Created At
@@ -5782,6 +5794,18 @@ export interface components {
              * @enum {string}
              */
             created_via?: "admin" | "signup";
+            /**
+             * Industry
+             * @description Rubro elegido en el asistente de primera vez; vacio = no dijo
+             * @default
+             */
+            industry?: string;
+            /**
+             * Website
+             * @description Sitio dado en el asistente de primera vez; vacio = no dijo
+             * @default
+             */
+            website?: string;
             tier: components["schemas"]["TierBrief"];
             /**
              * Created At
@@ -10324,6 +10348,16 @@ export interface components {
             client_id: string | null;
             /** Client Name */
             client_name?: string | null;
+            /**
+             * Phone
+             * @description Celular del registro (E.164)
+             */
+            phone?: string | null;
+            /**
+             * Phone Verified At
+             * @description Cuando lo verifico por WhatsApp; null = sin verificar
+             */
+            phone_verified_at?: string | null;
             /** Active */
             active: boolean;
             /**
