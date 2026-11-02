@@ -5,8 +5,9 @@ cubre los hosts, los servicios del compose, el reparto de GPU, la telefonía, el
 exposición a internet.
 
 **Dos servers (desde el 2-nov-2026):** server2 (`192.168.1.98`) es el principal y corre todo; el otro
-(`192.168.1.99`) es réplica y corre solo los tres modelos para el balanceador
-([`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md)). Salvo que se indique, "este host" en este doc es server2.
+(`192.168.1.99`) es réplica de los tres modelos para el balanceador
+([`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md)) y entorno de desarrollo, en un stack aparte
+([`DESARROLLO.md`](DESARROLLO.md)). Salvo que se indique, "este host" en este doc es server2.
 
 Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, LiveKit),
 [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md) (server nuevo, router, corte),

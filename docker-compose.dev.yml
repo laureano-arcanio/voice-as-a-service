@@ -1,0 +1,118 @@
+# Entorno de desarrollo (docs/DESARROLLO.md): app, base y voz para probar antes de desplegar. Es un stack aparte
+# (proyecto atentina-dev, se usa solo con `make dev-*`), sin Asterisk, túnel ni monitoreo. No lee .env: sus credenciales
+# están en .env.dev, sin las de Anura, WhatsApp, MercadoPago ni Resend, y su base y sus audios son propios.
+# La inferencia es la de los modelos de este host, compartidos con producción (réplica del balanceador).
+name: atentina-dev
+
+x-app: &app
+  build:
+    context: .
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  env_file:
+    - .env.dev
+  environment: &app-env
+    DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    TOOLS_RUNNER_URL: http://tools-runner:8080
+  volumes:
+    # Código del repo: la API se recarga sola; el worker, con make dev-restart S=agent. La UI va en la imagen (make dev-up).
+    - ./app:/app/app:ro
+    - ./migrations:/app/migrations:ro
+    - dev_storage:/app/storage
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - dev_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  migrate:
+    <<: *app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli seed"]
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  app:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8011", "--proxy-headers", "--no-server-header", "--reload", "--reload-dir", "app"]
+    ports:
+      - "${DEV_PORT:-8211}:8011"
+    networks:
+      - default
+      - tools
+
+  agent:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
+    command: ["python", "-m", "app.voice.worker", "start"]
+    healthcheck:
+      disable: true
+    networks:
+      - default
+      - tools
+
+  # LiveKit propio del entorno, sin SIP: las pruebas de voz van por el navegador. Claves de .env.dev: el worker de
+  # desarrollo nunca toma llamadas de producción.
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      NODE_IP: ${DEV_HOST}
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          udp_port: 7882
+          tcp_port: 7881
+          use_external_ip: false
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+
+  tools-runner:
+    extends:
+      file: docker-compose.yml
+      service: tools-runner
+
+  tools-egress:
+    extends:
+      file: docker-compose.yml
+      service: tools-egress
+
+networks:
+  tools:
+    internal: true
+
+volumes:
+  dev_postgres:
+  dev_storage:

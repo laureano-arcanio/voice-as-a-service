@@ -43,6 +43,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
         server2-ssh server2-setup server2-discos replica-host-disable solo-principal crm-tunnel \
+        dev-env dev-up dev-down dev-restart dev-ps dev-logs dev-migrate dev-psql dev-web dev-health dev-login dev-reset deploy-status \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -71,8 +72,11 @@ PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
 
 # Una replica de inferencia (STACK_ROLE=replica en .env, docker-compose.replica.yml) corre solo los
 # modelos: levantar ahi app, agent, Asterisk o el tunel duplicaria el servicio del server principal.
+# Lo que se despliega en el server principal sale siempre de main, sin cambios locales (docs/DESARROLLO.md).
 solo-principal:
-	@if grep -qE '^STACK_ROLE=replica' .env; then echo "Este host es replica de inferencia: esto corre en el server principal (make server2-ssh CMD='cd voice-as-a-service && make ...')"; exit 1; fi
+	@if grep -qE '^STACK_ROLE=replica' .env; then echo "Este host es de desarrollo y replica de inferencia: en local, make dev-up; para desplegar, el agente deploy (docs/DESARROLLO.md)"; exit 1; fi
+	@[ "$$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "Produccion se despliega solo desde main (rama actual: $$(git rev-parse --abbrev-ref HEAD))"; exit 1; }
+	@[ -z "$$(git status --porcelain)" ] || { echo "Produccion se despliega solo desde main sin cambios locales:"; git status --short; exit 1; }
 
 up: solo-principal storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
 	$(COMPOSE) up -d --build
@@ -163,6 +167,55 @@ welcome-reset: ## Vuelve a mostrar el pop-up de bienvenida a un usuario de clien
 
 psql: ## Cliente psql dentro de db, con las credenciales de .env
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
+
+# --- Entorno de desarrollo (docs/DESARROLLO.md): stack aparte, proyecto atentina-dev, con .env.dev ----------
+
+DEV_COMPOSE := docker compose --env-file .env.dev -f docker-compose.dev.yml
+DEV_URL_SH = host=$$(sed -n 's/^DEV_HOST=//p' .env.dev); port=$$(sed -n 's/^DEV_PORT=//p' .env.dev); url="http://$$host:$$port"
+
+dev-env: ## Crea .env.dev con credenciales propias, sin las de produccion (no pisa uno existente)
+	@scripts/dev_env.sh
+
+dev-up: dev-env ## Levanta o actualiza el entorno de desarrollo con el codigo del repo (build, migraciones y seed). No toca los modelos
+	$(DEV_COMPOSE) up -d --build --wait db app agent tools-runner tools-egress livekit
+	@$(MAKE) --no-print-directory dev-login
+
+dev-down: ## Para el entorno de desarrollo (conserva base y audios)
+	$(DEV_COMPOSE) down
+
+dev-restart: ## Reinicia servicios del entorno de desarrollo. Ej: make dev-restart S=agent
+	$(DEV_COMPOSE) restart $(S)
+
+dev-ps: ## Estado del entorno de desarrollo
+	$(DEV_COMPOSE) ps
+
+dev-logs: ## Logs del entorno de desarrollo. Ej: make dev-logs S=app
+	$(DEV_COMPOSE) logs -f --tail=200 $(S)
+
+dev-migrate: ## Migraciones y seed en la base de desarrollo
+	$(DEV_COMPOSE) run --rm --build --no-deps migrate
+
+dev-psql: ## Cliente psql contra la base de desarrollo
+	$(DEV_COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+
+dev-web: ## UI con recarga al instante (Vite, :5173, en la red) contra la API de desarrollo. Requiere Node 22+
+	@port=$$(sed -n 's/^DEV_PORT=//p' .env.dev); cd web && npm install && VITE_API_PROXY=http://127.0.0.1:$$port npm run dev -- --host
+
+dev-health: ## Chequea el entorno de desarrollo y que la app llegue a los modelos
+	@$(DEV_URL_SH); curl -sf -o /dev/null -m 5 $$url/health && echo "app ($$url): OK" || { echo "app ($$url): no responde (make dev-logs S=app)"; exit 1; }
+	@$(DEV_COMPOSE) exec -T app python -c "import os, urllib.request as u; [print(n, u.urlopen(os.environ[v].removesuffix('/v1') + '/health', timeout=5).status) for n, v in (('llm', 'VLLM_LLM_BASE_URL'), ('stt', 'VLLM_STT_BASE_URL'), ('tts', 'VLLM_TTS_BASE_URL'))]"
+	@$(DEV_COMPOSE) logs --tail=200 agent | grep -q 'registered worker' && echo "agent: registrado en el LiveKit de desarrollo" || { echo "agent: sin registrar (make dev-logs S=agent)"; exit 1; }
+
+dev-login: ## URL y credenciales del entorno de desarrollo
+	@$(DEV_URL_SH); echo "$$url  (admin: $$(sed -n 's/^ADMIN_EMAIL=//p' .env.dev) / $$(sed -n 's/^ADMIN_PASSWORD=//p' .env.dev))"
+
+dev-reset: ## Borra la base y los audios de desarrollo (pide confirmar) y recrea todo
+	@read -p "Borra la base y los audios de desarrollo. Escribi 'borrar': " r; [ "$$r" = borrar ]
+	$(DEV_COMPOSE) down -v
+	@$(MAKE) --no-print-directory dev-up
+
+deploy-status: ## Rama, commit y cambios de server2 frente a origin/main (solo lectura; desplegar: agente deploy)
+	@ssh server2 'cd voice-as-a-service && git fetch -q origin && git status -sb && echo "desplegado: $$(git log -1 --format="%h %s" | cut -c1-90)" && echo "pendiente:" && git log --format="  %h %s" HEAD..origin/main | cut -c1-90'
 
 server2-ssh: ## Ejecuta un comando en server2 (192.168.1.98, usuario atentina-ops, clave ~/.ssh/id_ed25519_server2). Ej: make server2-ssh CMD='sudo -n apt update'
 	@[ -n "$(CMD)" ] || { echo "Falta CMD='...'"; exit 1; }

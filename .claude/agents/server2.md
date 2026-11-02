@@ -31,7 +31,7 @@ el usuario `atentina-ops` tiene `sudo` sin contraseña.
 - **No toques la réplica** (este host, `192.168.1.99`): lo tuyo es remoto.
 - Nunca dos Asterisk, dos `cloudflared` ni dos `agent` contra el mismo LiveKit.
 - `ssh server2 'bash -s' < script`: un `docker compose run` adentro se come el stdin; pasale `</dev/null`.
-- Lo que hacés queda versionado: scripts o compose en el repo de allá, con `git pull` y `make`.
+- Los deploys los hace el agente `deploy`, no vos. server2 está siempre en `main`: no edites archivos versionados ni cambies de rama allá. Lo que haya que versionar se cambia en desarrollo y llega por `main`.
 - Si hay que cambiar algo de la cuenta `atentina-ops` o su `sudoers`, es un cambio de seguridad: proponelo y esperá confirmación.
 
 ## Datos de server2

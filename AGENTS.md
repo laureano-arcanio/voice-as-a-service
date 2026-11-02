@@ -2,14 +2,15 @@
 
 Atentina: agentes de voz (teléfono, web y WhatsApp) con **inferencia propia**: LLM, STT y TTS corren en GPUs
 locales. Plataforma multi-cliente (clientes, tiers, agentes versionados en JSON, números) con API `/api/v1`,
-UI React en `web/`, worker de voz LiveKit y MCP. En producción desde el 28-oct-2026. **Server principal: server2 (192.168.1.98);** el
-host `192.168.1.99`, donde se trabaja con el repo, es solo réplica de los tres modelos ([`docs/INFRA.md`](docs/INFRA.md)).
+UI React en `web/`, worker de voz LiveKit y MCP. En producción desde el 28-oct-2026. **Producción: server2 (192.168.1.98), siempre en `main`.**
+El host `192.168.1.99`, donde se trabaja con el repo, es el **entorno de desarrollo** ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)) y réplica de los tres modelos ([`docs/INFRA.md`](docs/INFRA.md)).
 
 ## Dónde está cada cosa
 
 | Tema | Doc |
 |---|---|
 | Qué es, levantar, claves de `.env` | [`README.md`](README.md) |
+| Entorno de desarrollo y deploy | [`docs/DESARROLLO.md`](docs/DESARROLLO.md) |
 | Arquitectura: componentes, código, modelo de datos, definición del agente, flujos, planes, auth, API | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) |
 | Infraestructura: host, GPUs, servicios del compose, reglas de inferencia, backup, límites para escalar | [`docs/INFRA.md`](docs/INFRA.md) |
 | Cada función de la plataforma (modelo, API, flujo, trampas, cómo desplegar, pendientes) | [`docs/features/`](docs/features/) |
@@ -52,7 +53,9 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |
 | Server nuevo o migración | [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), en orden. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
 | Réplica de inferencia, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): en server2, `make llm-lb-status`, `make up-llm-lb`. |
-| Operar el server principal (server2, 192.168.1.98) | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Es producción. Para el usuario, `make server2-ssh CMD='...'`. Se despliega con `git pull` y `make` allá. |
+| Probar un cambio | Entorno local: `make dev-up`, http://192.168.1.99:8211 ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)). |
+| Desplegar a producción | Agente [`deploy`](.claude/agents/deploy.md), solo desde `main` y después de probar en local. `make deploy-status` muestra lo pendiente. |
+| Operar el server principal (server2, 192.168.1.98), salvo deploys | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Es producción. Para el usuario, `make server2-ssh CMD='...'`. |
 | Prospectos, mails, seguimiento | Agente [`ventas`](.claude/agents/ventas.md); el registro es el CRM ([`docs/features/CRM_API.md`](docs/features/CRM_API.md), `make crm-up`). Propuesta con PDF y video: skill [`propuesta-prospecto`](.claude/skills/propuesta-prospecto/SKILL.md). |
 | Video o PDF | Agentes [`videos`](.claude/agents/videos.md) ([`marketing/VIDEOS.md`](marketing/VIDEOS.md)) y [`documentos`](.claude/agents/documentos.md) ([`marketing/DOCUMENTOS.md`](marketing/DOCUMENTOS.md)). |
 
@@ -81,7 +84,10 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 
 ## Cómo trabajar en este server
 
-- El stack está en producción **en server2**; `make up*` se niega en la réplica (`STACK_ROLE=replica`). Puede haber otras
+- **Todo desarrollo se prueba primero en el entorno local** (`make dev-up`) y llega a producción solo por `main` y el agente
+  `deploy`. Nunca se edita código en server2.
+- El stack de producción está **en server2**; `make up*` se niega en este host (`STACK_ROLE=replica`) y, en server2, fuera de `main`
+  o con cambios locales. Puede haber otras
   sesiones de agente en el repo y en los contenedores: mirar `git status` y `docker ps` antes de cambiar algo, y no revertir
   cambios ajenos.
 - No reiniciar servicios ni lanzar pruebas que nadie pidió. Antes de recrear algo que corta llamadas:
