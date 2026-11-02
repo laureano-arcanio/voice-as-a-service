@@ -124,6 +124,14 @@ def fit_numbers(s: Session, client: Client, now: datetime.datetime | None = None
     return suspended
 
 
+def _admin_to() -> str:
+    return settings.billing_notify_to or settings.support_email
+
+
+def _admin_client_url(client: Client) -> str:
+    return f"{settings.app_url.rstrip('/')}/admin/clients/{client.id}"
+
+
 def _users(s: Session, client_id: str) -> list[User]:
     return list(s.scalars(select(User).where(User.client_id == client_id, User.role == Role.client,
                                              User.active.is_(True)).order_by(User.email)))
@@ -162,12 +170,23 @@ def request_mails(s: Session, client: Client, sub: Subscription, user: User | No
     if user is not None:
         out.append(messages.transfer_requested(email=user.email, name=user.name, client_name=client.name,
                                                tier=tier, amount=amount))
-    to = settings.billing_notify_to or settings.support_email
+    to = _admin_to()
     if to:
         out.append(messages.transfer_requested_admin(
             to=to, client_name=client.name, user_email=user.email if user else "-", tier=tier, amount=amount,
-            client_url=f"{settings.app_url.rstrip('/')}/clients/{client.id}"))
+            client_url=_admin_client_url(client)))
     return out
+
+
+def payment_admin_mails(s: Session, client: Client, sub: Subscription, payment: BillingPayment) -> list[Mail]:
+    """Aviso al admin de un pago aprobado: quien pago, que plan y como contactarlo."""
+    to = _admin_to()
+    if not to:
+        return []
+    return [messages.payment_received_admin(
+        to=to, client=client, tier=s.get(Tier, payment.tier_id), payment=payment,
+        period_end=payment.period_end or sub.current_period_end, payer_email=sub.payer_email or "",
+        users=_users(s, client.id), client_url=_admin_client_url(client))]
 
 
 def cancel(s: Session, client: Client) -> Subscription:
@@ -305,6 +324,8 @@ def sync(s: Session, sub: Subscription, pre: mp.Preapproval | None = None,
         else:
             sub.cancel_at_period_end, sub.pending_tier_id = True, None
     s.flush()
+    for p in approved_now:
+        mails += payment_admin_mails(s, client, sub, p)
     return mails
 
 
@@ -399,6 +420,7 @@ def record_payment(s: Session, client: Client, *, tier_id: str, amount_ars: int,
     mails = [messages.payment_recorded(email=u.email, name=u.name, client_name=client.name, tier=tier,
                                        amount=amount_ars, period_end=sub.current_period_end)
              for u in _users(s, client.id)]
+    mails += payment_admin_mails(s, client, sub, payment)
     return payment, mails
 
 

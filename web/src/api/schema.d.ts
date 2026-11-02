@@ -5724,6 +5724,12 @@ export interface components {
              * @default 0
              */
             adjustments_count?: number;
+            /**
+             * Paying
+             * @description Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)
+             * @default false
+             */
+            paying?: boolean;
             invite?: components["schemas"]["InviteOut"] | null;
         };
         /** ClientIn */
@@ -5798,6 +5804,12 @@ export interface components {
              * @default 0
              */
             adjustments_count?: number;
+            /**
+             * Paying
+             * @description Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)
+             * @default false
+             */
+            paying?: boolean;
         };
         /** ClientSecretOut */
         ClientSecretOut: {

@@ -19085,6 +19085,12 @@
       "description": "Ajustes de limites vigentes hoy",
       "default": 0
      },
+     "paying": {
+      "type": "boolean",
+      "title": "Paying",
+      "description": "Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)",
+      "default": false
+     },
      "invite": {
       "anyOf": [
        {
@@ -19237,6 +19243,12 @@
       "title": "Adjustments Count",
       "description": "Ajustes de limites vigentes hoy",
       "default": 0
+     },
+     "paying": {
+      "type": "boolean",
+      "title": "Paying",
+      "description": "Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)",
+      "default": false
      }
     },
     "type": "object",

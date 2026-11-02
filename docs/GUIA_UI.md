@@ -115,6 +115,10 @@ Al cambiar lo que incluye un tier, actualizar la tabla de planes de la landing (
 
 ### 2. Crear el cliente (Clientes)
 
+La lista arranca con las altas más nuevas; un clic en una columna ordena por ella y otro invierte el orden. El filtro
+**Plan** muestra todos, los **Pagos** (plan pago activo o en gracia, con la marca "Pago") o los de un tier. Un cliente
+puesto a mano en un tier con precio, sin suscripción, no cuenta como pago.
+
 **Clientes > Nuevo cliente**: nombre, slug (se arma del nombre; minúsculas, números y `_`), tier y el
 email de su primer usuario (con el nombre, opcional, para el saludo). Se crea ese usuario, sin clave, y
 le llega un email de Atentina con el plan contratado y un link para crear su clave (vale 72 horas y se usa

@@ -126,7 +126,8 @@ def test_card_subscription_charges_and_activates(rosa):
     assert (p["method"], p["amount_ars"], p["paid_on"]) == ("mercadopago", 99000, "2026-10-10")
     [(_, ref, payer, token, amount)] = rosa.mp.calls
     assert (ref, payer, token, amount) == (sub["id"], "rosa@example.com", "tok_APRO", 99000)
-    assert [m.subject for m in rosa.outbox] == ["Recibimos tu pago: plan Sucursal"]
+    assert [m.subject for m in rosa.outbox] == ["Recibimos tu pago: plan Sucursal",
+                                                "Cliente pagó: Panadería Doña Rosa, plan Sucursal"]
 
 
 def test_rejected_card_leaves_nothing(rosa):
@@ -339,7 +340,8 @@ def test_signup_with_paid_plan_pays_and_creates_account(landing, fake_mp):
     b = c.get(f"{V1}/clients/{client_id}/billing").json()
     assert b["tier"]["name"] == "Sucursal" and b["subscription"]["status"] == "active"
     assert [m.subject for m in landing.outbox] == ["Tu cuenta de Atentina está lista",
-                                                   "Recibimos tu pago: plan Sucursal"]
+                                                   "Recibimos tu pago: plan Sucursal",
+                                                   "Cliente pagó: Panadería Doña Rosa, plan Sucursal"]
     assert "plan Sucursal" in landing.outbox[0].text
     [(_, ref, payer, card, amount)] = fake_mp.calls
     assert (ref, payer, card, amount) == (b["subscription"]["id"], "rosa@example.com", "tok_APRO", 99000)
@@ -394,3 +396,23 @@ def test_webhook_retries_until_the_subscription_exists(rosa, monkeypatch):
     webhook.process("subscription_preapproval", "pre1", delays=(0, 0))
     assert len(calls) == 2
     assert billing_of(rosa)["subscription"]["current_period_end"] == "2026-12-10"
+
+
+def test_admin_is_notified_once_per_approved_payment(rosa, monkeypatch):
+    monkeypatch.setattr(settings, "billing_notify_to", "cobros@atentina.com.ar")
+    assert subscribe(rosa, card_token_id="tok_APRO").status_code == 200
+    [mail] = [m for m in rosa.outbox if m.to == "cobros@atentina.com.ar"]
+    assert mail.subject == "Cliente pagó: Panadería Doña Rosa, plan Sucursal"
+    assert "$ 99.000" in mail.text and "Tarjeta (Mercado Pago)" in mail.text
+    assert "rosa@example.com" in mail.text and "/admin/clients/" in mail.text
+    with rosa.sessions() as s:      # sincronizar otra vez no repite el aviso
+        assert billing.sync(s, billing.by_preapproval(s, "pre1")) == []
+
+
+def test_rejected_payment_does_not_notify_admin(rosa, monkeypatch):
+    monkeypatch.setattr(settings, "billing_notify_to", "cobros@atentina.com.ar")
+    assert subscribe(rosa, card_token_id="tok_APRO").status_code == 200
+    rosa.mp.charge("pre1", "2026-11-10T07:28:03.000-04:00", status="rejected")
+    with rosa.sessions() as s:
+        assert [m for m in billing.sync(s, billing.by_preapproval(s, "pre1"))
+                if m.to == "cobros@atentina.com.ar"] == []
