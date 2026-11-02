@@ -11,11 +11,21 @@ env_get() { grep -E "^$1=" .env | tail -1 | cut -d= -f2-; }
 log "esperando a Docker"
 until docker info >/dev/null 2>&1; do sleep 2; done
 
+# El disco de datos (fstab, antes de Docker): sin él, los audios caerían en el disco del sistema.
+disk="$(env_get DATA_DISK)"
+if [[ -n "$disk" ]] && ! mountpoint -q "$disk"; then
+    log "disco de datos $disk sin montar: reintentando"
+    sudo -n mount "$disk" || log "AVISO: no se pudo montar $disk"
+fi
+
 log "stack (COMPOSE_FILE del .env), esperando healthy hasta 15 min"
 docker compose up -d --wait --wait-timeout 900
 
-log "túnel de Cloudflare"
-docker compose -f docker-compose.tunnel.yml up -d tunnel
+# La réplica de inferencia (docker-compose.replica.yml) no lleva túnel: su .env no tiene el token.
+if [[ -n "$(env_get CLOUDFLARE_TUNNEL_TOKEN)" ]]; then
+    log "túnel de Cloudflare"
+    docker compose -f docker-compose.tunnel.yml up -d tunnel
+fi
 
 log "trunks SIP y dispatch rule de LiveKit (su Redis no persiste)"
 make --no-print-directory livekit-sip-si-local

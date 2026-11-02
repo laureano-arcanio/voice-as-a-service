@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Backup (cron, docs/INFRA.md): base (pg_dump), .env, storage/, certificado SIP y checkpoint
-# del TTS servido. Local en BACKUP_DIR (default ~/atentina-backups, en /home: otro disco que el de
-# Docker). Copia externa a S3 si BACKUP_S3_BUCKET está en .env: base, .env, storage/ y certificado
+# del TTS servido. Local en BACKUP_DIR (.env o entorno; default ~/atentina-backups): otro disco que el de
+# Docker. Copia externa a S3 si BACKUP_S3_BUCKET está en .env: base, .env, storage/ y certificado
 # cifrados con la llave pública de deploy/backup-key.asc (la privada no está en el server), y el
 # checkpoint tal cual. Restaurar: scripts/ops/backup-fetch.sh (docs/MIGRACION_SERVER.md, 4).
 # --if-due: no hace nada si el último backup completo tiene menos de 25 h. El cron lo corre a las
@@ -16,7 +16,10 @@ mkdir -p "$STATE_DIR"
 exec 9>"$STATE_DIR/backup.lock"
 flock -n 9 || { echo "otro backup en curso" >&2; exit 0; }
 
-DEST="${BACKUP_DIR:-$HOME/atentina-backups}"
+DEST="${BACKUP_DIR:-$(env_get BACKUP_DIR)}"; DEST="${DEST:-$HOME/atentina-backups}"
+# DATA_DISK en .env: el disco de datos tiene que estar montado, si no el backup caería en el disco de la base.
+disk="$(env_get DATA_DISK)"
+[[ -z "$disk" ]] || mountpoint -q "$disk" || { echo "disco de datos $disk sin montar: no se hace el backup" >&2; exit 1; }
 KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
 STAMP="$(date +%Y%m%d-%H%M)"
 umask 077

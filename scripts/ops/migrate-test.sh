@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-DEST="${BACKUP_DIR:-$HOME/atentina-backups}"
+DEST="${BACKUP_DIR:-$(grep -m1 '^BACKUP_DIR=' .env | cut -d= -f2- || true)}"; DEST="${DEST:-$HOME/atentina-backups}"
 DUMP="${DUMP:-$(ls -t "$DEST"/db/db-*.sql.gz 2>/dev/null | head -1)}"
 [[ -r "$DUMP" ]] || { echo "No hay volcado de la base en $DEST/db (o DUMP=$DUMP no se puede leer)" >&2; exit 1; }
 PG_USER="$(grep -m1 '^POSTGRES_USER=' .env | cut -d= -f2-)"

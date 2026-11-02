@@ -3,6 +3,7 @@
 Runbook para montar este entorno en un server nuevo (mismo tipo de hardware, disco vacío) y pasarle
 el tráfico. Está escrito para que lo siga un agente paso a paso; lo que solo puede hacer el usuario
 (paneles externos, router) está marcado **(usuario)**. Infraestructura vigente en [`INFRA.md`](INFRA.md).
+Los valores de ejemplo (`192.168.1.99`, usuario `laureano`) son del host anterior: el principal hoy es server2 (`192.168.1.98`).
 
 Reglas del corte, que valen en todo el runbook:
 - **Nunca dos Asterisk registrados con la misma terminal de Anura** (las entrantes se reparten o se

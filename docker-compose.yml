@@ -71,6 +71,8 @@ services:
       - "8011:8011"
     volumes:
       - ./storage:/app/storage
+      # Audios: en el host principal, en el disco de datos (docs/INFRA.md). Sin RECORDINGS_DIR, dentro de ./storage.
+      - ${RECORDINGS_DIR:-./storage/recordings}:/app/storage/recordings
     networks:
       - default
       # Sandbox de las herramientas de codigo (la prueba de una herramienta corre en app).
@@ -137,6 +139,8 @@ services:
       # Grabaciones (record_audio): CALL_RECORDINGS_DIR, storage/recordings. Tambien en `app`
       # (audios de WhatsApp): mismo directorio, mismo numero por conversacion.
       - ./storage:/app/storage
+      # Audios: en el host principal, en el disco de datos (docs/INFRA.md). Sin RECORDINGS_DIR, dentro de ./storage.
+      - ${RECORDINGS_DIR:-./storage/recordings}:/app/storage/recordings
     command: ["python", "-m", "app.voice.worker", "start"]
     # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which
     # this service doesn't serve (it's a worker process, no HTTP port) -- disable

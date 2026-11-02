@@ -27,12 +27,19 @@ code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1"; }
 [[ "$(code 'https://wa.atentina.com.ar/wa/webhook?hub.mode=subscribe&hub.verify_token=x&hub.challenge=1')" == 403 ]] \
     || problems+=("webhook de WhatsApp no responde")
 
-# Tope de potencia de las 3090 (sin él, dos 3090 apagaron el server).
+# Tope de potencia de las 3090 (sin él, dos 3090 apagaron el server). GPU_SIN_TOPE=1 en .env: este host no lo lleva.
 while IFS=, read -r idx name limit; do
-    [[ "$name" == *3090* ]] || continue
+    [[ "$name" == *3090* && "$(env_get GPU_SIN_TOPE)" != 1 ]] || continue
     w="${limit%%.*}"; w="${w// /}"
     (( w <= ${GPU_POWER_W:-280} )) || problems+=("GPU$idx sin tope de potencia (${w} W)")
 done < <(nvidia-smi --query-gpu=index,name,power.limit --format=csv,noheader,nounits 2>/dev/null)
+
+# Disco de datos (DATA_DISK en .env: audios y backups): si no está montado, los audios caen en el disco del sistema.
+disk="$(env_get DATA_DISK)"
+if [[ -n "$disk" ]]; then
+    if ! mountpoint -q "$disk"; then problems+=("disco de datos $disk sin montar")
+    elif (( $(df --output=pcent "$disk" | tail -1 | tr -dc 0-9) >= 90 )); then problems+=("disco de datos $disk al 90 %"); fi
+fi
 
 # Certificado que sirve Asterisk a Meta (llamadas de WhatsApp): renovarlo es sip-cert-renew.sh.
 if [[ -n "$(env_get WA_SIP_PASSWORD)" ]]; then

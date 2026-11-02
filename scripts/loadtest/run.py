@@ -512,7 +512,7 @@ def _preflight(base_url: str, workflow_id: str, voice: str | None) -> None:
                                                               timeout=10).json()}:
         raise SystemExit(f"voz {voice!r} inexistente (ver tts/finetune/voces.tsv)")
     w = workflows[workflow_id]
-    print(f"workflow {workflow_id} (engine {w['engine']}), voz {voice or w['voice'] or 'VLLM_TTS_VOICE'}")
+    print(f"workflow {workflow_id}, voz {voice or w['voice'] or 'VLLM_TTS_VOICE'}")
 
 
 def _write_csv(path: Path, rows: list[dict]) -> None:

@@ -42,7 +42,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
-        server2-ssh server2-setup \
+        server2-ssh server2-setup server2-discos replica-host-disable solo-principal crm-tunnel \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -69,16 +69,21 @@ build: storage ## Build de las imagenes propias (app/agent, stt-parakeet, asteri
 PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
 	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$${host:-<PUBLIC_HOST>}:$${port:-8100}"
 
-up: storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
+# Una replica de inferencia (STACK_ROLE=replica en .env, docker-compose.replica.yml) corre solo los
+# modelos: levantar ahi app, agent, Asterisk o el tunel duplicaria el servicio del server principal.
+solo-principal:
+	@if grep -qE '^STACK_ROLE=replica' .env; then echo "Este host es replica de inferencia: esto corre en el server principal (make server2-ssh CMD='cd voice-as-a-service && make ...')"; exit 1; fi
+
+up: solo-principal storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
 	$(COMPOSE) up -d --build
 	@$(MAKE) --no-print-directory livekit-sip-si-local
 
-up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
+up-agent: solo-principal storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
 	$(COMPOSE) up -d --build --wait --no-deps db
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --build --no-deps app agent
 
-up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
+up-app: solo-principal ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
 	$(COMPOSE) build app
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --no-deps app
@@ -86,12 +91,12 @@ up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
 	$(COMPOSE) up -d --build --wait $(INFERENCE_SERVICES)
 
-up-llm-lb: ## Levanta el balanceador del LLM (llm-lb, HAProxy; docker-compose.llm-lb.yml en COMPOSE_FILE). app y agent lo toman con VLLM_LLM_BASE_URL=http://llm-lb:8000/v1 y make up-agent
+up-llm-lb: solo-principal ## Levanta el balanceador de la inferencia (llm-lb, HAProxy; docker-compose.llm-lb.yml en COMPOSE_FILE). app y agent lo toman con VLLM_{LLM,STT,TTS}_BASE_URL=http://llm-lb:{8000,8001,8002}/v1 y make up-agent
 	$(COMPOSE) up -d --wait --no-deps llm-lb
 	@$(MAKE) --no-print-directory llm-lb-status
 
-llm-lb-status: ## Estado de las replicas del LLM en HAProxy (UP/DOWN, pedidos en curso y totales)
-	@curl -sf -m 3 'http://127.0.0.1:8404/;csv' | awk -F, '$$1=="replicas" && $$2!="BACKEND" {printf "  %-8s %-6s en curso=%-3s total=%s\n", $$2, $$18, $$5, $$8}' \
+llm-lb-status: ## Estado de las replicas de LLM, STT y TTS en HAProxy (UP/DOWN, pedidos en curso y totales)
+	@curl -sf -m 3 'http://127.0.0.1:8404/;csv' | awk -F, '$$1 ~ /^(llm|stt|tts)$$/ && $$2 !~ /^(BACKEND|FRONTEND)$$/ {printf "  %-4s %-8s %-6s en curso=%-3s total=%s\n", $$1, $$2, $$18, $$5, $$8}' \
 		|| echo "llm-lb no responde en :8404 (make up-llm-lb)"
 
 up-stt: ## Solo el STT (stt-parakeet): build y recreate, ~20 s sin transcripcion. Se niega con llamadas en curso (FORCE=1 lo saltea)
@@ -108,10 +113,10 @@ up-nginx: ## Solo el proxy publico (nginx en :PROXY_PORT) e imprime las URLs
 		echo "  VLLM_STT_BASE_URL=$$url/stt/v1"; \
 		echo "  VLLM_TTS_BASE_URL=$$url/tts/v1"
 
-up-tunnel: ## Solo el tunel de Cloudflare de la demo de la landing (docs/features/LANDING.md; requiere CLOUDFLARE_TUNNEL_TOKEN)
+up-tunnel: solo-principal ## Solo el tunel de Cloudflare de la demo de la landing (docs/features/LANDING.md; requiere CLOUDFLARE_TUNNEL_TOKEN)
 	$(COMPOSE) -f docker-compose.tunnel.yml up -d tunnel
 
-up-pbx: ## Solo Asterisk; lo recrea para releer .env y asterisk/conf/ (corta llamadas en curso)
+up-pbx: solo-principal ## Solo Asterisk; lo recrea para releer .env y asterisk/conf/ (corta llamadas en curso)
 	@for v in ANURA_DOMAIN ANURA_USER ANURA_PASSWORD ANURA_DID LIVEKIT_SIP_HOST LIVEKIT_SIP_PASSWORD; do \
 		grep -qE "^$$v=.+" .env || { echo "Falta $$v en .env (ver docs/TELEFONIA_ANURA.md)"; exit 1; }; \
 	done
@@ -161,7 +166,15 @@ psql: ## Cliente psql dentro de db, con las credenciales de .env
 
 server2-ssh: ## Ejecuta un comando en server2 (192.168.1.98, usuario atentina-ops, clave ~/.ssh/id_ed25519_server2). Ej: make server2-ssh CMD='sudo -n apt update'
 	@[ -n "$(CMD)" ] || { echo "Falta CMD='...'"; exit 1; }
-	@ssh server2 $(CMD)
+	@ssh server2 "$$CMD"
+
+replica-host-disable: ## Una vez, en la replica de inferencia: apaga el colector de metricas del host (las metricas viven en el server principal). Pide sudo
+	@grep -qE '^STACK_ROLE=replica' .env || { echo "Solo en la replica (STACK_ROLE=replica)"; exit 1; }
+	sudo systemctl disable --now atentina-hostmon.service
+	@echo "Arranque automatico: $$(systemctl is-enabled atentina-stack) (modelos), $$(systemctl is-enabled atentina-gpu-limits) (topes de GPU), hostmon $$(systemctl is-enabled atentina-hostmon)"
+
+server2-discos: ## Abre en el explorador de archivos los discos SATA de server2 (/mnt/sata, por SFTP, solo lectura)
+	@nohup nautilus sftp://server2/mnt/sata/ >/dev/null 2>&1 &
 
 server2-setup: ## Imprime los comandos a pegar una vez en server2 (como usuario con sudo) para crear atentina-ops con la clave de este server y apagar el login por password
 	@pub=$$(cat ~/.ssh/id_ed25519_server2.pub); printf '%s\n' \
@@ -176,7 +189,7 @@ server2-setup: ## Imprime los comandos a pegar una vez en server2 (como usuario 
 		'sudo sshd -t && sudo systemctl reload ssh'
 
 health: ## Chequea /health de la app (:8011), la inferencia (:8101-8103) y el proxy (:PROXY_PORT)
-	@for p in 8011:app 8101:vllm-llm 8102:stt-parakeet 8103:vllm-tts 8104:llm-lb; do \
+	@for p in 8011:app 8101:vllm-llm 8102:stt-parakeet 8103:vllm-tts 8104:llm-lb-llm 8105:llm-lb-stt 8106:llm-lb-tts; do \
 		curl -sf -o /dev/null -m 3 http://127.0.0.1:$${p%%:*}/health \
 			&& echo "$${p##*:} (:$${p%%:*}): OK" \
 			|| echo "$${p##*:} (:$${p%%:*}): no responde (make logs S=$${p##*:})"; \
@@ -241,8 +254,12 @@ crm-migrate: crm-db ## Migraciones del CRM (alembic de crm/)
 	mkdir -p secrets
 	$(COMPOSE) run --rm --build --no-deps crm python -m alembic -c crm/alembic.ini upgrade head
 
-crm-up: crm-migrate ## Levanta el CRM en http://127.0.0.1:8030 (no toca app ni agent)
+crm-up: solo-principal crm-migrate ## Levanta el CRM en http://127.0.0.1:8030 (no toca app ni agent)
 	$(COMPOSE) up -d --build --no-deps --wait crm
+
+crm-tunnel: ## Desde la replica: abre http://127.0.0.1:8030 hacia el CRM del server principal, por SSH (en segundo plano)
+	ssh -fN -o ExitOnForwardFailure=yes -L 127.0.0.1:8030:127.0.0.1:8030 server2
+	@echo "CRM en http://127.0.0.1:8030 (se cierra con: pkill -f 'ssh -fN .*8030')"
 
 crm-key: ## Muestra la key para entrar a la UI del CRM (copiar la linea entera)
 	@grep -m1 '^CRM_API_KEY=' .env | cut -d= -f2-
@@ -518,7 +535,7 @@ monitoring-config: ## Genera la config de Prometheus y Alertmanager desde .env (
 monitoring-host-install: ## Una vez, con sudo: smartmontools, lm-sensors y el colector atentina-hostmon (systemd). No reinicia nada
 	sudo deploy/monitoring/install-host.sh
 
-up-monitoring: monitoring-config ## Prometheus + node-exporter + blackbox + Alertmanager (solo 127.0.0.1). No toca el stack ni corta llamadas
+up-monitoring: solo-principal monitoring-config ## Prometheus + node-exporter + blackbox + Alertmanager (solo 127.0.0.1). No toca el stack ni corta llamadas
 	@[ -s /var/lib/atentina-hostmon/atentina.prom ] || echo "Aviso: falta el colector del host (make monitoring-host-install): sin GPU ni contenedores"
 	$(MONITORING) up -d --force-recreate
 	@sleep 5 && $(MAKE) --no-print-directory monitoring-status

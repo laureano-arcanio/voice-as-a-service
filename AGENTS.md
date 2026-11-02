@@ -2,7 +2,8 @@
 
 Atentina: agentes de voz (teléfono, web y WhatsApp) con **inferencia propia**: LLM, STT y TTS corren en GPUs
 locales. Plataforma multi-cliente (clientes, tiers, agentes versionados en JSON, números) con API `/api/v1`,
-UI React en `web/`, worker de voz LiveKit y MCP. En producción desde el 28-oct-2026, en un solo server.
+UI React en `web/`, worker de voz LiveKit y MCP. En producción desde el 28-oct-2026. **Server principal: server2 (192.168.1.98);** el
+host `192.168.1.99`, donde se trabaja con el repo, es solo réplica de los tres modelos ([`docs/INFRA.md`](docs/INFRA.md)).
 
 ## Dónde está cada cosa
 
@@ -43,15 +44,15 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 | Evaluar un LLM | [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm`, `make eval-llm-juez`, registrar `docs/eval/EVAL-NNN-<slug>/`. |
 | Entrenar una voz del TTS | Agente [`tts-finetune`](.claude/agents/tts-finetune.md) ([`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md)). El 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | Crear cliente, tier, agente o número | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`). Los agentes de la landing y del número propio son del cliente `atentina`; el admin los edita entrando como el cliente. |
-| Consultar o editar la base de producción | Permitido: `make psql`, o `docker exec -i voice-as-a-service-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` para scripts. |
+| Consultar o editar la base de producción | Permitido, **en server2**: `ssh server2`, `cd voice-as-a-service`, `make psql`, o `docker exec -i voice-as-a-service-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` para scripts. |
 | Admin / "ver como cliente" | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md), "Soporte del admin": `/admin/*`, header `X-Atentina-Client`, 403 `support_read_only` en cuenta, plan y cobros. |
 | Una función: WhatsApp, campañas, derivaciones, llamadas directas, link para llamar, herramientas, BYOK, MCP, reportes, cobros, términos, landing | Su doc en [`docs/features/`](docs/features/). |
 | Cambiar la UI del dashboard | React + Mantine en `web/` (`make web-check`), [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md). Lo nuevo se resuelve en `web/src/theme.ts` y `web/src/components/`. |
 | Cambiar la landing | Astro + Tailwind en `landing/` ([`docs/features/LANDING.md`](docs/features/LANDING.md)), [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md). |
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |
 | Server nuevo o migración | [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), en orden. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
-| Segunda réplica del LLM, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): `make llm-lb-status`, `make up-llm-lb`. |
-| Operar el server 2 (192.168.1.98) | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Para el usuario, `make server2-ssh CMD='...'`; alta inicial con `make server2-setup`. |
+| Réplica de inferencia, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): en server2, `make llm-lb-status`, `make up-llm-lb`. |
+| Operar el server principal (server2, 192.168.1.98) | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Es producción. Para el usuario, `make server2-ssh CMD='...'`. Se despliega con `git pull` y `make` allá. |
 | Prospectos, mails, seguimiento | Agente [`ventas`](.claude/agents/ventas.md); el registro es el CRM ([`docs/features/CRM_API.md`](docs/features/CRM_API.md), `make crm-up`). Propuesta con PDF y video: skill [`propuesta-prospecto`](.claude/skills/propuesta-prospecto/SKILL.md). |
 | Video o PDF | Agentes [`videos`](.claude/agents/videos.md) ([`marketing/VIDEOS.md`](marketing/VIDEOS.md)) y [`documentos`](.claude/agents/documentos.md) ([`marketing/DOCUMENTOS.md`](marketing/DOCUMENTOS.md)). |
 
@@ -80,8 +81,9 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 
 ## Cómo trabajar en este server
 
-- El stack está en producción y puede haber otras sesiones de agente en el repo y en los contenedores: mirar
-  `git status` y `docker ps` antes de cambiar algo, y no revertir cambios ajenos.
+- El stack está en producción **en server2**; `make up*` se niega en la réplica (`STACK_ROLE=replica`). Puede haber otras
+  sesiones de agente en el repo y en los contenedores: mirar `git status` y `docker ps` antes de cambiar algo, y no revertir
+  cambios ajenos.
 - No reiniciar servicios ni lanzar pruebas que nadie pidió. Antes de recrear algo que corta llamadas:
   `make calls-active` (falla si hay alguna). Ej.: `make calls-active && make up-agent`.
 - **Comandos para el usuario, siempre con `make`.** Si un paso no tiene target, se agrega al `Makefile` con
@@ -101,7 +103,8 @@ Detalle y resto en [`docs/INFRA.md`](docs/INFRA.md).
   recrear los tres. El parser de herramientas de `vllm-llm` tiene que ser el del modelo, o todo agente da 400.
 - **TTS no comparte GPU con el LLM ni con otra réplica.** `--gpu-memory-utilization` es fracción de la memoria total;
   los que comparten GPU no arrancan a la vez (`depends_on` los encadena).
-- **Las 3090 tienen tope de 280 W** (`atentina-gpu-limits.service`): sin tope, un pico apagó el server.
+- **La 3090 de la réplica tiene tope de 280 W** (`atentina-gpu-limits.service`): sin tope, un pico apagó ese server. La de
+  server2 va a 350 W por decisión del usuario (`GPU_SIN_TOPE=1`), con el pico bajo carga sin medir.
 - **Redis de LiveKit no persiste**: tras reiniciar el host, `make livekit-sip` (lo hace `make up` y el arranque).
 - **DTMF `*` en Anura corta otra llamada activa de la cuenta**: los códigos para personas van con `#`.
 - **`/api/v1/demo` es la única parte pública sin login**; el dashboard (`app.atentina.com.ar`) se defiende solo

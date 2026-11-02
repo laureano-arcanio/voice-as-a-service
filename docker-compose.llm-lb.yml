@@ -1,21 +1,26 @@
-# Segunda replica del LLM (docs/features/LLM_REPLICAS.md, desde el 1-nov-2026): HAProxy `llm-lb`
-# delante de vllm-llm (local) y del vllm-llm de server2 (LLM_REPLICA_2, 192.168.1.98:8101,
-# docker-compose.server2.yml). Config y porque de cada regla en deploy/llm-lb/haproxy.cfg.
-# Se activa sumandolo a COMPOSE_FILE y con VLLM_LLM_BASE_URL=http://llm-lb:8000/v1 en .env; app y
+# Balanceador de la inferencia (docs/features/LLM_REPLICAS.md): HAProxy `llm-lb` delante de los
+# modelos locales y de los de la replica (docker-compose.replica.yml en el otro server). Config y
+# porque de cada regla en deploy/llm-lb/haproxy.cfg.
+# Se activa sumandolo a COMPOSE_FILE y con VLLM_LLM_BASE_URL=http://llm-lb:8000/v1,
+# VLLM_STT_BASE_URL=http://llm-lb:8001/v1 y VLLM_TTS_BASE_URL=http://llm-lb:8002/v1 en .env; app y
 # agent se recrean para tomarlo (make calls-active && make up-agent). Sin el override, app y agent
-# hablan directo con vllm-llm:8000 como siempre.
+# hablan directo con cada modelo.
 # Levantar solo el balanceador: make up-llm-lb. Estado de las replicas: make llm-lb-status.
 services:
   llm-lb:
     image: haproxy:3.2-alpine
     restart: unless-stopped
     environment:
-      LLM_REPLICA_2: ${LLM_REPLICA_2:-192.168.1.98:8101}
+      LLM_REPLICA_2: ${LLM_REPLICA_2:-192.168.1.99:8101}
+      STT_REPLICA_2: ${STT_REPLICA_2:-192.168.1.99:8102}
+      TTS_REPLICA_2: ${TTS_REPLICA_2:-192.168.1.99:8103}
     volumes:
       - ./deploy/llm-lb/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
-      # El LLM balanceado desde el host, para pruebas (8101 sigue siendo el vllm-llm local).
+      # La inferencia balanceada desde el host, para pruebas (810x siguen siendo los modelos locales).
       - "127.0.0.1:8104:8000"
+      - "127.0.0.1:8105:8001"
+      - "127.0.0.1:8106:8002"
       - "127.0.0.1:8404:8404"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8404/ >/dev/null"]

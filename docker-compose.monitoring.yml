@@ -22,7 +22,7 @@ services:
       - --web.listen-address=:9090
     volumes:
       - ./deploy/monitoring/generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./deploy/monitoring/rules.yml:/etc/prometheus/rules.yml:ro
+      - ./deploy/monitoring/generated/rules.yml:/etc/prometheus/rules.yml:ro
       - ./deploy/monitoring/generated/app_token:/etc/prometheus/app_token:ro
       - prometheus_data:/prometheus
     ports:

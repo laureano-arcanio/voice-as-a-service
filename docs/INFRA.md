@@ -1,8 +1,12 @@
 # Infraestructura
 
-Agente de voz con inferencia propia: LLM, STT y TTS corren en las GPUs de este server, sin proveedores
-externos. Este doc cubre el host, los servicios del compose, el reparto de GPU, la telefonía, el
-arranque, los backups y la exposición a internet. Estado: en producción desde el 2-oct-2026.
+Agente de voz con inferencia propia: LLM, STT y TTS corren en GPUs propias, sin proveedores externos. Este doc
+cubre los hosts, los servicios del compose, el reparto de GPU, la telefonía, el arranque, los backups y la
+exposición a internet.
+
+**Dos servers (desde el 2-nov-2026):** server2 (`192.168.1.98`) es el principal y corre todo; el otro
+(`192.168.1.99`) es réplica y corre solo los tres modelos para el balanceador
+([`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md)). Salvo que se indique, "este host" en este doc es server2.
 
 Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, LiveKit),
 [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md) (server nuevo, router, corte),
@@ -11,18 +15,23 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 
 ## Host y hardware
 
-| Pieza | Valor |
-|---|---|
-| CPU, RAM, placa | Ryzen 7 5700X (8/16), 64 GB, ASRock B550M Pro SE |
-| GPU 0 | RTX 3080 Ti 12 GB, `04:00.0`, slot del chipset, PCIe Gen3 x4 (desde el 31-oct-2026; antes una 3090) |
-| GPU 1 | RTX 3090 24 GB, `07:00.0`, slot de la CPU, Gen4 x16; también dibuja el escritorio |
-| Red | IP fija pública `181.104.113.28`; LAN `192.168.1.99` (reserva DHCP) |
-| Discos | NVMe de 465 GB en `/` (Docker) y NVMe de 1,8 TB en `/home` (repo, checkpoint, backups) |
+| Pieza | server2 (`atentina-region-2`), principal | Réplica de inferencia |
+|---|---|---|
+| CPU, RAM, placa | Ryzen 7 5700 (8/16), 30 GB, Gigabyte B550 Eagle WIFI6 (PCIe Gen3) | Ryzen 7 5700X (8/16), 64 GB, ASRock B550M Pro SE |
+| GPU del LLM | RTX 3090 24 GB, índice 0, `01:00.0`, Gen3 x16, 350 W | RTX 3090 24 GB, índice 1, `07:00.0`, Gen4 x16, 280 W; también dibuja el escritorio |
+| GPU de TTS + STT | RTX 3080 Ti 12 GB, índice 1, `05:00.0`, slot del chipset **x1** (Gen3), 350 W | RTX 3080 Ti 12 GB, índice 0, `04:00.0`, Gen3 x4, 350 W |
+| Red | LAN `192.168.1.98` (reserva DHCP). IP pública `181.104.113.28`: los reenvíos del router van acá | LAN `192.168.1.99` (reserva DHCP) |
+| Discos | NVMe de 477 GB en `/` (Docker, repo, base); HDD 750 GB en `/mnt/storage-server-region-2` (audios y backups); HDD 1 TB con datos personales, sin montar al arrancar | NVMe de 465 GB en `/` y NVMe de 1,8 TB en `/home` |
 
-- **Topes de las 3090 en cada arranque:** 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz y *persistence mode*
-  (`deploy/gpu-limits.sh`, `atentina-gpu-limits.service`). Sin tope, dos 3090 apagaron el server por un
-  pico de consumo. `scripts/ops/healthcheck.sh` avisa si faltan. El tope cambia el `hw_id` del test de capacidad.
-- En el host corren contenedores de otros proyectos (Dify, sim-poc): no tocarlos. Compiten por CPU y RAM.
+- **Topes de GPU:** en la réplica, en cada arranque: 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz y
+  *persistence mode* (`deploy/gpu-limits.sh`, `atentina-gpu-limits.service`). Sin tope, dos 3090 apagaron ese server por
+  un pico de consumo. server2 va sin tope por decisión del usuario (`GPU_SIN_TOPE=1` en su `.env`: `deploy/install.sh`,
+  `healthcheck.sh` y la alerta `GpuSinTope` lo respetan); su pico bajo carga no está medido. El tope cambia el `hw_id`
+  del test de capacidad.
+- **Enlace x1 de la 3080 Ti de server2:** 0 replays PCIe en la prueba de 5 llamadas (2-nov-2026); falta medirlo con
+  carga. Un enlace x1 con errores ya tiró el TTS (CAP-004): vigilar `nvidia-smi -q | grep -i replay`.
+- **RAM de server2:** 13,5 GB usados con todo arriba y 17,6 GB disponibles con 3 llamadas (2-nov-2026); sin medir con carga.
+- En la réplica corren contenedores de otros proyectos (`app-sugym-gestion`, `delinquency-postgres`): no tocarlos.
 - La 5060 Ti de CAP-002 y CAP-004 fue una prueba: no se usa.
 
 **Reglas de hardware (para un server nuevo):**
@@ -38,8 +47,10 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 
 ## Servicios
 
-`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml`
-en `.env`: todos los targets de `make` usan el compose principal, LiveKit propio, el LLM Gemma y el reparto de GPU. `make up` levanta todo y
+`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.llm-lb.yml`
+en el `.env` de server2: todos los targets de `make` usan el compose principal, LiveKit propio, el LLM Gemma, el reparto de GPU y el balanceador.
+La réplica usa `docker-compose.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml`
+y `STACK_ROLE=replica`: solo levanta los modelos y `make up*` se niega. En server2, `make up` levanta todo y
 termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `make up-inference`, `make up-stt`,
 `make up-nginx`, `make up-pbx`, `make up-tools`, `make up-tunnel`, `make up-monitoring`, `make crm-up`.
 
@@ -77,6 +88,8 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `docker-compose.gemma4-e4b.yml` | Prueba: Gemma 4 E4B (Google QAT w4a16) en lugar del LLM vigente |
 | `docker-compose.llm-defaults.yml` | Prueba: defaults de muestreo y sin razonamiento en el servidor (para clientes que no los mandan), con Qwen |
 | `docker-compose.gpu-3080ti.yml` | Reparto vigente: LLM en la 3090 (`GPU_LLM_ID`), TTS + STT en la 3080 Ti (`GPU_TTS_ID`), con una fracción de memoria por etapa del TTS |
+| `docker-compose.llm-lb.yml` | Balanceador de LLM, STT y TTS (server2) |
+| `docker-compose.replica.yml` | Host réplica: publica los modelos en la LAN y deja el resto fuera con un perfil |
 | `docker-compose.gpu-5060.yml` | Reparto con una 5060 Ti 8 GB para el TTS (CAP-002, CAP-004); no vigente |
 | `docker-compose.e2e-sip.yml` | Prueba SIP aislada (`make e2e-sip`): LiveKit, Asterisk y un Anura falso, sin puertos del host |
 
@@ -84,8 +97,8 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 3090 (`GPU_LLM_ID`, hoy 1) | `vllm-llm` + escritorio | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
-| 3080 Ti (`GPU_TTS_ID`, hoy 0) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
+| 3090 (`GPU_LLM_ID`: 0 en server2, 1 en la réplica) | `vllm-llm` (en la réplica, + escritorio) | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
+| 3080 Ti (`GPU_TTS_ID`: 1 en server2, 0 en la réplica) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
 
 - **Reparto vigente sin medir con carga.** El KV del talker (6.096 tokens) cubre el máximo medido en la 3090
   (~3.700 con 96 llamadas); queda ~1,1 GB libre en la 3080 Ti para el STT bajo carga. Las fracciones del TTS
@@ -175,25 +188,28 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 ## Arranque, backup y cron
 
 **Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/`):
-- `atentina-gpu-limits.service`: topes de las GPUs.
+- `atentina-gpu-limits.service`: topes de las GPUs (solo la réplica).
 - `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min), el
-  túnel, `make livekit-sip` y el calentamiento del TTS. Probado en un reinicio: stack listo con el TTS
-  caliente en ~2 min. No probado con un corte de luz.
-- `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`).
+  túnel, `make livekit-sip` y el calentamiento del TTS. En la réplica, solo los modelos y el calentamiento.
+  En server2 instalado el 2-nov-2026 y validado con un simulacro (`--dry-run`), **sin probar con un reinicio real**.
+- `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`), solo server2.
 - El monitoreo y el CRM vuelven por `restart: unless-stopped`.
+- **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
+  (`RECORDINGS_DIR`) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
+  event loop del worker. Sin montar, el backup falla a propósito y el chequeo avisa.
 
-**Cron del usuario** (`deploy/crontab`, `make cron-install`; logs en `~/atentina-ops/`):
+**Cron del usuario, solo en server2** (`deploy/crontab`, `make cron-install`; logs en `~/atentina-ops/`):
 
 | Cuándo | Qué |
 |---|---|
-| 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `~/atentina-backups` (otro disco que Docker). La corrida horaria lo recupera si el host estuvo apagado |
+| 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
 | cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, topes de GPU, certificado SIP (< 14 días), backup completo en 26 h; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
 | 04:15 | `scripts/ops/sip-cert-renew.sh`: renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso |
 
 - **Copia externa a S3: no activa.** Está implementada (`make backup-key`, `make backup-s3-setup`,
   `make backup-fetch`, `make backup-list`; cifrado con la llave pública `deploy/backup-key.asc`, salvo el
-  checkpoint), pero `BACKUP_S3_BUCKET` no está en `.env`. Hasta activarla, los backups viven en el mismo
-  equipo: perder el server es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
+  checkpoint), pero `BACKUP_S3_BUCKET` no está en `.env`. Por decisión del usuario los backups quedan solo en server2:
+  perder ese server es perder base, audios, `.env` (con `WA_TOKEN_KEY`) y backups; perder su disco de datos, audios y backups.
 - Restauración probada en un Postgres limpio, desde disco y desde un S3 de prueba.
 
 ## Exposición a internet

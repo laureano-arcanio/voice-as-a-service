@@ -8,6 +8,7 @@ Las alertas van a ntfy (ALERT_NTFY_TOPIC): critical con prioridad alta (suena) y
 prioridad baja (sin sonido). Sin tema, Alertmanager las descarta (quedan en la pantalla Sistema).
 """
 import json
+import re
 import secrets
 import socket
 import sys
@@ -136,11 +137,20 @@ def main(argv: list[str]) -> int:
                     f"MONITORING_TOKEN={token}\n")
         print("MONITORING_TOKEN creado y agregado al final de .env (recrear app para que lo tome)")
     host = env.get("MONITORING_HOST") or socket.gethostname()
+    # La réplica de inferencia (docs/features/LLM_REPLICAS.md): si cae, el balanceador la saca sin avisar a nadie.
+    if replica := env.get("INFERENCE_REPLICA_HOST"):
+        INTERNAL_PROBES.extend((f"{n} réplica", f"http://{replica}:{port}/health", "http_2xx")
+                               for n, port in (("LLM", 8101), ("STT", 8102), ("TTS", 8103)))
     OUT.mkdir(parents=True, exist_ok=True)
     # YAML es un superconjunto de JSON: sin dependencias.
     (OUT / "prometheus.yml").write_text(json.dumps(prometheus_config(host, True), indent=2, ensure_ascii=False))
     (OUT / "alertmanager.yml").write_text(json.dumps(alertmanager_config(env.get("ALERT_NTFY_TOPIC", "")),
                                                      indent=2, ensure_ascii=False))
+    # GPU_SIN_TOPE=1: este host no lleva tope (docs/INFRA.md); la alerta GpuSinTope sonaría siempre.
+    rules = (REPO / "deploy/monitoring/rules.yml").read_text()
+    if env.get("GPU_SIN_TOPE") == "1":
+        rules = re.sub(r"^ *- alert: GpuSinTope\n(?:(?! *- alert:).*\n)*", "", rules, flags=re.M)
+    (OUT / "rules.yml").write_text(rules)
     tok = OUT / "app_token"
     tok.write_text(token)
     tok.chmod(0o644)  # Prometheus corre como nobody; el repo está en el home del usuario
