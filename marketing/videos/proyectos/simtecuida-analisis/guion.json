@@ -1,0 +1,62 @@
+{
+  "nota": "v1: formato de goldman-analisis v3 y baicenter-analisis, todo en blanco. paula a 1x; gonzalo solo en dos líneas a destacar (a4c, la aclaración de emergencias; a7, el presupuesto). Ortografía normal, sin grafías forzadas; números en palabras; 0800 se dice 'cero ochocientos'; pausas con puntuación. ganancia_db -1: sin ajuste la mezcla daba -14,5 LUFS (borde del rango).",
+  "musica_segundos": 64,
+  "ganancia_db": -1,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "En SIM Te Cuida vimos atención a toda hora, en CABA y GBA, y asignación en dos a cuatro horas."
+    },
+    {
+      "id": "a2",
+      "voz": "paula",
+      "texto": "Todo entra por un mismo canal. Reconocer al cliente, y separar lo urgente, ayudaría a cumplir esa promesa."
+    },
+    {
+      "id": "a3",
+      "voz": "paula",
+      "texto": "Un agente con IA atiende a toda hora su línea, el cero ochocientos y el WhatsApp. Lo que necesita una persona pasa a su equipo, y todo queda en el panel."
+    },
+    {
+      "id": "a4a",
+      "voz": "paula",
+      "texto": "Reconoce a quien llama por su teléfono. Si no aparece, pide nombre, DNI u otro dato de contacto."
+    },
+    {
+      "id": "a4b",
+      "voz": "paula",
+      "texto": "Si detecta una posible emergencia, le da prioridad. Y deriva a su equipo, por rotación."
+    },
+    {
+      "id": "a4c",
+      "voz": "gonzalo",
+      "texto": "Prioriza la atención: no es un servicio de emergencias."
+    },
+    {
+      "id": "a5a",
+      "voz": "paula",
+      "texto": "Sus clientes se cargan en la misma plataforma, con teléfono, suscripción y cuidados."
+    },
+    {
+      "id": "a5b",
+      "voz": "paula",
+      "texto": "Antes de atender, su equipo oye una minuta. Quien llama, no la oye."
+    },
+    {
+      "id": "a6",
+      "voz": "paula",
+      "texto": "En el panel ven quién tomó cada consulta, y cuánto tardó."
+    },
+    {
+      "id": "a7",
+      "voz": "gonzalo",
+      "texto": "Plan Mostrador, más mantenimiento del CRM: treinta y nueve mil pesos por mes."
+    },
+    {
+      "id": "a8",
+      "voz": "paula",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}

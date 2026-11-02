@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para SIM Te Cuida</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+  .stats .stat b { font-size: 15pt; white-space: nowrap; margin-bottom: .6mm; }
+  .good { display: grid; grid-template-columns: 46mm 1fr; gap: 5mm; align-items: center; border: 1px solid #bfe6cf; background: var(--ok-soft); border-radius: 3.5mm; padding: 3.2mm 4.5mm; margin: 0 0 6mm; }
+  .good b { font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ok); }
+  .good p { margin: 0; font-size: 9.2pt; }
+
+  .pedido { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 2.5mm 0 5mm; }
+  .pedido > div { border-radius: 3.5mm; padding: 4mm 4.5mm 2.8mm; }
+  .pedido .asked { border: 1px solid var(--line2); background: #fbfcfe; }
+  .pedido .offer { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 70%); }
+  .pedido h3 { margin-bottom: 2.4mm; }
+  .pedido li { font-size: 9.4pt; }
+
+  .opps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 2.5mm 0 5mm; }
+  .opp { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.6mm 4mm; background: #fff; }
+  .opp .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .8mm; }
+  .opp b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 12.5pt; color: var(--ink); line-height: 1.12; margin-bottom: 1.2mm; }
+  .opp p { font-size: 8.9pt; margin: 0; }
+  .opp .to { font-size: 8.5pt; color: var(--accent2); margin-top: 1.6mm; padding-top: 1.6mm; border-top: 1px solid var(--line); }
+  .opp .to strong { color: var(--accent2); }
+  .qs { columns: 2; column-gap: 6mm; font-size: 9pt; }
+  .qs li { break-inside: avoid; }
+
+  .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 4mm; }
+  .channels .card { padding: 3mm 3.8mm; }
+  .channels .card .num { margin-bottom: 1.8mm; }
+  .channels .card p { margin-bottom: 0; font-size: 8.9pt; }
+  .steps.route { margin: 1.5mm 0 0; }
+  .steps.route .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.route .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .diagram.tight { margin-top: 4mm; padding: 3.5mm 4.5mm 2.5mm; }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2.5mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3.5mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 3mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.4pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2.5mm; margin-bottom: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.4mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.6mm; }
+  .hb { display: grid; grid-template-columns: 21mm 1fr 6.5mm; align-items: center; gap: 1.5mm; font-size: 7.6pt; margin-bottom: 1.1mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.8pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 2mm 1mm 0; }
+  table.pt td { padding: 1.1mm 2mm 1.1mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+  .tag-ok { color: var(--ok); font-weight: 600; }
+  .tag-off { color: var(--muted); font-weight: 600; }
+  .pend { color: var(--muted); font-style: italic; }
+
+  .fields { display: flex; flex-wrap: wrap; gap: 1.6mm; margin: 2mm 0 3mm; }
+  .fields span { background: var(--accent-soft); color: var(--accent2); border-radius: 3mm; padding: .8mm 2.6mm; font-size: 8.4pt; font-weight: 600; }
+  .fields span.def { background: var(--surface2); color: var(--ink2); font-weight: 500; font-style: italic; }
+  .minuta { display: grid; grid-template-columns: 1.12fr 1fr; gap: 4mm; margin: 2mm 0 6mm; }
+  .bubble { border: 1.5px solid var(--accent); border-radius: 4mm; padding: 3.2mm 4.5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .bubble .eyebrow { margin-bottom: 1.4mm; }
+  .bubble q { display: block; font-family: "Bricolage"; font-weight: 700; font-size: 12pt; line-height: 1.2; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.6mm; }
+  .bubble p { font-size: 8.2pt; color: var(--muted); margin: 0; }
+  .side { border: 1px solid var(--line); border-radius: 4mm; padding: 3.2mm 4.5mm 1.6mm; background: #fff; }
+  .side h3 { margin-bottom: 1.6mm; }
+  .side li { font-size: 8.9pt; margin-bottom: 1.2mm; }
+  .emerg { border: 1.5px solid var(--ink); border-radius: 4mm; padding: 3.5mm 5mm 2.6mm; margin: 2mm 0 4mm; }
+  .emerg .head { font-family: "Bricolage"; font-weight: 800; font-size: 12.5pt; color: var(--ink); margin-bottom: 2.4mm; }
+  .emerg li { font-size: 9pt; }
+  .emerg h3 { font-size: 10pt; margin-bottom: 1.4mm; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.7pt; margin: 2mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.6mm 0; }
+  table.map th:first-child { color: var(--muted); }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.35mm 3mm 1.35mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 40%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+
+  .incl { display: grid; grid-template-columns: 38mm 1fr; gap: 5mm; align-items: center; border: 1.5px solid var(--accent); border-radius: 4mm; padding: 3mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); margin: 2mm 0 3mm; }
+  .incl h2 { margin: 0; font-size: 12.5pt; }
+  .incl p { margin: 0; font-size: 8.9pt; }
+  .pilot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .pilot div { background: var(--bg2); border-radius: 3mm; padding: 2.5mm 3.5mm; font-size: 8.6pt; }
+  .pilot b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--accent); line-height: 1.15; margin-bottom: .6mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3mm; gap: 2.5mm; }
+  .steps.six .step { padding: 2.4mm 3.2mm; font-size: 8.3pt; }
+  .steps.six .step::before { font-size: 12pt; margin-bottom: .8mm; }
+  .ops.tight { margin: 0 0 3mm; }
+  .ops.tight li { font-size: 8.6pt; margin-bottom: .6mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 1.5mm 0 0; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.3pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 9.6pt; color: var(--ink); margin-bottom: .6mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: portada y quiénes son ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Una línea atendida a toda hora, por teléfono y WhatsApp</div>
+    <h1>Saber quién llama, <span class="accent">y que lo urgente pase primero.</span></h1>
+    <p class="lead">
+      Gracias por contactarnos. Esta propuesta es para los responsables de <strong>SIM Te Cuida</strong> (SIM Servicios
+      Integrales a Personas en Situaciones Médicas). Reúne lo que nos pidieron y lo que leímos en su sitio, y propone algo
+      concreto: <strong>un agente con IA que atiende su línea y su WhatsApp a toda hora</strong>, reconoce a quien ya es
+      cliente, da prioridad a lo que puede ser una emergencia y le pasa la consulta a su equipo por rotación, con una
+      minuta. Y para quien dirige, <strong>cada consulta medida en un panel</strong>.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats" style="margin:2mm 0 4mm">
+    <div class="stat"><b>24 h</b><span>los 365 días: guardias de día y de noche, y coordinación a toda hora</span></div>
+    <div class="stat"><b>CABA y GBA</b><span>con zonas norte, oeste y sur, hasta La Plata</span></div>
+    <div class="stat"><b>26</b><span>sanatorios, clínicas y hospitales nombrados en sus páginas de zona</span></div>
+    <div class="stat"><b>2 a 4 h</b><span>la asignación que prometen para internación o domicilio</span></div>
+  </div>
+
+  <div class="good">
+    <b>Lo que también se ve</b>
+    <p>Publican valores de referencia y dicen con claridad qué datos necesitan para coordinar una guardia. Su personal
+      trabaja con seguro de accidentes personales y responsabilidad civil. Y los botones del sitio abren el WhatsApp con el
+      servicio ya escrito: la consulta llega con su motivo. Es una buena base para un agente.</p>
+  </div>
+
+  <h2>La propuesta, en una mirada</h2>
+  <div class="pedido">
+    <div class="asked">
+      <h3>Lo que nos pidieron</h3>
+      <ul>
+        <li><strong>Saber si quien llama o escribe ya es cliente</strong>, con el teléfono como dato principal</li>
+        <li><strong>Pasar la consulta al staff</strong> con la rotación de las personas</li>
+        <li><strong>Una minuta antes de atender:</strong> quién es, qué cuidados recibe y otros campos</li>
+        <li><strong>Cargar sus clientes</strong> en la misma plataforma, con su estado de suscripción</li>
+        <li><strong>Identificar si puede ser una emergencia</strong> para priorizar la atención</li>
+      </ul>
+    </div>
+    <div class="offer">
+      <h3>Lo que incluye</h3>
+      <ul>
+        <li><strong>Puesta en marcha completa</strong> y carga inicial de clientes</li>
+        <li><strong>Número de teléfono</strong> y, si lo quieren, un <strong>0800</strong></li>
+        <li><strong>WhatsApp:</strong> llamadas, notas de voz y mensajes de texto</li>
+        <li><strong>Ficha de clientes, rotación y minuta</strong> en una sola plataforma</li>
+        <li><strong>Panel</strong> con cada consulta, derivación y demora</li>
+        <li><strong>Arranque sobre el plan Mostrador</strong>, con la capacidad ajustada a su guardia</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="src-line">Fuente: simtecuida.com.ar (páginas de servicios, precios, internación y zonas), leído el 2-nov-2026. El
+    conteo de 26 es nuestro, sobre esas páginas.</p>
+
+  <div class="pagefoot"><span>Atentina · SIM Te Cuida</span><span>1 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 2: dónde podríamos mejorar ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">Oportunidades</div>
+    <h2 style="font-size:17pt">Dónde podríamos mejorar con Atentina: <span class="accent">el primer contacto.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      No hablamos del cuidado: hablamos de <strong>cómo llega una consulta</strong> y de lo que pasa en los primeros
+      minutos. Son lecturas nuestras de lo que ustedes publican y de lo que nos pidieron; las confirmamos con ustedes en la
+      reunión.
+    </p>
+  </div>
+
+  <div class="opps">
+    <div class="opp">
+      <div class="k">Canales</div>
+      <b>Un número para todo</b>
+      <p>Su línea de WhatsApp recibe guardias para hoy, presupuestos, novedades de las familias, abonos y SIM Silver.</p>
+      <div class="to"><strong>Oportunidad:</strong> que cada consulta se ordene por motivo antes de llegar a una persona, y
+        sumar una línea de voz y un 0800 si los quieren.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Horario</div>
+      <b>168 horas por semana de atención</b>
+      <p>Publican atención las 24 horas y “Respondemos al instante”. Es una promesa fuerte, que depende de responder ya.</p>
+      <div class="to"><strong>Oportunidad:</strong> que el primer contacto esté cubierto a toda hora, y que su equipo reciba
+        lo que necesita una persona.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Asignación</div>
+      <b>2 a 4 horas para asignar</b>
+      <p>Para coordinar piden lugar, fecha, horario, duración, situación general, movilidad y contacto del familiar.</p>
+      <div class="to"><strong>Oportunidad:</strong> tomar esos mismos datos en el primer contacto, para que su coordinación
+        arranque con todo en la mano.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Clientes</div>
+      <b>Quién es quién, antes de atender</b>
+      <p>Nos pidieron saber si quien llama o escribe ya es cliente, y que el staff sepa quién es y qué cuidados recibe.</p>
+      <div class="to"><strong>Oportunidad:</strong> que una familia con abono no tenga que volver a explicar su caso, y que la
+        persona que atiende lo sepa antes de hablar.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Prioridad</div>
+      <b>“Urgente” quiere decir varias cosas</b>
+      <p>Una posible emergencia, una guardia para hoy y un cambio de turno necesitan respuestas distintas, y hoy llegan a la misma fila.</p>
+      <div class="to"><strong>Oportunidad:</strong> separarlas desde el inicio, con el criterio de ustedes, y dar prioridad a
+        lo que puede ser una emergencia.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Reparto y datos</div>
+      <b>Cuánto entra y quién lo toma</b>
+      <p>La atención de una agencia 24 horas se sostiene con personas y turnos. Ver cómo se reparte permite cuidarlos.</p>
+      <div class="to"><strong>Oportunidad:</strong> rotación pareja entre las personas de la guardia y un panel con cada
+        consulta, a qué hora entró y cuánto tardó en tomarla alguien.</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-bottom:5mm">
+    <strong>En síntesis:</strong> ustedes ya hicieron lo difícil: la red de cuidadoras, la cobertura, la promesa de responder y un
+    WhatsApp que ordena la consulta. La oportunidad es que <strong>cada contacto se reconozca, se priorice y llegue a la
+    persona que corresponde con lo que necesita saber</strong>. Eso es lo que propone Atentina.
+  </div>
+
+  <h2>Lo que queremos preguntarles en la reunión</h2>
+    <ul class="qs">
+    <li>¿Cuántas consultas entran por día, y a qué hora?</li>
+    <li>¿Quiénes forman la guardia, y en qué turnos?</li>
+    <li>¿Dónde tienen hoy sus clientes?</li>
+    <li>¿“Suscripción” es el abono mensual u otro producto?</li>
+    <li>¿Qué llaman emergencia, y qué hacen hoy cuando llega?</li>
+    <li>¿Quién puede llamar por un paciente?</li>
+    <li>¿Quién decide, y quién usaría el sistema?</li>
+    <li>¿Qué tendría que pasar en 30 días para seguir?</li>
+  </ul>
+
+  <p class="src-line" style="margin-top:3mm">Fuentes: simtecuida.com.ar (servicios, precios e internación), leído el 2-nov-2026, y
+    el pedido que nos hicieron llegar.</p>
+
+  <div class="pagefoot"><span>Atentina · SIM Te Cuida</span><span>2 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 3: la solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">La solución propuesta</div>
+    <h2 style="font-size:17pt">Un agente en cada canal, <span class="accent">que sabe a quién derivar.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Un agente con IA, con el nombre que ustedes elijan y <strong>voz con acento argentino</strong>, atiende las 24 horas.
+      Se presenta como asistente virtual, no da indicaciones médicas y le pasa a su equipo lo que necesita una persona.
+    </p>
+  </div>
+
+  <div class="channels">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Línea telefónica</h3>
+      <p>Un número nuevo para esta línea. Atiende a toda hora, de noche y los feriados, con las llamadas simultáneas que definamos.</p>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>0800, opcional</h3>
+      <p>Si quieren un número nacional para publicar, entra al mismo agente, con el mismo criterio.</p>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>WhatsApp</h3>
+      <p>Llamadas, notas de voz y mensajes de texto, con el mismo agente y los mismos datos.</p>
+    </div>
+  </div>
+
+  <h2>El recorrido de cada consulta</h2>
+  <div class="steps route">
+    <div class="step"><b>Reconoce por el teléfono</b>Busca el número en la ficha de clientes: sabe si ya es cliente sin preguntar.</div>
+    <div class="step"><b>Si no aparece, pregunta</b>Pide nombre, DNI u otro dato de contacto. Si es nuevo, toma los datos que ustedes ya piden.</div>
+    <div class="step"><b>Detecta señales de emergencia</b>Si puede serlo, le da prioridad y pide solo lo mínimo. Lo demás se ordena por motivo.</div>
+    <div class="step"><b>Deriva por rotación</b>Pasa a la persona de turno; si no atiende, a la siguiente. Antes de atender, oye una minuta breve.</div>
+  </div>
+
+  <div class="diagram tight">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 352" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Quien llama -->
+      <rect x="4" y="66" width="112" height="118" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="44" cy="96" r="9"/><path d="M28 124 a16 14 0 0 1 32 0z"/>
+        <circle cx="78" cy="96" r="9" opacity=".55"/><path d="M62 124 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="60" y="146" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">Quien llama</text>
+      <text x="60" y="161" text-anchor="middle" font-size="10" fill="#64748b">clientes, familias</text>
+      <text x="60" y="173" text-anchor="middle" font-size="10" fill="#64748b">y consultas nuevas</text>
+
+      <!-- Flechas a los canales -->
+      <path d="M116 104 C 132 104, 132 44, 148 44" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 125 L148 125" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 146 C 132 146, 132 206, 148 206" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Canales -->
+      <g font-size="12" font-weight="700" fill="#1740b8">
+        <rect x="150" y="26" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="49" text-anchor="middle">Línea telefónica</text>
+        <rect x="150" y="107" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6" stroke-dasharray="4 3"/><text x="210" y="130" text-anchor="middle">0800 opcional</text>
+        <rect x="150" y="182" width="120" height="48" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="202" text-anchor="middle">WhatsApp</text>
+        <text x="210" y="218" text-anchor="middle" font-size="9.5" font-weight="500">llamadas, voz y texto</text>
+      </g>
+      <path d="M270 44 C 284 44, 284 104, 298 104" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 125 L298 125" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 206 C 284 206, 284 146, 298 146" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+
+      <!-- Agente -->
+      <rect x="300" y="10" width="200" height="232" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="316" y="32" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · 24 H</text>
+      <text x="316" y="53" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El agente</text>
+      <text x="316" y="72" font-size="10.5" font-weight="700" fill="#0b1220">Identifica</text>
+      <text x="316" y="86" font-size="10.5" fill="#33415c">Por el teléfono; si no aparece,</text>
+      <text x="316" y="100" font-size="10.5" fill="#33415c">nombre, DNI u otro contacto.</text>
+      <text x="316" y="120" font-size="10.5" font-weight="700" fill="#0b1220">Clasifica y prioriza</text>
+      <rect x="316" y="127" width="168" height="23" rx="11.5" fill="#2456e6"/><text x="400" y="143" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">Posible emergencia, primero</text>
+      <g font-size="10.5" fill="#1740b8">
+        <rect x="316" y="155" width="81" height="22" rx="11" fill="#eaf0ff"/><text x="356.5" y="170" text-anchor="middle">Guardia hoy</text>
+        <rect x="403" y="155" width="81" height="22" rx="11" fill="#eaf0ff"/><text x="443.5" y="170" text-anchor="middle">Cliente</text>
+        <rect x="316" y="182" width="81" height="22" rx="11" fill="#eaf0ff"/><text x="356.5" y="197" text-anchor="middle">Consulta nueva</text>
+        <rect x="403" y="182" width="81" height="22" rx="11" fill="#eaf0ff"/><text x="443.5" y="197" text-anchor="middle">Administración</text>
+      </g>
+      <text x="316" y="225" font-size="10.5" fill="#33415c">Responde lo general; lo demás, deriva.</text>
+
+      <!-- Derivación -->
+      <path d="M500 125 L556 125" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="528" y="113" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">deriva</text>
+      <text x="528" y="141" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">con minuta</text>
+
+      <!-- Su equipo -->
+      <rect x="558" y="10" width="158" height="232" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="574" y="32" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">SIM</text>
+      <text x="574" y="53" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">Su equipo</text>
+      <text x="574" y="72" font-size="10.5" fill="#33415c">La guardia, por rotación:</text>
+      <g font-size="11" fill="#33415c">
+        <rect x="574" y="82" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="99" text-anchor="middle">Persona de turno</text>
+        <rect x="574" y="114" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="131" text-anchor="middle" font-size="10">Si no atiende, la siguiente</text>
+        <rect x="574" y="146" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="163" text-anchor="middle">Y la siguiente</text>
+      </g>
+      <text x="637" y="196" text-anchor="middle" font-size="10" fill="#64748b">oye la minuta y toma</text>
+      <text x="637" y="209" text-anchor="middle" font-size="10" fill="#64748b">la consulta sabiendo</text>
+      <text x="637" y="222" text-anchor="middle" font-size="10" fill="#64748b">quién es y qué recibe</text>
+
+      <!-- Hacia la plataforma -->
+      <path d="M356 244 V276" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-start="url(#ar)" marker-end="url(#ar)"/>
+      <path d="M452 242 V276" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M637 242 V276" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <!-- Plataforma: ficha y panel -->
+      <rect x="150" y="278" width="252" height="68" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="166" y="297" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PARA SU EQUIPO</text>
+      <text x="166" y="316" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Ficha de clientes</text>
+      <text x="166" y="333" font-size="10.5" fill="#1740b8">Teléfono, suscripción, cuidados y más.</text>
+      <rect x="412" y="278" width="304" height="68" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="428" y="297" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PARA QUIEN DIRIGE</text>
+      <text x="428" y="316" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">El panel</text>
+      <text x="428" y="333" font-size="10.5" fill="#1740b8">Cada consulta: a quién se pasó, cuánto tardó, cómo terminó.</text>
+      <text x="4" y="316" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">LA MISMA</text>
+      <text x="4" y="330" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PLATAFORMA</text>
+    </svg>
+    <div class="caption">Las personas llaman o escriben. El agente consulta la ficha, ordena cada consulta y le pasa a su
+      equipo lo que necesita una persona, con una minuta. Todo, lo del agente y lo de su equipo, queda en el panel.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · SIM Te Cuida</span><span>3 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 4: ficha, minuta y emergencias ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2.5mm">
+    <div class="eyebrow">Ficha de clientes, minuta y emergencias</div>
+    <h2 style="font-size:17pt">Sus clientes en la plataforma, <span class="accent">y el staff sabe a quién atiende.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Una ficha simple, que ustedes cargan y actualizan desde el mismo panel, sin otro sistema. Empieza con lo necesario para
+      reconocer a cada persona, y suma los campos que definamos juntos.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>CLIENTES · SIM TE CUIDA</b><span>EJEMPLO CON DATOS INVENTADOS</span></div>
+    <div class="body">
+      <table class="pt" style="background:#fff;border-radius:2mm">
+        <tr><th style="padding-left:2mm">Teléfono</th><th>Cliente</th><th>DNI</th><th>Suscripción</th><th>Cuidados que recibe</th><th>Otros campos</th></tr>
+        <tr><td style="padding-left:2mm">11 5555-0142</td><td>Laura Gómez, hija de Marta</td><td>20.xxx.xxx</td><td class="tag-ok">Activa</td><td>24 h en domicilio</td><td class="pend">a definir</td></tr>
+        <tr><td style="padding-left:2mm">11 5555-0187</td><td>Carlos Ríos</td><td>17.xxx.xxx</td><td class="tag-ok">Activa</td><td>Noches en sanatorio</td><td class="pend">a definir</td></tr>
+        <tr><td style="padding-left:2mm">11 5555-0123</td><td>Elena Suárez</td><td>11.xxx.xxx</td><td class="tag-ok">Activa</td><td>Silver, dos veces por semana</td><td class="pend">a definir</td></tr>
+        <tr><td style="padding-left:2mm">11 5555-0165</td><td>Julia Paz</td><td>32.xxx.xxx</td><td class="tag-off">Sin abono</td><td>Guardia puntual</td><td class="pend">a definir</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="fields">
+    <span>Teléfono: el dato principal</span><span>Nombre</span><span>DNI</span><span>Otro contacto</span><span>Estado de suscripción</span><span>Cuidados</span>
+    <span class="def">A definir: contactos autorizados, lugar del cuidado, asistentes asignadas…</span>
+  </div>
+
+  <p style="margin:0 0 4.5mm"><strong>La carga es de ustedes, y el arranque lo hacemos juntos:</strong> suman, editan y actualizan el
+    estado de cada cliente desde el panel. La carga inicial está incluida, desde donde tengan hoy sus clientes.</p>
+
+  <div class="minuta">
+    <div class="bubble">
+      <div class="eyebrow">La minuta, antes de atender</div>
+      <q>Laura Gómez, hija de Marta. Marta tiene cuidado 24 horas en domicilio, suscripción activa. Pide cambiar el turno de mañana. Marcá 1 para atender.</q>
+      <p>Ejemplo con datos inventados. Por WhatsApp, el aviso lleva la misma minuta.</p>
+    </div>
+    <div class="side">
+      <h3>Quien llama no oye la ficha</h3>
+      <ul>
+        <li><strong>La minuta y los cuidados son para el staff:</strong> el agente no se los lee a quien llama, que puede ser un familiar.</li>
+        <li><strong>Son datos de salud, y por eso sensibles:</strong> el tratamiento y la retención se acuerdan antes de la salida en vivo.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Emergencias: priorizar la atención</h2>
+  <div class="emerg" style="margin-top:3mm">
+    <div class="head">Esto es priorización de la atención, no un servicio de emergencias.</div>
+    <div class="two">
+      <div>
+        <h3>Lo que hace el agente</h3>
+        <ul>
+          <li><strong>Detecta señales</strong> de una posible emergencia en lo que dice la persona, y le da prioridad frente al resto.</li>
+          <li><strong>Pasa primero a una persona</strong> de su equipo, y no da indicaciones médicas.</li>
+          <li><strong>Puede no reconocer todos los casos:</strong> por eso el criterio se prueba antes de salir y se revisa cada semana.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Lo que define SIM</h3>
+        <ul>
+          <li><strong>Qué cuenta como emergencia</strong> para su servicio.</li>
+          <li><strong>Qué se le dice a la persona si nadie del equipo atiende:</strong> por ejemplo, remitirla al servicio de emergencias que corresponda.</li>
+          <li>En ese caso <strong>no se le toma solo un mensaje</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · SIM Te Cuida</span><span>4 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 5: el panel ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Para quien dirige: ver la atención</div>
+    <h2 style="font-size:17pt">Toda la atención a la vista, <span class="accent">sin pedirle un informe a nadie.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada llamada y cada WhatsApp queda registrado. Se ve <strong>cuánto entra, de quién, a qué hora, qué se priorizó,
+      quién lo tomó y cuánto tardó</strong>.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>PANEL · SIM TE CUIDA</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UNA SEMANA</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>186</b><span>consultas, entre llamadas y WhatsApp</span></div>
+        <div class="kpi"><b>74 · 96</b><span>de clientes y consultas nuevas; 16 sin identificar</span></div>
+        <div class="kpi"><b>5</b><span>posibles emergencias priorizadas; una persona en 52 s</span></div>
+        <div class="kpi"><b>41 %</b><span>fuera de horario: de noche y en fin de semana</span></div>
+        <div class="kpi"><b>108 · 78</b><span>resueltas por el agente y derivadas a su equipo</span></div>
+      </div>
+      <div class="pgrid">
+        <div class="pbox">
+          <div class="t">Por canal</div>
+          <div class="hb">WhatsApp<i style="width:100%"></i><em>118</em></div>
+          <div class="hb">Línea<i style="width:37%"></i><em>44</em></div>
+          <div class="hb">0800<i style="width:20%"></i><em>24</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Cómo se identificó</div>
+          <div class="hb">Consulta nueva<i style="width:100%"></i><em>96</em></div>
+          <div class="hb">Teléfono<i style="width:64%"></i><em>61</em></div>
+          <div class="hb">DNI o nombre<i style="width:14%"></i><em>13</em></div>
+          <div class="hb">Sin identificar<i style="width:17%"></i><em>16</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Por motivo</div>
+          <div class="hb">Presupuesto<i style="width:100%"></i><em>66</em></div>
+          <div class="hb">Novedad cliente<i style="width:82%"></i><em>54</em></div>
+          <div class="hb">Guardia hoy<i style="width:47%"></i><em>31</em></div>
+          <div class="hb">Administración<i style="width:45%"></i><em>30</em></div>
+          <div class="hb">Emergencia<i style="width:8%"></i><em>5</em></div>
+        </div>
+      </div>
+      <div class="pbox">
+        <div class="t">Quién tomó cada consulta, por rotación (mediana)</div>
+        <table class="pt">
+          <tr><th>Persona</th><th class="n">Recibió</th><th class="n">La tomó en</th><th class="n">Pasó a la siguiente</th><th class="n">Emergencias</th></tr>
+          <tr><td>Persona 1</td><td class="n">21</td><td class="n">18 s</td><td class="n">0</td><td class="n">2</td></tr>
+          <tr><td>Persona 2</td><td class="n">20</td><td class="n">31 s</td><td class="n">2</td><td class="n">1</td></tr>
+          <tr><td>Persona 3</td><td class="n">19</td><td class="n">22 s</td><td class="n">1</td><td class="n">1</td></tr>
+          <tr><td>Persona 4</td><td class="n">18</td><td class="n">47 s</td><td class="n">3</td><td class="n">1</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:4mm">Las cifras del ejemplo son ilustrativas: muestran qué se mide, no un resultado ni
+    un volumen esperado. Cada conversación se abre con su transcripción, su resumen y su resultado.</p>
+
+  <h2>Lo observado, y qué lo resuelve</h2>
+  <table class="map">
+    <tr><th>Lo observado</th><th>Qué lo resuelve</th></tr>
+    <tr><td><strong>Un número</strong> para todos los temas</td><td>Ordena cada consulta por motivo y la pasa a quien corresponde.</td></tr>
+    <tr><td><strong>Atención publicada las 24 horas</strong></td><td>Atiende a toda hora; varias a la vez, según la capacidad que se defina.</td></tr>
+    <tr><td><strong>Asignación en 2 a 4 horas</strong></td><td>Toma los datos de la guardia en el primer contacto, para su coordinación.</td></tr>
+    <tr><td><strong>Saber si quien llama es cliente</strong></td><td>Lo reconoce por el teléfono; si no aparece, pide nombre, DNI u otro dato.</td></tr>
+    <tr><td><strong>Que el staff sepa a quién atiende</strong></td><td>Una minuta antes de atender: quién es, qué cuidados recibe y más.</td></tr>
+    <tr><td><strong>Distintas urgencias</strong> en la misma fila</td><td>Detecta señales de una posible emergencia y la prioriza, según SIM.</td></tr>
+    <tr><td><strong>Repartir la guardia</strong></td><td>Rotación entre las personas de turno, y quién tomó cada consulta a la vista.</td></tr>
+    <tr><td><strong>Cuánto entra y a qué hora</strong></td><td>El panel: cada consulta, cada derivación y cada demora, todos los días.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · SIM Te Cuida</span><span>5 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 6: puesta en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SIM TE CUIDA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:4.5mm 0 2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">Un piloto de 30 días, <span class="accent">con la puesta en marcha incluida.</span></h2>
+  </div>
+
+  <div class="incl">
+    <h2>Lo que incluye</h2>
+    <p><strong>Puesta en marcha completa, número de teléfono, 0800 opcional, WhatsApp y carga inicial de clientes.</strong>
+      Arranque sobre el plan Mostrador, con la capacidad ajustada a su guardia: se define en el relevamiento, con dos
+      llamadas simultáneas como mínimo y las personas de la guardia en la rotación.</p>
+  </div>
+
+  <div class="pilot">
+    <div><b>30 días</b>Tiempo para ver la línea real, de noche y en fin de semana incluidos.</div>
+    <div><b>Alcance acotado</b>Una línea o 0800, WhatsApp, la ficha de clientes y la rotación de la guardia.</div>
+    <div><b>Decisión con números</b>Al cierre, los datos del panel contra la línea de base.</div>
+  </div>
+
+  <h2>Los pasos</h2>
+  <div class="steps six">
+    <div class="step"><b>Relevamiento</b>Servicios, valores vigentes, quiénes rotan y en qué turnos, qué es emergencia y los campos de la ficha.</div>
+    <div class="step"><b>Configuración y pruebas</b>Armamos el agente y cargamos los clientes; ustedes lo prueban, emergencias incluidas, hasta que suene a SIM.</div>
+    <div class="step"><b>Línea de base</b>Ustedes cuentan una semana de contactos, por hora y por tipo, para tener con qué comparar.</div>
+    <div class="step"><b>Salida en vivo</b>La línea y el WhatsApp atienden a personas reales, con el tratamiento de los datos ya acordado.</div>
+    <div class="step"><b>Revisión semanal</b>Media hora con el panel: qué entró, qué se priorizó, qué se derivó y qué ajustar.</div>
+    <div class="step"><b>Decisión con números</b>A los 30 días, los resultados contra la línea de base. Si sirve, se sigue; si no, se termina.</div>
+  </div>
+
+  <div class="ops tight">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Configura el agente, su voz y sus respuestas</li>
+        <li>Da el número, el 0800 si lo quieren y el WhatsApp</li>
+        <li>Arma la ficha, la rotación, la minuta y el panel</li>
+        <li>Hace la carga inicial, ajusta y da soporte cada semana</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>Sus clientes, con teléfono, suscripción y cuidados</li>
+        <li>Quiénes rotan, en qué horario y con qué teléfono</li>
+        <li>Qué es una emergencia y qué decir si nadie atiende</li>
+        <li>Un responsable del piloto y la línea de base</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note" style="margin-bottom:3mm">
+    <strong>Su WhatsApp actual</strong> no se toca en el piloto, salvo que ustedes lo decidan: lo definimos en el relevamiento.
+    <strong>Precio:</strong> el del piloto se acuerda en la reunión, según la capacidad y los canales que definamos juntos.
+  </div>
+
+  <h2 style="margin-bottom:1mm">Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Su WhatsApp actual</b>Si lo deciden, sumarlo a la plataforma.</div>
+    <div class="phase"><b>Más áreas</b>Comercial y administración, cada una con su rotación.</div>
+    <div class="phase"><b>Avisos a las familias</b>Llamadas y mensajes salientes de cada guardia.</div>
+    <div class="phase"><b>Abonos</b>Recordatorios de cobro y renovación, desde la ficha.</div>
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Saber quién llama,<br><span>y que lo urgente pase primero.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>
