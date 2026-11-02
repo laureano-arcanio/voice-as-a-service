@@ -412,22 +412,42 @@ def test_ringing_finds_the_contact_of_a_caller_without_plus(api, admin):
 
 # ---------- numeros: quien atiende ----------
 
+def test_assigned_number_answers_as_soon_as_it_has_an_agent(api, admin):
+    c, n, _, _ = setup(api, admin)
+    with api.sessions() as s, pytest.raises(NotFound):
+        call_service.start_inbound(s, api.engine, DID, "+5493516775617")
+    agent = make_agent(admin, c)
+    assert admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"agent_id": agent["id"]}).status_code == 200
+    with api.sessions() as s:
+        inbound = call_service.start_inbound(s, api.engine, DID, "+5493516775617")
+        assert inbound.team is None and s.get(CallRow, inbound.conversation_id).answered_by == "agent"
+    # Un equipo que se queda sin personas tambien cae en el agente.
+    person = member(admin, c["id"], phone="3516775617")
+    assert admin.patch(f"{V1}/phone-numbers/{n['id']}",
+                       json={"answer_mode": "team", "member_ids": [person["id"]]}).status_code == 200
+    admin.delete(f"{V1}/team/{person['id']}")
+    with api.sessions() as s:
+        assert call_service.start_inbound(s, api.engine, DID, "+5493516775617").team is None
+
+
 def test_phone_number_answering_settings(api, admin):
     c, n, ana, ana_id = setup(api, admin)
     agent = make_agent(admin, c)
     juan = member(admin, c["id"], phone="3516775617")
     panel = member(admin, c["id"], name="Ana", user_id=ana_id)
     theirs = member(admin, make_client(admin, slug="otro")["id"], phone="3511111111")
-    assert n["answer_mode"] == "team" and n["members"] == [] and n["team_fallback"] == "voicemail"
+    # Un numero recien asignado va al agente: atiende apenas se lo eligen.
+    assert n["answer_mode"] == "agent" and n["members"] == [] and n["team_fallback"] == "voicemail"
     url = f"{V1}/phone-numbers/{n['id']}"
     bad = [{"answer_mode": "team", "member_ids": []}, {"member_ids": [theirs["id"]]},
            {"member_ids": [juan["id"], juan["id"]]},
-           {"member_ids": [juan["id"]], "team_fallback": "agent"}, {"ring_seconds": 4}, {"ring_seconds": 61},
+           {"answer_mode": "team", "member_ids": [juan["id"]], "team_fallback": "agent"}, {"ring_seconds": 4}, {"ring_seconds": 61},
            {"member_ids": [juan["id"]], "schedule": {"week": {"mon": [["18:00", "09:00"]]}}},
            {"answer_mode": "robot"}, {"ring_first": None}]
     for body in bad:
         assert ana.patch(url, json=body).status_code == 422, body
-    r = ana.patch(url, json={"member_ids": [panel["id"], juan["id"]], "ring_first": "panel", "ring_seconds": 15,
+    r = ana.patch(url, json={"answer_mode": "team", "member_ids": [panel["id"], juan["id"]], "ring_first": "panel",
+                             "ring_seconds": 15,
                              "schedule": {"week": {"mon": [["09:00", "18:00"]]}}, "agent_id": agent["id"],
                              "team_fallback": "agent", "team_fallback_message": "  Ahora no podemos.  "})
     assert r.status_code == 200, r.text
@@ -445,7 +465,7 @@ def test_phone_number_answering_settings(api, admin):
     admin.delete(f"{V1}/team/{juan['id']}")
     assert [m["id"] for m in ana.get(f"{V1}/phone-numbers").json()[0]["members"]] == [panel["id"]]
     out = admin.post(f"{V1}/phone-numbers/{n['id']}/release").json()
-    assert out["members"] == [] and out["answer_mode"] == "team" and out["schedule"] is None
+    assert out["members"] == [] and out["answer_mode"] == "agent" and out["schedule"] is None
 
 
 # ---------- entrantes: equipo o agente ----------
@@ -454,10 +474,10 @@ def test_inbound_to_team_agent_or_fallback(api, admin):
     c, n, _, ana_id = setup(api, admin)
     agent = make_agent(admin, c)
     url = f"{V1}/phone-numbers/{n['id']}"
-    # Equipo sin personas y sin agente: como hoy un numero sin agente.
+    # Sin agente: no atiende nadie.
     with api.sessions() as s, pytest.raises(NotFound):
         call_service.start_inbound(s, api.engine, DID, "+5493516775617")
-    # Equipo sin personas, con agente: va al agente.
+    # Con agente: va al agente.
     admin.patch(url, json={"agent_id": agent["id"]})
     with api.sessions() as s:
         inbound = call_service.start_inbound(s, api.engine, DID, "+5493516775617")
@@ -466,7 +486,8 @@ def test_inbound_to_team_agent_or_fallback(api, admin):
     # Con personas: al equipo, sin agente en la conversacion; solo las que pueden sonar.
     juan = member(admin, c["id"], phone="3516775617")
     ana = member(admin, c["id"], name="Ana", user_id=ana_id)
-    r = admin.patch(url, json={"member_ids": [ana["id"], juan["id"]], "team_fallback": "agent", "ring_seconds": 25})
+    r = admin.patch(url, json={"answer_mode": "team", "member_ids": [ana["id"], juan["id"]], "team_fallback": "agent",
+                               "ring_seconds": 25})
     assert r.status_code == 200, r.text
     admin.patch(f"{V1}/team/{juan['id']}", json={"active": False})
     with api.sessions() as s:
@@ -493,7 +514,7 @@ def test_inbound_to_team_keeps_blocked_and_quota(api, admin):
 
     c, n, _, ana_id = setup(api, admin, max_concurrent_calls=1)
     ana = member(admin, c["id"], name="Ana", user_id=ana_id)
-    admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"member_ids": [ana["id"]]})
+    admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"answer_mode": "team", "member_ids": [ana["id"]]})
     admin.post(f"{V1}/blocked-numbers", params={"client_id": c["id"]}, json={"phone": "+5493513775197"})
     with api.sessions() as s, pytest.raises(Forbidden):
         call_service.start_inbound(s, api.engine, DID, "+5493513775197")

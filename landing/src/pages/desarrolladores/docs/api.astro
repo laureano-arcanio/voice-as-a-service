@@ -342,7 +342,7 @@ const phoneNumberTeam = `curl -X PATCH ${API}/phone-numbers/<id del número> \\
   }'`;
 
 const phoneNumberFields = [
-  { field: "answer_mode", text: "team: atiende el equipo, sin agente. agent: atiende el agente del número, que puede derivar con sus áreas. Los números que ya tenían agente siguen en agent" },
+  { field: "answer_mode", text: "team: atiende el equipo, sin agente. agent (por defecto al asignar el número): atiende el agente del número, que puede derivar con sus áreas" },
   { field: "member_ids", text: "Las personas de GET /team, en el orden en que suenan. Cada una con celular o con usuario del panel; con team hace falta al menos una" },
   { field: "ring_first", text: "phone (por defecto): suena primero en el celular de cada una, en orden, y después en el panel de las que estén Disponibles. panel: primero en el panel de las Disponibles, a todas a la vez, y después en los celulares" },
   { field: "ring_seconds", text: "Cuánto suena por persona, de 5 a 60 segundos (20 por defecto)" },

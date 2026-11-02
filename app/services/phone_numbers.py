@@ -73,21 +73,21 @@ def assign(s: Session, number: PhoneNumber, client_id: str) -> None:
         raise Conflict(f"El plan {limits.tier_name} permite {limit} número{'s' if limit != 1 else ''} y "
                        f"{client.name} ya los tiene", "phone_numbers_limit")
     number.client_id, number.agent_id, number.assigned_at = client.id, None, utcnow()
-    _reset_team(s, number)
+    _reset_answering(s, number)
 
 
-def _reset_team(s: Session | None, number: PhoneNumber) -> None:
-    """Quien atiende vuelve al default (el equipo, sin personas): las del cliente anterior no siguen."""
+def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
+    """Quien atiende vuelve al default (el agente del numero, sin personas): las del cliente anterior no siguen."""
     if s is not None and number.id:
         s.execute(delete(PhoneNumberMember).where(PhoneNumberMember.phone_number_id == number.id))
-    number.answer_mode, number.ring_first, number.ring_seconds = "team", "phone", 20
+    number.answer_mode, number.ring_first, number.ring_seconds = "agent", "phone", 20
     number.schedule, number.team_fallback, number.team_fallback_message = None, "voicemail", ""
 
 
 def release(number: PhoneNumber) -> None:
     """Vuelve al inventario: sin cliente ni agente (las entrantes dejan de atenderse) ni personas."""
     number.client_id, number.agent_id, number.assigned_at, number.suspended_at = None, None, None, None
-    _reset_team(object_session(number), number)
+    _reset_answering(object_session(number), number)
 
 
 def set_agent(s: Session, number: PhoneNumber, agent_id: str | None) -> None:

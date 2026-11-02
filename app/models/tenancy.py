@@ -210,9 +210,9 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     # Suspendido: el cliente bajo a un plan con menos numeros por falta de pago. Sigue asignado
     # pero no atiende; a los BILLING_NUMBER_HOLD_DAYS vuelve al inventario (app/billing/service.py).
     suspended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    # Quien atiende las entrantes: team (las personas del numero, phone_number_members) o agent. Los numeros
-    # anteriores a la 0039 quedaron en agent.
-    answer_mode: Mapped[str] = mapped_column(String(8), default="team", server_default="team")
+    # Quien atiende las entrantes: agent (el default: atiende apenas el numero tiene agente) o team (las
+    # personas del numero, phone_number_members).
+    answer_mode: Mapped[str] = mapped_column(String(8), default="agent", server_default="agent")
     # Con team: donde suena primero (phone: el celular de cada uno en orden; panel: a los Disponibles a la vez)
     # y, si nadie atiende, en el otro. Timbre por persona y horario (el formato de handoff_areas.schedule).
     ring_first: Mapped[str] = mapped_column(String(8), default="phone", server_default="phone")

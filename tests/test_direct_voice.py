@@ -328,7 +328,7 @@ def team_setup(api, admin, monkeypatch, tmp_path, *people, **number):
         if user:
             body["user_id"] = users[user][1]
         ids.append(member(admin, c["id"], **body)["id"])
-    r = admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"member_ids": ids, **number})
+    r = admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"answer_mode": "team", "member_ids": ids, **number})
     assert r.status_code == 200, r.text
     with api.sessions() as s:
         inbound = call_service.start_inbound(s, api.engine, DID, "+5493513962553")

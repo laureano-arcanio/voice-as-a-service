@@ -22,7 +22,7 @@ saliente necesita además `outbound_calls`).
 | `tiers.max_team_members` | Tope de personas (`NULL` sin tope, `0` no incluido) | 0023 |
 | `handoff_legs` | Un tramo por intento a una persona: `area_id` (nulo en las entrantes al equipo), `team_member_id`, `phone`, `result`, `sip_status`, `created_at`/`answered_at`/`connected_at`/`ended_at`, `billed_seconds` | 0024 |
 | `call_logs.user_id`, `answered_by` (`agent`/`team`), `opted_out_confirmed` | Quién llamó o atendió; quién atendió la entrante; se llamó a una baja con confirmación | 0039 |
-| `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo | 0039 |
+| `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo (default `agent`, 0045) | 0039 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
 | `user_presence` | `user_id`, `client_id`, `last_seen`: Disponible en el panel | 0039 |
 | `call_rings` | Timbre por usuario y entrante en el panel: `status` `ringing`/`answered`/`declined`/`cancelled` (único por conversación y usuario) | 0039 |
@@ -246,8 +246,9 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   (`2026-10-28`) o posterior, aceptada por cualquier usuario del cliente. Una versión nueva no apaga la función. Sin
   aceptar: 403 `terms_pending` y las entrantes de números `team` van al agente. La UI lo muestra con link al modal
   (`/auth/me` trae `legal_pending`).
-- **Números nuevos o liberados arrancan en `team`**; los que existían antes de la 0039 quedaron en `agent`. Sin
-  personas, la entrante va al agente del número.
+- **Números nuevos o liberados arrancan en `agent`** (0045): atienden apenas se les elige el agente; el equipo se
+  elige a mano. Un `team` que se queda sin personas manda la entrante al agente del número, y sin agente no atiende
+  nadie (`number_without_agent`).
 - **Transcripción por frase:** si hablan a la vez, los mensajes quedan ordenados por fin de frase. Sin auriculares
   la voz del contacto puede volver al micrófono. Con la pantalla bloqueada iOS puede cortar el micrófono del panel:
   para recibir, el celular (default) es lo que anda siempre.

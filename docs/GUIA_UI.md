@@ -224,9 +224,8 @@ agente**.
    número, que elige entre los libres):
    - Los clientes sin lugar en su tier aparecen deshabilitados.
    - Desde Números se puede elegir el agente en el mismo paso; desde la ficha del cliente se elige
-     después, en la fila del número. Un número asignado arranca atendido por **el equipo, sin personas**
-     (columna **Quién atiende**: "Equipo sin personas"): hasta que se elija quién atiende, las entrantes van al
-     agente del número, y sin agente no las atiende nadie. **No lo dejes sin agente ni sin personas.**
+     después, en la fila del número. Un número asignado arranca en **Agente** y atiende apenas se le
+     elige el agente en la columna **Quién atiende**; sin agente no atiende nadie. **No lo dejes sin agente.**
 3. **Quién atiende:** en la columna **Quién atiende** de cada fila (Números, ficha del cliente o la
    pantalla Números del cliente) hay un toggle **Agente / Equipo**. Con **Agente** aparece el desplegable con
    los agentes del cliente; con **Equipo**, sus personas. Pasar a **Equipo** un número sin personas abre el
