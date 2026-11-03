@@ -7,7 +7,8 @@ completo en `/api/docs` y `/api/openapi.json`; acá, lo que un agente necesita p
 
 - **Auth:** `Authorization: Bearer $CRM_AGENT_API_KEY` (agentes) o `$CRM_API_KEY` (el usuario).
   La key de agente **no puede aprobar envíos, cargar historial, borrar ni sincronizar GA**: devuelve 403.
-  El agente deja borradores; el usuario los aprueba en la UI y salen por la cola.
+  El agente deja borradores; el usuario los aprueba en la UI (o todos los de una campaña con
+  `make crm-approve CAMPANA=<slug>`) y salen por la cola.
 - **JSON** en todo. Fechas ISO 8601 (`2026-10-21`, `2026-10-21T10:00:00-03:00`); las respuestas van en UTC sin zona.
 - **Errores:** `application/problem+json` con `status`, `title`, `detail` y, si aplica, `field` o
   `errors: [{field, msg}]`. 401 sin key, 403 no permitido, 404 no existe, 409 conflicto (duplicado,

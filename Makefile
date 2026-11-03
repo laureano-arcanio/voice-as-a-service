@@ -317,6 +317,15 @@ crm-tunnel: ## Desde la replica: abre http://127.0.0.1:8030 hacia el CRM del ser
 crm-key: ## Muestra la key para entrar a la UI del CRM (copiar la linea entera)
 	@grep -m1 '^CRM_API_KEY=' .env | cut -d= -f2-
 
+crm-approve: ## Aprueba (manda a la cola) los borradores de una campaña del CRM, con tu key. Ej: make crm-approve CAMPANA=salud-mayores1
+	@K=$$(grep -m1 '^CRM_API_KEY=' .env | cut -d= -f2-); U=http://127.0.0.1:8030/api; \
+	CID=$$(curl -s -H "Authorization: Bearer $$K" "$$U/campaigns" | python3 -c 'import sys,json; cs=[c["id"] for c in json.load(sys.stdin) if c["slug"]=="$(CAMPANA)"]; print(cs[0] if cs else "")'); \
+	test -n "$$CID" || { echo "no existe la campaña $(CAMPANA)"; exit 1; }; \
+	IDS=$$(curl -s -H "Authorization: Bearer $$K" "$$U/messages?campaign_id=$$CID&status=draft&limit=500" | python3 -c 'import sys,json; d=json.load(sys.stdin); it=d["items"] if isinstance(d,dict) else d; print(json.dumps([m["id"] for m in it if m["status"]=="draft"]))'); \
+	test "$$IDS" != "[]" || { echo "sin borradores en $(CAMPANA)"; exit 0; }; \
+	curl -s -X POST -H "Authorization: Bearer $$K" -H "Content-Type: application/json" "$$U/messages/approve" -d "{\"ids\": $$IDS}" | python3 -c 'import sys,json; r=json.load(sys.stdin); print("aprobados:", len(r) if isinstance(r,list) else r)'; \
+	curl -s -H "Authorization: Bearer $$K" "$$U/queue" | python3 -c 'import sys,json; q=json.load(sys.stdin); print("en cola:", q["queued"], "| enviados hoy:", q["sent_today"], "| tope diario:", q["daily_max"], "| horario:", q["hours"])'
+
 crm-logs: ## Logs del CRM
 	$(COMPOSE) logs -f --tail=100 crm
 
