@@ -9,7 +9,7 @@ import Footer from "../components/Footer.astro";
 import Icon from "../components/Icon.astro";
 import Nav from "../components/Nav.astro";
 import { legal } from "../data/legal";
-import { plans } from "../data/site";
+import { loginUrl, plans } from "../data/site";
 import Base from "../layouts/Base.astro";
 
 const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
@@ -133,7 +133,7 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
             </Button>
             <p class="text-[.85rem] text-muted">
               ¿Ya tenés cuenta?{" "}
-              <a class="font-semibold text-accent no-underline hover:text-accent-2" href="https://app.atentina.com.ar/login">Ingresá</a>.
+              <a class="font-semibold text-accent no-underline hover:text-accent-2" href={loginUrl}>Ingresá</a>.
             </p>
             <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-signup-error aria-live="polite"></p>
           </form>

@@ -102,6 +102,10 @@ los ~0,6 s en producción (primer bloque a 168 ms, síntesis completa a 1,7 s; C
 de cada visita, ~2,6 s (incluye Turnstile y sesión). Repetir sale del `AudioBuffer`, sin otro pedido.
 `pcm-player.ts` es copia de `web/src/lib/pcmPlayer.ts`: `pcmPlayer.parity.test.ts` falla si se desvían.
 
+**Ingresar:** el botón "Ingresar" del nav (`ghost`, a la derecha, al lado de la acción principal) lleva a
+`loginUrl` (`site.ts`, `app.atentina.com.ar/login`); con la sesión abierta, el login pasa directo al panel. Está siempre
+en la primera fila, también en celular (debajo de 360 px queda solo, sin la acción principal), y en el footer.
+
 **Menú:** "Casos de uso" es un link a `/casos-de-uso` y, en escritorio, con el mouse encima o el foco adentro despliega
 las industrias y las páginas por necesidad (solo CSS; Tailwind aplica el hover solo con mouse, así que Chrome headless
 no lo abre sin `--blink-settings=primaryHoverType=2,availableHoverTypes=2`). En celular, el link de siempre.
@@ -274,8 +278,7 @@ cd landing && cp .env.example .env && npm run check && npm run build
 
 ## Pendientes
 
-- **Link "Ingresar" al panel:** el nav (`Nav.astro`) no lo tiene. Tampoco resuelve `app.atentina.com` (falta
-  sumarlo a la Redirect Rule hacia `app.atentina.com.ar`).
+- **`app.atentina.com` no resuelve:** falta sumarlo a la Redirect Rule hacia `app.atentina.com.ar`.
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio cae a TCP 7881; si también está bloqueado, la
   llamada no conecta.
 - **Search Console:** importar la propiedad en Bing Webmaster Tools.

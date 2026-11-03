@@ -2,7 +2,7 @@
 import { channels } from "../data/channels";
 import { industries } from "../data/industries";
 import Icon from "./Icon.astro";
-import { capabilities, contactEmail, contactPhone, verticals } from "../data/site";
+import { capabilities, contactEmail, contactPhone, loginUrl, verticals } from "../data/site";
 
 const group = "grid content-start gap-2";
 const heading = "font-mono text-[.78rem] tracking-[.04em] text-muted uppercase";
@@ -31,6 +31,7 @@ const link = "hover:text-ink";
       <ul class={`m-0 list-none p-0 ${group}`}>
         {capabilities.map((c) => <li><a class={link} href={`/plataforma/${c.slug}`}>{c.title}</a></li>)}
         <li><a class={link} href="/registro">Registro</a></li>
+        <li><a class={link} href={loginUrl}>Ingresar</a></li>
       </ul>
     </nav>
     <nav class="grid content-start gap-3" aria-label="Desarrolladores">

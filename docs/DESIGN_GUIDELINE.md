@@ -120,7 +120,7 @@ la tabla hay que sumarlo en `global.css`.
 | Corte | Qué cambia |
 |---|---|
 | `min-[561px]` | Planes en 2 columnas |
-| `max-[900px]` | El nav pasa los links a una segunda fila de píldoras (con 7 links no entran en una fila más angosta) |
+| `max-[1000px]` | El nav pasa los links a una segunda fila de píldoras; "Ingresar" y la acción principal siguen en la primera |
 | `min-[801px]` | Tarjetas en 2 o 3 columnas |
 | `min-[901px]` | Hero y secciones de texto + panel en 2 columnas |
 | `min-[1001px]` | Planes en 4 columnas |
@@ -150,7 +150,7 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Footer`: tres columnas (Producto, Desarrolladores, Legales) con todas las páginas, y debajo "Atentina · Hecho en Argentina", el mail y el teléfono como texto; las verticales y las capacidades salen de `site.ts`. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `platform`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Home, Desarrolladores, Casos de uso) son fijos. |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Footer`: tres columnas (Producto, Desarrolladores, Legales) con todas las páginas, y debajo "Atentina · Hecho en Argentina", el mail y el teléfono como texto; las verticales y las capacidades salen de `site.ts`. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `platform`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Home, Desarrolladores, Casos de uso) son fijos. Los links del sitio van a la izquierda, al lado del logo; a la derecha, la cuenta: "Ingresar" (`ghost`) y la acción principal (`primary`). |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): cada página lo adapta (`/`, `/desarrolladores`, la documentación). |
 | `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Voices` acepta `title`, `lead` y `all` (lista las 41 voces en lugar de las 10 con descripción); sin `all` linkea a `/plataforma/voces-argentinas` ("Ver todas las voces →"). `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
 | `Faq` | Preguntas frecuentes con `<details>` (contenido en `faqGeneral`, `faqBusiness` y `faqDev` de `site.ts`, una por página; el componente recibe `items`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |

@@ -359,6 +359,8 @@ export const defaultVoiceLine = {
 };
 
 export const contactEmail = "hola@atentina.com.ar";
+/** Entrada de los clientes al panel. Con la sesión abierta, el panel pasa directo al inicio. */
+export const loginUrl = "https://app.atentina.com.ar/login";
 
 // ---- Home para integradores ----
 
