@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from ...config import settings
 from ...models import Client
-from ...services import tts, voices
+from ...services import studio, tts, voices
 from ...services.ratelimit import Limit
 from ..deps import DB, CurrentPrincipal, rate_limit
 from ..schemas import TtsPreviewIn, VoiceOut
@@ -26,9 +26,14 @@ def list_voices(_: CurrentPrincipal, genero: str | None = None, wer_max: float |
 async def tts_preview(body: TtsPreviewIn, p: CurrentPrincipal, db: DB):
     """Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
     `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.
-    Queda en los pedidos de la API del cliente como prueba de voz; no suma al cupo de TTS del plan."""
+    Descuenta de los minutos entrantes lo que se entrega y queda en el historial de Texto a voz (429 `inbound_minutes`
+    sin minutos), salvo para un admin. Queda en los pedidos de la API como prueba de voz, sin sumar al cupo de TTS."""
     # Un admin sin cliente elegido prueba en el cliente de la demo (Atentina).
     client_id = p.client_id or db.scalar(select(Client.id).where(Client.slug == settings.demo_client))
+    # El que paga: el cliente. Ni el admin, entre o no como el cliente, ni la demo.
+    billed = bool(p.client_id) and not p.support
+    if billed:
+        studio.check_minutes(db, db.get(Client, p.client_id))
     start = (tts.preview_pcm if body.format == "pcm" else tts.preview)(body.voice, body.text)
     if client_id is None:
         stream = await start
@@ -38,5 +43,9 @@ async def tts_preview(body: TtsPreviewIn, p: CurrentPrincipal, db: DB):
         stream = await tts.tracked(start, sessionmaker(bind=db.get_bind()), client_id=client_id, key_id=key_id,
                                    source=source, voice=body.voice, characters=len(body.text.strip()),
                                    audio_format=body.format)
+    if billed:
+        stream = studio.recording_preview(stream, sessionmaker(bind=db.get_bind()), client_id=p.client_id,
+                                          user_id=p.id if p.kind == "user" else None, voice=body.voice, text=body.text,
+                                          audio_format=body.format)
     return StreamingResponse(stream, media_type="audio/pcm" if body.format == "pcm" else "audio/wav",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

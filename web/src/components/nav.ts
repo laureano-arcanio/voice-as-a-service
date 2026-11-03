@@ -29,6 +29,8 @@ import {
   IconUsersGroup,
   IconBrandWhatsapp,
   IconHome,
+  IconFileText,
+  IconVolume,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 import type { PlanFeatureKey, Role } from '@/api/types';
@@ -57,6 +59,9 @@ export const CLIENT_NAV: NavEntry[] = [
   { to: '/inicio', label: 'Inicio', icon: IconHome },
   { to: '/reports', label: 'Reportes', icon: IconChartHistogram },
   { to: '/calls', label: 'Conversaciones', icon: IconMessages },
+  // Sin `feature`: están en todos los planes (docs/features/ESTUDIO.md).
+  { to: '/texto-a-voz', label: 'Texto a voz', icon: IconVolume },
+  { to: '/transcribir', label: 'Transcribir', icon: IconFileText },
   {
     label: 'Agentes',
     icon: IconRobot,

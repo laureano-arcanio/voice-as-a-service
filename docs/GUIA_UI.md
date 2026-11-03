@@ -606,8 +606,16 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 ### Voces
 
 Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz (hasta 200
-caracteres; queda en Uso de la API y no se descuenta del plan).
+caracteres; queda en Uso de la API y en el historial de Texto a voz, y descuenta de los minutos entrantes lo que dure el audio).
 La voz por defecto de un agente es `agent.voice` en su definición.
+
+### Texto a voz (`/texto-a-voz`) y Transcribir (`/transcribir`)
+
+En todos los planes. **Texto a voz:** pegá el texto o subí un `.txt`, elegí la voz y tocá Sintetizar. **Transcribir:** elegí
+un audio y tocá Transcribir. Se procesa en segundo plano, se puede salir de la pantalla y todo queda guardado abajo: escuchar,
+ver el texto, copiarlo, bajarlo como `.txt`, bajar el audio en MP3, WAV, OGG o FLAC, y borrar. Descuenta de los minutos
+entrantes los segundos reales de audio; si falla, no descuenta. Borrar no devuelve minutos. Un admin que entró como
+el cliente solo ve el historial. Detalle: [`features/ESTUDIO.md`](features/ESTUDIO.md).
 
 ### WhatsApp (cliente)
 

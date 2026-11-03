@@ -134,6 +134,14 @@ export const routes: RouteObject[] = [
       },
       { path: 'voices', ...page(async () => (await import('@/features/voices/VoicesPage')).VoicesPage) },
       {
+        path: 'texto-a-voz',
+        ...page(async () => (await import('@/features/studio/SpeechPage')).SpeechPage),
+      },
+      {
+        path: 'transcribir',
+        ...page(async () => (await import('@/features/studio/TranscribePage')).TranscribePage),
+      },
+      {
         path: 'models',
         ...page(async () => (await import('@/features/llm/ModelsPage')).ModelsPage),
       },

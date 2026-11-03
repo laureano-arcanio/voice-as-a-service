@@ -116,6 +116,8 @@ describe('navegación por área', () => {
       'Inicio',
       'Reportes',
       'Conversaciones',
+      'Texto a voz',
+      'Transcribir',
       'Agentes: Mis agentes, Herramientas, Secretos, Modelos, Playground, Voces',
       'Canales: WhatsApp, Llamadas del agente, Teléfono del equipo, Campañas',
       'Agenda: Contactos, Equipo',

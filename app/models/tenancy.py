@@ -318,3 +318,29 @@ class ApiRequest(IdMixin, Base):
     # api (la de inferencia) o una prueba de voz: voice_test_panel, voice_test_api (key o MCP),
     # voice_test_landing (en el cliente de la demo). Las pruebas no suman al cupo del plan.
     source: Mapped[str] = mapped_column(String(24), default="api", server_default="api")
+
+
+class StudioItem(IdMixin, Base):
+    """Lo que un cliente sintetiza o transcribe en el Estudio, y sus pruebas de voz (docs/features/ESTUDIO.md).
+    `billed_seconds` es lo que descuenta de los minutos entrantes: la reserva mientras esta en cola o en proceso, los
+    segundos reales al terminar y 0 si fallo. Borrar saca el contenido y deja la fila, para no devolver minutos."""
+    __tablename__ = "studio_items"
+    __table_args__ = (Index("ix_studio_items_client_created", "client_id", "created_at"),
+                      Index("ix_studio_items_status_created", "status", "created_at"))
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"))
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    kind: Mapped[str] = mapped_column(String(8))                # tts, stt
+    origin: Mapped[str] = mapped_column(String(16), default="studio", server_default="studio")   # studio, voice_test
+    status: Mapped[str] = mapped_column(String(16))             # queued, processing, done, failed
+    title: Mapped[str] = mapped_column(String(200))
+    voice: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)   # entrada del TTS o resultado del STT
+    progress: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    audio_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    billed_seconds: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    file_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

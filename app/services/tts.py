@@ -4,8 +4,9 @@ Dos formas de recibir el audio: `preview` (WAV completo, cuando el motor termina
 a medida que el motor lo sintetiza, para reproducirlo mientras se genera: la landing y el dashboard).
 
 Cada prueba que llega al motor queda en `api_requests` con su origen (`tracked`): el cliente la ve en los
-pedidos de la API, pero no suma al cupo de TTS del plan (api_usage_daily). El texto, hasta
-TTS_PREVIEW_MAX_CHARS: alcanza para escuchar una voz, no para generar audio (eso es la API de inferencia).
+pedidos de la API, pero no suma al cupo de TTS de esa API (api_usage_daily). Lo que descuenta son minutos del plan
+(services/studio.py). El texto, hasta TTS_PREVIEW_MAX_CHARS: alcanza para escuchar una voz, no para generar audio
+(eso es el Estudio y la API de inferencia).
 """
 import base64
 import json
@@ -69,6 +70,11 @@ async def _open(voice: str, text: str, response_format: str, stream: bool) -> tu
         raise Invalid("Texto vacio")
     if len(text) > settings.tts_preview_max_chars:
         raise Invalid(f"El texto puede tener hasta {settings.tts_preview_max_chars} caracteres")
+    return await _send(voice, text, response_format, stream)
+
+
+async def _send(voice: str, text: str, response_format: str, stream: bool) -> tuple[httpx.AsyncClient, httpx.Response]:
+    """Abre el pedido al motor. La voz ya validada contra el catalogo."""
     # El texto en palabras para la voz (numeros, horas, emails; app/voice/speech_text.py).
     body = {"model": settings.vllm_tts_model, "voice": voice, "input": to_speech(text),
             "response_format": response_format}
@@ -120,6 +126,19 @@ async def preview_pcm(voice: str, text: str) -> AsyncIterator[bytes]:
             await client.aclose()
 
     return stream()
+
+
+async def synthesize_pcm(voice: str, text: str) -> AsyncIterator[bytes]:
+    """PCM crudo de un pedazo de texto largo (Estudio, docs/features/ESTUDIO.md): sin el tope de la prueba de voz.
+    La voz ya validada contra el catalogo."""
+    client, upstream = await _send(voice, text, "pcm", stream=True)
+    try:
+        async for event in sse_events(upstream):
+            if event.get("type") == "speech.audio.delta" and event.get("audio"):
+                yield base64.b64decode(event["audio"])
+    finally:
+        await upstream.aclose()
+        await client.aclose()
 
 
 async def tracked(start: Awaitable[AsyncIterator[bytes]], sessions: sessionmaker[Session], *, client_id: str,

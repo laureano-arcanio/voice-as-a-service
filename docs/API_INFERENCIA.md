@@ -272,6 +272,7 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 - **Qué no se anota:** los 401, `scope_missing`, `client_inactive`, `not_in_plan` de `api_rate_limit` en 0 y los
   `rate_limited`. Se rechazan antes del tope de pedidos por minuto: sin tope, un sistema en loop llenaría la tabla.
 - **Pruebas de voz** (`source`, migración 0043): además de `api`, la tabla anota cada prueba que llega al motor.
+  - Las pruebas de voz no suman a estos cupos: descuentan de los minutos entrantes del plan ([`features/ESTUDIO.md`](features/ESTUDIO.md)).
   - `voice_test_panel` es la del dashboard (`POST /tts/preview` con sesión), `voice_test_api` la misma con una API
     key o por el MCP (`preview_voice`), y `voice_test_landing` la de la landing (`POST /demo/tts`), que queda en el
     cliente de la demo (`DEMO_CLIENT`, Atentina). Un admin sin cliente elegido también prueba en ese cliente.

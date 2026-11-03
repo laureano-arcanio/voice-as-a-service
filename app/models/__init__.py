@@ -20,6 +20,7 @@ from .oauth import McpToolUsage, OAuthClient, OAuthCode, OAuthGrant, OAuthToken
 from .tenancy import (
     ApiKey,
     ApiRequest,
+    StudioItem,
     ApiUsageDaily,
     Client,
     ClientBranding,
@@ -45,6 +46,7 @@ __all__ = [
     "AgentVersion",
     "ApiKey",
     "ApiRequest",
+    "StudioItem",
     "ApiUsageDaily",
     "BillingPayment",
     "BlockedNumber",

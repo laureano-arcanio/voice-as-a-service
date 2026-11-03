@@ -196,7 +196,7 @@ export function VoicePreview({
       </Group>
       <Text size="xs" c={msg?.bad ? 'red' : 'dimmed'}>
         {msg?.text ??
-          `Escuchá ${voice ? voiceName(voice) : 'la voz elegida'} con este texto (editalo si querés). Va directo al TTS, sin llamada.`}
+          `Escuchá ${voice ? voiceName(voice) : 'la voz elegida'} con este texto (editalo si querés). Descuenta de los minutos de tu plan lo que dure el audio.`}
       </Text>
       <audio
         ref={audioRef}

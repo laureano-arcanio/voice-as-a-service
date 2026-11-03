@@ -26,6 +26,7 @@ UNSAFE_METHODS_EXEMPT = {"GET", "HEAD", "OPTIONS"}
 # Los pedidos de /api que suben archivos (el multipart agrega algo al tamaño): audio para transcribir
 # e imagen del link para llamar (app/services/call_links.py, IMAGE_MAX_BYTES) y logo de la marca blanca.
 UPLOAD_PATH = "/api/v1/inference/audio/transcriptions"
+STUDIO_UPLOAD_PATH = "/api/v1/studio/transcriptions"
 IMAGE_UPLOAD_PATH = re.compile(r"^/api/v1/(agents/[^/]+/call-link/image|clients/[^/]+/branding/logo)$")
 IMAGE_MAX_BYTES = 5 * 1024 * 1024
 UPLOAD_OVERHEAD_BYTES = 64 * 1024
@@ -52,6 +53,8 @@ class BodyLimitMiddleware:
         limit = settings.api_max_body_bytes
         if scope["path"] == UPLOAD_PATH:
             limit = settings.inference_stt_max_bytes + UPLOAD_OVERHEAD_BYTES   # audio de la API de STT
+        elif scope["path"] == STUDIO_UPLOAD_PATH:
+            limit = settings.studio_stt_max_bytes + UPLOAD_OVERHEAD_BYTES   # audio del Estudio
         elif IMAGE_UPLOAD_PATH.match(scope["path"]):
             limit = IMAGE_MAX_BYTES + UPLOAD_OVERHEAD_BYTES
         too_big = {"detail": "Pedido demasiado grande", "code": "payload_too_large", "errors": []}

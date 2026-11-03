@@ -3737,7 +3737,7 @@
      "voices"
     ],
     "summary": "Tts Preview",
-    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.\nQueda en los pedidos de la API del cliente como prueba de voz; no suma al cupo de TTS del plan.",
+    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.\nDescuenta de los minutos entrantes lo que se entrega y queda en el historial de Texto a voz (429 `inbound_minutes`\nsin minutos), salvo para un admin. Queda en los pedidos de la API como prueba de voz, sin sumar al cupo de TTS.",
     "operationId": "tts_preview_api_v1_tts_preview_post",
     "requestBody": {
      "content": {
@@ -3776,6 +3776,366 @@
       "HTTPBearer": []
      }
     ]
+   }
+  },
+  "/api/v1/studio/speech": {
+   "post": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "Create Speech",
+    "description": "Encola la sintesis del texto con esa voz y reserva los minutos estimados.",
+    "operationId": "create_speech_api_v1_studio_speech_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudioSpeechIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StudioItemOut"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/studio/transcriptions": {
+   "post": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "Create Transcription",
+    "description": "Guarda el archivo, reserva los minutos que dura y encola la transcripcion.",
+    "operationId": "create_transcription_api_v1_studio_transcriptions_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_create_transcription_api_v1_studio_transcriptions_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StudioItemOut"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/studio/items": {
+   "get": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "List Items",
+    "description": "Lo sintetizado y transcripto, del mas nuevo al mas viejo. `excerpt` trae el comienzo del texto.",
+    "operationId": "list_items_api_v1_studio_items_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "tts",
+          "stt"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Kind"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StudioItemPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/studio/items/{item_id}": {
+   "get": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "Get Item",
+    "operationId": "get_item_api_v1_studio_items__item_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Item Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StudioItemOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "Delete Item",
+    "description": "Borra el audio y el texto. Lo ya usado no vuelve a los minutos del plan.",
+    "operationId": "delete_item_api_v1_studio_items__item_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Item Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "409": {
+      "description": "studio_busy"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/studio/items/{item_id}/audio": {
+   "get": {
+    "tags": [
+     "studio"
+    ],
+    "summary": "Get Audio",
+    "description": "El audio: en texto a voz, en el formato pedido; en una transcripcion, el archivo que se subio.",
+    "operationId": "get_audio_api_v1_studio_items__item_id__audio_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Item Id"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "wav",
+        "mp3",
+        "ogg",
+        "flac"
+       ],
+       "type": "string",
+       "default": "wav",
+       "title": "Format"
+      }
+     },
+     {
+      "name": "download",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Download"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "audio/wav": {},
+       "audio/mpeg": {},
+       "audio/ogg": {},
+       "audio/flac": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/api/v1/whatsapp/config": {
@@ -15754,6 +16114,21 @@
     ],
     "title": "BlockedNumberOut"
    },
+   "Body_create_transcription_api_v1_studio_transcriptions_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary",
+      "title": "File",
+      "description": "Audio o video con sonido"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_create_transcription_api_v1_studio_transcriptions_post"
+   },
    "Body_put_image_api_v1_agents__agent_id__call_link_image_put": {
     "properties": {
      "file": {
@@ -27489,6 +27864,174 @@
      "voice"
     ],
     "title": "SpeechIn"
+   },
+   "StudioItemOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "tts",
+       "stt"
+      ],
+      "title": "Kind"
+     },
+     "origin": {
+      "type": "string",
+      "enum": [
+       "studio",
+       "voice_test"
+      ],
+      "title": "Origin"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "processing",
+       "done",
+       "failed"
+      ],
+      "title": "Status"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice"
+     },
+     "progress": {
+      "type": "integer",
+      "title": "Progress"
+     },
+     "audio_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Audio Seconds"
+     },
+     "billed_seconds": {
+      "type": "number",
+      "title": "Billed Seconds",
+      "description": "Lo que descuenta de los minutos entrantes: reserva, real o 0 si fallo"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "excerpt": {
+      "type": "string",
+      "title": "Excerpt",
+      "description": "El comienzo del texto"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text",
+      "description": "Entrada del TTS o resultado del STT; solo al pedir un elemento"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "origin",
+     "status",
+     "title",
+     "progress",
+     "billed_seconds",
+     "created_at",
+     "excerpt"
+    ],
+    "title": "StudioItemOut"
+   },
+   "StudioItemPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/StudioItemOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total"
+    ],
+    "title": "StudioItemPage"
+   },
+   "StudioSpeechIn": {
+    "properties": {
+     "text": {
+      "type": "string",
+      "maxLength": 20000,
+      "minLength": 1,
+      "title": "Text"
+     },
+     "voice": {
+      "type": "string",
+      "title": "Voice"
+     }
+    },
+    "type": "object",
+    "required": [
+     "text",
+     "voice"
+    ],
+    "title": "StudioSpeechIn"
    },
    "SubscribeIn": {
     "properties": {

@@ -117,7 +117,7 @@ def test_list_is_all_by_default_and_toolsets_pick(api, admin, full):
     assert "contacts" in every["list_contacts"]["description"]
     # Anotaciones: lectura, escritura y las que hay que confirmar.
     assert every["list_agents"]["annotations"]["readOnlyHint"] is True
-    assert every["preview_voice"]["annotations"]["readOnlyHint"] is True
+    assert every["preview_voice"]["annotations"]["readOnlyHint"] is False   # gasta minutos del plan y queda guardada (docs/features/ESTUDIO.md)
     assert every["update_agent_definition"]["annotations"] == {
         "title": "Editar la definición de un agente", "readOnlyHint": False, "openWorldHint": False,
         "destructiveHint": False, "idempotentHint": True}

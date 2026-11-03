@@ -161,6 +161,7 @@ incluido.
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
 | `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
 | `api_keys` | SHA-256 (`key_hash` único), `prefix` visible, `revoked_at`, `last_used_at`, `scopes` (ver "Autenticación"). |
+| `studio_items` | Lo sintetizado y transcripto en el Estudio y las pruebas de voz, con los segundos que descuenta de los minutos entrantes ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo), sin contenido ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
 | `subscriptions`, `billing_payments` | Plan pago: `method`, `status` (`pending`, `active`, `past_due`...), `current_period_end`, `grace_until`, `pending_tier_id`, `cancel_at_period_end`, `mp_preapproval_id`; pagos con `amount_ars`, `paid_on`, `period_end`, `mp_payment_id`, `recorded_by` ([`features/COBROS.md`](features/COBROS.md)). |
 | `legal_acceptances`, `consumer_requests` | Cada aceptación (`document`, `version`, `sha256`, `statement`, `channel` `signup`/`panel`, IP, user agent) y los botones de arrepentimiento y de baja (`kind`, `code`, `status`) ([`features/LEGAL.md`](features/LEGAL.md)). |
@@ -639,6 +640,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
 | `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
+| `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `phone_numbers.py`, `blocked_numbers.py` | `/phone-numbers` (carga, `bulk`, `assign`, `release`, quién atiende), `/blocked-numbers` | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
 | `handoff.py` | `/team`, `/handoff-areas` (y `defaults`), `/hold-music`, `/events` | ídem |
 | `direct_calls.py` | `/direct-calls` (`join`, `answer`, `decline`), `/me/presence`, `/me/ringing`, `/team/presence`, `/clients/{id}/direct-call-settings` | ídem |

@@ -181,6 +181,17 @@ class Settings(BaseSettings):
     inference_tts_max_chars: int = 1500
     # Tiempo maximo de cada pedido al motor.
     inference_timeout_seconds: float = 120
+    # --- Estudio: texto a voz y transcripcion para todos los planes (docs/features/ESTUDIO.md) ---
+    rate_studio_per_hour: int = 60
+    studio_tick_seconds: float = 2
+    # Unos 20 minutos de audio, el cupo de Free.
+    studio_tts_max_chars: int = 20_000
+    # Por debajo del tope de subida de Cloudflare (100 MB segun el plan).
+    studio_stt_max_bytes: int = 95 * 1024 * 1024
+    studio_stt_max_seconds: int = 7_200
+    # De a pedazos cortos: los motores son los mismos que atienden las llamadas en vivo.
+    studio_tts_chunk_chars: int = 500
+    studio_stt_chunk_seconds: int = 30
 
     # --- Mails transaccionales (app/mail/): alta de cliente y numero asignado ---
     # Salen por Resend (RESEND_API_KEY, arriba); sin clave no se envian y la API sigue igual.

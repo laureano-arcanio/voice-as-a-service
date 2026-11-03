@@ -12,7 +12,8 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
   en curso cuenta los minutos iniciados, salvo para cortarla (running_exact: puede usar el minuto ya
   descontado hasta el final). Las entrantes a un 0800 o 0810 cuentan como cualquier otra. Las de prueba y loadtest no consumen minutos. El tramo a la
   persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto. La saliente
-  directa (una persona del equipo, sin agente) cuenta como saliente.
+  directa (una persona del equipo, sin agente) cuenta como saliente. El Estudio y las pruebas de voz gastan
+  entrantes por sus segundos reales (studio_seconds).
 - Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
   derivacion abiertos, contra settings.anura_channels (handoff_check).
 
@@ -39,6 +40,7 @@ from ..models import (
     Client,
     ConversationRow,
     HandoffLeg,
+    StudioItem,
 )
 from . import limits as limits_service
 from .errors import QuotaExceeded
@@ -151,7 +153,17 @@ def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime
     total = int(done) + int(sum(running_seconds(max((now - t).total_seconds(), 0)) for t in running))
     if MINUTE_MODES.get(mode) == "outbound" and agent_ids is None:
         total += handoff_seconds(s, client_id, start, end, now, running_exact)
+    if MINUTE_MODES.get(mode) == "inbound" and agent_ids is None:
+        total += studio_seconds(s, client_id, start, end)
     return total
+
+
+def studio_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime) -> int:
+    """El Estudio y las pruebas de voz (docs/features/ESTUDIO.md): segundos reales, con los reservados de lo que esta
+    en cola o en proceso. Gastan los minutos entrantes porque son los unicos que tienen todos los planes."""
+    seconds = s.scalar(select(func.coalesce(func.sum(StudioItem.billed_seconds), 0.0)).where(
+        StudioItem.client_id == client_id, StudioItem.created_at >= start, StudioItem.created_at < end)) or 0.0
+    return math.ceil(seconds)
 
 
 def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime,

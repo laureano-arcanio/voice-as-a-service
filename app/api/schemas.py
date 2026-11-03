@@ -1459,6 +1459,35 @@ class TtsPreviewIn(BaseModel):
         default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
 
+# ---------- Estudio: texto a voz y transcripcion (docs/features/ESTUDIO.md) ----------
+
+class StudioSpeechIn(BaseModel):
+    text: str = Field(min_length=1, max_length=settings.studio_tts_max_chars)
+    voice: str
+
+
+class StudioItemOut(BaseModel):
+    id: str
+    kind: Literal["tts", "stt"]
+    origin: Literal["studio", "voice_test"]
+    status: Literal["queued", "processing", "done", "failed"]
+    title: str
+    voice: str | None = None
+    progress: int
+    audio_seconds: float | None = None
+    billed_seconds: float = Field(description="Lo que descuenta de los minutos entrantes: reserva, real o 0 si fallo")
+    error: str | None = None
+    created_at: datetime.datetime
+    finished_at: datetime.datetime | None = None
+    excerpt: str = Field(description="El comienzo del texto")
+    text: str | None = Field(default=None, description="Entrada del TTS o resultado del STT; solo al pedir un elemento")
+
+
+class StudioItemPage(BaseModel):
+    items: list[StudioItemOut]
+    total: int
+
+
 # ---------- link para llamar a un agente (docs/features/LINK_LLAMADA.md) ----------
 
 class CallLinkIn(BaseModel):

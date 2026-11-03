@@ -55,7 +55,7 @@ El código y la llamada son solo para un usuario del cliente (un admin en soport
    - Paso 1: rubro (tarjetas con ícono) y sitio.
    - Paso 2: seis voces (`FEATURED_VOICES`: sofia, paula, valentina, gonzalo, lucas, tomas) con retrato
      (`web/public/voces/<voz>.svg`, los mismos de la landing; `make voces-retratos`) y ▶ que dice la apertura con
-     el nombre de la empresa (`POST /tts/preview`).
+     el nombre de la empresa (`POST /tts/preview`, descuenta de los minutos: [`ESTUDIO.md`](ESTUDIO.md)).
 3. **Inicio** (`/inicio`, la pantalla de entrada del cliente; antes era Reportes): una tarjeta por agente con
    retrato, "Hablarle ahora", "Llamame" y "Editar"; "Crear otro agente"; próximos pasos (crear, hablarle, cargar la
    información del negocio, compartir el link) y las últimas cinco conversaciones. Con `?nuevo=<id>`, el aviso

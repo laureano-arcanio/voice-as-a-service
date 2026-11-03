@@ -1138,9 +1138,111 @@ export interface paths {
          * Tts Preview
          * @description Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
          *     `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.
-         *     Queda en los pedidos de la API del cliente como prueba de voz; no suma al cupo de TTS del plan.
+         *     Descuenta de los minutos entrantes lo que se entrega y queda en el historial de Texto a voz (429 `inbound_minutes`
+         *     sin minutos), salvo para un admin. Queda en los pedidos de la API como prueba de voz, sin sumar al cupo de TTS.
          */
         post: operations["tts_preview_api_v1_tts_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studio/speech": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Speech
+         * @description Encola la sintesis del texto con esa voz y reserva los minutos estimados.
+         */
+        post: operations["create_speech_api_v1_studio_speech_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studio/transcriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Transcription
+         * @description Guarda el archivo, reserva los minutos que dura y encola la transcripcion.
+         */
+        post: operations["create_transcription_api_v1_studio_transcriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studio/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Items
+         * @description Lo sintetizado y transcripto, del mas nuevo al mas viejo. `excerpt` trae el comienzo del texto.
+         */
+        get: operations["list_items_api_v1_studio_items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studio/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Item */
+        get: operations["get_item_api_v1_studio_items__item_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Item
+         * @description Borra el audio y el texto. Lo ya usado no vuelve a los minutos del plan.
+         */
+        delete: operations["delete_item_api_v1_studio_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/studio/items/{item_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audio
+         * @description El audio: en texto a voz, en el formato pedido; en una transcripcion, el archivo que se subio.
+         */
+        get: operations["get_audio_api_v1_studio_items__item_id__audio_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4497,6 +4599,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** Body_create_transcription_api_v1_studio_transcriptions_post */
+        Body_create_transcription_api_v1_studio_transcriptions_post: {
+            /**
+             * File
+             * Format: binary
+             * @description Audio o video con sonido
+             */
+            file: string;
         };
         /** Body_put_image_api_v1_agents__agent_id__call_link_image_put */
         Body_put_image_api_v1_agents__agent_id__call_link_image_put: {
@@ -9095,6 +9206,72 @@ export interface components {
              */
             stream_format?: "audio" | "sse";
         };
+        /** StudioItemOut */
+        StudioItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "tts" | "stt";
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "studio" | "voice_test";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "processing" | "done" | "failed";
+            /** Title */
+            title: string;
+            /** Voice */
+            voice?: string | null;
+            /** Progress */
+            progress: number;
+            /** Audio Seconds */
+            audio_seconds?: number | null;
+            /**
+             * Billed Seconds
+             * @description Lo que descuenta de los minutos entrantes: reserva, real o 0 si fallo
+             */
+            billed_seconds: number;
+            /** Error */
+            error?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Excerpt
+             * @description El comienzo del texto
+             */
+            excerpt: string;
+            /**
+             * Text
+             * @description Entrada del TTS o resultado del STT; solo al pedir un elemento
+             */
+            text?: string | null;
+        };
+        /** StudioItemPage */
+        StudioItemPage: {
+            /** Items */
+            items: components["schemas"]["StudioItemOut"][];
+            /** Total */
+            total: number;
+        };
+        /** StudioSpeechIn */
+        StudioSpeechIn: {
+            /** Text */
+            text: string;
+            /** Voice */
+            voice: string;
+        };
         /**
          * SubscribeIn
          * @description transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (campos seguros de
@@ -13484,6 +13661,224 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_speech_api_v1_studio_speech_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudioSpeechIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_transcription_api_v1_studio_transcriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_transcription_api_v1_studio_transcriptions_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_items_api_v1_studio_items_get: {
+        parameters: {
+            query?: {
+                kind?: ("tts" | "stt") | null;
+                client_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioItemPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_item_api_v1_studio_items__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_item_api_v1_studio_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description studio_busy */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audio_api_v1_studio_items__item_id__audio_get: {
+        parameters: {
+            query?: {
+                format?: "wav" | "mp3" | "ogg" | "flac";
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/wav": unknown;
+                    "audio/mpeg": unknown;
+                    "audio/ogg": unknown;
+                    "audio/flac": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

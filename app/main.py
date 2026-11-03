@@ -51,6 +51,7 @@ from .api.routers import (
     phone_numbers,
     plan,
     reports,
+    studio,
     system,
     tiers,
     tools,
@@ -67,6 +68,7 @@ from .config import settings
 from .mail.call_summary import call_summary_loop
 from .mcp import server as mcp_server
 from .services.demo import allowed_origins
+from .services.studio import studio_loop
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.service import sweep_loop
 
@@ -86,12 +88,15 @@ async def lifespan(app: FastAPI):
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
     # Resumen por email de cada llamada, para el cliente (app/mail/call_summary.py).
     call_summaries = asyncio.create_task(call_summary_loop())
+    # Texto a voz y transcripcion, de a un trabajo por motor (app/services/studio.py).
+    studio_jobs = asyncio.create_task(studio_loop())
     yield
     sweep.cancel()
     sending.cancel()
     webhooks.cancel()
     billing_sweep.cancel()
     call_summaries.cancel()
+    studio_jobs.cancel()
 
 
 def create_app() -> FastAPI:
@@ -116,7 +121,7 @@ def create_app() -> FastAPI:
     app.add_middleware(HttpsRedirectMiddleware)
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
+    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, studio,
                    whatsapp, wa_campaigns, campaigns, contacts, inference, demo, billing, llm_connections,
                    llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests,
                    legal_versions, tools, branding, reports, direct_calls, system, onboarding):
