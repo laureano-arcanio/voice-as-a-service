@@ -322,6 +322,10 @@ class WhatsAppService:
         kind = msg.get("type") or "other"
         text = _text_of(msg)
         kind_db = "text" if text is not None else (kind if kind in MESSAGE_TYPES else "other")
+        if kind == "button":
+            # Temporal (T0): comprobar que context.id es el wamid de la plantilla tocada. Sin teléfono ni texto.
+            ctx = msg.get("context") if isinstance(msg.get("context"), dict) else {}
+            logger.info("wa: toque de boton pnid=%s wamid=%s context_id=%s", pnid, wamid, ctx.get("id"))
         with self.sessions() as s:
             account = store.account_by_pnid(s, pnid)
             if not store.record_inbound(s, wamid=wamid, account_id=account.id if account else None,
