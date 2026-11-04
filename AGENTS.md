@@ -36,6 +36,49 @@ Inicio y llamada de prueba al celular), [`CRM`](docs/features/CRM.md) y [`CRM_AP
 Cada doc dice su estado y sus pendientes; este archivo no repite estados. Al cambiar una función, se actualiza su
 doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 
+## Ciclo de desarrollo
+
+Todo cambio de código o de configuración versionada (`app/`, `web/`, `landing/`, `migrations/`, `stt/`, `crm/`, `tools-runner/`, `deploy/`,
+`asterisk/`, compose, `Makefile`) sigue este orden. La **sesión principal orquesta**: lanza cada agente, guarda el plan en
+`scratch/planes/<slug>.md` y le pasa esa ruta a los siguientes; no implementa por su cuenta.
+
+1. [`technical-leader`](.claude/agents/technical-leader.md): analiza, clasifica y devuelve el plan con sus tareas. No modifica nada. Si trae decisiones para el usuario, se le preguntan antes de seguir.
+2. [`validador`](.claude/agents/validador.md): ataca el plan contra el código. No modifica nada. Si el veredicto es `CAMBIOS` o `RECHAZADO`, vuelve al paso 1 con las objeciones (hasta 2 vueltas; después decide el usuario).
+3. [`desarrollador`](.claude/agents/desarrollador.md): una instancia por tarea, con el `model` del nivel de esa tarea. En paralelo solo lo que el plan marca como paralelo.
+4. [`qa`](.claude/agents/qa.md): verifica en el entorno local, en el navegador si hay UI; si no, por API, MCP o código. Si `FALLA`, vuelve al paso 3 con los detalles técnicos y QA repite (hasta 3 vueltas; después decide el usuario). Si la falla es del diseño, vuelve al paso 1. A la segunda falla de una tarea, sube un modelo.
+5. [`documentador`](.claude/agents/documentador.md): actualiza lo que ya existe y crea un doc solo si hace falta.
+
+Commit y deploy siguen siendo pedidos del usuario, con la documentación en el mismo commit.
+
+**Saltear el análisis:** solo si el usuario lo autoriza de forma explícita para ese pedido ("sin plan", "directo a desarrollo"). No se
+infiere de la urgencia ni del tamaño, y no vale para el pedido siguiente. Se pasa al paso 3 con el modelo del nivel que calcule la sesión
+principal; QA y documentación siguen, salvo que también los excluya.
+
+**Fuera del ciclo:** preguntas e investigación; cambios que son solo docs o que no tocan el producto (`comercial/`, `marketing/`); y el trabajo
+de los agentes `deploy`, `server2`, `ventas`, `videos`, `documentos` y `tts-finetune`; tests de capacidad y evals.
+
+### Clasificación por impacto
+
+Gana el nivel más alto de cualquier fila, no el promedio. En la duda, el de arriba. El nivel de cada tarea se calcula igual; el del plan es el de su tarea más alta.
+
+| Factor | Nivel 1 | Nivel 2 | Nivel 3 |
+|---|---|---|---|
+| Alcance | Un área, pocos archivos, sin decisiones de diseño | Varias capas de una función (API + UI) | Varios componentes, o una pieza que usan muchas funciones |
+| Datos | Sin cambio de esquema | Migración que solo agrega | Migración que transforma o borra datos existentes |
+| Contratos (API, MCP, definición del agente) | Sin cambios | Agrega, compatible | Cambia o quita algo que ya se usa |
+| Seguridad y clientes | No toca | Permisos o tier de una función | Login, sesión, CSRF/CSP, SSRF, sandbox, secretos, aislamiento entre clientes |
+| Plata | No toca | Muestra importes o consumos | Cobros, reserva o descuento de minutos |
+| Voz | No toca | Worker, fuera de la llamada en vivo | Camino de la llamada: `app/voice/`, STT, TTS, LLM, Asterisk, LiveKit, compose, GPU |
+| Vuelta atrás | `git revert` y deploy | `git revert` y deploy, en orden | No alcanza con un revert |
+
+| Nivel | Modelo del desarrollador | Validador | QA |
+|---|---|---|---|
+| 1 | `haiku` si es mecánica y está especificada; si no, `sonnet` | `sonnet`, revisión breve | Lo pedido y los tests |
+| 2 | `sonnet` | `opus` | Criterios del plan y lo cercano que pudo romperse |
+| 3 | `opus` | `opus`, completa | Además, intentar romperlo: otro cliente, otro tier, concurrencia |
+
+El modelo se pasa en el parámetro `model` de cada lanzamiento. El `technical-leader` siempre corre en `opus`, porque clasifica antes de que se conozca el nivel.
+
 ## Pedidos frecuentes
 
 | Pedido | Qué hacer |
@@ -53,6 +96,7 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |
 | Server nuevo o migración | [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), en orden. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
 | Réplica de inferencia, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): en server2, `make llm-lb-status`, `make up-llm-lb`. |
+| Función, bug o cambio de código | [Ciclo de desarrollo](#ciclo-de-desarrollo): `technical-leader` → `validador` → `desarrollador` → `qa` → `documentador`. |
 | Probar un cambio | Entorno local: `make dev-up`, http://192.168.1.99:8211 ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)). |
 | Desplegar a producción | Agente [`deploy`](.claude/agents/deploy.md), solo desde `main` y después de probar en local. `make deploy-status` muestra lo pendiente. |
 | Operar el server principal (server2, 192.168.1.98), salvo deploys | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Es producción. Para el usuario, `make server2-ssh CMD='...'`. |

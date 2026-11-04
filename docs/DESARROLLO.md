@@ -5,7 +5,7 @@
 | Desarrollo | `192.168.1.99` (además, réplica de los modelos) | Copia de trabajo, cualquier rama | Base propia, sin datos de producción; credenciales en `.env.dev` |
 | Producción | server2 (`192.168.1.98`) | Siempre `main`, sin cambios locales | Base y `.env` reales |
 
-**Flujo:** se desarrolla y se prueba en el entorno local → commit a `main` y push → se despliega con el agente
+**Flujo:** se planifica y se valida ([ciclo de `AGENTS.md`](../AGENTS.md#ciclo-de-desarrollo)) → se desarrolla y se prueba en el entorno local → commit a `main` y push → se despliega con el agente
 [`deploy`](../.claude/agents/deploy.md). Nada se prueba por primera vez en producción. Los `make up*` de producción se niegan si
 el repo no está en `main` o tiene cambios locales (`solo-principal`).
 
