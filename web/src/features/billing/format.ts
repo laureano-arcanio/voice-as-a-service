@@ -18,8 +18,11 @@ function amount(
   return `${formatNumber(v, 0)} ${v === 1 ? one : many}${suffix}`;
 }
 
+/** Minutos de síntesis y transcripción por mes del plan (null = sin límite, 0 = no incluido). */
+type PlanInference = { api_tts_minutes?: number | null; api_stt_minutes?: number | null };
+
 /** Lo que incluye un plan, en una lista corta para el cliente. */
-export function planFeatures(p: Plan): string[] {
+export function planFeatures(p: Plan & PlanInference): string[] {
   const out: string[] = [];
   // Lo que vale 0 el plan no lo incluye: no se lista.
   if (p.inbound_minutes !== 0)
@@ -47,6 +50,27 @@ export function planFeatures(p: Plan): string[] {
   );
   if (p.max_phone_numbers !== 0)
     out.push(amount(p.max_phone_numbers, 'número de teléfono', 'números de teléfono', 'Números sin límite'));
+  // Síntesis y transcripción (Estudio y API): grupo aparte de las llamadas.
+  if (p.api_tts_minutes !== 0 && p.api_tts_minutes !== undefined)
+    out.push(
+      amount(
+        p.api_tts_minutes,
+        'minuto de texto a voz',
+        'minutos de texto a voz',
+        'Texto a voz sin límite',
+        ' por mes',
+      ),
+    );
+  if (p.api_stt_minutes !== 0 && p.api_stt_minutes !== undefined)
+    out.push(
+      amount(
+        p.api_stt_minutes,
+        'minuto de transcripción',
+        'minutos de transcripción',
+        'Transcripción sin límite',
+        ' por mes',
+      ),
+    );
   if (p.api_rate_limit !== 0) out.push('Acceso a la API');
   const channels = p.campaign_channels ?? [];
   if (channels.length && p.max_campaigns_per_month !== 0) {

@@ -80,6 +80,7 @@ def list_voices(db: DB, creds: Bearer, genero: str | None = None, wer_max: float
 @router.get("/usage", response_model=InferenceUsageOut)
 def usage(db: DB, creds: Bearer,
           month: Annotated[str | None, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM")] = None):
-    """Consumo del mes del cliente de la key contra los limites de su tier. Consultarlo no gasta cupo."""
+    """Consumo del mes del cliente de la key contra los limites de su tier; `tts_minutes` y `stt_minutes` suman el
+    Estudio del panel (`studio`). Consultarlo no gasta cupo."""
     _, client = inference_key(db, creds, None)
     return inference_usage_out(api_usage.usage(db, client, month))

@@ -1213,7 +1213,7 @@
      "clients"
     ],
     "summary": "Client Inference Usage",
-    "description": "Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del\ntier, y por key. No incluye los agentes integrados.",
+    "description": "Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) y del Estudio (`studio`, que descuenta\nde los mismos cupos) contra los limites del tier, y por key. No incluye los agentes integrados.",
     "operationId": "client_inference_usage_api_v1_clients__client_id__inference_usage_get",
     "security": [
      {
@@ -3737,7 +3737,7 @@
      "voices"
     ],
     "summary": "Tts Preview",
-    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.\nDescuenta de los minutos entrantes lo que se entrega y queda en el historial de Texto a voz (429 `inbound_minutes`\nsin minutos), salvo para un admin. Queda en los pedidos de la API como prueba de voz, sin sumar al cupo de TTS.",
+    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.\nSin cargo y sin tope por hora: no descuenta minutos ni queda en el Estudio; el texto llega a TTS_PREVIEW_MAX_CHARS\n(una frase). Queda en los pedidos de la API como prueba de voz.",
     "operationId": "tts_preview_api_v1_tts_preview_post",
     "requestBody": {
      "content": {
@@ -3756,9 +3756,6 @@
        "audio/wav": {},
        "audio/pcm": {}
       }
-     },
-     "429": {
-      "description": "Limite de uso por hora"
      },
      "422": {
       "description": "Validation Error",
@@ -3807,8 +3804,11 @@
        }
       }
      },
+     "403": {
+      "description": "El plan no incluye minutos de síntesis o de transcripción (not_in_plan)"
+     },
      "429": {
-      "description": "Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora"
+      "description": "Sin minutos de síntesis o de transcripción (api_tts_minutes, api_stt_minutes) o demasiados trabajos por hora"
      },
      "422": {
       "description": "Validation Error",
@@ -3857,8 +3857,11 @@
        }
       }
      },
+     "403": {
+      "description": "El plan no incluye minutos de síntesis o de transcripción (not_in_plan)"
+     },
      "429": {
-      "description": "Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora"
+      "description": "Sin minutos de síntesis o de transcripción (api_tts_minutes, api_stt_minutes) o demasiados trabajos por hora"
      },
      "422": {
       "description": "Validation Error",
@@ -7442,7 +7445,7 @@
      "inference"
     ],
     "summary": "Usage",
-    "description": "Consumo del mes del cliente de la key contra los limites de su tier. Consultarlo no gasta cupo.",
+    "description": "Consumo del mes del cliente de la key contra los limites de su tier; `tts_minutes` y `stt_minutes` suman el\nEstudio del panel (`studio`). Consultarlo no gasta cupo.",
     "operationId": "usage_api_v1_inference_usage_get",
     "security": [
      {
@@ -21081,7 +21084,7 @@
      },
      "text": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 250,
       "minLength": 1,
       "title": "Text"
      },
@@ -22365,6 +22368,25 @@
     ],
     "title": "InferenceRequestsOut"
    },
+   "InferenceStudioUsageOut": {
+    "properties": {
+     "tts_minutes": {
+      "type": "number",
+      "title": "Tts Minutes"
+     },
+     "stt_minutes": {
+      "type": "number",
+      "title": "Stt Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tts_minutes",
+     "stt_minutes"
+    ],
+    "title": "InferenceStudioUsageOut",
+    "description": "Lo del Estudio (Texto a voz y Transcribir), que descuenta de los mismos cupos y no tiene key."
+   },
    "InferenceUsageOut": {
     "properties": {
      "month": {
@@ -22415,6 +22437,9 @@
       },
       "type": "array",
       "title": "Keys"
+     },
+     "studio": {
+      "$ref": "#/components/schemas/InferenceStudioUsageOut"
      }
     },
     "type": "object",
@@ -22428,10 +22453,11 @@
      "tts_minutes",
      "stt_minutes",
      "requests",
-     "keys"
+     "keys",
+     "studio"
     ],
     "title": "InferenceUsageOut",
-    "description": "Consumo del mes de la API de inferencia contra los limites del tier."
+    "description": "Consumo del mes de la API de inferencia contra los limites del tier. `tts_minutes` y `stt_minutes` suman\nlas keys y el Estudio (`studio`)."
    },
    "InviteOut": {
     "properties": {
@@ -25061,6 +25087,28 @@
        }
       ],
       "title": "Api Rate Limit"
+     },
+     "api_tts_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Tts Minutes"
+     },
+     "api_stt_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Stt Minutes"
      },
      "campaign_channels": {
       "items": {
@@ -31876,7 +31924,7 @@
      },
      "text": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 250,
       "title": "Text"
      },
      "format": {

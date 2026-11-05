@@ -24,7 +24,7 @@ const visible = ordered.map((v, i) => ({ ...v, more: i >= 12, portrait: voicePor
 const hasMore = visible.some((v) => v.more);
 const first = visible[0]!;
 // TTS_PREVIEW_MAX_CHARS de la API (app/config.py).
-const MAX_CHARS = 200;
+const MAX_CHARS = 250;
 const avatar = "grid flex-none place-items-center overflow-hidden rounded-full bg-surface-2 font-display font-extrabold text-ink";
 ---
 

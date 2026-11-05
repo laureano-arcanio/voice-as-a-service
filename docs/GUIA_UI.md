@@ -84,7 +84,7 @@ entrantes y salientes, números y clientes; el resto se ve en **Editar**.
 | | Números | Números de teléfono asignados al cliente. |
 | | Links (uno por agente) | Links para llamar ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | | Personas del equipo | Personas a las que el agente puede derivar y que atienden el teléfono del equipo. |
-| API de inferencia por mes | Tokens de entrada / salida del LLM, minutos de TTS y de STT, pedidos por minuto | Solo el uso por API key ([`API_INFERENCIA.md`](API_INFERENCIA.md)), no los agentes. |
+| API de inferencia por mes | Tokens de entrada / salida del LLM, minutos de TTS y de STT, pedidos por minuto | El uso por API key y, en los minutos de TTS y STT, también lo de Texto a voz y Transcribir del panel ([`API_INFERENCIA.md`](API_INFERENCIA.md)); no los agentes. |
 | Campañas y agenda | Canales de campañas | WhatsApp, llamadas, las dos o ninguna. |
 | | Campañas por mes | Campañas que puede iniciar en el mes (cuenta al salir de borrador; cancelar no devuelve el cupo). |
 | | Contactos por campaña, Llamadas simultáneas por campaña | Destinatarios de una campaña y concurrencia de una de llamadas. |
@@ -128,9 +128,9 @@ estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys
 
 - **Consumo y datos:** el mismo consumo que ve el cliente en Reportes > Consumo, con selector de mes (llamadas activas contra el tope,
   minutos entrantes y salientes, números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
-  el **consumo de la API** del mes contra el tier (tokens de
-  entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
-  no incluye lo que consumen los agentes integrados), los **datos de registro** (empresa, y nombre, email y celular
+  el consumo de **síntesis, transcripción y LLM** del mes contra el tier (tokens de
+  entrada y salida del LLM, minutos de transcripción y de síntesis, que suman la API y el Estudio, pedidos por minuto y el desglose
+  por key, con una fila Estudio al final; no incluye lo que consumen los agentes integrados), los **datos de registro** (empresa, y nombre, email y celular
   del primer usuario, con si verificó el celular; rubro y sitio si los dio en el asistente de primera vez; fecha y
   origen del alta) y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene. Los ajustes del cliente se conservan.
@@ -345,10 +345,10 @@ alcanza. En la navegación, arriba de todo.
     de mes; no depende de los filtros de período, y el admin elige un cliente). Arriba, una línea de estado:
     *Todo en orden*, *Cerca de un tope* (desde el 70 %) o *Llegaste a un tope*, y si los minutos van a pasar el
     tope al ritmo actual. Abajo, las barras de **Llamadas y minutos** (minutos entrantes y salientes con la
-    proyección a fin de mes, llamadas simultáneas, por hora, por día y por mes, y números) y de la **API de
-    inferencia** (tokens de entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por
-    minuto, y el desglose por API key). La API no cuenta lo que consumen los agentes integrados (llamadas y
-    WhatsApp).
+    proyección a fin de mes, llamadas simultáneas, por hora, por día y por mes, y números) y, en una tarjeta aparte,
+    **Síntesis, transcripción y LLM** (tokens de entrada y salida del LLM, minutos de transcripción y de síntesis
+    de la API y del Estudio, pedidos por minuto, y el desglose por API key con la fila *Estudio* al final). No cuenta
+    lo que consumen los agentes integrados (llamadas y WhatsApp).
   - **Llamadas:** por día y modo (con las **Directas** como serie propia), mapa de calor por día y hora, por línea
     y por agente, duración, cómo terminaron y llamantes nuevos o que vuelven. Si el equipo usó el teléfono:
     **Por tipo** (con el agente, directas que hace el equipo y entrantes que atiende el equipo: llamadas,
@@ -615,16 +615,18 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 
 ### Voces
 
-Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz (hasta 200
-caracteres; queda en Uso de la API y en el historial de Texto a voz, y descuenta de los minutos entrantes lo que dure el audio).
+Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz (hasta 250
+caracteres; queda en Uso de la API y no descuenta minutos).
 La voz por defecto de un agente es `agent.voice` en su definición.
 
 ### Texto a voz (`/texto-a-voz`) y Transcribir (`/transcribir`)
 
 En todos los planes. **Texto a voz:** pegá el texto o subí un `.txt`, elegí la voz y tocá Sintetizar. **Transcribir:** elegí
 un audio y tocá Transcribir. Se procesa en segundo plano, se puede salir de la pantalla y todo queda guardado abajo: escuchar,
-ver el texto, copiarlo, bajarlo como `.txt`, bajar el audio en MP3, WAV, OGG o FLAC, y borrar. Descuenta de los minutos
-entrantes los segundos reales de audio; si falla, no descuenta. Borrar no devuelve minutos. Un admin que entró como
+ver el texto, copiarlo, bajarlo como `.txt`, bajar el audio en MP3, WAV, OGG o FLAC, y borrar. Texto a voz descuenta de
+los minutos de síntesis del plan y Transcribir de los de transcripción (los de la API), por segundos reales de audio; si
+falla, no descuenta. Borrar no devuelve minutos. Debajo del botón dice cuántos minutos quedan del cupo de esa pantalla; si el plan
+no lo incluye (cupo en 0) lo dice y el botón queda deshabilitado, y sin cupo se muestra el mensaje del servidor. Un admin que entró como
 el cliente solo ve el historial. Detalle: [`features/ESTUDIO.md`](features/ESTUDIO.md).
 
 ### WhatsApp (cliente)
@@ -783,7 +785,7 @@ El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede
 
 ### Números (cliente, `/account`)
 
-- **Consumo:** está en **Reportes > Consumo** (junto con la API de inferencia).
+- **Consumo:** está en **Reportes > Consumo** (junto con síntesis, transcripción y LLM).
 - **Números:** editás la etiqueta y **quién atiende** cada número: un agente tuyo o el equipo, con sus personas,
   timbre, horario y respaldo (ver [Números de teléfono](#4-números-de-teléfono-números)). Asignar y liberar
   números lo hace el admin.
@@ -808,7 +810,8 @@ Registro y cobro por transferencia ([`COBROS.md`](features/COBROS.md)):
   va a pagarlo con tarjeta (`/plan/pagar`).
 - **Tiers que se venden:** en el formulario del tier, "Precio por mes" y "Público". Vacío = no se vende
   por el dashboard; 0 = gratis.
-- **Plan (`/plan`, cliente):** datos para la factura y planes con precio. Entrando como el cliente es de solo lectura. Se pagan con **tarjeta**
+- **Plan (`/plan`, cliente):** datos para la factura y planes con precio; cada plan lista, después de lo de llamadas, sus minutos de texto
+  a voz y de transcripción por mes (sin límite si no tiene tope; no se listan si valen 0). Entrando como el cliente es de solo lectura. Se pagan con **tarjeta**
   (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
 - **Lo que el plan no incluye** ([`ARQUITECTURA.md`](ARQUITECTURA.md#funciones-por-plan)): el cliente ve

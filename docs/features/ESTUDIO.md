@@ -1,14 +1,16 @@
 # Estudio: texto a voz y transcripción
 
 Dos pantallas para todos los planes: **Texto a voz** (`/texto-a-voz`) y **Transcribir** (`/transcribir`). Todo lo que se
-genera queda guardado en el cliente y descuenta minutos del plan, igual que las pruebas de voz.
-Estado: implementado en `development`, sin desplegar.
+genera queda guardado en el cliente y descuenta de los minutos de síntesis o de transcripción del plan, los mismos de la
+[API de inferencia](../API_INFERENCIA.md). Las pruebas de voz son sin cargo, con tope.
+Estado: en producción.
 
 ## Decisiones
 
 | Tema | Decisión | Por qué |
 |---|---|---|
-| Qué cupo descuenta | `inbound_minutes` (el mismo de las entrantes) | Es el único que tienen todos los planes: Free tiene 20 entrantes y 0 salientes. `api_tts_minutes` y `api_stt_minutes` siguen siendo solo de la API de inferencia |
+| Qué cupo descuenta | Texto a voz, `api_tts_minutes`; Transcribir, `api_stt_minutes` (los de la API de inferencia). Con el cupo en 0, 403 `not_in_plan` | Es el mismo uso de los mismos motores que la API; los entrantes quedan solo para llamadas, y el Estudio no puede cortar ni rechazar una llamada |
+| Pruebas de voz | Sin cargo: no descuentan minutos ni se guardan en el Estudio. Tope de texto: una frase, hasta `TTS_PREVIEW_MAX_CHARS` (250; entra la más larga fija, 160 del editor y 128 de la landing). Sin tope por hora en el panel, la API key y el MCP; la demo de la landing tiene `DEMO_IP_TTS_PER_HOUR` | Sirven para elegir una voz, no para generar audio. Quedan en Uso de la API como `voice_test_*` ([`API_INFERENCIA.md`](../API_INFERENCIA.md)) |
 | Cómo se cuenta | Segundos reales de audio, sumados en el mes (`billed_seconds`) | Por minuto iniciado, 20 pruebas de voz de 5 s agotarían los 20 minutos de Free. Cambiar la regla es una línea (`studio.billable`) |
 | Motores | Los mismos de las llamadas, por `tts._send` y el HTTP del STT | Sin servicios nuevos ni cambios de GPU |
 | Trabajo en segundo plano | Fila en `studio_items` y `studio_loop` en la app | Un texto largo tarda minutos y el pedido HTTP no puede esperar por el túnel. Mismo patrón que `campaign_loop` |
@@ -18,33 +20,39 @@ Estado: implementado en `development`, sin desplegar.
 | Subir texto | `.txt` leído en el navegador, a la misma caja | Sin parsers ni archivos del lado del servidor |
 | Borrar | Borra audio y texto, y la fila queda con sus segundos | Borrar no devuelve minutos |
 | Falla | `failed`, sin descontar nada | El cliente no paga un resultado que no recibió |
-| Admin como el cliente | Ve y baja; no crea. Sus pruebas de voz no descuentan ni se guardan | No gasta minutos ajenos |
+| Admin como el cliente | Ve y baja; no crea | No gasta minutos ajenos |
 
 ## Modelo de datos (migración 0047)
 
 `studio_items`: `client_id`, `created_by`, `kind` (`tts`/`stt`), `origin` (`studio`/`voice_test`), `status`
 (`queued`/`processing`/`done`/`failed`), `title`, `voice`, `language`, `text` (entrada del TTS o resultado del STT),
 `progress`, `audio_seconds`, `billed_seconds`, `file_name`, `error`, `created_at`, `finished_at`, `deleted_at`.
+Las filas con `origin='voice_test'` (pruebas de voz) se ven en el historial y no cuentan para ningún cupo; el código no
+las crea.
 
 ## Flujo de minutos
 
-1. **Reserva.** Con el lock de la fila del cliente (el de `quota.admit`), se compara la estimación con lo que queda
-   y se inserta el ítem con `billed_seconds` = estimación. Así dos trabajos a la vez no venden el mismo minuto.
+1. **Reserva.** Con el lock de la fila del cliente (`studio._reserve`), `api_usage.check` mira el cupo del motor (403
+   `not_in_plan` en 0, 429 si está agotado), se compara la estimación con lo que queda y se inserta el ítem con
+   `billed_seconds` = estimación. Así dos trabajos a la vez no venden el mismo minuto.
    TTS: caracteres / `car_s` de la voz. STT: duración del archivo.
 2. **Ajuste.** Al terminar, `billed_seconds` pasa a los segundos reales; si falla, a 0.
-3. **Consumo.** `quota.used_seconds` suma `studio_items` a los minutos entrantes: lo ven el corte de llamadas, los medidores
-   y el panel, sin otro cambio. Una llamada en curso también se corta si el Estudio agota el cupo.
+3. **Consumo.** `api_usage.studio_seconds` suma los `studio_items` con `origin='studio'` del mes (en `BILLING_TIMEZONE`,
+   por `created_at`: un trabajo cuenta en el mes en que se reservó) a lo de la API: lo ven `check()` (el 429 de la API
+   y del Estudio) y el uso de inferencia (`GET /inference/usage`, `GET /clients/{id}/inference-usage`), donde los
+   medidores `tts_minutes`/`stt_minutes` suman las keys y el campo `studio`. No suma pedidos ni cuenta para el tope por
+   minuto (`api_rate_limit`).
 
-La prueba de voz (`POST /tts/preview`, panel, API key y MCP) rechaza con 429 `inbound_minutes` si no quedan minutos, descuenta
-lo entregado (también si el navegador corta) y queda en el historial de Texto a voz. La demo de la landing no descuenta:
-no tiene cliente y va por `/api/v1/demo`.
+**Tolerancias aceptadas.** Contra un pedido de la API en el mismo instante, el Estudio puede pasarse por lo que consume
+ese pedido (la API no toma lock y suma al terminar: "el último pedido puede pasarse"). La estimación del TTS puede quedar
+corta y el ajuste al real pasarse unos segundos.
 
 ## API
 
 | Ruta | Qué hace |
 |---|---|
-| `POST /studio/speech` | `{text, voice}`. 201 con el ítem en cola; 429 `inbound_minutes` sin minutos |
-| `POST /studio/transcriptions` | Multipart con `file`. 201 con el ítem; 422 `audio_invalid` si no se puede leer; 413 si es muy grande |
+| `POST /studio/speech` | `{text, voice}`. 201 con el ítem en cola; 429 `api_tts_minutes` sin minutos o si no alcanzan ("Necesita unos N minutos y te quedan M"); 403 `not_in_plan` con el cupo en 0 |
+| `POST /studio/transcriptions` | Multipart con `file`. 201 con el ítem; 422 `audio_invalid` si no se puede leer; 413 si es muy grande; 429 `api_stt_minutes` y 403 `not_in_plan` como el anterior |
 | `GET /studio/items` | `kind`, `limit`, `offset`; del más nuevo al más viejo, sin el texto completo |
 | `GET /studio/items/{id}` | El ítem con su texto |
 | `GET /studio/items/{id}/audio` | `format` y `download`. El STT devuelve el archivo que se subió |
@@ -54,7 +62,7 @@ no tiene cliente y va por `/api/v1/demo`.
 
 | Variable | Valor | Motivo |
 |---|---|---|
-| `STUDIO_TTS_MAX_CHARS` | 20.000 | Unos 20 minutos de audio, el cupo de Free |
+| `STUDIO_TTS_MAX_CHARS` | 20.000 | Unos 20 minutos de audio, el cupo de síntesis de Free |
 | `STUDIO_STT_MAX_BYTES` | 95 MB | Por debajo del tope de subida de Cloudflare (100 MB según su plan, sin medir) |
 | `STUDIO_STT_MAX_SECONDS` | 7.200 | Dos horas |
 | `RATE_STUDIO_PER_HOUR` | 60 | Trabajos por usuario |
@@ -82,10 +90,9 @@ y, con pedazos de 15 s, devolvió 1.281 palabras de un audio de 216. Con texto v
   capacidad ([`docs/capacity/`](../capacity/README.md)) con un trabajo largo de cada motor.
 
 - Un cliente sin agentes ve el asistente de primera vez y no el menú ([`PRIMERA_VEZ.md`](PRIMERA_VEZ.md)): llega al Estudio al
-  terminarlo. Las voces que escucha en el asistente ya descuentan de sus minutos.
+  terminarlo. Las voces que escucha en el asistente no descuentan minutos.
 
-## Pendientes antes de producción
+## Pendientes
 
-- **Legales.** Las condiciones vigentes (2026-10-28) cuentan los minutos por llamada, y la política de privacidad no
-  menciona audios y textos subidos ni su conservación. Hace falta una versión nueva ([`LEGAL.md`](LEGAL.md)).
-- **Precios en la landing.** Dice "minutos entrantes": aclarar que incluyen el Estudio.
+- **Legales.** La política de privacidad no menciona audios y textos subidos ni su conservación. Hace falta una versión
+  nueva ([`LEGAL.md`](LEGAL.md)).

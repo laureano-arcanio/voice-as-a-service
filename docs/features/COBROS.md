@@ -21,7 +21,7 @@ No confundir con verificar los pagos que reciben los clientes (otra cuenta y otr
 | Cambio de plan (transferencia) | Con el próximo pago (`pending_tier_id`); el admin puede registrar una subida antes |
 | Cambio de plan (tarjeta) | Subida inmediata; el monto nuevo rige desde el próximo débito, sin prorrateo. Bajada con el próximo débito |
 | Conteo de minutos | Cada llamada y cada tramo de derivación, por minuto iniciado, sin fracciones (`quota.minutes_started`) |
-| Estudio y pruebas de voz | Descuentan de los minutos entrantes sus segundos reales, sumados en el mes ([`ESTUDIO.md`](ESTUDIO.md)) |
+| Estudio | Texto a voz descuenta de los minutos de síntesis (`api_tts_minutes`) y Transcribir de los de transcripción (`api_stt_minutes`), por segundos reales sumados en el mes; las pruebas de voz, nada ([`ESTUDIO.md`](ESTUDIO.md)) |
 | Entrantes a 0800 / 0810 | Descuentan como cualquier otra llamada, sin multiplicador |
 | Minuto extra | No se vende: la cuota corta al tope. Más minutos para un mes = ajuste de límites del cliente |
 | Red (a medida) | No es un tier: lo cotiza un asesor |

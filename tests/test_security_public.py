@@ -374,19 +374,17 @@ def test_dispatch_error_is_not_leaked(api, admin, monkeypatch):
 
 # ---------- limites de uso con auth ----------
 
-def test_tts_preview_rate_limited(api, admin, monkeypatch):
+def test_tts_preview_has_no_hourly_limit(api, admin, monkeypatch):
+    """La prueba de voz es sin cargo y sin tope por hora: la frena el largo del texto (TTS_PREVIEW_MAX_CHARS)."""
     async def fake_preview(voice, text):
         async def stream():
             yield b"RIFF"
         return stream()
 
     monkeypatch.setattr(tts, "preview", fake_preview)
-    monkeypatch.setattr(settings, "rate_tts_preview_per_hour", 2)
     body = {"voice": "sofia", "text": "Hola"}
-    for _ in range(2):
+    for _ in range(70):
         assert admin.post(f"{V1}/tts/preview", json=body).status_code == 200
-    r = admin.post(f"{V1}/tts/preview", json=body)
-    assert r.status_code == 429 and int(r.headers["Retry-After"]) > 0
 
 
 def test_conversations_rate_limited(api, admin, monkeypatch):

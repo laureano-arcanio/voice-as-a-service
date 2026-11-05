@@ -448,8 +448,8 @@ export interface paths {
         };
         /**
          * Client Inference Usage
-         * @description Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del
-         *     tier, y por key. No incluye los agentes integrados.
+         * @description Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) y del Estudio (`studio`, que descuenta
+         *     de los mismos cupos) contra los limites del tier, y por key. No incluye los agentes integrados.
          */
         get: operations["client_inference_usage_api_v1_clients__client_id__inference_usage_get"];
         put?: never;
@@ -1138,8 +1138,8 @@ export interface paths {
          * Tts Preview
          * @description Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
          *     `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.
-         *     Descuenta de los minutos entrantes lo que se entrega y queda en el historial de Texto a voz (429 `inbound_minutes`
-         *     sin minutos), salvo para un admin. Queda en los pedidos de la API como prueba de voz, sin sumar al cupo de TTS.
+         *     Sin cargo y sin tope por hora: no descuenta minutos ni queda en el Estudio; el texto llega a TTS_PREVIEW_MAX_CHARS
+         *     (una frase). Queda en los pedidos de la API como prueba de voz.
          */
         post: operations["tts_preview_api_v1_tts_preview_post"];
         delete?: never;
@@ -2176,7 +2176,8 @@ export interface paths {
         };
         /**
          * Usage
-         * @description Consumo del mes del cliente de la key contra los limites de su tier. Consultarlo no gasta cupo.
+         * @description Consumo del mes del cliente de la key contra los limites de su tier; `tts_minutes` y `stt_minutes` suman el
+         *     Estudio del panel (`studio`). Consultarlo no gasta cupo.
          */
         get: operations["usage_api_v1_inference_usage_get"];
         put?: never;
@@ -7059,8 +7060,19 @@ export interface components {
             tts: number;
         };
         /**
+         * InferenceStudioUsageOut
+         * @description Lo del Estudio (Texto a voz y Transcribir), que descuenta de los mismos cupos y no tiene key.
+         */
+        InferenceStudioUsageOut: {
+            /** Tts Minutes */
+            tts_minutes: number;
+            /** Stt Minutes */
+            stt_minutes: number;
+        };
+        /**
          * InferenceUsageOut
-         * @description Consumo del mes de la API de inferencia contra los limites del tier.
+         * @description Consumo del mes de la API de inferencia contra los limites del tier. `tts_minutes` y `stt_minutes` suman
+         *     las keys y el Estudio (`studio`).
          */
         InferenceUsageOut: {
             /** Month */
@@ -7088,6 +7100,7 @@ export interface components {
             requests: components["schemas"]["InferenceRequestsOut"];
             /** Keys */
             keys: components["schemas"]["InferenceKeyUsageOut"][];
+            studio: components["schemas"]["InferenceStudioUsageOut"];
         };
         /**
          * InviteOut
@@ -8111,6 +8124,10 @@ export interface components {
             max_phone_numbers: number | null;
             /** Api Rate Limit */
             api_rate_limit: number | null;
+            /** Api Tts Minutes */
+            api_tts_minutes?: number | null;
+            /** Api Stt Minutes */
+            api_stt_minutes?: number | null;
             /**
              * Campaign Channels
              * @default []
@@ -13753,13 +13770,6 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Limite de uso por hora */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     create_speech_api_v1_studio_speech_post: {
@@ -13784,6 +13794,13 @@ export interface operations {
                     "application/json": components["schemas"]["StudioItemOut"];
                 };
             };
+            /** @description El plan no incluye minutos de síntesis o de transcripción (not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13793,7 +13810,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora */
+            /** @description Sin minutos de síntesis o de transcripción (api_tts_minutes, api_stt_minutes) o demasiados trabajos por hora */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -13824,6 +13841,13 @@ export interface operations {
                     "application/json": components["schemas"]["StudioItemOut"];
                 };
             };
+            /** @description El plan no incluye minutos de síntesis o de transcripción (not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13833,7 +13857,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora */
+            /** @description Sin minutos de síntesis o de transcripción (api_tts_minutes, api_stt_minutes) o demasiados trabajos por hora */
             429: {
                 headers: {
                     [name: string]: unknown;

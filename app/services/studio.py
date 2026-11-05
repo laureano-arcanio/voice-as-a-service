@@ -1,11 +1,13 @@
 """Estudio: texto a voz y transcripcion para todos los planes (docs/features/ESTUDIO.md).
 
-Cada trabajo es una fila de `studio_items`. Al crearlo se reservan los segundos estimados contra los minutos
-entrantes del plan (con el lock del cliente, como quota.admit); al terminar se ajustan a los reales y, si falla,
-a 0. `quota.used_seconds` suma esta tabla. Borrar saca el contenido pero deja la fila: no devuelve minutos.
+Cada trabajo es una fila de `studio_items`. Al crearlo se reservan los segundos estimados contra el cupo de
+inferencia del plan (`api_tts_minutes` o `api_stt_minutes`, con el lock del cliente); al terminar se ajustan a los
+reales y, si falla, a 0. `api_usage.studio_seconds` suma esta tabla. Borrar saca el contenido pero deja la fila: no
+devuelve minutos.
 
 `studio_loop` corre en la app y procesa de a un trabajo por motor, en pedazos cortos, porque los motores son
-los mismos que atienden las llamadas. Las pruebas de voz tambien quedan aca (`recording_preview`).
+los mismos que atienden las llamadas. Las pruebas de voz (`/tts/preview`) no pasan por aca: son sin cargo; las
+filas con origin `voice_test` que quedaron no cuentan para ningun cupo.
 """
 import asyncio
 import logging
@@ -14,11 +16,10 @@ import re
 import shutil
 import wave
 from array import array
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from typing import BinaryIO
 
-import anyio
 import av
 import httpx
 from sqlalchemy import func, select
@@ -26,10 +27,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 from ..db import get_sessionmaker, utcnow
-from ..models import CallMode, Client, StudioItem
+from ..models import Client, StudioItem
 from ..models._common import new_id
 from ..whatsapp.audio import pcm_to_wav
-from . import quota, tts, voices
+from . import api_usage, tts, voices
 from .errors import Conflict, Invalid, QuotaExceeded
 
 logger = logging.getLogger(__name__)
@@ -74,28 +75,19 @@ def item_dir(client_id: str, item_id: str) -> Path:
     return settings.call_recordings_dir / "studio" / client_id / item_id
 
 
-def _no_minutes(message: str = "No te quedan minutos en el plan este mes") -> QuotaExceeded:
-    return QuotaExceeded(message, "inbound_minutes")
-
-
-def _reserve(s: Session, client_id: str, seconds: float) -> None:
-    """Toma el lock del cliente y verifica el cupo: quien llama inserta el item y hace commit en la misma sesion."""
+def _reserve(s: Session, client_id: str, kind: str, seconds: float) -> None:
+    """Toma el lock del cliente y verifica el cupo de `kind` (tts o stt): quien llama inserta el item y hace commit
+    en la misma sesion. 403 not_in_plan con el cupo en 0; 429 api_tts_minutes / api_stt_minutes si no alcanza."""
     client = s.scalar(select(Client).where(Client.id == client_id).with_for_update(key_share=True, of=Client))
     if client is None or not client.active:
         raise QuotaExceeded("El cliente no está activo", "client_inactive")
-    left = quota.remaining_seconds(s, client, CallMode.entrante)
+    left = api_usage.check(s, client, kind).seconds
     if left is None or seconds <= left:
         return
-    if left <= 0:
-        raise _no_minutes()
-    raise _no_minutes(f"Necesita unos {math.ceil(seconds / 60)} minutos y te quedan {max(left // 60, 0)} este mes")
-
-
-def check_minutes(s: Session, client: Client) -> None:
-    """Para una prueba de voz: que quede algo. El largo no se estima, son 200 caracteres como mucho."""
-    left = quota.remaining_seconds(s, client, CallMode.entrante)
-    if left is not None and left <= 0:
-        raise _no_minutes()
+    need, whole = math.ceil(seconds / 60), int(left // 60)
+    needs = "1 minuto" if need == 1 else f"unos {need} minutos"
+    left_text = "menos de un minuto" if whole < 1 else "1 minuto" if whole == 1 else f"{whole} minutos"
+    raise QuotaExceeded(f"Necesita {needs} y te quedan {left_text} este mes", f"api_{kind}_minutes")
 
 
 def _title(text: str) -> str:
@@ -120,7 +112,7 @@ def create_speech(s: Session, client_id: str, user_id: str | None, text: str, vo
     if len(text) > settings.studio_tts_max_chars:
         raise Invalid(f"El texto puede tener hasta {settings.studio_tts_max_chars} caracteres", "invalid_request")
     estimate = billable(estimate_tts_seconds(text, voice))
-    _reserve(s, client_id, estimate)
+    _reserve(s, client_id, TTS, estimate)
     item = StudioItem(client_id=client_id, created_by=user_id, kind=TTS, status=QUEUED, title=_title(text), voice=voice,
                       text=text, billed_seconds=estimate)
     s.add(item)
@@ -228,7 +220,7 @@ def create_transcription(s: Session, client_id: str, user_id: str | None, upload
         if seconds > settings.studio_stt_max_seconds:
             raise Invalid(f"El audio supera las {settings.studio_stt_max_seconds // 3600} horas", "audio_too_long")
         estimate = billable(seconds)
-        _reserve(s, client_id, estimate)
+        _reserve(s, client_id, STT, estimate)
         item = StudioItem(id=item_id, client_id=client_id, created_by=user_id, kind=STT, status=QUEUED, title=name,
                           language=STT_LANGUAGE, file_name=source.name, audio_seconds=seconds, billed_seconds=estimate)
         s.add(item)
@@ -461,45 +453,3 @@ def audio_file(item: StudioItem, fmt: str) -> tuple[Path, str, str]:
     if not target.is_file():
         _convert(source, target, fmt)
     return target, FORMATS[fmt][4], f".{fmt}"
-
-
-# ---------- pruebas de voz ----------
-
-def _save_preview(sessions: sessionmaker[Session], client_id: str, user_id: str | None, voice: str, text: str,
-                  pcm: bytes) -> None:
-    seconds = len(pcm) / tts.BYTES_PER_SECOND
-    with sessions() as s:
-        item = StudioItem(client_id=client_id, created_by=user_id, kind=TTS, origin=ORIGIN_VOICE_TEST, status=DONE,
-                          title=_title(text), voice=voice.strip().lower(), text=text.strip(), progress=100,
-                          audio_seconds=seconds, billed_seconds=billable(seconds), file_name=AUDIO_FILE,
-                          finished_at=utcnow())
-        s.add(item)
-        s.flush()
-        path = item_dir(client_id, item.id) / AUDIO_FILE
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(tts.wav_from_pcm(pcm))
-        s.commit()
-
-
-def recording_preview(stream: AsyncIterator[bytes], sessions: sessionmaker[Session], *, client_id: str,
-                      user_id: str | None, voice: str, text: str, audio_format: str) -> AsyncIterator[bytes]:
-    """Deja pasar el audio de la prueba de voz y, al terminar, la guarda y descuenta lo entregado: si el navegador
-    corta, cuenta lo que salio. Fallar al guardar no le corta el audio al que escucha."""
-    async def run() -> AsyncIterator[bytes]:
-        audio = bytearray()
-        try:
-            async for chunk in stream:
-                audio += chunk
-                yield chunk
-        finally:
-            pcm = bytes(audio[tts.WAV_HEADER_BYTES:] if audio_format == "wav" else audio)
-            pcm = pcm[:len(pcm) // 2 * 2]
-            if pcm:
-                with anyio.CancelScope(shield=True):
-                    try:
-                        await anyio.to_thread.run_sync(
-                            lambda: _save_preview(sessions, client_id, user_id, voice, text, pcm))
-                    except Exception:
-                        logger.exception("estudio: no se pudo guardar la prueba de voz")
-
-    return run()

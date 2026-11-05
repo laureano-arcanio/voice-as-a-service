@@ -28,6 +28,7 @@ const USAGE: InferenceUsage = {
       stt_minutes: 2.5,
     },
   ],
+  studio: { tts_minutes: 0, stt_minutes: 0 },
 };
 
 describe('InferenceMeters', () => {
@@ -66,8 +67,21 @@ describe('KeysTable', () => {
     expect(screen.getByText('llm')).toBeInTheDocument();
   });
 
-  it('sin keys no muestra la tabla', () => {
+  it('sin keys ni consumo del Estudio no muestra la tabla', () => {
     renderWithProviders(<KeysTable usage={{ ...USAGE, keys: [] }} />);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('agrega la fila Estudio al final cuando tuvo consumo, también sin keys', () => {
+    const studio = { tts_minutes: 3.25, stt_minutes: 0 };
+    const { unmount } = renderWithProviders(<KeysTable usage={{ ...USAGE, studio }} />);
+    const rows = screen.getAllByRole('row');
+    expect(rows[rows.length - 1]).toHaveTextContent('Estudio');
+    expect(rows[rows.length - 1]).toHaveTextContent('3,25');
+    expect(rows[rows.length - 2]).toHaveTextContent('CRM');
+    unmount();
+    renderWithProviders(<KeysTable usage={{ ...USAGE, keys: [], studio }} />);
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Estudio')).toBeInTheDocument();
   });
 });

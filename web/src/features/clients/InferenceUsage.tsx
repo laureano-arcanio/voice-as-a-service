@@ -52,9 +52,10 @@ export function InferenceMeters({ usage }: { usage: InferenceUsage }) {
   );
 }
 
-/** Consumo de la API por key (LLM, STT y TTS). */
+/** Consumo por key (LLM, STT y TTS) y, al final, lo que el cliente usó en Texto a voz y Transcribir del panel. */
 export function KeysTable({ usage }: { usage: InferenceUsage }) {
-  if (usage.keys.length === 0) return null;
+  const studio = usage.studio.tts_minutes > 0 || usage.studio.stt_minutes > 0;
+  if (usage.keys.length === 0 && !studio) return null;
   return (
     <Table.ScrollContainer minWidth={640}>
       <Table>
@@ -101,6 +102,20 @@ export function KeysTable({ usage }: { usage: InferenceUsage }) {
               <Table.Td ta="right">{formatNumber(k.stt_minutes, 2)}</Table.Td>
             </Table.Tr>
           ))}
+          {studio && (
+            <Table.Tr>
+              <Table.Td>Estudio</Table.Td>
+              <Table.Td c="dimmed">Texto a voz y Transcribir</Table.Td>
+              <Table.Td ta="right" c="dimmed">
+                –
+              </Table.Td>
+              <Table.Td ta="right" c="dimmed">
+                –
+              </Table.Td>
+              <Table.Td ta="right">{formatNumber(usage.studio.tts_minutes, 2)}</Table.Td>
+              <Table.Td ta="right">{formatNumber(usage.studio.stt_minutes, 2)}</Table.Td>
+            </Table.Tr>
+          )}
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>

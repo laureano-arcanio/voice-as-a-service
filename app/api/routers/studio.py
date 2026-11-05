@@ -1,5 +1,5 @@
-"""Estudio: texto a voz y transcripcion para todos los planes (docs/features/ESTUDIO.md). Descuenta minutos entrantes
-y deja todo guardado en el cliente. Un admin que entro como el cliente solo ve y baja: no gasta minutos ajenos."""
+"""Estudio: texto a voz y transcripcion para todos los planes (docs/features/ESTUDIO.md). Descuenta de los minutos
+de sintesis o de transcripcion del plan (los de la API de inferencia) y deja todo guardado en el cliente. Un admin que entro como el cliente solo ve y baja: no gasta minutos ajenos."""
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
@@ -15,7 +15,11 @@ from ..schemas import StudioItemOut, StudioItemPage, StudioSpeechIn
 
 router = APIRouter(prefix="/studio", tags=["studio"])
 RATE = Depends(rate_limit("studio", lambda: Limit(settings.rate_studio_per_hour, 3600)))
-QUOTA_RESPONSE = {429: {"description": "Sin minutos en el plan (inbound_minutes) o demasiados trabajos por hora"}}
+QUOTA_RESPONSE = {
+    403: {"description": "El plan no incluye minutos de síntesis o de transcripción (not_in_plan)"},
+    429: {"description": "Sin minutos de síntesis o de transcripción (api_tts_minutes, api_stt_minutes) "
+                         "o demasiados trabajos por hora"},
+}
 
 
 def _client_id(p) -> str:

@@ -7,7 +7,7 @@ import { useVoices } from '@/features/voices/api';
 import { voiceName } from '@/features/voices/names';
 import { formatNumber } from '@/lib/format';
 import { notifyError } from '@/lib/notify';
-import { useCreateSpeech, useStudioItems, isActive } from './api';
+import { useCreateSpeech, useStudioItems, useStudioQuota, isActive } from './api';
 import { History, MinutesLeft, SupportNotice } from './parts';
 
 const MAX_CHARS = 20_000;
@@ -18,6 +18,7 @@ export function SpeechPage() {
   const voices = useVoices();
   const create = useCreateSpeech();
   const items = useStudioItems('tts');
+  const quota = useStudioQuota('tts', !!items.data?.items.some(isActive));
   const [text, setText] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
   const voice = picked ?? voices.data?.[0]?.nombre ?? null;
@@ -28,7 +29,10 @@ export function SpeechPage() {
     if (!file) return;
     const content = await file.text();
     if (content.length > MAX_CHARS) {
-      notifyError(new Error(`El archivo tiene más de ${formatNumber(MAX_CHARS, 0)} caracteres.`), 'No se pudo cargar');
+      notifyError(
+        new Error(`El archivo tiene más de ${formatNumber(MAX_CHARS, 0)} caracteres.`),
+        'No se pudo cargar',
+      );
       return;
     }
     setText(content);
@@ -79,7 +83,11 @@ export function SpeechPage() {
                   )}
                 </FileButton>
               </Group>
-              <Button onClick={submit} loading={create.isPending} disabled={readOnly || !text.trim() || !voice}>
+              <Button
+                onClick={submit}
+                loading={create.isPending}
+                disabled={readOnly || !quota.included || !text.trim() || !voice}
+              >
                 Sintetizar
               </Button>
             </Group>
@@ -88,7 +96,7 @@ export function SpeechPage() {
                 ? `${formatNumber(text.trim().length, 0)} caracteres, unos ${formatNumber(Math.max(minutes, 0.1))} minutos de audio.`
                 : `Hasta ${formatNumber(MAX_CHARS, 0)} caracteres.`}
             </Text>
-            {readOnly ? <SupportNotice /> : <MinutesLeft refresh={!!items.data?.items.some(isActive)} />}
+            {readOnly ? <SupportNotice /> : <MinutesLeft kind="tts" {...quota} />}
           </Stack>
         </Card>
         <Card>

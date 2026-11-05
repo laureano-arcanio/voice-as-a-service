@@ -514,6 +514,7 @@ const API_USAGE = {
   stt_minutes: { used: 0, limit: 10, remaining: 10 },
   requests: { llm: 2, stt: 0, tts: 1 },
   keys: [],
+  studio: { tts_minutes: 1.5, stt_minutes: 0 },
 };
 
 describe('ReportsPage: Consumo', () => {
@@ -536,6 +537,9 @@ describe('ReportsPage: Consumo', () => {
     expect(screen.getByText('Números')).toBeInTheDocument();
     expect(await screen.findByText('LLM · tokens de entrada')).toBeInTheDocument();
     expect(screen.getByText('Síntesis (TTS)')).toBeInTheDocument();
+    // La inferencia (Estudio y API) es una tarjeta aparte de las llamadas; la fila Estudio se ve aunque no haya keys.
+    expect(screen.getByText('Síntesis, transcripción y LLM')).toBeInTheDocument();
+    expect(screen.getByText('Estudio')).toBeInTheDocument();
     // No depende del período: sin la barra de filtros ni los reportes del período.
     expect(screen.queryByLabelText('Período')).not.toBeInTheDocument();
     expect(urls.some((u) => u.pathname.startsWith('/api/v1/reports/'))).toBe(false);

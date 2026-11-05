@@ -11,7 +11,7 @@ export const DEFAULT_PREVIEW_TEXT =
   'Hola, ¿qué tal? Te hablo de Voz Directa. Te llamo porque pediste una demo del asistente telefónico. ¿Coordinamos una videollamada de veinte minutos esta semana?';
 
 // TTS_PREVIEW_MAX_CHARS de la API (app/config.py).
-const MAX_CHARS = 200;
+const MAX_CHARS = 250;
 
 /**
  * Prueba de voz: sintetiza el texto con la voz (POST /tts/preview, PCM en streaming) y lo reproduce mientras se genera:
@@ -196,7 +196,7 @@ export function VoicePreview({
       </Group>
       <Text size="xs" c={msg?.bad ? 'red' : 'dimmed'}>
         {msg?.text ??
-          `Escuchá ${voice ? voiceName(voice) : 'la voz elegida'} con este texto (editalo si querés). Descuenta de los minutos de tu plan lo que dure el audio.`}
+          `Escuchá ${voice ? voiceName(voice) : 'la voz elegida'} con este texto (editalo si querés).`}
       </Text>
       <audio
         ref={audioRef}

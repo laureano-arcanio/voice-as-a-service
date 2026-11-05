@@ -4,16 +4,18 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useSupportReadOnly } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
-import { isActive, useCreateTranscription, useStudioItems } from './api';
+import { isActive, useCreateTranscription, useStudioItems, useStudioQuota } from './api';
 import { History, MinutesLeft, SupportNotice } from './parts';
 
-const ACCEPT = '.mp3,.mpeg,.mpga,.wav,.ogg,.oga,.opus,.flac,.m4a,.mp4,.aac,.webm,.mkv,.aiff,.aif,.amr,.wma,.3gp';
+const ACCEPT =
+  '.mp3,.mpeg,.mpga,.wav,.ogg,.oga,.opus,.flac,.m4a,.mp4,.aac,.webm,.mkv,.aiff,.aif,.amr,.wma,.3gp';
 const MAX_MB = 95;
 
 export function TranscribePage() {
   const readOnly = useSupportReadOnly();
   const create = useCreateTranscription();
   const items = useStudioItems('stt');
+  const quota = useStudioQuota('stt', !!items.data?.items.some(isActive));
   const [file, setFile] = useState<File | null>(null);
 
   const submit = () => {
@@ -30,7 +32,10 @@ export function TranscribePage() {
 
   return (
     <>
-      <PageHeader title="Transcribir" description="Subí un audio y te devolvemos el texto para copiar o descargar." />
+      <PageHeader
+        title="Transcribir"
+        description="Subí un audio y te devolvemos el texto para copiar o descargar."
+      />
       <Stack gap="md">
         <Card>
           <Stack gap="sm">
@@ -47,11 +52,15 @@ export function TranscribePage() {
                   {file?.name ?? `MP3, WAV, OGG, M4A y otros, hasta ${MAX_MB} MB`}
                 </Text>
               </Group>
-              <Button onClick={submit} loading={create.isPending} disabled={readOnly || !file}>
+              <Button
+                onClick={submit}
+                loading={create.isPending}
+                disabled={readOnly || !quota.included || !file}
+              >
                 Transcribir
               </Button>
             </Group>
-            {readOnly ? <SupportNotice /> : <MinutesLeft refresh={!!items.data?.items.some(isActive)} />}
+            {readOnly ? <SupportNotice /> : <MinutesLeft kind="stt" {...quota} />}
           </Stack>
         </Card>
         <Card>

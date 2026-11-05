@@ -17,10 +17,8 @@ import { useState } from 'react';
 import { confirmAction } from '@/components/confirm';
 import { CopyIcon } from '@/components/Copy';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useClientUsage } from '@/features/clients/api';
-import { useMe } from '@/features/auth/api';
 import { voiceName } from '@/features/voices/names';
-import { formatDateTime, formatDuration, toMonth } from '@/lib/format';
+import { formatDateTime, formatDuration, formatNumber } from '@/lib/format';
 import { notifyError } from '@/lib/notify';
 import {
   AUDIO_FORMATS,
@@ -34,15 +32,24 @@ import {
   type StudioKind,
 } from './api';
 
-/** Lo que le queda al cliente este mes: el Estudio gasta los mismos minutos que las entrantes. */
-export function MinutesLeft({ refresh }: { refresh: boolean }) {
-  const { data: me } = useMe();
-  const usage = useClientUsage(me?.client_id ?? undefined, toMonth(new Date()), refresh ? 3000 : false);
-  const left = usage.data?.inbound.remaining_minutes;
+const QUOTA_LABEL = { tts: 'texto a voz', stt: 'transcripción' } as const;
+
+/** Lo que le queda al cliente este mes: el Estudio gasta los minutos de síntesis o de transcripción de la API. */
+export function MinutesLeft({
+  kind,
+  included,
+  remaining,
+}: {
+  kind: StudioKind;
+  included: boolean;
+  remaining: number | null;
+}) {
+  const label = QUOTA_LABEL[kind];
   return (
-    <Text size="xs" c="dimmed">
-      Se descuenta de los minutos entrantes de tu plan
-      {left != null && `: te quedan ${left} este mes`}.
+    <Text size="xs" c={included ? 'dimmed' : 'red'}>
+      {included
+        ? `Se descuenta de los minutos de ${label} de tu plan${remaining != null ? `: te quedan ${formatNumber(remaining)} este mes` : ''}.`
+        : `Tu plan no incluye ${label}.`}
     </Text>
   );
 }

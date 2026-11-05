@@ -1,20 +1,23 @@
 """Consumo y limites de la API de inferencia (`/api/v1/inference`: LLM, STT y TTS con API key).
 
-Solo cuenta el uso por la API: los agentes integrados (llamadas, WhatsApp) no pasan por aca y
-siguen con los limites de minutos del tier (services/quota.py). Los limites son los del tier mas
+Cuenta el uso por la API y, en los cupos de TTS y STT, el del Estudio (`studio_items` con origin `studio`,
+docs/features/ESTUDIO.md). Las pruebas de voz (`/tts/preview`) no descuentan. Los agentes integrados
+(llamadas, WhatsApp) no pasan por aca y siguen con los limites de minutos del tier (services/quota.py). Los limites son los del tier mas
 los ajustes del cliente (services/limits.py), por
 mes calendario en settings.billing_timezone (como los minutos de llamadas), y valen para todas
 las keys del cliente juntas:
 
 - `api_llm_input_tokens` / `api_llm_output_tokens`: tokens del prompt y generados, por separado.
 - `api_tts_minutes`: minutos de audio sintetizado. `api_stt_minutes`: minutos de audio transcripto.
-- `api_rate_limit`: pedidos por minuto (los tres motores juntos).
+- `api_rate_limit`: pedidos por minuto (los tres motores juntos; el Estudio no suma).
 NULL = ilimitado; 0 = el plan no incluye ese motor (403 `not_in_plan`).
 
 Corte: antes de cada pedido, `check()` rechaza (429) si el cupo del mes ya esta agotado, y devuelve
 lo que queda para achicar lo que el pedido puede generar (max_tokens del chat). Despues, `record()`
 suma lo que el motor informo. Un pedido puede pasarse del cupo por lo que consume el ultimo que
-entro (el audio y el prompt se miden recien al terminar), pero el siguiente ya no pasa.
+entro (el audio y el prompt se miden recien al terminar), pero el siguiente ya no pasa. El Estudio reserva
+lo estimado al crear (con el lock del cliente) y lo ajusta al real al terminar; contra un pedido de API
+simultaneo tiene la misma tolerancia.
 """
 import datetime
 from dataclasses import dataclass, field
@@ -25,7 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import ApiKey, ApiUsageDaily, Client
+from ..models import ApiKey, ApiUsageDaily, Client, StudioItem
 from .errors import Forbidden, QuotaExceeded
 from .limits import Limits, effective_limits
 
@@ -128,6 +131,24 @@ def totals(s: Session, client_id: str, start: datetime.date, end: datetime.date,
     return _totals(s.execute(q).one())
 
 
+def _utc_midnight(day: datetime.date) -> datetime.datetime:
+    """Las 00:00 de `day` en la zona de facturacion, en UTC naive (como created_at)."""
+    local = datetime.datetime(day.year, day.month, day.day, tzinfo=_tz())
+    return local.astimezone(datetime.UTC).replace(tzinfo=None)
+
+
+def studio_seconds(s: Session, client_id: str, start: datetime.date, end: datetime.date) -> tuple[float, float]:
+    """(tts, stt): segundos del Estudio creados en [start, end) (fechas locales). Cuenta lo reservado de lo que esta
+    en cola o en proceso; lo fallido o borrado antes de procesar queda en 0. Las filas `voice_test` no cuentan."""
+    rows = s.execute(select(StudioItem.kind, func.coalesce(func.sum(StudioItem.billed_seconds), 0.0))
+                     .where(StudioItem.client_id == client_id, StudioItem.origin == "studio",
+                            StudioItem.created_at >= _utc_midnight(start),
+                            StudioItem.created_at < _utc_midnight(end))
+                     .group_by(StudioItem.kind)).all()
+    by_kind = {kind: float(seconds) for kind, seconds in rows}
+    return by_kind.get("tts", 0.0), by_kind.get("stt", 0.0)
+
+
 def totals_by_key(s: Session, client_id: str, start: datetime.date, end: datetime.date) -> dict[str, Totals]:
     q = (select(ApiUsageDaily.api_key_id, *_sums())
          .where(ApiUsageDaily.client_id == client_id, ApiUsageDaily.day >= start, ApiUsageDaily.day < end)
@@ -152,12 +173,12 @@ def _exhausted(label: str, code: str) -> QuotaExceeded:
 
 
 def _not_in_plan(label: str) -> Forbidden:
-    return Forbidden(f"Tu plan no incluye {label} por API.", "not_in_plan")
+    return Forbidden(f"Tu plan no incluye {label}.", "not_in_plan")
 
 
 def check(s: Session, client: Client, kind: str, limits: Limits | None = None) -> Remaining:
-    """Rechaza el pedido si el cupo del mes de ese motor ya se agoto; devuelve lo que queda.
-    kind: llm, stt o tts. `limits`: los efectivos del cliente, si el llamador ya los tiene."""
+    """Rechaza el pedido si el cupo del mes de ese motor ya se agoto; devuelve lo que queda (STT y TTS: API mas
+    Estudio). kind: llm, stt o tts. `limits`: los efectivos del cliente, si el llamador ya los tiene."""
     tier = limits or effective_limits(s, client)
     start, end = month_days()
     used = totals(s, client.id, start, end)
@@ -183,6 +204,8 @@ def check(s: Session, client: Client, kind: str, limits: Limits | None = None) -
         raise ValueError(kind)
     if limit == 0:
         raise _not_in_plan(label)
+    studio_tts, studio_stt = studio_seconds(s, client.id, start, end)
+    consumed += studio_tts if kind == "tts" else studio_stt
     if limit is not None and consumed >= limit * MINUTE:
         raise _exhausted(label, code)
     return Remaining(seconds=None if limit is None else limit * MINUTE - consumed)
@@ -211,6 +234,13 @@ class KeyUsage:
 
 
 @dataclass
+class StudioUsage:
+    """Estudio del mes, en minutos (no tiene key)."""
+    tts_minutes: float = 0.0
+    stt_minutes: float = 0.0
+
+
+@dataclass
 class InferenceUsage:
     month: str
     period_start: datetime.date
@@ -222,13 +252,14 @@ class InferenceUsage:
     stt_minutes: Meter
     requests: Totals
     keys: list[KeyUsage] = field(default_factory=list)
+    studio: StudioUsage = field(default_factory=StudioUsage)
 
 
 def usage(s: Session, client: Client, month: str | None = None, key_id: str | None = None) -> InferenceUsage:
-    """Consumo del mes contra los limites del tier. Con key_id, solo el de esa key (los limites son
-    del cliente igual)."""
+    """Consumo del mes contra los limites del tier. Los medidores de TTS y STT suman el Estudio (`studio`). Con key_id, solo el de esa key, sin el Estudio (los limites son del cliente igual)."""
     start, end = month_days(month)
     t = totals(s, client.id, start, end, key_id)
+    studio_tts, studio_stt = (0.0, 0.0) if key_id else studio_seconds(s, client.id, start, end)
     tier = effective_limits(s, client)
     keys = []
     per_key = totals_by_key(s, client.id, start, end)
@@ -245,6 +276,7 @@ def usage(s: Session, client: Client, month: str | None = None, key_id: str | No
         rate_limit=tier.api_rate_limit,
         llm_input_tokens=Meter(t.llm_input_tokens, tier.api_llm_input_tokens),
         llm_output_tokens=Meter(t.llm_output_tokens, tier.api_llm_output_tokens),
-        tts_minutes=Meter(round(t.tts_seconds / MINUTE, 2), tier.api_tts_minutes),
-        stt_minutes=Meter(round(t.stt_seconds / MINUTE, 2), tier.api_stt_minutes),
-        requests=t, keys=keys)
+        tts_minutes=Meter(round((t.tts_seconds + studio_tts) / MINUTE, 2), tier.api_tts_minutes),
+        stt_minutes=Meter(round((t.stt_seconds + studio_stt) / MINUTE, 2), tier.api_stt_minutes),
+        requests=t, keys=keys,
+        studio=StudioUsage(round(studio_tts / MINUTE, 2), round(studio_stt / MINUTE, 2)))

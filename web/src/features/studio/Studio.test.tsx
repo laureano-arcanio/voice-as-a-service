@@ -2,9 +2,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { navItemsFor } from '@/components/nav';
+import { notifyError } from '@/lib/notify';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { SpeechPage } from './SpeechPage';
 import { TranscribePage } from './TranscribePage';
+
+vi.mock('@/lib/notify', () => ({ notifyError: vi.fn(), notifySuccess: vi.fn() }));
 
 const ITEM = {
   id: 's-1',
@@ -38,7 +41,14 @@ function stubApi(routes: Record<string, unknown>) {
   return calls;
 }
 
-const USAGE = { inbound: { remaining_minutes: 7 } };
+const meter = (limit: number | null, remaining: number | null) => ({ used: 0, limit, remaining });
+const usage = (tts: ReturnType<typeof meter>, stt: ReturnType<typeof meter>) => ({
+  tts_minutes: tts,
+  stt_minutes: stt,
+  keys: [],
+  studio: { tts_minutes: 0, stt_minutes: 0 },
+});
+const USAGE = usage(meter(20, 7), meter(20, 3.5));
 const VOICES = [{ nombre: 'sofia', genero: 'mujer', wer: 3, car_s: 16.8 }];
 
 describe('Estudio', () => {
@@ -58,11 +68,13 @@ describe('Estudio', () => {
       '/voices': VOICES,
       '/studio/items': { items: [ITEM], total: 1 },
       '/studio/speech': { ...ITEM, status: 'queued' },
-      '/usage': USAGE,
+      '/inference-usage': USAGE,
     });
     renderWithProviders(<SpeechPage />, { me: CLIENT_USER });
     expect(await screen.findByText('Hola, ¿qué tal?')).toBeInTheDocument();
-    expect(await screen.findByText(/te quedan 7 este mes/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/minutos de texto a voz de tu plan: te quedan 7 este mes/),
+    ).toBeInTheDocument();
 
     const submit = screen.getByRole('button', { name: 'Sintetizar' });
     expect(submit).toBeDisabled();
@@ -73,10 +85,17 @@ describe('Estudio', () => {
       const post = calls.find((c) => c.method === 'POST');
       expect(JSON.parse(post?.body as string)).toEqual({ text: 'Buen día', voice: 'sofia' });
     });
+    // Tras crear, el medidor se vuelve a pedir (la clave de uso de inferencia cuelga de 'clients').
+    await waitFor(() =>
+      expect(calls.filter((c) => c.path.endsWith('/inference-usage')).length).toBeGreaterThan(1),
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Descargar el audio' }));
     const mp3 = await screen.findByText('MP3');
-    expect(mp3.closest('a')).toHaveAttribute('href', '/api/v1/studio/items/s-1/audio?format=mp3&download=true');
+    expect(mp3.closest('a')).toHaveAttribute(
+      'href',
+      '/api/v1/studio/items/s-1/audio?format=mp3&download=true',
+    );
     for (const format of ['WAV', 'OGG (Opus)', 'FLAC']) expect(screen.getByText(format)).toBeInTheDocument();
   });
 
@@ -85,10 +104,13 @@ describe('Estudio', () => {
     stubApi({
       '/studio/items': { items: [stt], total: 1 },
       '/studio/items/s-1': { ...stt, text: 'Empezamos la reunión.' },
-      '/usage': USAGE,
+      '/inference-usage': USAGE,
     });
     renderWithProviders(<TranscribePage />, { me: CLIENT_USER });
     expect(await screen.findByText('reunion.mp3')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/minutos de transcripción de tu plan: te quedan 3,5 este mes/),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Transcribir' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Descargar el audio' })).not.toBeInTheDocument();
 
@@ -98,8 +120,66 @@ describe('Estudio', () => {
     expect(screen.getByRole('button', { name: 'Descargar .txt' })).toBeInTheDocument();
   });
 
+  it('un cupo en 0 dice que el plan no lo incluye y deja el botón deshabilitado', async () => {
+    stubApi({
+      '/voices': VOICES,
+      '/studio/items': { items: [], total: 0 },
+      '/inference-usage': usage(meter(0, 0), meter(0, 0)),
+    });
+    renderWithProviders(<SpeechPage />, { me: CLIENT_USER });
+    expect(await screen.findByText('Tu plan no incluye texto a voz.')).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Texto' }), 'Buen día');
+    expect(screen.getByRole('button', { name: 'Sintetizar' })).toBeDisabled();
+  });
+
+  it('transcribir con el cupo en 0 no deja elegir transcribir; sin límite no muestra número', async () => {
+    const stub = stubApi({
+      '/studio/items': { items: [], total: 0 },
+      '/inference-usage': usage(meter(20, 7), meter(0, 0)),
+    });
+    const first = renderWithProviders(<TranscribePage />, { me: CLIENT_USER });
+    expect(await screen.findByText('Tu plan no incluye transcripción.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Transcribir' })).toBeDisabled();
+    first.unmount();
+    expect(stub.length).toBeGreaterThan(0);
+
+    stubApi({
+      '/voices': VOICES,
+      '/studio/items': { items: [], total: 0 },
+      '/inference-usage': usage(meter(null, null), meter(null, null)),
+    });
+    renderWithProviders(<SpeechPage />, { me: CLIENT_USER });
+    expect(
+      await screen.findByText('Se descuenta de los minutos de texto a voz de tu plan.'),
+    ).toBeInTheDocument();
+  });
+
+  it('un cupo agotado en el servidor (429) muestra el mensaje del servidor', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Request) => {
+        const path = new URL(input.url).pathname;
+        if (input.method === 'POST')
+          return jsonResponse(
+            { detail: 'Agotaste los minutos de síntesis de tu plan este mes.', code: 'api_tts_minutes' },
+            429,
+          );
+        if (path.endsWith('/voices')) return jsonResponse(VOICES);
+        if (path.endsWith('/inference-usage')) return jsonResponse(USAGE);
+        return jsonResponse({ items: [], total: 0 });
+      }),
+    );
+    renderWithProviders(<SpeechPage />, { me: CLIENT_USER });
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Texto' }), 'Buen día');
+    await userEvent.click(screen.getByRole('button', { name: 'Sintetizar' }));
+    await waitFor(() => expect(notifyError).toHaveBeenCalled());
+    const [err, title] = vi.mocked(notifyError).mock.calls[0];
+    expect((err as Error).message).toBe('Agotaste los minutos de síntesis de tu plan este mes.');
+    expect(title).toBe('No se pudo sintetizar');
+  });
+
   it('un admin como el cliente ve el historial y no puede generar ni borrar', async () => {
-    stubApi({ '/voices': VOICES, '/studio/items': { items: [ITEM], total: 1 }, '/usage': USAGE });
+    stubApi({ '/voices': VOICES, '/studio/items': { items: [ITEM], total: 1 }, '/inference-usage': USAGE });
     renderWithProviders(<SpeechPage />, { me: { ...CLIENT_USER, support: true } });
     expect(await screen.findByText('Hola, ¿qué tal?')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Texto' })).toBeDisabled();

@@ -40,6 +40,7 @@ const API: InferenceUsage = {
   stt_minutes: { used: 0, limit: 10, remaining: 10 },
   requests: { llm: 0, stt: 0, tts: 0 },
   keys: [],
+  studio: { tts_minutes: 0, stt_minutes: 0 },
 };
 
 describe('usageStatus', () => {

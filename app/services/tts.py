@@ -4,8 +4,8 @@ Dos formas de recibir el audio: `preview` (WAV completo, cuando el motor termina
 a medida que el motor lo sintetiza, para reproducirlo mientras se genera: la landing y el dashboard).
 
 Cada prueba que llega al motor queda en `api_requests` con su origen (`tracked`): el cliente la ve en los
-pedidos de la API, pero no suma al cupo de TTS de esa API (api_usage_daily). Lo que descuenta son minutos del plan
-(services/studio.py). El texto, hasta TTS_PREVIEW_MAX_CHARS: alcanza para escuchar una voz, no para generar audio
+pedidos de la API, pero no suma a api_usage_daily ni descuenta minutos: es sin cargo y sin tope por hora
+(routers/voices.py). El texto, hasta TTS_PREVIEW_MAX_CHARS: alcanza para escuchar una voz, no para generar audio
 (eso es el Estudio y la API de inferencia).
 """
 import base64

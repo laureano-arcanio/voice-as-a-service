@@ -209,6 +209,8 @@ cliente juntas**. Aplican de inmediato (un cambio de tier cuenta para el mes en 
   Un tier nuevo arranca **sin inferencia** (`0`) y con 60 pedidos por minuto: hay que dársela.
 - **Mes calendario** en `BILLING_TIMEZONE` (Argentina): el cupo se renueva el día 1 a las 00:00.
 - Las entradas y salidas del LLM, y TTS y STT, son cupos **separados**: agotar uno no afecta a los otros.
+- **El Estudio del panel** (Texto a voz y Transcribir) descuenta de `api_tts_minutes` y `api_stt_minutes`, sin key y sin
+  sumar pedidos ([`features/ESTUDIO.md`](features/ESTUDIO.md)). Las pruebas de voz no descuentan.
 
 ### Cómo se corta
 
@@ -252,8 +254,11 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
  "llm_input_tokens": {"used": 21, "limit": 400, "remaining": 379},
  "tts_minutes": {"used": 0.07, "limit": 1, "remaining": 0.93}, "...": "...",
  "requests": {"llm": 2, "stt": 1, "tts": 1},
- "keys": [{"name": "CRM", "scopes": ["llm"], "requests": {"llm": 2, "stt": 0, "tts": 0}, "llm_input_tokens": 21}]}
+ "keys": [{"name": "CRM", "scopes": ["llm"], "requests": {"llm": 2, "stt": 0, "tts": 0}, "llm_input_tokens": 21}],
+ "studio": {"tts_minutes": 0.05, "stt_minutes": 0}}
 ```
+
+- `tts_minutes` y `stt_minutes` suman las keys y el Estudio (`studio`).
 
 - Se guarda por cliente, key y día (`api_usage_daily`), sin el contenido de los pedidos: **la plataforma no
   guarda prompts, audios ni textos de la API**.
@@ -272,14 +277,13 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 - **Qué no se anota:** los 401, `scope_missing`, `client_inactive`, `not_in_plan` de `api_rate_limit` en 0 y los
   `rate_limited`. Se rechazan antes del tope de pedidos por minuto: sin tope, un sistema en loop llenaría la tabla.
 - **Pruebas de voz** (`source`, migración 0043): además de `api`, la tabla anota cada prueba que llega al motor.
-  - Las pruebas de voz no suman a estos cupos: descuentan de los minutos entrantes del plan ([`features/ESTUDIO.md`](features/ESTUDIO.md)).
   - `voice_test_panel` es la del dashboard (`POST /tts/preview` con sesión), `voice_test_api` la misma con una API
     key o por el MCP (`preview_voice`), y `voice_test_landing` la de la landing (`POST /demo/tts`), que queda en el
     cliente de la demo (`DEMO_CLIENT`, Atentina). Un admin sin cliente elegido también prueba en ese cliente.
-  - **No suman al cupo** (`api_usage_daily`): no gastan los minutos de TTS del plan y andan aunque el plan no
-    incluya TTS por API. Las frenan el texto, hasta `TTS_PREVIEW_MAX_CHARS` (200, unos 12–15 s de audio; el
-    dashboard y la landing tienen el mismo número fijo), y los topes por hora (`RATE_TTS_PREVIEW_PER_HOUR` por
-    usuario o key, `DEMO_IP_TTS_PER_HOUR` por IP).
+  - **Sin cargo, con tope de texto:** no suman a `api_usage_daily` ni descuentan minutos de ningún tipo (ni de
+    síntesis ni de llamadas) y andan aunque el plan no incluya TTS ([`features/ESTUDIO.md`](features/ESTUDIO.md)).
+    Las frena el texto, hasta `TTS_PREVIEW_MAX_CHARS` (250, una frase; el dashboard y la landing tienen el mismo
+    número fijo). Las del panel, API key y MCP no tienen tope por hora; la landing, `DEMO_IP_TTS_PER_HOUR` por IP.
   - La landing no anota lo que sale de su cache (el mismo texto y voz no vuelven al motor), ni los rechazos
     antes del motor (voz inexistente, texto vacío o largo).
 - La tabla crece una fila por pedido y todavía no tiene purga.

@@ -1767,6 +1767,9 @@ class PlanOut(ORM):
     outbound_minutes: int | None
     max_phone_numbers: int | None
     api_rate_limit: int | None
+    # Minutos de síntesis y de transcripción (API y Estudio; None = sin tope, 0 = no incluido).
+    api_tts_minutes: int | None = None
+    api_stt_minutes: int | None = None
     # Campañas y agenda (None = sin tope, 0 = no incluido).
     campaign_channels: list[CampaignChannel] = []
     max_campaigns_per_month: int | None = None
@@ -1946,8 +1949,15 @@ class InferenceKeyUsageOut(BaseModel):
     stt_minutes: float
 
 
+class InferenceStudioUsageOut(BaseModel):
+    """Lo del Estudio (Texto a voz y Transcribir), que descuenta de los mismos cupos y no tiene key."""
+    tts_minutes: float
+    stt_minutes: float
+
+
 class InferenceUsageOut(BaseModel):
-    """Consumo del mes de la API de inferencia contra los limites del tier."""
+    """Consumo del mes de la API de inferencia contra los limites del tier. `tts_minutes` y `stt_minutes` suman
+    las keys y el Estudio (`studio`)."""
     month: str
     period_start: datetime.date
     period_end: datetime.date = Field(description="Exclusivo")
@@ -1958,6 +1968,7 @@ class InferenceUsageOut(BaseModel):
     stt_minutes: MeterOut
     requests: InferenceRequestsOut
     keys: list[InferenceKeyUsageOut]
+    studio: InferenceStudioUsageOut
 
 
 # ---------- contactos (agenda del cliente, docs/features/CAMPANAS.md) ----------

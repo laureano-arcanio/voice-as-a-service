@@ -437,8 +437,8 @@ _WRITE: tuple[Tool, ...] = (
          "Borra un agente. Para dejar de usarlo sin perderlo, mejor archivarlo con update_agent.",
          method="DELETE", path="/agents/{agent_id}", params=_AGENT, required=("agent_id",), destructive=True),
     Tool("preview_voice", "agents", "Escuchar una voz",
-         "Sintetiza un texto corto (hasta 200 caracteres) con una voz del TTS (ver list_voices) y devuelve el "
-         "audio. Queda en el uso de la API como prueba de voz y descuenta de los minutos entrantes del plan.", method="POST",
+         "Sintetiza una frase (hasta 250 caracteres) con una voz del TTS (ver list_voices) y devuelve el "
+         "audio. Sin cargo: no descuenta minutos del plan; queda en el uso de la API como prueba de voz.", method="POST",
          path="/tts/preview", body="TtsPreviewIn", omit=("format",), audio=True),
     Tool("test_agent_start", "agents", "Probar un agente por texto",
          "Empieza una conversación de prueba por texto con un agente (no llama a nadie ni gasta minutos). "

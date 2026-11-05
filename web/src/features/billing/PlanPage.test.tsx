@@ -172,6 +172,27 @@ describe('planFeatures', () => {
     ).toEqual(['1.200 minutos entrantes por mes', '1 llamada a la vez', 'Acceso a la API']);
   });
 
+  it('lista síntesis y transcripción aparte de las llamadas, con sin límite y omitidas si valen 0', () => {
+    const plan = { ...PLAN, outbound_minutes: 0, max_phone_numbers: 0, max_concurrent_calls: 1 };
+    expect(planFeatures({ ...plan, api_tts_minutes: 500, api_stt_minutes: 1 })).toEqual([
+      '1.200 minutos entrantes por mes',
+      '1 llamada a la vez',
+      '500 minutos de texto a voz por mes',
+      '1 minuto de transcripción por mes',
+    ]);
+    expect(planFeatures({ ...plan, api_tts_minutes: null, api_stt_minutes: 0 })).toEqual([
+      '1.200 minutos entrantes por mes',
+      '1 llamada a la vez',
+      'Texto a voz sin límite',
+    ]);
+    // Entre los minutos entrantes y salientes no va nada: las líneas del Estudio vienen después de las llamadas.
+    const all = planFeatures({ ...PLAN, api_tts_minutes: 20, api_stt_minutes: 20 });
+    expect(all.indexOf('3 números de teléfono')).toBeLessThan(
+      all.indexOf('20 minutos de texto a voz por mes'),
+    );
+    expect(all.indexOf('Minutos salientes sin límite')).toBe(1);
+  });
+
   it('lista las campañas del plan con sus canales y el seguimiento', () => {
     const base = { ...PLAN, outbound_minutes: 0, max_phone_numbers: 0 };
     expect(

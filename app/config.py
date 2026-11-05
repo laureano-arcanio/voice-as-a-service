@@ -44,10 +44,10 @@ class Settings(BaseSettings):
     login_fail_email_15m: int = 10
     # Tope del cuerpo de los pedidos a /api (413).
     api_max_body_bytes: int = 1_048_576
+    # Prueba de voz (panel, API key, MCP y landing): sin cargo y sin tope por hora en el panel; el texto es una frase
+    # para escuchar una voz, no para generar audio. 250 entra la frase fija mas larga (160 del editor, 128 de la landing).
+    tts_preview_max_chars: int = 250
     # Uso de GPU por usuario o API key, por hora.
-    rate_tts_preview_per_hour: int = 60
-    # Prueba de voz (panel, MCP y landing): texto corto para escuchar una voz, no para generar audio gratis.
-    tts_preview_max_chars: int = 200
     rate_conversations_per_hour: int = 60
     rate_turns_per_hour: int = 600
     # Unico cliente (slug) que puede pedir llamadas de loadtest, ademas de los admins.

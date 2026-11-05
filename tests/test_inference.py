@@ -9,10 +9,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from sqlalchemy import select
 
 from app.config import settings
-from app.models import ApiUsageDaily
-from app.services import api_usage
+from app.models import ApiUsageDaily, StudioItem
+from app.services import api_usage, studio
+from app.services.errors import QuotaExceeded
 from app.services.inference import InferenceGateway, audio_seconds, get_gateway
 
 from .test_api import V1, admin, client_user, make_agent  # noqa: F401  (admin: fixture)
@@ -604,6 +606,51 @@ def test_previous_month_does_not_count(api, admin, engines):
         api_usage.record(s, client["id"], r["id"], last_month, llm_input_tokens=999)
     assert chat(api, key).status_code == 200                           # el mes pasado no cuenta
     assert chat(api, key).status_code == 429                            # este mes: 10 de 10
+
+
+def studio_row(api, client_id, kind="tts", seconds=60.0, origin="studio", created_at=None):
+    with api.sessions() as s:
+        s.add(StudioItem(client_id=client_id, kind=kind, origin=origin, status="done", title="qa", voice="sofia",
+                         billed_seconds=seconds, **({"created_at": created_at} if created_at else {})))
+        s.commit()
+
+
+def test_studio_and_api_share_the_quota(api, admin, engines):
+    client = make_client_with_tier(admin, api_tts_minutes=1, api_stt_minutes=1)
+    key = make_key(admin, client)
+    studio_row(api, client["id"], "tts", 30)
+    studio_row(api, client["id"], "tts", 600, origin="voice_test")     # las pruebas de voz no cuentan
+    assert tts(api, key).status_code == 200
+    u = usage(api, key)
+    assert u["studio"] == {"tts_minutes": 0.5, "stt_minutes": 0}
+    assert u["keys"][0]["tts_minutes"] == pytest.approx(engines.tts_seconds / 60, abs=0.01)
+    assert u["tts_minutes"]["used"] == pytest.approx(0.5 + engines.tts_seconds / 60, abs=0.01)
+    # El Estudio agota el cupo: la API da 429.
+    studio_row(api, client["id"], "tts", 30)
+    r = tts(api, key)
+    assert r.status_code == 429 and r.json()["code"] == "api_tts_minutes"
+    # Y al reves: la API agota el STT y el Estudio no reserva.
+    with api.sessions() as s:
+        key_id = s.scalars(select(ApiUsageDaily.api_key_id)).first()
+        api_usage.record(s, client["id"], key_id, stt_seconds=60)
+        with pytest.raises(QuotaExceeded) as e:
+            studio._reserve(s, client["id"], "stt", 1)
+        assert e.value.code == "api_stt_minutes"
+
+
+def test_studio_counts_in_the_local_month_and_only_for_its_client(api, admin, monkeypatch):
+    monkeypatch.setattr(settings, "billing_timezone", "America/Argentina/Buenos_Aires")
+    client, other = make_client_with_tier(admin), make_client_with_tier(admin, "otra")
+    # 23:30 del 31 de marzo en Argentina = 02:30 UTC del 1 de abril: cuenta en marzo.
+    studio_row(api, client["id"], "tts", 40, created_at=datetime.datetime(2026, 4, 1, 2, 30))
+    studio_row(api, client["id"], "stt", 20, created_at=datetime.datetime(2026, 4, 1, 3, 30))   # 00:30 del 1: abril
+    studio_row(api, other["id"], "tts", 500, created_at=datetime.datetime(2026, 3, 15))
+    with api.sessions() as s:
+        march = api_usage.studio_seconds(s, client["id"], datetime.date(2026, 3, 1), datetime.date(2026, 4, 1))
+        april = api_usage.studio_seconds(s, client["id"], datetime.date(2026, 4, 1), datetime.date(2026, 5, 1))
+    assert march == (40, 0) and april == (0, 20)
+    u = admin.get(f"{V1}/clients/{client['id']}/inference-usage", params={"month": "2026-03"}).json()
+    assert u["studio"] == {"tts_minutes": 0.67, "stt_minutes": 0} and u["tts_minutes"]["used"] == 0.67
 
 
 def test_record_accumulates_per_day_and_key(api, admin):

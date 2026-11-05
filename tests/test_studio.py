@@ -57,7 +57,7 @@ def stt_engine(monkeypatch):
 
 @pytest.fixture
 def account(api, admin, storage):
-    client = make_client(admin, inbound_minutes=20, outbound_minutes=0)
+    client = make_client(admin, inbound_minutes=20, outbound_minutes=0, api_tts_minutes=20, api_stt_minutes=20)
     return client, client_user(api, admin, client)
 
 
@@ -66,8 +66,12 @@ async def drain(sessions, kind):
         await studio.process(sessions, kind, job)
 
 
-def used_minutes(user, client_id):
-    return user.get(f"{API}/clients/{client_id}/usage").json()["inbound"]
+def inbound_seconds(user, client_id):
+    return user.get(f"{API}/clients/{client_id}/usage").json()["inbound"]["used_seconds"]
+
+
+def inference(user, client_id):
+    return user.get(f"{API}/clients/{client_id}/inference-usage").json()
 
 
 # ---------- pedazos ----------
@@ -122,7 +126,11 @@ async def test_speech_is_saved_downloaded_and_billed_by_real_seconds(api, accoun
     assert done["audio_seconds"] == pytest.approx(chunks * 2 + (chunks - 1) * studio.PAUSE_BETWEEN_CHUNKS)
     assert done["billed_seconds"] == done["audio_seconds"]
     assert done["text"].startswith("Hola.")
-    assert used_minutes(user, client["id"])["used_seconds"] == pytest.approx(done["audio_seconds"], abs=1)
+    # Descuenta de los minutos de sintesis, no de los entrantes; va en `studio`, no en una key.
+    u = inference(user, client["id"])
+    assert u["tts_minutes"]["used"] == u["studio"]["tts_minutes"] == pytest.approx(done["audio_seconds"] / 60, abs=0.01)
+    assert u["stt_minutes"]["used"] == 0 and u["keys"] == [] and u["requests"]["tts"] == 0
+    assert inbound_seconds(user, client["id"]) == 0
 
     wav = user.get(f"{API}/studio/items/{item['id']}/audio")
     assert wav.status_code == 200 and wav.content[:4] == b"RIFF"
@@ -134,15 +142,29 @@ async def test_speech_is_saved_downloaded_and_billed_by_real_seconds(api, accoun
 
 
 def test_speech_without_minutes_is_rejected_and_reserves_nothing(api, admin, storage, tts_engine):
-    client = make_client(admin, inbound_minutes=1)
+    client = make_client(admin, inbound_minutes=20, api_tts_minutes=1)
     user = client_user(api, admin, client)
     r = user.post(f"{API}/studio/speech", json={"text": "palabra " * 500, "voice": "sofia"})
-    assert r.status_code == 429 and r.json()["code"] == "inbound_minutes"
+    assert r.status_code == 429 and r.json()["code"] == "api_tts_minutes"
+    assert r.json()["detail"].endswith("te quedan 1 minuto este mes")
     assert user.get(f"{API}/studio/items").json()["total"] == 0
 
 
+def test_studio_does_not_need_inbound_minutes_but_needs_its_engine_in_the_plan(api, admin, storage, tts_engine):
+    user = client_user(api, admin, make_client(admin, inbound_minutes=0, api_tts_minutes=5, api_stt_minutes=0))
+    assert user.post(f"{API}/studio/speech", json={"text": "Hola", "voice": "sofia"}).status_code == 201
+    r = user.post(f"{API}/studio/transcriptions", files={"file": ("a.wav", wav_bytes(2))})
+    assert r.status_code == 403 and r.json()["code"] == "not_in_plan"
+    other = client_user(api, admin, make_client(admin, slug="otra", api_tts_minutes=0, api_stt_minutes=5),
+                        email="b@otra.com")
+    r = other.post(f"{API}/studio/speech", json={"text": "Hola", "voice": "sofia"})
+    assert r.status_code == 403 and r.json()["code"] == "not_in_plan"
+    assert other.post(f"{API}/studio/transcriptions", files={"file": ("a.wav", wav_bytes(2))}).status_code == 201
+    assert other.get(f"{API}/studio/items").json()["total"] == 1
+
+
 def test_two_jobs_cannot_spend_the_same_minutes(api, admin, storage, tts_engine):
-    client = make_client(admin, inbound_minutes=1)
+    client = make_client(admin, api_tts_minutes=1)
     user = client_user(api, admin, client)
     text = "palabra " * 80     # unos 40 s
     assert user.post(f"{API}/studio/speech", json={"text": text, "voice": "sofia"}).status_code == 201
@@ -169,7 +191,7 @@ async def test_failed_job_does_not_bill(api, account, monkeypatch):
     await drain(api.sessions, "tts")
     done = user.get(f"{API}/studio/items/{item['id']}").json()
     assert done["status"] == "failed" and done["billed_seconds"] == 0 and done["error"]
-    assert used_minutes(user, client["id"])["used_seconds"] == 0
+    assert inference(user, client["id"])["tts_minutes"]["used"] == 0
 
 
 def test_interrupted_job_goes_back_to_the_queue(api, account, tts_engine):
@@ -217,7 +239,9 @@ async def test_transcription_is_saved_in_pieces_and_billed(api, account, stt_eng
     done = user.get(f"{API}/studio/items/{item['id']}").json()
     assert done["status"] == "done" and done["text"].startswith("pedazo 1 pedazo 2")
     assert len(stt_engine) >= 3 and done["billed_seconds"] == pytest.approx(5)
-    assert used_minutes(user, client["id"])["used_seconds"] == 5
+    u = inference(user, client["id"])
+    assert u["stt_minutes"]["used"] == u["studio"]["stt_minutes"] == pytest.approx(5 / 60, abs=0.01)
+    assert u["tts_minutes"]["used"] == 0 and inbound_seconds(user, client["id"]) == 0
     original = user.get(f"{API}/studio/items/{item['id']}/audio")
     assert original.content[:4] == b"RIFF" and original.headers["content-type"].startswith("audio/wav")
 
@@ -235,10 +259,11 @@ def test_bad_uploads_leave_nothing(api, account, storage, name, content, code):
 
 
 def test_transcription_longer_than_the_minutes_left_is_rejected(api, admin, storage):
-    client = make_client(admin, inbound_minutes=1)
+    client = make_client(admin, inbound_minutes=20, api_stt_minutes=1)
     user = client_user(api, admin, client)
     r = user.post(f"{API}/studio/transcriptions", files={"file": ("a.wav", wav_bytes(90))})
-    assert r.status_code == 429 and r.json()["code"] == "inbound_minutes"
+    assert r.status_code == 429 and r.json()["code"] == "api_stt_minutes"
+    assert user.get(f"{API}/studio/items").json()["total"] == 0
 
 
 # ---------- historial ----------
@@ -251,15 +276,15 @@ async def test_delete_removes_content_but_not_the_minutes(api, account, storage,
     assert user.get(f"{API}/studio/items/{item['id']}").status_code == 404
     assert user.get(f"{API}/studio/items").json()["total"] == 0
     assert not (storage / "studio" / client["id"] / item["id"]).exists()
-    assert used_minutes(user, client["id"])["used_seconds"] == 2
+    assert inference(user, client["id"])["tts_minutes"]["used"] == pytest.approx(2 / 60, abs=0.01)
 
 
 def test_deleting_a_queued_job_releases_its_reservation(api, account, tts_engine):
     client, user = account
-    item = user.post(f"{API}/studio/speech", json={"text": "Hola", "voice": "sofia"}).json()
-    assert used_minutes(user, client["id"])["used_seconds"] > 0
+    item = user.post(f"{API}/studio/speech", json={"text": "Hola. " * 20, "voice": "sofia"}).json()
+    assert inference(user, client["id"])["tts_minutes"]["used"] > 0
     user.delete(f"{API}/studio/items/{item['id']}")
-    assert used_minutes(user, client["id"])["used_seconds"] == 0
+    assert inference(user, client["id"])["tts_minutes"]["used"] == 0
     assert studio.claim(api.sessions, "tts") is None
 
 
@@ -273,9 +298,11 @@ def test_a_job_being_processed_cannot_be_deleted(api, account, tts_engine):
 
 def test_another_client_cannot_see_the_items(api, admin, account, tts_engine):
     _, user = account
-    other = client_user(api, admin, make_client(admin, slug="otra", inbound_minutes=20), email="b@otra.com")
+    other_client = make_client(admin, slug="otra", api_tts_minutes=20)
+    other = client_user(api, admin, other_client, email="b@otra.com")
     item = user.post(f"{API}/studio/speech", json={"text": "Hola", "voice": "sofia"}).json()
     assert other.get(f"{API}/studio/items").json()["total"] == 0
+    assert inference(other, other_client["id"])["tts_minutes"]["used"] == 0
     for r in (other.get(f"{API}/studio/items/{item['id']}"),
               other.get(f"{API}/studio/items/{item['id']}/audio"),
               other.delete(f"{API}/studio/items/{item['id']}")):
@@ -290,33 +317,34 @@ def test_support_admin_can_see_but_not_spend(api, admin, account, tts_engine):
     assert admin.get(f"{API}/studio/items", headers=support).status_code == 200
 
 
-# ---------- pruebas de voz ----------
+# ---------- pruebas de voz: sin cargo ----------
 
-def test_voice_test_is_billed_and_kept_in_the_history(account, engine):
+@pytest.mark.parametrize("fmt", ["pcm", "wav"])
+def test_voice_test_does_not_bill_nor_keep_an_item(account, engine, fmt):
     client, user = account
-    r = user.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Hola", "format": "pcm"})
-    assert r.status_code == 200
-    seconds = len(r.content) / tts.BYTES_PER_SECOND
-    items = user.get(f"{API}/studio/items", params={"kind": "tts"}).json()["items"]
-    assert [i["origin"] for i in items] == ["voice_test"]
-    assert items[0]["audio_seconds"] == pytest.approx(seconds) and items[0]["excerpt"] == "Hola"
-    assert used_minutes(user, client["id"])["used_seconds"] == pytest.approx(seconds, abs=1)
-    assert user.get(f"{API}/studio/items/{items[0]['id']}/audio").content[:4] == b"RIFF"
+    r = user.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Hola", "format": fmt})
+    assert r.status_code == 200 and r.content
+    assert user.get(f"{API}/studio/items").json()["total"] == 0
+    u = inference(user, client["id"])
+    assert u["tts_minutes"]["used"] == 0 and u["studio"] == {"tts_minutes": 0, "stt_minutes": 0}
+    assert inbound_seconds(user, client["id"]) == 0
 
 
-def test_voice_test_wav_does_not_bill_the_header(api, account, engine):
-    _, user = account
-    r = user.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Hola", "format": "wav"})
-    item = user.get(f"{API}/studio/items").json()["items"][0]
-    assert item["audio_seconds"] == pytest.approx((len(r.content) - tts.WAV_HEADER_BYTES) / tts.BYTES_PER_SECOND)
-
-
-def test_voice_test_without_minutes_is_rejected_before_the_engine(api, admin, storage, engine):
-    client = make_client(admin, inbound_minutes=0)
-    user = client_user(api, admin, client)
+def test_voice_test_works_without_any_minutes_in_the_plan(api, admin, storage, engine):
+    user = client_user(api, admin, make_client(admin, inbound_minutes=0, api_tts_minutes=0))
     r = user.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Hola"})
-    assert r.status_code == 429 and r.json()["code"] == "inbound_minutes"
-    assert list(engine) == []
+    assert r.status_code == 200 and list(engine)
+
+
+def test_old_voice_test_rows_do_not_count(api, account):
+    from app.models import StudioItem
+    client, user = account
+    with api.sessions() as s:
+        s.add(StudioItem(client_id=client["id"], kind="tts", origin="voice_test", status="done", title="Hola",
+                         billed_seconds=600))
+        s.commit()
+    assert inference(user, client["id"])["tts_minutes"]["used"] == 0
+    assert inbound_seconds(user, client["id"]) == 0
 
 
 def test_support_admin_voice_test_does_not_bill(api, admin, account, engine):
@@ -324,7 +352,5 @@ def test_support_admin_voice_test_does_not_bill(api, admin, account, engine):
     r = admin.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Hola"},
                    headers={"X-Atentina-Client": client["id"]})
     assert r.status_code == 200
-    assert used_minutes(user, client["id"])["used_seconds"] == 0
+    assert inference(user, client["id"])["tts_minutes"]["used"] == 0
     assert user.get(f"{API}/studio/items").json()["total"] == 0
-
-

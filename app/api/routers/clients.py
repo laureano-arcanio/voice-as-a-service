@@ -196,7 +196,8 @@ def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:
                "requests": requests(k.totals), "llm_input_tokens": k.totals.llm_input_tokens,
                "llm_output_tokens": k.totals.llm_output_tokens,
                "tts_minutes": round(k.totals.tts_seconds / 60, 2), "stt_minutes": round(k.totals.stt_seconds / 60, 2)}
-              for k in u.keys])
+              for k in u.keys],
+        studio={"tts_minutes": u.studio.tts_minutes, "stt_minutes": u.studio.stt_minutes})
 
 
 def _minutes(m: quota.MinutesUsage) -> MinutesUsageOut:
@@ -229,8 +230,8 @@ def client_usage(client_id: str, p: CurrentPrincipal, db: DB,
 def client_inference_usage(client_id: str, p: CurrentPrincipal, db: DB,
                            month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
                                                      description="YYYY-MM; sin el, el mes en curso")):
-    """Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del
-    tier, y por key. No incluye los agentes integrados."""
+    """Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) y del Estudio (`studio`, que descuenta
+    de los mismos cupos) contra los limites del tier, y por key. No incluye los agentes integrados."""
     client = get_client(db, p, client_id)
     return inference_usage_out(api_usage.usage(db, client, month))
 

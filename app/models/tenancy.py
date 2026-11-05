@@ -321,9 +321,10 @@ class ApiRequest(IdMixin, Base):
 
 
 class StudioItem(IdMixin, Base):
-    """Lo que un cliente sintetiza o transcribe en el Estudio, y sus pruebas de voz (docs/features/ESTUDIO.md).
-    `billed_seconds` es lo que descuenta de los minutos entrantes: la reserva mientras esta en cola o en proceso, los
-    segundos reales al terminar y 0 si fallo. Borrar saca el contenido y deja la fila, para no devolver minutos."""
+    """Lo que un cliente sintetiza o transcribe en el Estudio (docs/features/ESTUDIO.md). `billed_seconds` es lo que
+    descuenta de api_tts_minutes o api_stt_minutes: la reserva mientras esta en cola o en proceso, los segundos reales
+    al terminar y 0 si fallo. Borrar saca el contenido y deja la fila, para no devolver minutos. Las filas con origin
+    `voice_test` (pruebas de voz) no descuentan nada."""
     __tablename__ = "studio_items"
     __table_args__ = (Index("ix_studio_items_client_created", "client_id", "created_at"),
                       Index("ix_studio_items_status_created", "status", "created_at"))

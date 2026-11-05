@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
 import type { components } from '@/api/schema';
+import { useMe } from '@/features/auth/api';
+import { useInferenceUsage } from '@/features/developers/api';
+import { toMonth } from '@/lib/format';
 
 export type StudioItem = components['schemas']['StudioItemOut'];
 export type StudioKind = StudioItem['kind'];
@@ -37,6 +40,14 @@ export function useStudioItem(id: string | null) {
   });
 }
 
+/** El cupo del mes de esta pantalla: los minutos de síntesis o de transcripción de la API de inferencia. */
+export function useStudioQuota(kind: StudioKind, refresh: boolean) {
+  const { data: me } = useMe();
+  const usage = useInferenceUsage(me?.client_id ?? undefined, toMonth(new Date()), refresh ? 3000 : false);
+  const meter = kind === 'tts' ? usage.data?.tts_minutes : usage.data?.stt_minutes;
+  return { included: meter?.limit !== 0, remaining: meter?.remaining ?? null };
+}
+
 function useRefresh() {
   const qc = useQueryClient();
   return () => {
@@ -48,7 +59,8 @@ function useRefresh() {
 export function useCreateSpeech() {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (body: { text: string; voice: string }) => unwrap(api.POST('/api/v1/studio/speech', { body })),
+    mutationFn: (body: { text: string; voice: string }) =>
+      unwrap(api.POST('/api/v1/studio/speech', { body })),
     onSuccess: refresh,
   });
 }

@@ -557,10 +557,12 @@ const campaignEndpoints = [
         <li>Antes de cada pedido se verifica la key, su alcance, el tope por minuto y el cupo. Si no pasa, el pedido no llega al motor ni se cobra.</li>
         <li>Un pedido que falla en el motor no se cobra.</li>
         <li>En el chat, <code>max_tokens</code> se achica a lo que te queda de tokens de salida del mes.</li>
+        <li>Texto a voz y Transcribir del panel descuentan de estos mismos cupos de síntesis y transcripción. Las pruebas de voz no descuentan.</li>
         <li>La plataforma guarda cuánto consumiste, por key y por día, pero no los prompts, los audios ni los textos.</li>
       </ul>
       <p>Para ver tu consumo del mes contra el plan (no gasta cupo):</p>
       <CodeBlock label="curl" code={usage} />
+      <p>Los minutos de síntesis y transcripción suman tus keys y el panel; lo del panel viene aparte en <code>studio</code> (<code>tts_minutes</code>, <code>stt_minutes</code>).</p>
     </section>
 
     <section id="errores" class="grid gap-4">

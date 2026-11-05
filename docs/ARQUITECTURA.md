@@ -165,7 +165,7 @@ incluido.
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
 | `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
 | `api_keys` | SHA-256 (`key_hash` único), `prefix` visible, `revoked_at`, `last_used_at`, `scopes` (ver "Autenticación"). |
-| `studio_items` | Lo sintetizado y transcripto en el Estudio y las pruebas de voz, con los segundos que descuenta de los minutos entrantes ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
+| `studio_items` | Lo sintetizado y transcripto en el Estudio, con los segundos que descuenta de `api_tts_minutes` o `api_stt_minutes` (`origin='voice_test'`: pruebas de voz, que no descuentan ni se crean) ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo), sin contenido ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
 | `subscriptions`, `billing_payments` | Plan pago: `method`, `status` (`pending`, `active`, `past_due`...), `current_period_end`, `grace_until`, `pending_tier_id`, `cancel_at_period_end`, `mp_preapproval_id`; pagos con `amount_ars`, `paid_on`, `period_end`, `mp_payment_id`, `recorded_by` ([`features/COBROS.md`](features/COBROS.md)). |
 | `legal_acceptances`, `consumer_requests` | Cada aceptación (`document`, `version`, `sha256`, `statement`, `channel` `signup`/`panel`, IP, user agent) y los botones de arrepentimiento y de baja (`kind`, `code`, `status`) ([`features/LEGAL.md`](features/LEGAL.md)). |
@@ -554,7 +554,7 @@ esta sección es lo que lo protege. Código en `app/api/http.py` y `app/api/deps
 - **OAuth 2.1 y MCP:** `POST /mcp` acepta API keys `mcp`/`mcp_read` o un token OAuth (login del panel, PKCE,
   consentimiento en `/oauth/consent`); un token OAuth solo vale para el MCP. Detalle en
   [`features/MCP.md`](features/MCP.md).
-- **Otros topes por hora:** prueba de voz (`RATE_TTS_PREVIEW_PER_HOUR`), conversaciones de texto y turnos
+- **Otros topes por hora:** conversaciones de texto y turnos
   (`RATE_CONVERSATIONS_PER_HOUR`, `RATE_TURNS_PER_HOUR`), altas y plantillas de WhatsApp (`WA_SIGNUP_PER_HOUR`,
   `WA_TEMPLATES_PER_HOUR`). Cuerpo de `/api` hasta `API_MAX_BODY_BYTES` (1 MiB, 413), salvo subidas de imagen y
   STT.

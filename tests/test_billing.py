@@ -27,7 +27,8 @@ SIGNUP = {"company": "Panadería Doña Rosa", "name": "Rosa Gómez", "email": "R
 @pytest.fixture
 def plans(admin):
     free = make_tier(admin, name="Free", price_ars=0, public=True, sort=0, max_phone_numbers=0, inbound_minutes=20)
-    paid = make_tier(admin, name="Sucursal", price_ars=99000, public=True, sort=2, max_phone_numbers=2)
+    paid = make_tier(admin, name="Sucursal", price_ars=99000, public=True, sort=2, max_phone_numbers=2,
+                     api_tts_minutes=500, api_stt_minutes=None)
     small = make_tier(admin, name="Mostrador", price_ars=29000, public=True, sort=1, max_phone_numbers=1)
     hidden = make_tier(admin, name="A medida", price_ars=500000)
     return {"free": free, "paid": paid, "small": small, "hidden": hidden}
@@ -215,6 +216,8 @@ def test_billing_lists_public_paid_plans(rosa):
     b = billing_of(rosa)
     assert b["tier"]["name"] == "Free" and b["tier_price_ars"] == 0 and b["subscription"] is None
     assert [p["name"] for p in b["plans"]] == ["Mostrador", "Sucursal"]     # ni Free ni el oculto
+    # Minutos de síntesis y transcripción (API y Estudio): 0 = no incluido, None = sin tope.
+    assert [(p["api_tts_minutes"], p["api_stt_minutes"]) for p in b["plans"]] == [(0, 0), (500, None)]
     assert b["bank"] == [{"label": "Titular", "value": "Atentina"}, {"label": "Alias", "value": "atentina.pagos"}]
     assert b["methods"] == ["transfer"]
 

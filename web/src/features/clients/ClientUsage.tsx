@@ -45,7 +45,7 @@ export function UsageStatusAlert({ status, limitsName }: { status: UsageStatus; 
 
 /**
  * Todo lo que consume un cliente contra su plan, en un solo lugar: minutos (con la proyección a fin de
- * mes), llamadas, números y la API de inferencia (LLM, STT y TTS, por API key), con el estado general arriba.
+ * mes), llamadas, números y la inferencia (minutos de TTS y STT del Estudio y de la API, tokens del LLM), con el estado general arriba.
  * Lo usan la pestaña Consumo de Reportes y la ficha del cliente (admin).
  */
 export function ClientUsage({
@@ -106,9 +106,10 @@ export function ClientUsage({
       <Card>
         <Group justify="space-between" mb="md" wrap="wrap">
           <Stack gap={0}>
-            <Title order={5}>API de inferencia</Title>
+            <Title order={5}>Síntesis, transcripción y LLM</Title>
             <Text size="xs" c="dimmed">
-              LLM, STT y TTS por API key. No cuenta los agentes integrados (llamadas y WhatsApp).
+              Minutos de síntesis y transcripción (Texto a voz y Transcribir del panel, y la API) y tokens del LLM de
+              la API. Aparte de los minutos de llamadas: no cuenta los agentes integrados (llamadas y WhatsApp).
             </Text>
           </Stack>
           <Anchor
