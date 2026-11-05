@@ -16,6 +16,7 @@ from app.llm.client import LLMClient
 from scripts.tools import mock_api
 
 from .test_api import V1, admin, make_client  # noqa: F401  (admin: fixture)
+from .test_llm_anthropic import client_with
 from .tools_mock import mock_api_url, mock_server  # noqa: F401  (fixtures)
 
 
@@ -91,7 +92,7 @@ def reservar_tool(base):
                      "nombre": {"type": "string", "description": "Nombre de la persona"}}}}}}
 
 
-def setup(api, admin, base, script, tools=("consultar_turnos",), turnos_extra=None, **definition_extra):
+def setup(api, admin, base, script, tools=("consultar_turnos",), turnos_extra=None, llm=None, **definition_extra):
     c = make_client(admin, max_tools=None)
     for t in (turnos_tool(base, **(turnos_extra or {})), reservar_tool(base)):
         assert admin.post(f"{V1}/clients/{c['id']}/tools", json=t).status_code == 201
@@ -103,7 +104,7 @@ def setup(api, admin, base, script, tools=("consultar_turnos",), turnos_extra=No
                   json={"definition": {**agent["definition"], "tools": [{"tool": t} for t in tools],
                                        **definition_extra}})
     assert r.status_code == 200, r.text
-    engine = ConversationEngine(llm_with(script), ConversationStore(api.sessions), DbDefinitions(api.sessions))
+    engine = ConversationEngine(llm or llm_with(script), ConversationStore(api.sessions), DbDefinitions(api.sessions))
     state, _ = engine.start_conversation(agent["id"], c["id"])
     return engine, state.conversation_id
 
@@ -210,3 +211,80 @@ async def test_without_customer_tools_only_the_platform_ones_go(api, admin, mock
     engine, cid = setup(api, admin, mock_api_url, script, tools=())
     await engine.process_turn(cid, "hola", on_message=lambda t: None)
     assert [t["function"]["name"] for t in script.requests[0]["tools"]] == ["end_call"]
+
+
+# ---------- Herramientas de la plataforma en el tope de vueltas, en los dos clientes ----------
+
+class Block(SimpleNamespace):
+    """Un bloque de la respuesta de Anthropic: el cliente lo reenvia con model_dump al pedir otra vuelta."""
+
+    def model_dump(self, **kw):
+        return dict(vars(self))
+
+
+def anthropic_reply(text, calls):
+    content = [Block(type="text", text=text)] if text else []
+    content += [Block(type="tool_use", id=f"toolu_{i}", name=name, input=args) for i, (name, args) in enumerate(calls)]
+    return SimpleNamespace(stop_reason="tool_use" if calls else "end_turn", content=content)
+
+
+def openai_llm(replies):
+    return llm_with(Script(*replies))
+
+
+def anthropic_llm(replies):
+    llm, _ = client_with(*[anthropic_reply(text, calls) for text, calls in replies])
+    llm.derive = lambda **kw: llm
+    return llm
+
+
+TURNOS = ("consultar_turnos", {"sucursal": "centro", "fecha": "2026-11-06"})
+AREA = {"id": "a1", "name": "Guardia", "when": "", "schedule": None, "schedule_text": "siempre"}
+
+
+def at_the_cap(api, admin, base, make_llm, last_calls, areas=(AREA,)):
+    """Una vuelta con la herramienta, y al llegar al tope (1) la herramienta junto con last_calls."""
+    engine, cid = setup(api, admin, base, None, llm=make_llm([("", [TURNOS]), ("", [TURNOS, *last_calls])]),
+                        tool_settings={"max_calls_per_turn": 1, "limit_message": "No pude con eso."})
+    state = engine.store.get(cid)
+    state.progress.handoff_areas = list(areas)
+    engine.store.save(state)
+    return engine, cid
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_transfer_call_at_the_cap_hands_off_and_says_the_limit_message(api, admin, mock_api_url, make_llm):
+    engine, cid = at_the_cap(api, admin, mock_api_url, make_llm, [("transfer_call", {"area": "Guardia"})])
+    said = []
+    state, turn = await engine.process_turn(cid, "es una emergencia", on_message=said.append)
+    assert turn.handoff == "Guardia" and turn.status == "active"
+    assert said[-1] == "No pude con eso." and turn.assistant_message == "No pude con eso."
+    # La herramienta de la vuelta del tope no se ejecuta, como sin derivacion.
+    assert len([r for r in mock_api.RECEIVED if r["path"].endswith("/turnos")]) == 1
+    control = [t for t in state.messages[-1].llm if t["kind"] == "control"]
+    assert control and control[0]["input"] == "consultar_turnos"
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_end_call_at_the_cap_does_not_hang_up(api, admin, mock_api_url, make_llm):
+    engine, cid = at_the_cap(api, admin, mock_api_url, make_llm, [("end_call", {"motivo": "terminada"})])
+    said = []
+    state, turn = await engine.process_turn(cid, "gracias", on_message=said.append)
+    assert turn.status == "active" and state.status == "active" and turn.handoff is None
+    assert said[-1] == "No pude con eso."
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_end_call_and_transfer_call_at_the_cap_hand_off(api, admin, mock_api_url, make_llm):
+    """En el tope end_call no corta, asi que no le gana a la derivacion."""
+    engine, cid = at_the_cap(api, admin, mock_api_url, make_llm,
+                             [("end_call", {"motivo": "terminada"}), ("transfer_call", {"area": "Guardia"})])
+    _, turn = await engine.process_turn(cid, "es una emergencia", on_message=lambda t: None)
+    assert turn.handoff == "Guardia" and turn.status == "active"
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_transfer_call_at_the_cap_without_areas_does_not_hand_off(api, admin, mock_api_url, make_llm):
+    engine, cid = at_the_cap(api, admin, mock_api_url, make_llm, [("transfer_call", {"area": "Guardia"})], areas=())
+    _, turn = await engine.process_turn(cid, "es una emergencia", on_message=lambda t: None)
+    assert turn.handoff is None and turn.assistant_message == "No pude con eso."

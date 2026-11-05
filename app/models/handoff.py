@@ -1,9 +1,10 @@
 """Derivacion a personas del cliente (docs/features/EQUIPO_TELEFONIA.md) y registro de eventos.
 
-- team_members: el equipo del cliente (telefono para transferir llamadas, WhatsApp para el puente de la
-  bandeja, usuario para el softphone web). Las mismas personas sirven para llamadas y WhatsApp.
+- team_members: el equipo del cliente (telefono para transferir llamadas y, con whatsapp_notify, para avisarle
+  por WhatsApp; usuario para el softphone web). Las mismas personas sirven para llamadas y WhatsApp.
 - handoff_areas: un area ("Ventas", "Posventa") con sus miembros en orden, horario, timbre, codigo de
-  vuelta a la IA, que hacer si la persona corta y los mensajes (services/handoff.py tiene los defaults).
+  vuelta a la IA, que hacer si la persona corta, los mensajes (services/handoff.py tiene los defaults), a que
+  area pasa fuera de horario o si nadie acepta, y si avisa por WhatsApp.
 - handoff_legs: cada llamada a una persona en una derivacion (fase 2): resultado, tiempos y segundos que se
   descuentan como salientes; tambien cuenta para el tope de canales de Anura.
 - events: la linea de tiempo de una llamada o un hilo (timbre, espera, cada intento de derivacion, quien
@@ -20,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,6 +38,8 @@ class TeamMember(IdMixin, TimestampMixin, Base):
     user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)   # softphone web (fase 6)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Le llegan por WhatsApp, al mismo phone, los avisos y la rotacion de sus areas.
+    whatsapp_notify: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class HandoffArea(IdMixin, TimestampMixin, Base):
@@ -62,6 +66,15 @@ class HandoffArea(IdMixin, TimestampMixin, Base):
     # Round robin: el ultimo miembro al que se le paso (se rota a partir del siguiente).
     last_member_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
+    # A que area pasa fuera de horario, y si nadie acepta o no se puede llamar. Del mismo cliente; no a si misma.
+    after_hours_area_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("handoff_areas.id", ondelete="SET NULL"), nullable=True)
+    no_answer_area_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("handoff_areas.id", ondelete="SET NULL"), nullable=True)
+    # call: se llama a la persona. whatsapp: solo aviso por plantilla, a una persona, sin aceptacion.
+    delivery: Mapped[str] = mapped_column(String(16), default="call", server_default="call")
+    # {"account_id", "template": {"name", "language", "params"}, "call_template": {...}, "wait_seconds"}
+    whatsapp: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
 
 
 class HandoffAreaMember(Base):
@@ -95,13 +108,16 @@ class HandoffLeg(IdMixin, Base):
     team_member_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
     phone: Mapped[str] = mapped_column(String(20))
-    # dialing, connected, no_answer, busy, machine, not_confirmed, failed (voice/handoff.py)
+    # dialing, connected, no_answer, busy, machine, not_confirmed, failed (voice/handoff.py), whatsapp_sent,
+    # interrupted (el envio de la plantilla se corto sin saber si llego a Meta: esa persona se vuelve a intentar)
     result: Mapped[str] = mapped_column(String(16), default="dialing", server_default="dialing")
     sip_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)   # empieza a sonar
     answered_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     connected_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # El tramo de la rotacion por WhatsApp: la plantilla enviada a la persona.
+    wamid: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
     # Salientes que se descuentan: desde que atiende, solo si se conecto (plan 4.6). Un contestador que se
     # corta en la deteccion lo cobra Anura, pero no se le descuenta al cliente.
     billed_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

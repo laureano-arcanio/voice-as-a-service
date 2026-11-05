@@ -7,6 +7,7 @@ import pytest
 
 from app.agents.templates import load_reference
 from app.config import settings
+from app.conversation.models import ConversationState
 from app.llm import prompt
 from app.llm.prompt import build_system_prompt, render_variables
 
@@ -75,3 +76,23 @@ def test_agent_without_fields_has_no_data_section():
     wf.fields = {}
     wf.completion.outcomes = [o for o in wf.completion.outcomes if not o.when]
     assert "DATOS A OBTENER" not in build_system_prompt(wf)
+
+
+def whatsapp_state(guide=None):
+    state = ConversationState(conversation_id="c", agent_id="a", channel="whatsapp", fields={})
+    state.progress.opening_guide = guide
+    return state
+
+
+def test_whatsapp_guide_uses_the_rendered_opening():
+    wf = load_reference("sales_discovery")
+    system = build_system_prompt(wf, "whatsapp", whatsapp_state("Hola María, soy Sofía."))
+    assert "Hola María, soy Sofía." in system and wf.conversation.opening not in system
+
+
+def test_whatsapp_without_pre_call_prompt_is_the_same():
+    wf = load_reference("sales_discovery")
+    system = build_system_prompt(wf, "whatsapp", whatsapp_state())
+    assert system == build_system_prompt(wf, "whatsapp") and wf.conversation.opening in system
+    # En voz la apertura no va al prompt, tenga o no guia.
+    assert "APERTURA" not in build_system_prompt(wf, "voice", whatsapp_state("Hola"))

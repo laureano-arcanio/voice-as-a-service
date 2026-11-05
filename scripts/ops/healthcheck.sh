@@ -27,6 +27,10 @@ code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1"; }
 [[ "$(code 'https://wa.atentina.com.ar/wa/webhook?hub.mode=subscribe&hub.verify_token=x&hub.challenge=1')" == 403 ]] \
     || problems+=("webhook de WhatsApp no responde")
 
+# App de fichas Registros (perfil de compose, fuera de la lista de arriba). Sin la clave no se chequea.
+registros_url="$(env_get REGISTROS_HEALTH_URL)"
+if [[ -n "$registros_url" && "$(code "$registros_url")" != 200 ]]; then problems+=("Registros sin /health"); fi
+
 # Tope de potencia de las 3090 (sin él, dos 3090 apagaron el server). GPU_SIN_TOPE=1 en .env: este host no lo lleva.
 while IFS=, read -r idx name limit; do
     [[ "$name" == *3090* && "$(env_get GPU_SIN_TOPE)" != 1 ]] || continue

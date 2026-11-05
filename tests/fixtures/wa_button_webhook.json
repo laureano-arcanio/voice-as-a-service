@@ -1,0 +1,28 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "100000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {"display_phone_number": "15550000000", "phone_number_id": "100000000000002"},
+            "contacts": [{"profile": {"name": "Operador Prueba"}, "wa_id": "5493515551111"}],
+            "messages": [
+              {
+                "context": {"from": "15550000000", "id": "wamid.HBgNNTQ5MzUxNTU1MTExMRUCABEYEjAwMDAwMDAwMDAwMDAwMDAwMAA="},
+                "from": "5493515551111",
+                "id": "wamid.HBgNNTQ5MzUxNTU1MTExMRUCABIYIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwAA==",
+                "timestamp": "1790000000",
+                "type": "button",
+                "button": {"payload": "Aceptar", "text": "Aceptar"}
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

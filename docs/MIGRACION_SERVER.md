@@ -34,6 +34,7 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 |---|---|---|---|---|
 | `.env` (todos los secretos; `WA_TOKEN_KEY`) | `~/voice-as-a-service/.env` | — | sí: `~/atentina-backups/env/env-AAAAMMDD-HHMM` | copiar (paso 3.2) |
 | Base PostgreSQL (clientes, tiers, agentes y sus versiones, números y su ruteo, cuentas de WhatsApp, usuarios, conversaciones) | volumen `voice-as-a-service_postgres_data` | MB | sí: `~/atentina-backups/db/db-AAAAMMDD-HHMM.sql.gz` | paso 4.2 |
+| Base `registros` (fichas de personas, con datos sensibles: [`features/REGISTROS.md`](features/REGISTROS.md)) | misma instancia de Postgres, volumen `voice-as-a-service_postgres_data` | MB | sí, con `BACKUP_EXTRA_DBS=registros` en el `.env`: `~/atentina-backups/db/registros-AAAAMMDD-HHMM.sql.gz` | paso 4.2 (`make registros-restore`) |
 | Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí: `~/atentina-backups/tts/multi41/lr2e-6/checkpoint-epoch-2` y en S3 `tts/…` sin cifrar | paso 4.1 |
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
 | Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí: `letsencrypt/letsencrypt-*.tar.gz` | restaurar el tar, o regenerar con `make sip-cert` (paso 4.3) |
@@ -177,7 +178,7 @@ Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta
 | `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | `API` + `openssl rand -hex 6`, `openssl rand -hex 32` | regenerables |
 | `LIVEKIT_SIP_PASSWORD` | `openssl rand -hex 24` | regenerable (Asterisk y trunks la toman del `.env`) |
 | `ANURA_DOMAIN/USER/PASSWORD/DID` | panel de Anura → Cuentas → la cuenta → Terminales → Obtener credenciales **(usuario)** | conservar |
-| `CLOUDFLARE_TUNNEL_TOKEN` | Zero Trust → Networks → Tunnels → `atentina-demo` **(usuario)** | **conservar**: las rutas api./rtc./wa./app. viven en el túnel |
+| `CLOUDFLARE_TUNNEL_TOKEN` | Zero Trust → Networks → Tunnels → `atentina-demo` **(usuario)** | **conservar**: las rutas api./rtc./wa./app. (y registros., si se creó) viven en el túnel |
 | `CLOUDFLARE_DNS_API_TOKEN` | Cloudflare → API tokens, Zone > DNS > Edit sobre atentina.com.ar **(usuario)** | conservar o crear otro |
 | `TURNSTILE_SECRET_KEY` | Cloudflare → Turnstile, sitio atentina.com.ar **(usuario)** | conservar |
 | `RESEND_API_KEY`, `CONTACT_TO` | panel de Resend (dominio en sa-east-1) **(usuario)** | conservar |
@@ -191,6 +192,7 @@ Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta
 | `BACKUP_S3_BUCKET/REGION/ACCESS_KEY_ID/SECRET_ACCESS_KEY` | `make backup-s3-setup` (sección 1) | conservar: el nuevo sigue subiendo al mismo bucket |
 | `ALERT_NTFY_TOPIC` | `make alert-ntfy-setup` (activo: alertas del chequeo y de Alertmanager) | conservar: el celular ya está suscripto al tema |
 | `HEALTHCHECKS_PING_URL` | healthchecks.io, pendiente | — |
+| `BACKUP_EXTRA_DBS`, `REGISTROS_DB_PASSWORD`, `REGISTROS_SESSION_SECRET`, `REGISTROS_PUBLIC_URL`, `REGISTROS_HEALTH_URL` | Registros ([`features/REGISTROS.md`](features/REGISTROS.md)); las claves con `openssl rand -hex 32` | `REGISTROS_DB_PASSWORD` se puede regenerar (`make registros-db` crea el rol con ella y el volcado no trae roles) y `REGISTROS_SESSION_SECRET`, también (cierra las sesiones). La ruta `registros.` del túnel (a `http://127.0.0.1:8040`) viene con el túnel. Sin `REGISTROS_HEALTH_URL`, `boot.sh` no levanta Registros |
 
 Variables del `.env` actual que el código no usa: `AGENT_NAME`, `COMPANY_NAME`, `VLLM_TTS_SPEED`. Se
 pueden omitir.
@@ -230,6 +232,10 @@ zcat <dump>.sql.gz | docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U
 make migrate                                     # Alembic sigue desde la versión del dump; seed idempotente
 make psql   # verificar: select version_num from alembic_version;  (la última de migrations/versions/, hoy 0041)
 ```
+
+**Registros** (si hay `registros-*.sql.gz` en el backup), después de la base principal y de `make migrate`:
+`make registros-restore DUMP=<volcado>` (la base de Registros tiene que estar vacía). Se conecta como el rol `registros` para que quede dueño de las tablas; restaurado
+con el superusuario, la app da `permission denied`. `make registros-up` lo levanta. `backup-fetch.sh` imprime el comando.
 
 Antes del corte, anotar en el viejo los conteos para comparar después de restaurar:
 `make psql` → `select count(*) from clients; select count(*) from agents; select e164, agent_id from phone_numbers; select count(*) from wa_accounts; select count(*) from users;`.

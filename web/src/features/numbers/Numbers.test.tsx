@@ -16,6 +16,7 @@ const ANA: TeamMember = {
   phone: '+5493515551234',
   user_id: null,
   active: true,
+  whatsapp_notify: false,
   created_at: '2026-10-20T12:00:00Z',
 };
 const LUIS: TeamMember = { ...ANA, id: 'm2', name: 'Luis Gómez', phone: null, user_id: 'u-2' };

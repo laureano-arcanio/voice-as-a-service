@@ -191,13 +191,13 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `get_handoff_area` | Un área de derivación con su configuración. | lectura | `team` | `GET /handoff-areas/{area_id}` |
 | `list_team_presence` | Los usuarios del panel del cliente: quién está Disponible para atender llamadas en el navegador y quién está en una llamada. Sirve para elegir `user_id` en start_direct_call. | lectura | `direct_calls` | `GET /team/presence` |
 | `list_events` | Eventos en orden de llegada: llamadas (timbre, atención, fin), derivaciones y esperas. Para seguir nuevos, pasar `after_id` con el último visto. | lectura | todos | `GET /events` |
-| `create_team_member` | Suma una persona al equipo: el teléfono sirve para transferirle llamadas y el WhatsApp para el puente de mensajes. | escritura | `team` | `POST /team` |
+| `create_team_member` | Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp. | escritura | `team` | `POST /team` |
 | `update_team_member` | Cambia los datos de una persona. | escritura | `team` | `PATCH /team/{member_id}` |
 | `delete_team_member` | Saca una persona del equipo. | **confirmar** | `team` | `DELETE /team/{member_id}` |
-| `get_handoff_area_defaults` | Los mensajes por defecto de un área de derivación y las variables que aceptan. | lectura | `team` | `GET /handoff-areas/defaults` |
+| `get_handoff_area_defaults` | Los mensajes por defecto de un área de derivación y las variables que aceptan. También aceptan las que trae la herramienta de «Antes de la conversación» del agente, por su nombre. | lectura | `team` | `GET /handoff-areas/defaults` |
 | `list_hold_music` | Los temas de música de espera para la derivación. | lectura | `team` | `GET /hold-music` |
-| `create_handoff_area` | Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente. El agente deriva a las áreas activas según su descripción. | escritura | `team` | `POST /handoff-areas` |
-| `update_handoff_area` | Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista. | escritura | `team` | `PATCH /handoff-areas/{area_id}` |
+| `create_handoff_area` | Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`). El agente deriva a las áreas activas según su descripción. | escritura | `team` | `POST /handoff-areas` |
+| `update_handoff_area` | Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas. | escritura | `team` | `PATCH /handoff-areas/{area_id}` |
 | `delete_handoff_area` | Borra un área de derivación. | **confirmar** | `team` | `DELETE /handoff-areas/{area_id}` |
 
 ## `inference`: Motores sueltos: transcribir y sintetizar voz (con API key)

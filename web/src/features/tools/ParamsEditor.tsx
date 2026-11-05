@@ -122,7 +122,7 @@ export function ParamsEditor({
                     ? 'Separado por comas. Puede llevar variables.'
                     : 'Siempre se manda este valor; el agente no lo ve. Puede llevar variables.'
                 }
-                placeholder="{{call.from}}"
+                placeholder="{{call.phone}}"
                 value={r.value}
                 onChange={(value) => set(r.key, { value })}
               />

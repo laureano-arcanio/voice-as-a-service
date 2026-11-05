@@ -10,7 +10,7 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 |---|---|
 | Consulta | una conversación de cliente: llamada (atendida o no) o conversación de WhatsApp |
 | Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, objetivo, % de transferencia, embudo ni turnos |
-| Transferencia | llamada con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
+| Transferencia | conversación (llamada o WhatsApp de texto) con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
 | Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
 | Conversión | `complete`: completó con un resultado que no es `incompleta` ni `fuera_de_tema`; `partial`: algún dato capturado sin completar; `empty`: ningún dato |
 
@@ -65,6 +65,18 @@ en el toolset `admin`. Ver [`MCP.md`](MCP.md).
 ## Reglas y trampas
 
 - Nada técnico para el cliente (latencia, proveedores, herramientas, errores, tokens): va en Técnico, solo admin.
+- **Derivaciones en cadena** ([EQUIPO_TELEFONIA.md](EQUIPO_TELEFONIA.md)): cada pase a otra área de llamada emite
+  `handoff.rerouted`, y un par (conversación, área) con `rerouted` y sin `connected` no suma en esa área: la emergencia
+  cuenta una vez, donde terminó. El pase a un área de aviso no emite `rerouted` y un aviso directo no emite `requested`:
+  el pedido que no se atendió lo cuenta esa área.
+- **Rotación por WhatsApp de texto** ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)): cada plantilla es un
+  tramo de `handoff_legs` con `wamid`. El tiempo de respuesta los excluye (cuánto tardó en tocar el botón no es una espera
+  de atención), un tramo `interrupted` no cuenta como intento sin atender, y los envíos al equipo (`team_notice`,
+  `team_relay`) suman en Mensajes porque son envíos reales. Un toque tardío sobre un área ya pasada puede contar una
+  derivación de más en el área que quedó esperando.
+- **Workflows** ([HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): su ejecución deja una
+  fila en `tool_runs` y aparece en `tools` de Técnico; `last_error` trae solo el diagnóstico (tipo, HTTP y si fue de
+  conexión), sin texto de la respuesta.
 - Los tokens del LLM y las ejecuciones de herramientas no se reconstruyen hacia atrás: hay historia desde el
   27-oct-2026.
 - Al cambiar un reporte: actualizar la sección Reportes de `/desarrolladores/docs/api` en la landing y, si cambian

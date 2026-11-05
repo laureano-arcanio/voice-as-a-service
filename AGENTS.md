@@ -183,6 +183,6 @@ Detalle y resto en [`docs/INFRA.md`](docs/INFRA.md).
   medir con `CSP_REPORT_ONLY=true`.
 - **Al cambiar un tier, un reporte o el MCP**, actualizar `/desarrolladores/docs/api` y `/docs/mcp` de la landing
   (`make mcp-docs` regenera el catálogo).
-- **Registros (`apps/registros/`) comparte el `db`** y tiene datos de salud: `make registros-db` quita `CONNECT` de `PUBLIC` en la
+- **Registros (`apps/registros/`) comparte el `db`** y puede tener datos de salud: `make registros-db` quita `CONNECT` de `PUBLIC` en la
   base principal y en `crm` (si `crm` se restaura o se crea después, volver a correrlo); su backup es `BACKUP_EXTRA_DBS=registros`
   y se restaura con `make registros-restore`, no con el superusuario ([`docs/features/REGISTROS.md`](docs/features/REGISTROS.md)).

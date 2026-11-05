@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["datos"],
+  "properties": {
+    "datos": {
+      "type": "object",
+      "required": ["nombre"],
+      "properties": {
+        "nombre": {"type": "string", "minLength": 1},
+        "documento": {"type": "string"},
+        "codigo": {"type": "string"},
+        "celular": {"type": "string"},
+        "otro_telefono": {"type": "string"}
+      }
+    },
+    "cobertura": {
+      "type": "object",
+      "properties": {"titular": {"type": "string"}}
+    },
+    "contactos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {"nombre": {"type": "string"}, "telefono": {"type": "string"}}
+      }
+    }
+  }
+}

@@ -1479,7 +1479,7 @@
    "name": "create_team_member",
    "toolset": "team",
    "title": "Sumar una persona al equipo",
-   "description": "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y el WhatsApp para el puente de mensajes.",
+   "description": "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp.",
    "kind": "escritura",
    "features": [
     "team"
@@ -1515,7 +1515,7 @@
    "name": "get_handoff_area_defaults",
    "toolset": "team",
    "title": "Mensajes por defecto de un área",
-   "description": "Los mensajes por defecto de un área de derivación y las variables que aceptan.",
+   "description": "Los mensajes por defecto de un área de derivación y las variables que aceptan. También aceptan las que trae la herramienta de «Antes de la conversación» del agente, por su nombre.",
    "kind": "lectura",
    "features": [
     "team"
@@ -1539,7 +1539,7 @@
    "name": "create_handoff_area",
    "toolset": "team",
    "title": "Crear un área de derivación",
-   "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente. El agente deriva a las áreas activas según su descripción.",
+   "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`). El agente deriva a las áreas activas según su descripción.",
    "kind": "escritura",
    "features": [
     "team"
@@ -1551,7 +1551,7 @@
    "name": "update_handoff_area",
    "toolset": "team",
    "title": "Editar un área de derivación",
-   "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista.",
+   "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas.",
    "kind": "escritura",
    "features": [
     "team"

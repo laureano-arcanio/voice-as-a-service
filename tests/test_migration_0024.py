@@ -15,6 +15,8 @@ def test_0024_upgrade_downgrade_upgrade(tmp_path):
     assert "handoff_legs" in sa.inspect(engine).get_table_names()
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
+    # La 0048 agrega el wamid del tramo y wa_threads.handoff_leg_id, que referencia a esta tabla.
+    diff = [d for d in diff if not any(c in repr(d) for c in ("wamid", "handoff_leg_id", "fk_wa_threads_handoff_leg"))]
     assert [d for d in diff if "handoff_legs" in repr(d)] == []
     _run(engine, command.downgrade, "0023")
     assert "handoff_legs" not in sa.inspect(engine).get_table_names()

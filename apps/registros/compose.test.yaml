@@ -1,0 +1,62 @@
+# Postgres de prueba de Registros, sin datos del host y sin la base de la plataforma.
+#   make registros-test: corre los tests y baja todo.
+#   make registros-dev / registros-dev-down: la app con datos de ejemplo, para QA local.
+name: registros-test
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres_test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: postgres_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      # Rol propio sin privilegios de superusuario: como en producción.
+      - ./tests/initdb.sql:/docker-entrypoint-initdb.d/10-registros.sql:ro
+    healthcheck:
+      # Por TCP: durante la carga inicial Postgres solo atiende por socket.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "registros", "-d", "registros"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  tests:
+    profiles: ["test"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    environment: &env
+      REGISTROS_DB_DSN: postgresql+psycopg://registros:test@db:5432/registros
+      REGISTROS_SESSION_SECRET: secreto-de-prueba
+      REGISTROS_PUBLIC_URL: http://registros.test
+    volumes:
+      - .:/app:ro
+    command: ["pytest", "-q"]
+
+  dev:
+    profiles: ["dev"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    environment:
+      <<: *env
+      REGISTROS_PUBLIC_URL: http://127.0.0.1:${REGISTROS_DEV_PORT:-8041}
+    volumes:
+      - .:/app:ro
+    ports:
+      - "${REGISTROS_DEV_PORT:-8041}:8040"
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && python tests/dev_seed.py && exec uvicorn registros.main:app --host 0.0.0.0 --port 8040 --no-server-header
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8040/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      start_period: 15s
+      retries: 15

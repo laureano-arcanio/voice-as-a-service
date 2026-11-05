@@ -333,6 +333,18 @@ class Settings(BaseSettings):
     # Zona de {{today}} y {{now}} en la definicion de un agente y en las herramientas.
     agent_timezone: str = "America/Argentina/Buenos_Aires"
 
+    # Workflows del agente y derivacion por WhatsApp (valores sin medir). Barrido del post-call
+    # (app/conversation/workflows.py) y cuanto espera la entrega al operador a que termine.
+    workflow_tick_seconds: float = 10
+    post_call_wait_seconds: float = 3
+    # Rotacion por WhatsApp: su barrido, el tope de un toque tardio y el reenvio al operador que la tomo.
+    wa_handoff_tick_seconds: float = 10
+    wa_handoff_late_minutes: int = 30
+    wa_handoff_relay_hours: int = 24
+    # Respuesta fija a una persona del equipo que le escribe al numero de avisos, y por cuantas horas desde el aviso.
+    wa_team_notice_hours: int = 24
+    wa_team_reply: str = "Este número solo envía avisos. Respondele a la persona desde tu WhatsApp."
+
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.
     web_dist_dir: Path = Field(default=BASE_DIR / "web" / "dist")

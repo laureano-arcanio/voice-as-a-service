@@ -1,0 +1,26 @@
+<div class="title-row">
+  <h1>Fichas</h1>
+  <a class="button" href="/personas/nueva">Nueva ficha</a>
+</div>
+<form id="filters" class="filters">
+  <input name="q" type="search" maxlength="200" placeholder="Nombre, teléfono, documento o código" aria-label="Buscar">
+  <select name="al_dia" aria-label="Al día">
+    <option value="">Todas</option>
+    <option value="true">Al día</option>
+    <option value="false">No están al día</option>
+  </select>
+  <button type="submit" class="ghost">Buscar</button>
+</form>
+<p id="error" class="error" role="alert" hidden></p>
+<div id="empty" class="card empty" hidden></div>
+<div id="results" class="card table-wrap" hidden>
+  <table>
+    <thead><tr><th>Nombre</th><th>Titular</th><th>Al día</th><th>Actualizada</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<nav id="pager" class="pager" hidden>
+  <button type="button" id="prev" class="ghost">Anterior</button>
+  <span id="position" class="muted"></span>
+  <button type="button" id="next" class="ghost">Siguiente</button>
+</nav>

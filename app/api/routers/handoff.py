@@ -55,8 +55,8 @@ def list_team(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 @router.post("/team", response_model=TeamMemberOut, status_code=201)
 def create_member(body: TeamMemberIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
-    """Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas; el WhatsApp,
-    para el puente de la bandeja. Cuenta para el tope del plan (`max_team_members`)."""
+    """Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas y, con
+    `whatsapp_notify`, para avisarle por WhatsApp. Cuenta para el tope del plan (`max_team_members`)."""
     member = handoff.create_member(db, _client(db, p, client_id), **body.model_dump())
     db.commit()
     return member
@@ -80,9 +80,12 @@ def delete_member(member_id: str, p: CurrentPrincipal, db: DB):
 
 @router.get("/handoff-areas/defaults", response_model=HandoffDefaultsOut)
 def area_defaults(p: CurrentPrincipal):
-    """Los mensajes por defecto de un área y las variables que aceptan."""
+    """Los mensajes por defecto de un área y las variables que aceptan. También aceptan las variables que trae
+    la herramienta de «Antes de la conversación» del agente, por su nombre (`{{nota_operador}}`)."""
     return HandoffDefaultsOut(messages=handoff.DEFAULT_MESSAGES,
-                              variables=["area", "persona", "cliente", "resumen", "horario"])
+                              variables=["area", "persona", "cliente", "resumen", "horario", "nombre"],
+                              pre_accept_messages=list(handoff.PRE_ACCEPT_MESSAGES),
+                              pre_accept_variables=list(handoff.PRE_ACCEPT_VARIABLES))
 
 
 @router.get("/hold-music", response_model=HoldMusicOut)
@@ -98,7 +101,8 @@ def list_areas(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 @router.post("/handoff-areas", response_model=HandoffAreaOut, status_code=201)
 def create_area(body: HandoffAreaIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
-    """Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente."""
+    """Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área
+    pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`)."""
     data = body.model_dump(mode="json")
     area = handoff.create_area(db, _client(db, p, client_id).id, **data)
     db.commit()
@@ -112,7 +116,8 @@ def get_area(area_id: str, p: CurrentPrincipal, db: DB):
 
 @router.patch("/handoff-areas/{area_id}", response_model=HandoffAreaOut)
 def update_area(area_id: str, body: HandoffAreaPatch, p: CurrentPrincipal, db: DB):
-    """Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista."""
+    """Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;
+    `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas."""
     area = handoff.get_area(db, scoped_client_id(p, None), area_id)
     handoff.update_area(db, area, **body.model_dump(mode="json", exclude_unset=True))
     db.commit()

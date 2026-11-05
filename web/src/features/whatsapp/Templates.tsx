@@ -62,6 +62,7 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
       examples: [] as string[],
       url_text: '',
       url: '',
+      quick_text: '',
       optout_button: false,
     },
     validate: {
@@ -73,6 +74,7 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
       url: (v, values) =>
         values.url_text.trim() && !/^https:\/\/\S+$/.test(v.trim()) ? 'Una dirección https://' : null,
       url_text: (v, values) => (values.url.trim() && !v.trim() ? 'El texto del botón' : null),
+      quick_text: (v) => (v.includes('{{') ? 'El botón no admite variables' : null),
       examples: (v, values) =>
         v.slice(0, placeholderNumbers(values.body).length).some((e) => !e.trim())
           ? 'Hace falta un ejemplo para cada variable'
@@ -97,7 +99,11 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
               ...(v.url_text.trim()
                 ? [{ type: 'URL' as const, text: v.url_text.trim(), url: v.url.trim() }]
                 : []),
-              ...(v.optout_button ? [{ type: 'QUICK_REPLY' as const, text: OPTOUT_BUTTON }] : []),
+              ...(v.quick_text.trim() ? [{ type: 'QUICK_REPLY' as const, text: v.quick_text.trim() }] : []),
+              // Si el rótulo libre ya es el de la baja, no se repite.
+              ...(v.optout_button && v.quick_text.trim() !== OPTOUT_BUTTON
+                ? [{ type: 'QUICK_REPLY' as const, text: OPTOUT_BUTTON }]
+                : []),
             ],
           };
           create.mutate(
@@ -169,6 +175,13 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
               {...form.getInputProps('url')}
             />
           </Group>
+          <TextInput
+            label="Botón de respuesta rápida (opcional)"
+            description="Quien lo toca envía ese texto como respuesta. Sirve, por ejemplo, para que una persona del equipo acepte un pedido con «Aceptar»."
+            placeholder="Aceptar"
+            maxLength={25}
+            {...form.getInputProps('quick_text')}
+          />
           <Checkbox
             label={`Botón "${OPTOUT_BUTTON}"`}
             description="Quien lo toca no recibe más campañas de este cliente. Recomendado en Marketing."

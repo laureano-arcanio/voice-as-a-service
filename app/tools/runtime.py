@@ -43,6 +43,7 @@ class ToolContext:
     mode: str = ""
     from_: str | None = None
     to: str | None = None
+    phone: str | None = None             # la otra punta: en una saliente, from_ es el numero de la empresa
     agent_slug: str = ""
     agent_version: int | None = None
     fields: dict[str, Any] = field(default_factory=dict)
@@ -53,7 +54,7 @@ class ToolContext:
 
     def call(self) -> dict:
         return {"id": self.conversation_id, "channel": self.channel, "mode": self.mode, "from": self.from_,
-                "to": self.to, "agent": self.agent_slug}
+                "to": self.to, "phone": self.phone, "agent": self.agent_slug}
 
 
 @dataclass
@@ -81,6 +82,9 @@ class ToolResult:
     logs: list[str] = field(default_factory=list)
     llm: str = ""                         # lo que recibe el modelo
     assigned: dict[str, Any] = field(default_factory=dict)
+    hidden: set[str] = field(default_factory=set)    # los de `assigned` con hide: no llegan al modelo
+    transport: bool = False               # no hubo respuesta (timeout o conexion): el pedido se puede repetir
+    code: str | None = None               # tipo de falla, sin texto de la respuesta (diagnostico de un workflow)
 
     def trace(self) -> dict:
         out = {"ok": self.ok, "status": self.status, "ms": self.ms}
@@ -92,9 +96,9 @@ class ToolResult:
 
 
 class ToolFailure(Exception):
-    def __init__(self, code: str, message: str, status: int | None = None):
+    def __init__(self, code: str, message: str, status: int | None = None, transport: bool = False):
         super().__init__(message)
-        self.code, self.message, self.status = code, message, status
+        self.code, self.message, self.status, self.transport = code, message, status, transport
 
 
 # ---------- templates ----------
@@ -225,6 +229,7 @@ def finish(spec: ToolSpec, result: ToolResult, ctx: ToolContext, redactor: Redac
     tool = spec.tool
     data = result.data
     if result.ok:
+        result.hidden = {a.var for a in tool.assign if a.hide}
         for a in tool.assign:
             value = get_path(data, a.path)
             if value is not None:
@@ -375,11 +380,11 @@ async def oauth_token(auth: S.Auth, ctx: ToolContext, client: SafeHttp, refresh:
     try:
         resp = await client.request("POST", auth.token_url, headers, urlencode(data).encode())
     except HttpTimeout:
-        raise ToolFailure("auth_failed", "El servidor de tokens no respondió a tiempo") from None
+        raise ToolFailure("auth_failed", "El servidor de tokens no respondió a tiempo", transport=True) from None
     except BlockedAddress as e:
         raise ToolFailure("blocked_address", str(e)) from None
     except HttpError as e:
-        raise ToolFailure("auth_failed", f"No se pudo pedir el token: {e}") from None
+        raise ToolFailure("auth_failed", f"No se pudo pedir el token: {e}", transport=True) from None
     if resp.status != 200:
         raise ToolFailure("auth_failed", f"El servidor de tokens respondió {resp.status}", resp.status)
     try:
@@ -530,12 +535,13 @@ async def run_http(spec: ToolSpec, args: dict, ctx: ToolContext, call_id: str, r
                 if attempt < attempts:
                     await asyncio.sleep(0.3 * 2 ** (attempt - 1))
                     continue
-                return ToolResult(ok=False, error="timeout", request=request_log)
+                return ToolResult(ok=False, error="timeout", request=request_log, transport=True, code="timeout")
             except HttpError as e:
                 if attempt < attempts:
                     await asyncio.sleep(0.3 * 2 ** (attempt - 1))
                     continue
-                return ToolResult(ok=False, error=f"error de conexión: {e}", request=request_log)
+                return ToolResult(ok=False, error=f"error de conexión: {e}", request=request_log, transport=True,
+                                  code="connection")
             if status == 401 and h.auth.type == "oauth2_client_credentials" and not refreshed:
                 refreshed = True
                 continue
@@ -545,11 +551,11 @@ async def run_http(spec: ToolSpec, args: dict, ctx: ToolContext, call_id: str, r
             break
     if 300 <= status < 400:
         return ToolResult(ok=False, status=status, error="la API respondió con una redirección (no se siguen)",
-                          request=request_log)
+                          request=request_log, code="redirect")
     if status >= 400:
         text = data if isinstance(data, str) else json.dumps(data, ensure_ascii=False)
         return ToolResult(ok=False, status=status, error=clip(text or f"HTTP {status}", ERROR_BODY_CHARS),
-                          request=request_log)
+                          request=request_log, code="http_error")
     if cut:
         data = clip(data, tool.response.max_chars)
     return ToolResult(ok=True, status=status, data=data, request=request_log)
@@ -575,11 +581,12 @@ async def run_code(spec: ToolSpec, args: dict, ctx: ToolContext, redactor: Redac
     out = resp.json()
     logs = [str(line) for line in out.get("logs") or []][:200]
     if not out.get("ok"):
-        return ToolResult(ok=False, error=str(out.get("error") or "error en la función"), logs=logs)
+        return ToolResult(ok=False, error=str(out.get("error") or "error en la función"), logs=logs,
+                          code="function_error")
     value = out.get("result")
     if isinstance(value, dict) and value.get("ok") is False:
         return ToolResult(ok=False, error=str(value.get("error") or "la función devolvió ok: false"), logs=logs,
-                          data=value)
+                          data=value, code="function_error")
     return ToolResult(ok=True, data=value, logs=logs)
 
 
@@ -591,7 +598,7 @@ async def run(spec: ToolSpec, args: Any, ctx: ToolContext, call_id: str | None =
     redactor = Redactor(ctx.secrets)
     call_id = call_id or uuid.uuid4().hex[:12]
     if (problem := S.validate_args(spec.tool, args)) is not None:
-        result = ToolResult(ok=False, error=f"argumentos inválidos: {problem}")
+        result = ToolResult(ok=False, error=f"argumentos inválidos: {problem}", code="invalid_args")
     else:
         try:
             if spec.type == "http":
@@ -599,9 +606,9 @@ async def run(spec: ToolSpec, args: Any, ctx: ToolContext, call_id: str | None =
             else:
                 result = await run_code(spec, args, ctx, redactor)
         except ToolFailure as e:
-            result = ToolResult(ok=False, status=e.status, error=e.message)
+            result = ToolResult(ok=False, status=e.status, error=e.message, transport=e.transport, code=e.code)
         except Exception:
             logger.exception("tools: fallo %s", spec.slug)
-            result = ToolResult(ok=False, error="error interno al ejecutar la herramienta")
+            result = ToolResult(ok=False, error="error interno al ejecutar la herramienta", code="internal")
     result.ms = round((time.perf_counter() - started) * 1000)
     return finish(spec, result, ctx, redactor)

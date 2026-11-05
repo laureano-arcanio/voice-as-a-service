@@ -30,14 +30,20 @@ message_template_status_update (solo log: la UI lista las plantillas en vivo). U
 token de cliente rechazado por Meta (190 o 401) tambien la desconecta y no se reintenta.
 
 Todo en memoria del proceso (inbox, lock, debounce): supone un solo worker de
-uvicorn. Si se reinicia `app`, lo pendiente se pierde y esos entrantes quedan
-`received` sin respuesta.
+uvicorn. Un reinicio de `app`, tambien un deploy comun, pierde el mensaje que esta en
+debounce, transcripcion o LLM: el entrante queda `received` y la persona no recibe nada.
+Lo unico que sobrevive es una derivacion ya reservada (handoffs.py).
+
+Derivacion a personas (handoffs.py): transfer_call reserva la rotacion por plantillas antes de responder y la
+arranca despues de enviar la respuesta; el toque del boton la toma; con el operador con los datos, durante WA_HANDOFF_RELAY_HOURS los mensajes de la
+persona le llegan a el, sin el modelo; y a quien recibe avisos del equipo y escribe se le responde un texto fijo.
 
 Sin texto, telefonos ni tokens en los logs: solo phone_number_id y wamid.
 """
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import logging
 import time
@@ -48,16 +54,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
-from ..conversation import recordings
+from ..conversation import recordings, workflows
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import ConversationState, TurnMedia
 from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import Client, ConversationRow, WaAccount, WaThread
+from ..services import handoff as handoff_service
 from ..services import limits, wa_routing
 from . import audio as audio_module
-from . import campaigns, store
+from . import campaigns, handoffs, store, team_notify
 from .audio import AudioError, AudioTooLong
 from .crypto import TokenKeyMissing
 from .graph import GraphClient, GraphError, MediaTooLarge
@@ -74,6 +81,10 @@ DISCONNECT_EVENTS = {"PARTNER_REMOVED", "PARTNER_APP_UNINSTALLED", "ACCOUNT_OFFB
 # DISABLED_UPDATE depende de ban_info.waba_ban_state: DISABLE desconecta, REINSTATE reconecta
 # lo que desconecto un DISABLE y SCHEDULE_FOR_DISABLE solo avisa (la WABA sigue andando).
 DISABLED_REASON = "account_update DISABLED_UPDATE"
+# Con el reenvio al operador vigente, lo que no se puede reenviar llega como aviso.
+RELAY_KINDS = {"image": "imagen", "document": "documento", "sticker": "sticker", "video": "video",
+               "location": "ubicación"}
+RELAY_AUDIO_FAILED = "[Audio que no se pudo transcribir]"
 
 
 def _ban_states(value: dict) -> set[str]:
@@ -105,6 +116,9 @@ class Inbox:
     # pero una foto no tapa el aviso de un audio que no se escucho.
     fixed_sent_at: dict[str, float] = field(default_factory=dict)
     pending_audio: int = 0      # audios bajandose o transcribiendose: el turno los espera
+    # Esperando el lock para escribirle a la persona (handoffs.py). Un Lock recien soltado da locked() False aunque
+    # tenga a alguien esperando: si se borrara el inbox, el siguiente turno tomaria otro lock.
+    pending_writers: int = 0
 
     def chars(self) -> int:
         return sum(len(item.text) for item in self.items)
@@ -114,7 +128,7 @@ class Inbox:
         return items
 
     def idle(self, now: float, window: float) -> bool:
-        return (not self.items and not self.lock.locked() and self.pending_audio == 0
+        return (not self.items and not self.lock.locked() and self.pending_audio == 0 and self.pending_writers == 0
                 and (self.timer_task is None or self.timer_task.done())
                 and all(now - at >= window for at in self.fixed_sent_at.values()))
 
@@ -213,6 +227,7 @@ class WhatsAppService:
         self._graphs: dict[str, GraphClient] = {}
         self._tasks: set[asyncio.Task] = set()      # referencias: que el GC no junte tareas en curso
         self._inbox: dict[tuple[str, str], Inbox] = {}
+        self.handoffs = handoffs.TextHandoffs(self)
 
     # --- Entrada ---
 
@@ -244,7 +259,20 @@ class WhatsAppService:
 
     def end(self, conversation_id: str) -> None:
         """Fin de una conversacion ya cerrada en la base: lo mismo que el corte de una llamada."""
-        self._spawn(self.engine.finish(conversation_id))
+        self._spawn(self._finish(conversation_id))
+
+    async def _finish(self, conversation_id: str) -> None:
+        """Despues de la extraccion, el post-call `always` que armo el cierre queda listo para el loop."""
+        try:
+            await self.engine.finish(conversation_id)
+        finally:
+            workflows.mark_ended(self.sessions, conversation_id)
+
+    def close_thread(self, s: Session, thread: WaThread) -> None:
+        """Cierra el hilo y, en la misma transaccion, arma el post-call `always`. Sin commit; despues, end()."""
+        store.close_thread(s, thread)
+        if (workflow := self._conversation_workflow(s, thread.conversation_id)) is not None:
+            workflows.arm_text_end(s, thread.conversation_id, workflow)
 
     async def sweep(self) -> int:
         """Cierra las conversaciones vencidas (cada una segun su propia ventana de contexto,
@@ -254,7 +282,7 @@ class WhatsAppService:
             threads = [t for t in store.open_threads(s) if self._expired(s, t, now)]
             ended = [t.conversation_id for t in threads]
             for t in threads:
-                store.close_thread(s, t)
+                self.close_thread(s, t)
             s.commit()
         for conversation_id in ended:
             self.end(conversation_id)
@@ -264,16 +292,20 @@ class WhatsAppService:
         """Minutos sin mensaje del contacto para dar esta conversacion por terminada: los del
         agente que la abrio (Workflow.wa_session_minutes), o si no los fijo, el default global
         (self.session_hours, WA_SESSION_HOURS) convertido a minutos."""
-        row = s.get(ConversationRow, conversation_id)
-        workflow = None
-        if row is not None and row.agent_id and row.agent_version:
-            try:
-                workflow = self.engine.definitions.get(row.agent_id, row.agent_version, session=s)
-            except KeyError:
-                workflow = None
+        workflow = self._conversation_workflow(s, conversation_id)
         if workflow is not None and workflow.wa_session_minutes is not None:
             return workflow.wa_session_minutes
         return self.session_hours * 60
+
+    def _conversation_workflow(self, s: Session, conversation_id: str):
+        """La version del agente que abrio la conversacion, o None."""
+        row = s.get(ConversationRow, conversation_id)
+        if row is None or not row.agent_id or not row.agent_version:
+            return None
+        try:
+            return self.engine.definitions.get(row.agent_id, row.agent_version, session=s)
+        except KeyError:
+            return None
 
     def _expired(self, s: Session, thread: WaThread, now: datetime.datetime) -> bool:
         minutes = self._session_minutes(s, thread.conversation_id)
@@ -322,10 +354,6 @@ class WhatsAppService:
         kind = msg.get("type") or "other"
         text = _text_of(msg)
         kind_db = "text" if text is not None else (kind if kind in MESSAGE_TYPES else "other")
-        if kind == "button":
-            # Temporal (T0): comprobar que context.id es el wamid de la plantilla tocada. Sin teléfono ni texto.
-            ctx = msg.get("context") if isinstance(msg.get("context"), dict) else {}
-            logger.info("wa: toque de boton pnid=%s wamid=%s context_id=%s", pnid, wamid, ctx.get("id"))
         with self.sessions() as s:
             account = store.account_by_pnid(s, pnid)
             if not store.record_inbound(s, wamid=wamid, account_id=account.id if account else None,
@@ -351,8 +379,20 @@ class WhatsAppService:
                 # Ruteo por contacto: a este contacto lo atiende el agente de su regla.
                 info = replace(info, agent_id=routed, routed=True)
 
+        if kind == "button" and await self.handoffs.on_tap(info, wa_id, wamid, msg):
+            return
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
+        relaying = self._relaying(info, wa_id)
+        if not relaying and kind not in SILENT_TYPES and self._team_reply_due(info, wa_id):
+            # Alguien del equipo que le contesta a un aviso: sin LLM y sin abrir una conversacion.
+            await self._fixed_reply(info, wa_id, wamid, settings.wa_team_reply, inbox)
+            return
+        if relaying and text is None and kind in RELAY_KINDS:
+            inbox.items.append(Item(_stamp(msg), f"[La persona envió: {RELAY_KINDS[kind]}]", wamid))
+            inbox.contact_name = contact_name or inbox.contact_name
+            self._arm(info, wa_id, inbox)
+            return
         if kind == "audio":
             await self._on_audio(info, wa_id, wamid, msg, contact_name, inbox)
             return
@@ -368,6 +408,16 @@ class WhatsAppService:
         inbox.items.append(Item(_stamp(msg), text, wamid))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
+
+    def _relaying(self, info: AccountInfo, wa_id: str) -> bool:
+        with self.sessions() as s:
+            return handoffs.active_relay_id(s, info.id, wa_id, utcnow()) is not None
+
+    def _team_reply_due(self, info: AccountInfo, wa_id: str) -> bool:
+        """Recibio algo del equipo hace poco y no esta hablando con el agente."""
+        with self.sessions() as s:
+            return (self._active_thread(s, info.id, wa_id, utcnow()) is None
+                    and team_notify.recent_notice(s, info.id, wa_id, settings.wa_team_notice_hours))
 
     def _over_cap(self, info: AccountInfo, wamid: str, inbox: Inbox) -> bool:
         """Tope por turno: lo que pasa se descarta y el timer no se re-arma (el turno sale)."""
@@ -430,6 +480,11 @@ class WhatsAppService:
             inbox.pending_audio -= 1
         if body is None and not text:
             body = settings.wa_audio_empty_reply
+        if body is not None and self._relaying(info, wa_id):
+            inbox.items.append(Item(_stamp(msg), RELAY_AUDIO_FAILED, wamid))
+            inbox.contact_name = contact_name or inbox.contact_name
+            self._arm(info, wa_id, inbox)
+            return
         if body is not None:
             await self._fixed_reply(info, wa_id, wamid, body, inbox)
             if inbox.items:
@@ -448,9 +503,10 @@ class WhatsAppService:
 
     def _optout(self, info: AccountInfo, wa_id: str) -> bool:
         """Baja pedida en respuesta a una campaña: solo si este numero le mando alguna y no hay
-        una conversacion en curso (ahi un "no gracias" es parte de la charla y responde el agente)."""
+        una conversacion en curso ni reenvio al operador (ahi un "no gracias" es parte de la charla)."""
         with self.sessions() as s:
-            if self._active_thread(s, info.id, wa_id, utcnow()) is not None \
+            if handoffs.active_relay_id(s, info.id, wa_id, utcnow()) is not None \
+                    or self._active_thread(s, info.id, wa_id, utcnow()) is not None \
                     or not campaigns.got_campaign(s, info.id, wa_id):
                 return False
             campaigns.add_optout(s, info.client_id, wa_id, "keyword")
@@ -568,7 +624,32 @@ class WhatsAppService:
         row = s.get(ConversationRow, conversation_id)
         return row is not None and len(row.messages or []) >= 2 * self.max_turns
 
+    async def _relay_turn(self, info: AccountInfo, wa_id: str, items: list[Item]) -> bool:
+        """Con el reenvio vigente, el turno va al operador, sin el modelo. Corre bajo el lock del contacto y ya
+        paso por el debounce y la transcripcion. False si no hay reenvio: turno normal."""
+        wamids = [item.wamid for item in items]
+        now = utcnow()
+        with self.sessions() as s:
+            account = s.get(WaAccount, info.id)
+            conversation_id = (handoffs.active_relay_id(s, info.id, wa_id, now)
+                               if account is not None and account.active else None)
+            if conversation_id is None:
+                return False
+            store.touch_thread(s, conversation_id, now)
+            store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
+            s.commit()
+        await self._mark_read(self._graph(info.token), info, wamids[-1])
+        lines = [f"[audio] {item.text}" if item.voice_note else item.text for item in items]
+        await self.handoffs.relay(conversation_id, self._text(items), "\n".join(lines),
+                                  self._media(items).user_voice_note)
+        with self.sessions() as s:
+            store.set_inbound(s, wamids, status="answered")
+            s.commit()
+        return True
+
     async def _turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[Item]) -> None:
+        if await self._relay_turn(info, wa_id, items):
+            return
         wamids = [item.wamid for item in items]
         now = utcnow()
         with self.sessions() as s:
@@ -584,9 +665,10 @@ class WhatsAppService:
                   and self._cuts_open_thread(s, thread.conversation_id, info)):
                 thread = None       # otro agente manda: el hilo sigue en otra conversacion
             ended = None
+            created = thread is None
             if thread is None and (last := store.last_thread(s, info.id, wa_id)) and last.closed_at is None:
                 # Vencida o en el tope y sin cerrar todavia: termina ahora, como un corte.
-                store.close_thread(s, last)
+                self.close_thread(s, last)
                 ended = last.conversation_id
             if thread is not None:
                 conversation_id = thread.conversation_id
@@ -606,6 +688,9 @@ class WhatsAppService:
                         self.end(ended)
                     return
                 conversation_id = state.conversation_id
+                # Como en voz, una respuesta a una campaña no deriva.
+                if target is None:
+                    self._fill_areas(s, state)
                 # Conversacion e hilo en la misma transaccion.
                 ConversationStore.add(s, state)
                 store.add_thread(s, conversation_id=conversation_id, account=account, wa_id=wa_id,
@@ -619,6 +704,13 @@ class WhatsAppService:
 
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
+        if created:
+            try:
+                # El webhook ya respondio; lo que espera es este contacto, hasta el timeout_ms del pre-call.
+                await self.engine.run_pre_call(conversation_id, actor=f"wa:{wa_id}")
+            except Exception:
+                logger.exception("wa: fallo el pre-call pnid=%s wamid=%s", info.phone_number_id, wamids[-1])
+        retracted = None
         try:
             media = self._media(items)
             state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media,
@@ -626,6 +718,7 @@ class WhatsAppService:
             if inbox.items:
                 # Llegaron mas mientras respondia el LLM: la respuesta no salio, se rehace
                 # el turno con todo (una sola vez; lo que llegue despues va en el siguiente).
+                retracted = turn
                 self.engine.retract_last_turn(conversation_id)
                 items = _ordered(items + inbox.take())
                 wamids = [item.wamid for item in items]
@@ -638,13 +731,26 @@ class WhatsAppService:
                                                              actor=f"wa:{wa_id}")
         except Exception:
             logger.exception("wa: fallo el turno pnid=%s wamid=%s", info.phone_number_id, wamids[-1])
-            with self.sessions() as s:
-                store.set_inbound(s, wamids, status="error")
-                s.commit()
-            return
+            if retracted is None or not retracted.handoff:
+                with self.sessions() as s:
+                    store.set_inbound(s, wamids, status="error")
+                    s.commit()
+                return
+            # El modelo ya habia decidido derivar y fallo su segundo intento: vale esa derivacion.
+            turn = retracted
+            self.handoffs._append(conversation_id, "user", self._text(items), media.user_voice_note)
+            if retracted.assistant_message:
+                self.handoffs._append(conversation_id, "assistant", retracted.assistant_message)
+            state = self.engine.store.get(conversation_id)
 
+        # Sin await hasta reservar: lo que se le promete a la persona ya esta escrito, y si esto se corta el barrido lo
+        # retoma. Solo el ultimo turno deriva, y no se despachan dos rotaciones.
+        area = self.handoffs.transfer_area(state, turn)
+        booking = self.handoffs.reserve(conversation_id, area, media.reply_voice_note) if area is not None else None
         self._record_incoming(state, items)
         reply = turn.assistant_message.strip()[:settings.wa_max_reply_chars]
+        if booking is not None and not reply:
+            reply = self.handoffs.transfer_text(conversation_id, booking.text_area_id)
         sent = True
         if reply and media.reply_voice_note and len(reply) <= settings.wa_audio_max_reply_chars:
             sent = await self._send_audio(graph, info, wa_id, state, reply)
@@ -658,6 +764,14 @@ class WhatsAppService:
         with self.sessions() as s:
             store.set_inbound(s, wamids, status="answered" if sent else "error")
             s.commit()
+        if booking is not None and booking.lease is not None:
+            self.handoffs.start(conversation_id, booking.lease)
+
+    def _fill_areas(self, s: Session, state: ConversationState) -> None:
+        """Las areas a las que puede derivar esta conversacion: las del agente con plantilla."""
+        workflow = self.engine.definitions.get(state.agent_id, state.agent_version, session=s)
+        state.progress.handoff_areas = handoff_service.call_areas(s, state.client_id, workflow.handoff,
+                                                                  channel="whatsapp")
 
     def _new_conversation(self, s: Session, info: AccountInfo,
                           target: campaigns.ReplyTarget | None) -> ConversationState:
@@ -704,6 +818,42 @@ class WhatsAppService:
         ventana de 24 h) se guarda el error y no se reintenta."""
         return await self._deliver(info, wa_id, conversation_id, "text",
                                    graph.send_text(info.phone_number_id, recipient(wa_id), body))
+
+    async def send_team(self, info: AccountInfo, wa_id: str, conversation_id: str | None, body: str, kind: str) -> bool:
+        """Texto libre al equipo, con su tipo en wa_messages (team_notice o team_relay)."""
+        graph = self._graph(info.token)
+        return await self._deliver(info, wa_id, conversation_id, kind,
+                                   graph.send_text(info.phone_number_id, recipient(wa_id), body))
+
+    def account_info(self, s: Session, account_id: str | None, client_id: str | None) -> AccountInfo | None:
+        """Lo necesario para enviar por una cuenta del cliente, o None si hoy no se puede."""
+        account = s.get(WaAccount, account_id) if account_id else None
+        if account is None or account.client_id != client_id or self._why_ignore(s, account, ""):
+            return None
+        try:
+            token = store.token_for(account)
+        except TokenKeyMissing:
+            logger.error("wa: no se puede descifrar el token de la cuenta (WA_TOKEN_KEY) pnid=%s",
+                         account.phone_number_id)
+            return None
+        return AccountInfo(account.id, account.client_id, account.agent_id, account.phone_number_id, token,
+                           store.has_own_token(account))
+
+    @contextlib.asynccontextmanager
+    async def contact_lock(self, phone_number_id: str, wa_id: str):
+        """El lock de los turnos de un contacto, para escribir en su conversacion fuera de un turno. No se puede usar
+        desde un turno, que ya lo tiene."""
+        key = (phone_number_id, wa_id)
+        inbox = self._inbox.setdefault(key, Inbox())
+        inbox.pending_writers += 1
+        try:
+            async with inbox.lock:
+                yield
+        finally:
+            inbox.pending_writers -= 1
+            if self._inbox.get(key) is inbox and inbox.idle(asyncio.get_running_loop().time(), self.debounce_seconds):
+                del self._inbox[key]
+
     async def _deliver(self, info: AccountInfo, wa_id: str, conversation_id: str | None, kind: str,
                        request: Coroutine) -> bool:
         """Un envío a Meta, registrado en wa_messages (sent o failed, con el error)."""
@@ -721,10 +871,11 @@ class WhatsAppService:
         messages = data.get("messages")
         out_wamid = messages[0].get("id") if isinstance(messages, list) and messages else None
         with self.sessions() as s:
-            store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
-                                  wa_id=wa_id, type=kind, status="sent")
+            # Un status failed puede llegar antes que esta respuesta: la fila ya esta y no retrocede.
+            failed = store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
+                                           wa_id=wa_id, type=kind, status="sent").status == "failed"
             s.commit()
-        return True
+        return not failed
 
     async def _send_audio(self, graph: GraphClient, info: AccountInfo, wa_id: str,
                           state: ConversationState, body: str) -> bool:
@@ -817,12 +968,16 @@ class WhatsAppService:
         for attempt in (1, 2):
             with self.sessions() as s:
                 account = store.account_by_pnid(s, pnid)
-                store.apply_status(s, account_id=account.id if account else None, **kwargs)
+                account_id = account.id if account else None
+                store.apply_status(s, account_id=account_id, **kwargs)
                 try:
                     s.commit()
-                    return
                 except IntegrityError:      # otro registro del mismo wamid en el medio: se reintenta como update
                     s.rollback()
+                    continue
+            if kwargs["status"] == "failed" and account_id:
+                await self.handoffs.on_failed(account_id, kwargs["wamid"])
+            return
         logger.warning("wa: status sin registrar pnid=%s wamid=%s", pnid, kwargs["wamid"])
 
 
@@ -853,3 +1008,13 @@ async def sweep_loop(interval: float = SWEEP_SECONDS) -> None:
                 logger.info("wa: %d conversaciones vencidas terminadas", n)
         except Exception:
             logger.exception("wa: fallo el barrido de conversaciones vencidas")
+
+
+async def handoff_loop(interval: float | None = None) -> None:
+    """Corre en la app (lifespan): tramos de la rotacion vencidos y entregas por retomar (handoffs.py)."""
+    while True:
+        await asyncio.sleep(interval or settings.wa_handoff_tick_seconds)
+        try:
+            await (await get_service()).handoffs.sweep()
+        except Exception:
+            logger.exception("wa: fallo el barrido de la rotacion")

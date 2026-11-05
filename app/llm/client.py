@@ -139,7 +139,7 @@ class LLMClient:
         """Un turno: texto libre con la conversacion como mensajes, y function calling con las herramientas de la
         plataforma (end_call, transfer_call; app/llm/platform_tools.py) y las del cliente (tools). Las del cliente
         se ejecutan y se le vuelve a preguntar con el resultado, hasta tools.max_rounds vueltas; al llegar, el
-        turno termina con tool_settings.limit_message."""
+        turno termina con tool_settings.limit_message y solo se aplica un transfer_call de esa vuelta."""
         messages = build_turn_messages(workflow, state, user_message)
         definitions = platform_tools.tools_for(state) + (tools.openai_tools() if tools else [])
         turn = AgentTurn(assistant_message="")
@@ -166,6 +166,8 @@ class LLMClient:
                 if on_message is not None:
                     on_message(limit)
                 said.append(limit)
+                # Una derivacion pedida en esta vuelta se respeta; un end_call, no: el turno no corta en el tope.
+                platform_tools.apply(turn, [c for c in calls if c["name"] == platform_tools.TRANSFER_CALL], state)
                 break
             if customer and tools is not None:
                 rounds += 1

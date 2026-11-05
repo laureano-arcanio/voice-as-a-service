@@ -25,11 +25,14 @@ def names(tools: list[dict]) -> list[str]:
 
 # ---------- tools_for ----------
 
-def test_end_call_always_and_transfer_only_in_a_call_with_areas():
+def test_end_call_always_and_transfer_only_with_areas():
     assert names(platform_tools.tools_for(state())) == ["end_call"]
     assert names(platform_tools.tools_for(state(areas=AREAS))) == ["end_call", "transfer_call"]
-    # Por WhatsApp no se deriva una llamada, aunque haya areas.
-    assert names(platform_tools.tools_for(state("whatsapp", AREAS))) == ["end_call"]
+    # Por WhatsApp tambien: las areas las llena el servicio, solo con plantilla (app/whatsapp/service.py).
+    assert names(platform_tools.tools_for(state("whatsapp"))) == ["end_call"]
+    assert names(platform_tools.tools_for(state("whatsapp", AREAS))) == ["end_call", "transfer_call"]
+    assert "Pasa la conversacion" in platform_tools.tools_for(state("whatsapp", AREAS))[1]["function"]["description"]
+    assert "Pasa la llamada" in platform_tools.tools_for(state(areas=AREAS))[1]["function"]["description"]
 
 
 def test_end_call_parameters_by_agent_kind():

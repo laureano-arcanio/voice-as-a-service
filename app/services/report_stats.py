@@ -8,7 +8,8 @@ PostgreSQL y SQLite (dias en otra zona, percentiles), se trae solo lo agregado o
 - "Consulta": una conversacion de cliente (llamada, atendida o no, o conversacion de WhatsApp). Sin el
   loadtest nunca; sin las de prueba ni las de la API (sin llamada y canal voice) salvo `include_tests`.
 - "Transferencia": conversacion con un pedido de derivacion (REQUEST_EVENTS: la pedida, la que no se pudo
-  por horario o sin miembros); "atendida": con ANSWER_EVENTS.
+  por horario o sin miembros); "atendida": con ANSWER_EVENTS. Por area, la que paso a otra (handoff.rerouted) sin
+  atender no suma: la emergencia cuenta una vez, en el area donde termino.
 - Conversion: conversations.conversion (complete, partial, empty); NULL (anteriores al backfill) cuenta
   como empty.
 """
@@ -617,14 +618,15 @@ def transfers(s: Session, flt: ReportFilter) -> dict:
     pairs = s.execute(
         select(Event.conversation_id, Event.area_id,
                func.min(case((Event.type.in_(REQUEST_EVENTS), Event.at))),
-               flag(REQUEST_EVENTS), flag(ANSWER_EVENTS), flag(("handoff.unavailable",)))
-        .where(Event.conversation_id.in_(with_agent), Event.type.in_(REQUEST_EVENTS + ANSWER_EVENTS))
+               flag(REQUEST_EVENTS), flag(ANSWER_EVENTS), flag(("handoff.unavailable",)), flag(("handoff.rerouted",)))
+        .where(Event.conversation_id.in_(with_agent),
+               Event.type.in_((*REQUEST_EVENTS, *ANSWER_EVENTS, "handoff.rerouted")))
         .group_by(Event.conversation_id, Event.area_id)).all()
     daily = {d: {"date": d, "requested": 0, "answered": 0} for d in flt.days()}
     areas: dict[str | None, dict] = {}
     kpis = {"requested": 0, "answered": 0, "not_answered": 0, "unavailable": 0}
-    for _, area_id, at, requested, answered, unavailable in pairs:
-        if not requested:
+    for _, area_id, at, requested, answered, unavailable, rerouted in pairs:
+        if not requested or (rerouted and not answered):
             continue
         status = "answered" if answered else "unavailable" if unavailable else "not_answered"
         area = areas.setdefault(area_id, {"area_id": area_id, "name": "", "requested": 0, "answered": 0,
@@ -643,12 +645,16 @@ def transfers(s: Session, flt: ReportFilter) -> dict:
             a["name"] = names.get(a["area_id"], "") if a["area_id"] else ""
 
     answered_leg = HandoffLeg.connected_at.is_not(None)
-    wait = case((HandoffLeg.answered_at.is_not(None), _seconds(s, HandoffLeg.created_at, HandoffLeg.answered_at)))
+    # Un tramo por WhatsApp (wamid) no es un timbre: cuanto tardo en tocar el boton no es espera de atencion.
+    wait = case((and_(HandoffLeg.answered_at.is_not(None), HandoffLeg.wamid.is_(None)),
+                 _seconds(s, HandoffLeg.created_at, HandoffLeg.answered_at)))
     leg_rows = s.execute(
         select(HandoffLeg.team_member_id, func.count(), _count_if(answered_leg),
                _count_if(and_(HandoffLeg.result != "dialing", ~answered_leg)),
                func.avg(case((answered_leg, wait))), func.coalesce(func.sum(quota.minutes_started(HandoffLeg.billed_seconds)), 0))
-        .where(HandoffLeg.conversation_id.in_(ids)).group_by(HandoffLeg.team_member_id)).all()
+        # Un envio interrumpido se vuelve a intentar: no es un intento sin atender.
+        .where(HandoffLeg.conversation_id.in_(ids), HandoffLeg.result != "interrupted")
+        .group_by(HandoffLeg.team_member_id)).all()
     members = dict(s.execute(select(TeamMember.id, TeamMember.name)
                              .where(TeamMember.id.in_([r[0] for r in leg_rows if r[0]]))).all())
     by_member = sorted(({"team_member_id": mid, "name": members.get(mid, ""), "attempts": n, "answered": _n(a),

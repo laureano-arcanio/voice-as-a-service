@@ -11,12 +11,16 @@ El agente llama a la herramienta transfer_call con el area (app/llm/platform_too
    conversacion, y espera el codigo de vuelta a la IA (return_digits) o que corte alguno.
 6. Si nadie atiende o al volver, el agente retoma con el mensaje que corresponda.
 
+Sigue por las rutas del area: `after_hours_area_id` fuera de horario y `no_answer_area_id` si nadie acepto o no se
+puede llamar, con la musica sin cortar y el mensaje solo al final. Un area `delivery=whatsapp` no llama: avisa a una
+persona, en una tarea propia, que termina aunque el cliente corte. Un area de llamada con `call_template` le manda
+ademas un WhatsApp a cada persona, sin demorar el marcado.
+
 `Transfer` es la logica, sin LiveKit; `RoomLine` es el lado de LiveKit (los tests usan un falso). Cada intento
 queda en handoff_legs (minutos salientes y canales) y en events (linea de tiempo).
 """
 import asyncio
 import contextlib
-import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -32,6 +36,14 @@ from ..config import settings
 from ..db import utcnow
 from ..models import HandoffArea, HandoffLeg, TeamMember
 from ..services import campaign_calls, events, handoff, quota
+from ..services.handoff import (  # noqa: F401  (el resumen vive alla; lo usa tambien el texto)
+    FALLBACK_SUMMARY,
+    SUMMARY_SCHEMA,
+    SUMMARY_TIMEOUT,
+    summarize,
+    summary_messages,
+)
+from ..whatsapp import team_notify
 from .listen import Listener
 from .speech_text import to_speech
 
@@ -44,9 +56,10 @@ PERSON_PREFIX = "persona-"
 MACHINE_WINDOW_SECONDS = 3.0
 # Intentos por llamada (entre todas sus derivaciones): los permisos de las pistas van por identidad.
 MAX_ATTEMPTS = 30
-# Espera del resumen del LLM para el whisper: el timbre suele tardar mas, asi que casi nunca espera.
-SUMMARY_TIMEOUT = 4.0
-FALLBACK_SUMMARY = "una consulta"
+# Las pone la derivacion: una variable del pre-call con el mismo nombre no las pisa.
+RESERVED_VARS = frozenset({"area", "persona", "cliente", "resumen", "horario"})
+# Motivos para seguir por no_answer_area_id, ademas de que nadie acepte.
+PASS_ON_REASONS = frozenset({"no_members", "no_channel", "outbound_minutes"})
 
 
 class CustomerGone(Exception):
@@ -81,11 +94,11 @@ class Line(Protocol):
 @dataclass
 class Outcome:
     """Como termino la transferencia: para el worker y los tests."""
-    status: str                 # connected, unavailable, failed
+    status: str                 # connected, notified, unavailable, failed
     result: str = ""            # el del ultimo intento, o el motivo si no se intento
     ended: str = ""             # conectada: returned_to_ai, person_hung_up, customer_hung_up, quota
     legs: list[str] = field(default_factory=list)
-    member_id: str | None = None   # conectada: la persona que atendio
+    member_id: str | None = None   # conectada o avisada: la persona
 
 
 @dataclass
@@ -97,16 +110,38 @@ class TeamRing:
     id: str | None = None
     return_digits: str = ""
     on_person_hangup: str = "end"
+    whatsapp: dict | None = None
+
+
+@dataclass
+class _Step:
+    """Un area de la cadena, leida de la base: lo que hace falta sin volver a abrir una sesion."""
+    area: HandoffArea | None
+    texts: dict
+    values: dict
+    members: list[TeamMember]
+    reason: str | None
+
+    @property
+    def notice(self) -> bool:
+        return self.area is not None and self.area.delivery == "whatsapp"
+
+
+def _uses_summary(template_cfg: dict | None) -> bool:
+    """Solo se espera el resumen si la plantilla lo lleva."""
+    return "resumen" in ((template_cfg or {}).get("params") or [])
 
 
 class Transfer:
     """Una transferencia de la llamada `conversation_id` a un area. on_message(role, text, person, leg, pcm)
-    agrega a la conversacion; hang_up(reason) corta la llamada (el area se despide al cortar la persona)."""
+    agrega a la conversacion; hang_up(reason) corta la llamada (el area se despide al cortar la persona).
+    get_vars() da las variables del pre-call, leidas en cada area; spawn_notice(coro) corre un aviso en una tarea que
+    sobrevive a la derivacion y que el worker espera al cerrar."""
 
-    def __init__(self, *, sessions, line: Line, conversation_id: str, client_id: str, areas: list[dict],
+    def __init__(self, *, sessions, line: Line | None, conversation_id: str, client_id: str, areas: list[dict],
                  customer: str, caller: str = "", summary=None, on_message=None, hang_up=None,
                  hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
-                 on_connected=None, limit=None):
+                 on_connected=None, limit=None, get_vars=None, spawn_notice=None):
         self.sessions = sessions
         self.line = line
         self.conversation_id = conversation_id
@@ -126,6 +161,12 @@ class Transfer:
         # Intentos de la llamada (la identidad persona-<n> no se repite entre derivaciones de la misma llamada).
         self.attempt = first_attempt
         self._open_leg: str | None = None
+        self.get_vars = get_vars
+        self.spawn_notice = spawn_notice or self._own_task
+        self._tasks: list[asyncio.Task] = []
+        self._summary_task: asyncio.Task | None = None
+        self._summary_shared = False         # lo espera un aviso: no se cancela al terminar la derivacion
+        self._complemented: set[str] = set()   # a quienes ya les salio el WhatsApp de esta derivacion
 
     # ---------- registro ----------
 
@@ -166,60 +207,220 @@ class Transfer:
 
     # ---------- flujo ----------
 
-    async def run(self, area_name: str, *, announced: bool = False) -> Outcome:
-        """announced: el LLM ya dijo algo al derivar (no se repite el aviso del area)."""
-        snap = handoff.find_area(self.areas, area_name)
+    def _variables(self) -> dict:
+        """Las del pre-call, sin las reservadas. Una falla aca no frena la derivacion: se oye sin ese dato."""
+        if self.get_vars is None:
+            return {}
+        try:
+            return {k: "" if v is None else v for k, v in (self.get_vars() or {}).items() if k not in RESERVED_VARS}
+        except Exception:
+            logger.exception("derivacion %s: sin variables", self.conversation_id)
+            return {}
+
+    def _load(self, area_id: str | None, area_name: str) -> _Step:
+        """Lee un area y dice si se puede usar ahora."""
+        variables = self._variables()
         with self.sessions() as s:
-            area = s.get(HandoffArea, snap["id"]) if snap else None
+            area = s.get(HandoffArea, area_id) if area_id else None
+            if area is not None and area.client_id != self.client_id:
+                area = None
             texts = handoff.messages(area) if area else handoff.DEFAULT_MESSAGES
-            values = {"area": area.name if area else area_name, "cliente": self.caller,
+            values = {**variables, "area": area.name if area else area_name, "cliente": self.caller,
                       "horario": handoff.describe_schedule(area.schedule) if area else ""}
             reason = None
             if area is None or not area.active:
                 reason = "unknown_area"
             elif not handoff.is_open(area.schedule):
                 reason = "after_hours"
-            members = [] if reason else handoff.candidates(s, area)
-            if reason is None and not members:
-                reason = "no_members"
-            if reason is None:
-                reason = quota.handoff_check(s, self.client_id)
-            if reason is None and self.attempt + len(members) > MAX_ATTEMPTS:
-                reason = "too_many_attempts"
+            members = []
+            if reason is None and area.delivery != "whatsapp":
+                members = handoff.candidates(s, area)
+                if not members:
+                    reason = "no_members"
+                if reason is None:
+                    reason = quota.handoff_check(s, self.client_id)
+                if reason is None and self.attempt + len(members) > MAX_ATTEMPTS:
+                    reason = "too_many_attempts"
             if area is not None:
                 s.expunge(area)
                 for m in members:
                     s.expunge(m)
-        area_id = area.id if area else None
-        if reason is not None:
-            logger.info("derivacion %s a %r: no se intenta (%s)", self.conversation_id, area_name, reason)
-            self._event("handoff.unavailable", area_id=area_id, actor="agent", area=values["area"], reason=reason)
-            await self._back(texts["after_hours" if reason == "after_hours" else "no_answer"], values)
-            return Outcome("unavailable", reason)
+        return _Step(area, texts, values, members, reason)
 
-        self._event("handoff.requested", area_id=area_id, actor="agent", area=area.name, members=len(members))
-        if not announced:
-            await self._say(handoff.render(texts["transfer"], **values))
-        summary = asyncio.create_task(self._summary())
-        if self.hold_music:
-            await self.line.hold(True)
-            self._event("hold.started", area_id=area_id)
+    def _route(self, area: HandoffArea | None, key: str, visited: set[str]) -> tuple[str, str, bool] | None:
+        """El area siguiente: (id, nombre, si es de aviso), o None si no hay, ya paso por ella (un ciclo se corta aca)
+        o no sirve: inactiva o de otro cliente, aunque la base lo diga."""
+        target_id = getattr(area, key) if area is not None else None
+        if not target_id or target_id in visited:
+            return None
+        with self.sessions() as s:
+            target = s.get(HandoffArea, target_id)
+            if target is None or target.client_id != self.client_id or not target.active:
+                logger.warning("derivacion %s: ruta %s ignorada", self.conversation_id, key)
+                return None
+            return target.id, target.name, target.delivery == "whatsapp"
+
+    def _unavailable(self, step: _Step, name: str) -> None:
+        """Quedo sin atender por un motivo: un area de aviso nunca fue un pedido de derivacion (no suma en reportes)."""
+        area_id = step.area.id if step.area else None
+        logger.info("derivacion %s a %r: no se intenta (%s)", self.conversation_id, name, step.reason)
+        if step.notice:
+            self._event("handoff.whatsapp_failed", area_id=area_id, reason=step.reason)
+        else:
+            self._event("handoff.unavailable", area_id=area_id, actor="agent", area=step.values["area"],
+                        reason=step.reason)
+
+    def _rerouted(self, step: _Step, route: tuple[str, str, bool], reason: str) -> None:
+        """Un pase a otra area de llamada no suma por esta en los reportes. A un area de aviso no es un pase: el
+        pedido quedo sin atender y esta area lo cuenta."""
+        if not route[2]:
+            self._event("handoff.rerouted", area_id=step.area.id, actor="agent", area=step.values["area"],
+                        to=route[1], reason=reason)
+        elif step.reason is not None:
+            self._unavailable(step, step.values["area"])
+
+    async def run(self, area_name: str, *, announced: bool = False) -> Outcome:
+        """announced: el LLM ya dijo algo al derivar (no se repite el aviso del area)."""
+        snap = handoff.find_area(self.areas, area_name)
+        area_id, name = (snap["id"] if snap else None), area_name
+        visited: set[str] = set()
+        told = announced
+        holding = False
         outcome = Outcome("failed")
         try:
-            for member in members:
-                result, leg_id, identity = await self._attempt(area, member, texts, values, summary)
-                outcome.legs.append(leg_id)
-                outcome.result = result
-                if result == "confirmed":
-                    await self._stop_hold(area_id)
-                    outcome.status = "connected"
-                    outcome.ended = await self._connected(area, member, leg_id, identity, texts, values)
+            while True:
+                step = self._load(area_id, name)
+                area, texts, values = step.area, step.texts, step.values
+                if area is not None:
+                    visited.add(area.id)
+                if step.reason is not None:
+                    key = ("after_hours_area_id" if step.reason == "after_hours"
+                           else "no_answer_area_id" if step.reason in PASS_ON_REASONS else "")
+                    route = self._route(area, key, visited) if key else None
+                    if route is not None:
+                        self._rerouted(step, route, step.reason)
+                        area_id, name = route[0], route[1]
+                        continue
+                    self._unavailable(step, name)
+                    if holding:
+                        await self._stop_hold(area.id if area else None)
+                    await self._back(texts["after_hours" if step.reason == "after_hours" else "no_answer"], values)
+                    outcome.status, outcome.result = "unavailable", step.reason
                     return outcome
-            await self._stop_hold(area_id)
-            await self._back(texts["busy" if outcome.result == "busy" else "no_answer"], values)
-            return outcome
+                if step.notice:
+                    notice = await self._until(asyncio.shield(self.spawn_notice(self._notify(area, values))))
+                    if notice.ok:
+                        if holding:
+                            await self._stop_hold(area.id)
+                        await self._back(texts["notified"], values | {"persona": self._member_name(notice.member_id)})
+                        outcome.status, outcome.result, outcome.member_id = "notified", "notified", notice.member_id
+                        return outcome
+                    route = self._route(area, "no_answer_area_id", visited)
+                    if route is not None:
+                        self._rerouted(step, route, "no_answer")
+                        area_id, name = route[0], route[1]
+                        continue
+                    if holding:
+                        await self._stop_hold(area.id)
+                    await self._back(texts["no_answer"], values)
+                    outcome.status, outcome.result = "unavailable", "no_answer"
+                    return outcome
+
+                self._event("handoff.requested", area_id=area.id, actor="agent", area=area.name,
+                            members=len(step.members))
+                if not told:
+                    told = True
+                    await self._say(handoff.render(texts["transfer"], **values))
+                summary = self._shared_summary()
+                if self.hold_music and not holding:
+                    holding = True
+                    await self.line.hold(True)
+                    self._event("hold.started", area_id=area.id)
+                for member in step.members:
+                    result, leg_id, identity = await self._attempt(area, member, texts, values, summary)
+                    outcome.legs.append(leg_id)
+                    outcome.result = result
+                    if result == "confirmed":
+                        await self._stop_hold(area.id)
+                        outcome.status = "connected"
+                        outcome.ended = await self._connected(area, member, leg_id, identity, texts, values)
+                        return outcome
+                route = self._route(area, "no_answer_area_id", visited)
+                if route is not None:
+                    self._rerouted(step, route, outcome.result)
+                    area_id, name = route[0], route[1]
+                    continue
+                await self._stop_hold(area.id)
+                await self._back(texts["busy" if outcome.result == "busy" else "no_answer"], values)
+                return outcome
         finally:
-            summary.cancel()
+            if self._summary_task is not None and not self._summary_shared:
+                self._summary_task.cancel()
+
+    async def notify_only(self, area_name: str) -> team_notify.Notice | None:
+        """El cliente ya corto: sale el aviso de un area de aviso, siguiendo sus rutas. Un area de llamada termina aca,
+        como si no hubiera derivacion: no hay nadie a quien conectar."""
+        snap = handoff.find_area(self.areas, area_name)
+        area_id, name = (snap["id"] if snap else None), area_name
+        visited: set[str] = set()
+        while True:
+            step = self._load(area_id, name)
+            if not step.notice:
+                return None
+            visited.add(step.area.id)
+            if step.reason is None:
+                notice = await self._notify(step.area, step.values)
+                if notice.ok:
+                    return notice
+                route = self._route(step.area, "no_answer_area_id", visited)
+            else:
+                self._unavailable(step, name)
+                route = self._route(step.area, "after_hours_area_id", visited) if step.reason == "after_hours" else None
+            if route is None:
+                return None
+            area_id, name = route[0], route[1]
+
+    def _own_task(self, coro) -> asyncio.Task:
+        """Sin worker (entrante directa, tests): la tarea queda referenciada aca."""
+        task = asyncio.create_task(coro)
+        self._tasks.append(task)
+        return task
+
+    def _shared_summary(self) -> asyncio.Task:
+        """El resumen de la derivacion: uno solo, para el whisper y las plantillas."""
+        if self._summary_task is None:
+            self._summary_task = asyncio.create_task(self._summary())
+        return self._summary_task
+
+    async def _notify(self, area: HandoffArea, values: dict) -> team_notify.Notice:
+        """El aviso de un area: una persona, sin aceptacion. Corre en su tarea."""
+        if _uses_summary((area.whatsapp or {}).get("template")):
+            self._summary_shared = True
+            values = values | {"resumen": await self._shared_summary()}
+        return await team_notify.notify_area(self.sessions, self.client_id, area.id, values, self.conversation_id)
+
+    async def _complement(self, area: HandoffArea, member: TeamMember, template_cfg: dict, values: dict,
+                          summary: asyncio.Task) -> None:
+        if _uses_summary(template_cfg):
+            values = values | {"resumen": await summary}
+        await team_notify.send(self.sessions, self.client_id, area, member, template_cfg, values, self.conversation_id)
+
+    def _spawn_complement(self, area: HandoffArea | TeamRing, member: TeamMember, values: dict,
+                          summary: asyncio.Task) -> None:
+        """WhatsApp que acompaña la llamada, una vez por persona. send registra member_not_notified como falla: sin el
+        toggle no se lo llama, o quedaria una falla por cada tramo."""
+        template_cfg = (area.whatsapp or {}).get("call_template")
+        if not template_cfg or not member.whatsapp_notify or member.id in self._complemented:
+            return
+        self._complemented.add(member.id)
+        if _uses_summary(template_cfg):
+            self._summary_shared = True
+        self.spawn_notice(self._complement(area, member, template_cfg, values, summary))
+
+    def _member_name(self, member_id: str | None) -> str:
+        with self.sessions() as s:
+            member = s.get(TeamMember, member_id) if member_id else None
+            return member.name if member else ""
 
     async def run_team(self, team: TeamRing, members: list[TeamMember], whisper: str, values: dict) -> Outcome:
         """Entrante directa: las personas en sus celulares, en orden, con el whisper `whisper` y el 1 para atender.
@@ -273,6 +474,7 @@ class Transfer:
         leg_id = self._new_leg(area, member)
         ids = {"area_id": area.id, "member_id": member.id}
         self._event("handoff.dialing", **ids, attempt=self.attempt, person=member.name)
+        self._spawn_complement(area, member, values, summary)
         dial = asyncio.create_task(self.line.dial(identity, member.phone, area.ring_seconds))
         try:
             res = await self._until(dial)
@@ -319,7 +521,7 @@ class Transfer:
         detector = VoicemailDetector()
         machine = asyncio.create_task(self.line.first_words(identity, MACHINE_WINDOW_SECONDS))
         await self.line.listen(identity)
-        text = handoff.render(texts["whisper"], **values, resumen=await summary)
+        text = handoff.render(texts["whisper"], **(values | {"resumen": await summary}))
         whisper = asyncio.create_task(self.line.whisper(identity, text))
         deadline: float | None = None
         checked = False
@@ -692,21 +894,3 @@ class RoomLine:
         self.listener.close()
         for task in self.tasks:
             task.cancel()
-
-
-def summary_messages(conversation: str) -> list[dict]:
-    """Pedido al LLM del resumen para el whisper: quien llama y que necesita, en una frase."""
-    return [{"role": "system", "content": (
-                "Resumí la llamada para la persona del equipo que la va a atender, en una sola frase de hasta 15 "
-                "palabras: quién llama (si dijo su nombre) y qué necesita. "
-                'Respondé en JSON: {"resumen": "..."}')},
-            {"role": "user", "content": conversation}]
-
-
-SUMMARY_SCHEMA = {"type": "object", "properties": {"resumen": {"type": "string"}}, "required": ["resumen"]}
-
-
-async def summarize(llm, conversation: str) -> str:
-    content, _ = await llm.structured(summary_messages(conversation), SUMMARY_SCHEMA, "resumen", thinking=False,
-                                      max_tokens=200)
-    return str(json.loads(content).get("resumen") or "")

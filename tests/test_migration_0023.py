@@ -24,6 +24,10 @@ def test_0023_upgrade_downgrade_upgrade(tmp_path):
     diff = [d for d in diff if "handoff_legs" not in repr(d) and "phone_number_members" not in repr(d)]
     # La 0042 quita team_members.whatsapp (y su unique) y handoff_areas.wa_reply_minutes.
     diff = [d for d in diff if not any(c in repr(d) for c in ("'whatsapp'", "wa_reply_minutes", "uq_team_members_client_whatsapp"))]
+    # La 0048 agrega el aviso por WhatsApp y el ruteo entre areas.
+    later = ("whatsapp_notify", "after_hours_area_id", "no_answer_area_id", "'delivery'", "fk_handoff_areas",
+             "handoff_area_id", "fk_wa_threads_handoff")
+    diff = [d for d in diff if not any(c in repr(d) for c in later)]
     assert [d for d in diff if any(t in repr(d) for t in TABLES) or "max_team_members" in repr(d)] == []
 
     _run(engine, command.downgrade, "0022")

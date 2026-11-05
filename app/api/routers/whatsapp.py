@@ -22,7 +22,7 @@ from ...services import wa_routing
 from ...services.errors import Forbidden, Invalid, NotFound
 from ...services.ratelimit import Limit
 from ...services.security import Principal
-from ...whatsapp import own_app, signup, store
+from ...whatsapp import handoffs, own_app, signup, store
 from ...whatsapp.service import WhatsAppService, get_service
 from ..deps import (
     DB,
@@ -244,12 +244,15 @@ async def close_thread(conversation_id: str, p: CurrentPrincipal, db: DB,
                        service: Annotated[WhatsAppService, Depends(get_service)]):
     """Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
     version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
-    llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada."""
+    llamada (extraccion final del clasico). Cerrar una ya cerrada solo corta el reenvio al operador,
+    si sigue vigente: es la salida manual de una emergencia ya tomada."""
     thread = db.get(WaThread, conversation_id)
     if thread is None or not p.can_access(thread.client_id):
         raise NotFound("Conversación de WhatsApp inexistente")
+    handoffs.stop_relay(db, conversation_id)
     if thread.closed_at is not None:
+        db.commit()
         return
-    store.close_thread(db, thread)
+    service.close_thread(db, thread)
     db.commit()
     service.end(conversation_id)

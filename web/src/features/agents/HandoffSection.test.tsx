@@ -26,6 +26,10 @@ const VENTAS: HandoffArea = {
   on_person_hangup: 'resume',
   return_digits: '2',
   messages: {},
+  after_hours_area_id: null,
+  no_answer_area_id: null,
+  delivery: 'call',
+  whatsapp: null,
   created_at: '2026-10-20T12:00:00Z',
 };
 const ADMINISTRACION: HandoffArea = {

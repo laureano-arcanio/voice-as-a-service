@@ -181,7 +181,17 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
     (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
     inactiva queda marcada, pero el agente no la ofrece. Con alguna área, **Música de espera** (prendida por
     defecto): tema (**Música de espera estándar** o los que haya en el servidor) y volumen (5 a 100 %). Sin áreas
-    marcadas no se guarda nada de esto.
+    marcadas no se guarda nada de esto. Por WhatsApp de texto el agente solo deriva a las áreas que tienen una plantilla
+    de WhatsApp (ver [Equipo](#equipo-team)).
+  - **Antes y después de la conversación** (también con «Tu propio agente»): dos herramientas del cliente que corre la
+    plataforma sola, sin que el modelo las vea ([`HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
+    **Antes de la conversación** corre apenas entra la llamada o el chat (por ejemplo, buscar a la persona por su
+    teléfono, `{{call.phone}}`) y lo que devuelve llega al agente como datos del contacto, según cada valor esté para
+    mostrar u ocultar; **Tiempo máximo de espera** (ms): si no responde, la conversación sigue sin esos datos.
+    **Después de la conversación** corre una sola vez y se reintenta si falla la conexión (por ejemplo, registrar un
+    cobro); tiene que ser una API que no sea de solo lectura (GET). **Cuándo corre**: cuando una persona del equipo
+    acepta la derivación o siempre, al terminar la conversación; con la primera y sin áreas de derivación, avisa que nunca
+    va a correr. Solo se ofrecen herramientas con todos sus valores fijos.
 - **Voz y canales:** cómo suena y por dónde atiende.
   - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Pregenerar el audio de la apertura** y **Espera antes de la apertura (ms)**: cómo arranca la llamada. **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
 - **Modelo:** quién piensa.
@@ -642,7 +652,8 @@ Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider
    cada uno (mensajes y llamadas de WhatsApp); los demás los atiende el agente por defecto.
 7. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
    Rechazada con el motivo) y **Nueva plantilla** crea una (nombre en minúsculas y `_`, categoría
-   Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable). Meta la revisa.
+   Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable; botón de enlace y, opcional, un botón de
+   respuesta rápida con el texto que quieras, por ejemplo «Aceptar»: es el que usa la rotación del equipo). Meta la revisa.
 8. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
 9. Con **Embedded Signup** prendido aparece también **Conectar WhatsApp** (ventana de Meta; solo desde
    `https://app.atentina.com.ar`).
@@ -679,10 +690,10 @@ Las personas del cliente a las que el agente les pasa una llamada o un chat, agr
 ([`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)). A qué áreas deriva cada
 agente se elige en su definición, **Derivación a personas**.
 
-1. **Personas:** nombre, teléfono (para transferirle llamadas; solo Argentina), WhatsApp (para el puente de
-   WhatsApp; único por cliente) y **Usuario del panel** (para que atienda llamadas desde el panel con
-   Disponible; cada usuario es de una sola persona). Hace falta al menos uno de los tres: puede ser solo el
-   usuario del panel. El tier limita cuántas. Con llamadas directas, la tabla suma **En el panel**: Disponible
+1. **Personas:** nombre, teléfono (para transferirle llamadas; solo Argentina), **Recibe WhatsApp** (le avisamos por
+   WhatsApp, a ese mismo teléfono, de los pedidos de sus áreas; sin teléfono no se puede prender) y **Usuario del
+   panel** (para que atienda llamadas desde el panel con Disponible; cada usuario es de una sola persona). Hace falta
+   teléfono o usuario: puede ser solo el usuario del panel. El tier limita cuántas. Con llamadas directas, la tabla suma **En el panel**: Disponible
    (verde), En una llamada (amarillo), No disponible (gris) o raya si no tiene usuario. Las personas de un
    número del equipo se eligen en Números, **Quién atiende**.
 2. **Áreas:** nombre y qué atiende (lo lee el agente para elegir el área), personas en el orden en que se las
@@ -690,9 +701,23 @@ agente se elige en su definición, **Derivación a personas**.
    ~33 s), horario por día con días cerrados (o **Atiende siempre**), qué hace el agente si la persona corta
    (vuelve con "¿Te puedo ayudar con algo más?" o se despide) y la tecla con la que la persona le devuelve la
    llamada a la IA (2 por defecto; nunca con `*`, que la central de Anura toma como código).
+   - **Cómo se avisa:** **Se llama** (se llama a las personas y atiende quien acepta; con una plantilla de WhatsApp se
+     les avisa además por texto) o **Solo aviso por WhatsApp** (una plantilla a una sola persona, la primera con «Recibe
+     WhatsApp», sin esperar que acepte; el agente le dice a la persona que ya avisó). El timbre y la tecla de vuelta no se
+     ven en un área de aviso.
+   - **Fuera de horario, pasa a** y **Si nadie acepta, pasa a:** otra área del cliente (vacío: el agente dice el mensaje).
+   - **WhatsApp:** el número que envía (de **WhatsApp**) y sus plantillas aprobadas: la de rotación (con botón de
+     respuesta rápida, para aceptar tocándolo; por WhatsApp de texto), la de la llamada (sin botón) o la del aviso (sin
+     botón). Para cada `{{n}}` de la plantilla se elige una variable (`area`, `persona`, `resumen`, `horario`, `cliente`
+     solo en el aviso) o se escribe un dato que traiga la herramienta de «Antes de la conversación»; si ese dato no llega,
+     va «-». **Espera por persona** (30 a 3600 s, 120): lo que espera la rotación a que acepte antes de pasar a la
+     siguiente.
 3. **Mensajes:** cada momento (antes de transferir, el aviso a la persona, no atiende, ocupado, fuera de
-   horario, vuelta y despedida) tiene un texto por defecto; se cambia por área, con `{{area}}`, `{{persona}}`,
-   `{{cliente}}`, `{{resumen}}` y `{{horario}}`.
+   horario, vuelta y despedida; por WhatsApp de texto, además, lo que se le dice al operador y a la persona) tiene un
+   texto por defecto; se cambia por área, con `{{area}}`, `{{persona}}`, `{{cliente}}`, `{{resumen}}`, `{{horario}}`,
+   `{{nombre}}` y los datos de «Antes de la conversación». Los mensajes que salen antes de que alguien acepte solo
+   admiten `{{area}}`, `{{persona}}` y `{{horario}}`: la ayuda del campo lo dice, y con otra variable el campo se marca
+   con su nombre y no se guarda.
 
 ### Campañas (`/campaigns`)
 

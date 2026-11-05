@@ -39,6 +39,7 @@ Todo se corre en server2, dentro de `voice-as-a-service`.
 | `app/` (salvo `app/voice/`), `web/`, `requirements.txt`, `Dockerfile` | `make calls-active && make up-agent`: `agent` usa la misma imagen y código. Si no cambió nada que use `agent` (solo `web/` o `app/api/`), `make up-app` no corta llamadas |
 | `app/voice/` | `make calls-active && make up-agent` |
 | `crm/` | `make crm-up` |
+| `apps/registros/` | `make registros-up` (migra con su rol y espera su `/health`; no toca `db`, `app` ni `agent`). Si en server2 todavía no corre (sin `REGISTROS_HEALTH_URL` en el `.env`), es el **primer despliegue: confirmar**, con las claves, la ruta del túnel y el alta del tenant de [`docs/features/REGISTROS.md`](../../docs/features/REGISTROS.md) |
 | `tools-runner/` | `make up-tools` |
 | `stt/` | `make calls-active && make up-stt` |
 | `deploy/monitoring/` | `make up-monitoring` |
@@ -46,17 +47,24 @@ Todo se corre en server2, dentro de `voice-as-a-service`.
 | `asterisk/` | **confirmar**: `make calls-active && make up-pbx` |
 | `docker-compose*.yml`, modelos, reparto de GPU, `livekit/`, `deploy/systemd/`, `deploy/crontab` | **confirmar**: decile al usuario qué servicio se recrea y cuánto corta |
 
+Recrear `app` pierde el mensaje de WhatsApp que esté en debounce, transcripción o LLM: decilo en el reporte. En el primer
+deploy de la derivación por WhatsApp, mirá `POST_CALL_WAIT_SECONDS` en el `.env` de server2 (con 20 s o más, la entrega vence
+durante una espera sana; default 3).
+
 ## 3. Desplegar
 
 1. `ssh server2 'cd voice-as-a-service && git pull --ff-only'`.
 2. Los comandos del plan. `make calls-active` falla si hay llamadas en curso: no esperás ni forzás, reportás cuántas hay
    y que el deploy quedó con el código bajado y sin recrear los servicios.
 3. Verificar: `make health`, `make ps` y `make logs S=<servicio>` acotado (`docker logs --since 2m <contenedor>`), sin errores
-   nuevos. Si cambió `app/voice/`, el worker registrado en LiveKit (`registered worker`).
+   nuevos. Si cambió `app/voice/`, el worker registrado en LiveKit (`registered worker`). Si cambió `apps/registros/`,
+   `curl -s http://127.0.0.1:8040/health` en server2 (`{"status":"ok"}`).
 
 Si algo se rompe, no se vuelve atrás moviendo server2 de commit: reportás el error y los logs. La vuelta atrás es un
 `git revert` en `main` (desde desarrollo, por el usuario) y otro deploy. Una migración aplicada se deshace con
-`make migrate-down REV=<revisión>`, solo con confirmación.
+`make migrate-down REV=<revisión>`, solo con confirmación, **antes** del revert: `migrate` corre `alembic upgrade head` y la
+imagen que deshace la migración es la que todavía la tiene (para la derivación por WhatsApp,
+[`docs/features/WHATSAPP.md`](../../docs/features/WHATSAPP.md#desplegar-y-probar)).
 
 ## Al terminar
 

@@ -28,11 +28,12 @@ propia. Este documento es la referencia técnica de la app (API, UI, worker de v
 | Proceso | Código | Qué hace |
 |---|---|---|
 | `migrate` | `migrations/`, `app/cli.py` | Una vez antes de `app` y `agent`: `alembic upgrade head` y el seed idempotente. |
-| `app` | `app/main.py`, `app/api/` | API `/api/v1`, la SPA, el MCP (`/mcp`), OAuth, los webhooks de WhatsApp y Mercado Pago, las páginas de `llamar.` y `telefono.`. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Loops en el lifespan: barrido de WhatsApp, campañas, webhook de campañas, cobros y resumen por email. |
+| `app` | `app/main.py`, `app/api/` | API `/api/v1`, la SPA, el MCP (`/mcp`), OAuth, los webhooks de WhatsApp y Mercado Pago, las páginas de `llamar.` y `telefono.`. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Loops en el lifespan: barrido de WhatsApp, campañas, webhook de campañas, cobros, resumen por email, post-call de los agentes (`post_call_loop`) y rotación de derivaciones por WhatsApp (`handoff_loop`). |
 | `agent` | `app/voice/worker.py` | Worker de LiveKit Agents: STT → motor → TTS. Salientes (metadata del despacho) y entrantes (dispatch rule, sin metadata). Las llamadas directas del equipo (sin agente) van por `app/voice/direct.py`. |
 | `db` | `app/models/` | PostgreSQL 16: tenencia, agentes, conversaciones, llamadas, todo. |
 | `tools-runner` + `tools-egress` | `tools-runner/` | Sandbox Deno para las herramientas de código, con salida a internet solo por Smokescreen ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md)). |
 | `crm` | `crm/` | CRM de ventas propio, base `crm` aparte ([`features/CRM.md`](features/CRM.md)). |
+| `registros` | `apps/registros/` | App de fichas con API `/v1` y panel propio, base y rol `registros` en el mismo `db`; perfil de compose, sin `.env` de la plataforma ([`features/REGISTROS.md`](features/REGISTROS.md)). |
 
 `app` y `agent` son la misma imagen (`Dockerfile` multi-etapa: Node compila la SPA y Python la sirve) con
 distinto comando. **Un solo worker de uvicorn:** el debounce y el lock por contacto de WhatsApp, el cupo de ritmo
@@ -85,7 +86,7 @@ app/
   models/            ORM SQLAlchemy 2: tenancy, agents, conversations, calls, campaigns, handoff, whatsapp, tools,
                      llm, oauth, billing, legal, call_links, contact
   conversation/      el motor: engine, models (Workflow = definición), workflow (validación), store, contact
-                     (datos de campaña y motivo), opening_audio, recordings
+                     (datos de campaña y motivo), opening_audio, recordings, workflows (post-call durable)
   agents/            templates/*.json (asistente y una por rubro), reference/*.json (agentes de referencia),
                      definitions.py (DbDefinitions), templates.py (GENERIC_RULES, en blanco, referencia)
   llm/               client.py (OpenAI, tools nativos, streaming), anthropic_client.py, resolver.py (qué LLM por turno),
@@ -94,7 +95,8 @@ app/
   voice/             worker.py, latency.py, speech_text.py (texto a palabras para el TTS, es-AR), handoff.py (transferencia),
                      listen.py (VAD + STT por frase), direct.py (llamadas directas)
   whatsapp/          webhook (firma), graph.py (Cloud API), store.py, service.py (turnos, barrido), audio.py (notas de voz),
-                     signup.py (Embedded Signup), own_app.py (app de Meta del cliente), crypto.py, campaigns.py, sender.py
+                     signup.py (Embedded Signup), own_app.py (app de Meta del cliente), crypto.py, campaigns.py, sender.py,
+                     handoffs.py (derivación a personas por texto: rotación, entrega, reenvío), team_notify.py (plantillas al equipo)
   campaigns/         loop.py (por canal), dialer.py (voz), voicemail.py (contestador), callbacks.py (webhook)
   billing/           service.py (ciclo del plan), mp.py (Mercado Pago), webhook.py, loop.py (vencimientos)
   legal/             texts/ (condiciones y privacidad con versión), sync.py (copia a la landing)
@@ -102,9 +104,10 @@ app/
   mcp/               server.py (POST /mcp), catalog.py (herramientas), guides.py (resources y prompts), docs.py (genera el catálogo)
 web/                 SPA React (ver "Frontend")
 crm/                 FastAPI propio: routes (leads, outreach, reminders), services (Resend, GA, envío), migrations
+apps/                apps aparte, cada una con su imagen, su base y su compose: registros/ (fichas; no importa app/ ni crm/)
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0042
+migrations/          Alembic, 0001 a 0049
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -119,7 +122,8 @@ usan los mismos servicios (el MCP, por dentro de `/api/v1`).
 `api_requests`, 0023-0024 equipo, derivaciones y eventos, 0025-0026 funciones por plan, 0028-0029 OAuth y uso
 del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un solo motor y `tool_versions`, 0034
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
-propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`).
+propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
+pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación.
 
 ## Modelo de datos
 
@@ -173,7 +177,7 @@ incluido.
 |---|---|
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
-| `conversations` | Estado del motor (`fields`, `messages`, `progress`), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. `legacy_workflow_id` para las anteriores a los agentes. |
+| `conversations` | Estado del motor (`fields`, `messages`, `progress`), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`; personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
@@ -187,10 +191,10 @@ incluido.
 | `contacts` | `phone` (E.164) único por cliente, `name`, `email`, `notes`, `source`, `archived_at`. **No se borran, se archivan**; `max_contacts` cuenta los activos. | [`CAMPANAS.md`](features/CAMPANAS.md) |
 | `contact_optouts` | Bajas por `(client_id, phone, channel)` (`whatsapp`, `voice`, `all`) y `source`; siguen aunque el contacto se archive. | ídem |
 | `campaigns`, `campaign_contacts`, `campaign_callbacks` | Campaña por `channel` (`whatsapp` o `voice`, CHECK por canal) con `status`, horario, programación, `purpose`, webhook (`callback_url`, secreto cifrado); cada contacto con `vars`, `status`, `result`, intentos y seguimiento; cola del webhook. | ídem |
-| `team_members`, `handoff_areas`, `handoff_area_members` | Personas (`phone`, `whatsapp`, `user_id`), áreas con estrategia, timbre, horario, respaldo, `return_digits` y mensajes; miembros en orden. | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
-| `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result`, `sip_status`, tiempos y `billed_seconds` (minutos salientes). | ídem |
+| `team_members`, `handoff_areas`, `handoff_area_members` | Personas (`phone`, `user_id`, `whatsapp_notify`), áreas con estrategia, timbre, horario, respaldo, `return_digits`, mensajes, rutas (`after_hours_area_id`, `no_answer_area_id`), `delivery` (`call`/`whatsapp`) y `whatsapp` (cuenta y plantillas); miembros en orden. | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
+| `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result` (con la rotación por WhatsApp, también `whatsapp_sent` e `interrupted`), `sip_status`, tiempos, `billed_seconds` (minutos salientes) y `wamid` (la plantilla enviada). | ídem |
 | `user_presence`, `call_rings` | Disponible en el panel (pulso, TTL 60 s); timbre de una entrante al equipo por usuario (el primero que atiende se queda). | ídem |
-| `events` | Línea de tiempo (`call.*`, `handoff.*`, `hold.*`, `team.*`), `id` incremental para leer con cursor. | ídem |
+| `events` | Línea de tiempo (`call.*`, `handoff.*`, `hold.*`, `team.*`, `workflow.*`), `id` incremental para leer con cursor. Por WhatsApp de texto, los `handoff.*` llevan `channel: whatsapp`; `handoff.ignored` (una segunda derivación con otra viva) trae `area`, `live_area`, `live_status` y `other_conversation`. | ídem |
 | `tools`, `tool_versions`, `tool_runs` | Herramienta del cliente (`slug`, `type` `http`/`code`, `definition`, `revision`, última prueba), cada revisión y cada ejecución (`ok`, `status_code`, `ms`). | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
 | `client_secrets`, `agent_secrets`, `credentials` | Secretos del cliente con valor propio opcional por agente (cifrados, `last4`) y credenciales de autenticación de una API. | ídem |
 | `llm_connections` | Conexión de LLM del cliente: `kind` (`openai_compatible`, `openrouter`, `anthropic`), `base_url`, `api_key_enc`, `default_model`, `json_mode`, última prueba. | [`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md) |
@@ -203,8 +207,8 @@ Detalle en [`features/WHATSAPP.md`](features/WHATSAPP.md).
 |---|---|
 | `wa_accounts` | Un número: `phone_number_id` único, `waba_id`, `business_id`, número visible, `client_id`, `agent_id` (RESTRICT), `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`, `own_app`), `connected_by`. Con `own_app` (app de Meta del cliente): `app_secret` y `verify_token` cifrados y `webhook_key` (única: su webhook es `/wa/webhook/<clave>`). Sin borrado: se desactiva. |
 | `wa_routes` | Ruteo por contacto de una cuenta: `(account_id, agent_id)` con la lista `contacts` (wa_id). Un contacto en una sola regla. |
-| `wa_threads` | Una por conversación de WhatsApp: cuenta, `wa_id`, nombre del perfil, `last_user_at`, `closed_at`. |
-| `wa_messages` | Uno por `wamid` (dedupe de reenvíos de Meta), dirección, tipo, estado y error de Meta; sin contenido (el texto va en `conversations.messages`). |
+| `wa_threads` | Una por conversación de WhatsApp: cuenta, `wa_id`, nombre del perfil, `last_user_at`, `closed_at`. Más el estado de la derivación a una persona del equipo: `handoff_status` (`sending`, `waiting`, `delivering`, `accepted`, `closed`), área, tramo vigente, inicio, cierre, `handoff_deadline`, `handoff_voice_note`, `handoff_delivery_tries` y `handoff_retakes`. |
+| `wa_messages` | Uno por `wamid` (dedupe de reenvíos de Meta), dirección, tipo (con `team_notice` y `team_relay` para lo enviado al equipo), estado y error de Meta; sin contenido (el texto va en `conversations.messages`). |
 | `wa_account_status_log` | Cada cambio de estado, calidad o límite de una cuenta (reportes). |
 
 **Migraciones:** el esquema lo manejan las de Alembic (`make migrate`; antes de desplegar, `make migrate-test`
@@ -258,6 +262,9 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
 - **`handoff`:** áreas (`area_id` y `when`, hasta 10) y música de espera (`hold_music`: `enabled`, `track` de
   `GET /hold-music`, `volume`). Al guardar se valida que cada área sea del cliente. El modelo deriva con
   `transfer_call` ([`features/EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)).
+- **`workflows`:** herramientas automáticas, ocultas al modelo: `pre_call` (`tool`, `timeout_ms` 200 a 5000, 1500) y
+  `post_call` (`tool`, `when` `handoff_accepted` o `always`). Se validan al guardar ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
+  Con `external`, el pre-call llega al endpoint del cliente por el header `X-Atentina-Contact`, no como prompt.
 - **`wa_session_minutes`:** ventana de contexto de WhatsApp del agente (NULL = `WA_SESSION_HOURS`).
 - **`{{today}}` y `{{now}}`:** la fecha no se inyecta; el agente la tiene si sus reglas, su base de conocimiento o
   su objetivo usan esas variables.
@@ -313,7 +320,8 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   `app/voice/speech_text.py` (números, horas, fechas, plata, emails, teléfonos y códigos a palabras, es-AR).
 - **Herramientas:** function calling nativo (OpenAI y Anthropic). El modelo ve las del cliente y las de la
   plataforma (`end_call` con `motivo` `terminada` o `fuera_de_tema`; `transfer_call` con `area`, solo si la
-  llamada tiene áreas; `app/llm/platform_tools.py`). La plataforma ejecuta, dice una frase de voz mientras tanto y
+  conversación tiene áreas: las del agente en una llamada, y por WhatsApp de texto las que tienen plantilla;
+  `app/llm/platform_tools.py`). La plataforma ejecuta, dice una frase de voz mientras tanto y
   le devuelve el resultado; tope de rondas por turno en `tool_settings`.
 - **Qué LLM:** `app/llm/resolver.py` elige por turno entre la inferencia propia (default y respaldo) y una
   conexión del cliente según `Workflow.llm`.
@@ -417,11 +425,16 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Mensaje de WhatsApp:** Meta → túnel (`wa.atentina.com.ar/wa/webhook` o `/wa/webhook/<clave>`) → `app`; firma
   `X-Hub-Signature-256`, 200 sin esperar; dedupe por `wamid`, debounce, lock por contacto, hilo abierto dentro de
   la ventana del agente, `process_turn` y respuesta en texto o nota de voz. No pasa por `quota.admit` ni crea
-  `call_logs`. Si `app` se reinicia con mensajes en la ventana de debounce, esos quedan `received` sin respuesta
-  ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
+  `call_logs`. Si `app` se reinicia con un mensaje en debounce, transcripción o LLM, queda `received` sin respuesta; solo sobrevive una
+  derivación ya reservada ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
 - **Derivación a una persona** (`transfer_call`): transferencia atendida en la misma room, con música, whisper,
   confirmación con `1`, modo escucha y vuelta a la IA con el código del área; cada intento es un `handoff_legs`
-  y gasta minutos salientes y canales de Anura.
+  y gasta minutos salientes y canales de Anura. Un área puede pasar a otra (fuera de horario o si nadie acepta) o solo
+  avisar por WhatsApp. Por WhatsApp de texto: rotación por plantillas con botón, entrega de los datos al operador que
+  toca y reenvío de 24 h de lo que escribe la persona; el estado vive en `wa_threads` y lo mueve el `handoff_loop`
+  ([`features/WHATSAPP.md`](features/WHATSAPP.md#derivación-a-personas-del-equipo)).
+- **Workflows del agente:** una herramienta antes de la conversación y otra después (post-call durable, que se reintenta
+  por transporte), ocultas al modelo ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
 - **Llamadas directas:** el equipo llama desde el panel o atiende las entrantes de un número en `team`, sin
   `AgentSession` ni LLM (VAD + STT por frase, `app/voice/listen.py`); se graban y transcriben siempre. Las dos
   últimas, en [`features/EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md).
@@ -642,11 +655,11 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
 | `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `phone_numbers.py`, `blocked_numbers.py` | `/phone-numbers` (carga, `bulk`, `assign`, `release`, quién atiende), `/blocked-numbers` | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
-| `handoff.py` | `/team`, `/handoff-areas` (y `defaults`), `/hold-music`, `/events` | ídem |
+| `handoff.py` | `/team`, `/handoff-areas` (y `defaults`, con los mensajes de antes de aceptar y sus variables), `/hold-music`, `/events` | ídem |
 | `direct_calls.py` | `/direct-calls` (`join`, `answer`, `decline`), `/me/presence`, `/me/ringing`, `/team/presence`, `/clients/{id}/direct-call-settings` | ídem |
 | `call_links.py` | `/agents/{id}/call-link*`, `/public/call-links/{token}*` | [`LINK_LLAMADA.md`](features/LINK_LLAMADA.md) |
 | `contacts.py`, `campaigns.py`, `wa_campaigns.py` | `/contacts` (y `optouts`, `import`, `archive`), `/campaigns` (y `plan`, `contacts`, `stats`, `report.csv`, `start|resume|pause|cancel`); `/whatsapp/campaigns` y `/whatsapp/optouts` son alias de lo mismo | [`CAMPANAS.md`](features/CAMPANAS.md) |
-| `whatsapp.py` | `/whatsapp`: `config`, `accounts` (alta, `own-app`, `routes`, `register`, `refresh`, `deactivate`, `templates`), `signup`, `threads/{id}/close` | [`WHATSAPP.md`](features/WHATSAPP.md) |
+| `whatsapp.py` | `/whatsapp`: `config`, `accounts` (alta, `own-app`, `routes`, `register`, `refresh`, `deactivate`, `templates`), `signup`, `threads/{id}/close` (también corta el reenvío al operador) | [`WHATSAPP.md`](features/WHATSAPP.md) |
 | `tools.py` | `/tools/schema`, `/tools/code-template`, `/clients/{id}/tools*` (prueba, versiones), `/clients/{id}/secrets`, `/clients/{id}/credentials`, `/agents/{id}/secrets` | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
 | `llm_connections.py` | `/clients/{id}/llm-connections` (prueba, modelos) | [`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md) |
 | `reports.py` | `/reports/summary|calls|outcomes|messages|transfers|campaigns|technical|platform` | [`REPORTES.md`](features/REPORTES.md) |
@@ -715,7 +728,10 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
   defecto del modelo vigente, en su override de compose).
 - **Scripts de carga:** `VAAS_API_KEY` (API key del cliente `atentina`).
 - **WhatsApp:** `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN`, `WA_TOKEN_KEY`, `WA_SESSION_HOURS`,
-  `WA_DEBOUNCE_SECONDS`, `WA_EMBEDDED_SIGNUP` (apagado), `WA_AUDIO_*` ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
+  `WA_DEBOUNCE_SECONDS`, `WA_EMBEDDED_SIGNUP` (apagado), `WA_AUDIO_*`, `WA_HANDOFF_*`, `WA_TEAM_*`
+  ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
+- **Workflows:** `WORKFLOW_TICK_SECONDS` (10), `POST_CALL_WAIT_SECONDS` (3) ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md)).
+- **Registros** (los lee el compose, no `app`): `REGISTROS_*` ([`features/REGISTROS.md`](features/REGISTROS.md)).
 - **Campañas:** `CALL_CAMPAIGN_MAX_CONCURRENT` (8), `CALL_CAMPAIGN_TICK_SECONDS`, `CALL_CAMPAIGN_FAILURE_STREAK`
   (10), `CALL_RINGING_TIMEOUT_SECONDS` (30), `CAMPAIGN_HOLIDAYS`, `CAMPAIGN_CALLBACK_*`
   ([`features/CAMPANAS.md`](features/CAMPANAS.md)).

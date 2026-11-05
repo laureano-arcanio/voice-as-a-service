@@ -258,11 +258,11 @@ const agentHandoff = `"handoff": {
 }`;
 
 const handoffEndpoints = [
-  { path: "GET · POST /team", text: "Lista o suma personas: name, phone (para transferirle llamadas) y active" },
+  { path: "GET · POST /team", text: "Lista o suma personas: name, phone (para transferirle llamadas), active y whatsapp_notify (le avisamos por WhatsApp, a ese teléfono, de los pedidos de sus áreas)" },
   { path: "PATCH · DELETE /team/{id}", text: "Cambia o saca a una persona" },
   { path: "GET · POST /handoff-areas", text: "Lista o crea áreas; cada una trae open_now y su horario en palabras (schedule_text)" },
   { path: "GET · PATCH · DELETE /handoff-areas/{id}", text: "Un área. Si un agente la usa no se borra (409 area_in_use)" },
-  { path: "GET /handoff-areas/defaults", text: "Los textos que dice el agente al derivar, para cambiarlos por área en messages" },
+  { path: "GET /handoff-areas/defaults", text: "Los textos que dice el agente al derivar, para cambiarlos por área en messages, y las variables que admite cada uno. Los de pre_accept_messages salen antes de que alguien acepte: solo admiten las de pre_accept_variables" },
   { path: "GET /hold-music", text: "Los temas de espera para hold_music.track" },
 ];
 
@@ -285,6 +285,10 @@ const eventTypes = [
   { type: "handoff.connected · ended", text: "La persona y el cliente hablan; ended trae los segundos" },
   { type: "handoff.returned_to_ai · person_hung_up", text: "La persona devolvió la llamada al agente o cortó" },
   { type: "handoff.unavailable", text: "No se pudo derivar: fuera de horario, sin personas, sin minutos o sin canal (data trae el motivo)" },
+  { type: "handoff.rerouted", text: "El área no atendió y la derivación pasó a otra (data trae el motivo)" },
+  { type: "handoff.notified · handoff.whatsapp_sent · handoff.whatsapp_failed", text: "Un área de aviso o una plantilla de WhatsApp al equipo: salió, o no (data trae el motivo)" },
+  { type: "handoff.relay_failed · handoff.ignored", text: "Por WhatsApp de texto: el reenvío al operador se cortó, o se pidió otra derivación con una en curso" },
+  { type: "workflow.pre_call · workflow.post_call", text: "Las herramientas de antes y después de la conversación: ok, status, ms y slug, nunca la respuesta" },
   { type: "hold.started · hold.ended", text: "Empieza y termina la música de espera" },
   { type: "team.fallback", text: "Entrante al equipo que nadie atendió: data trae el respaldo (agent, voicemail o hangup) y el motivo (team_no_answer o after_hours)" },
 ];
@@ -644,6 +648,8 @@ const campaignEndpoints = [
         <tbody>{secretEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}</tbody>
       </table></div>
       <p>Las herramientas van en los planes que las incluyen (ver <a href="#planes">Qué incluye cada plan</a>); si no, la API responde con el motivo (<code>tools_not_in_plan</code>, <code>code_tools_not_in_plan</code> o <code>tools_limit</code>).</p>
+      <h3>Antes y después de la conversación</h3>
+      <p>Dos herramientas que corre la plataforma sola, sin que el modelo las vea, en <code>workflows</code> de la definición del agente: <code>pre_call</code> (<code>tool</code> y <code>timeout_ms</code>, de 200 a 5000) trae datos de la persona al empezar, por ejemplo con <code>{"{{"}call.phone{"}}"}</code>, y los deja como datos del contacto con <code>assign</code>; <code>post_call</code> (<code>tool</code> y <code>when</code>: <code>handoff_accepted</code> o <code>always</code>) corre una sola vez al terminar. Tienen que tener todos sus valores fijos, y la del post-call ser un <code>http</code> que no sea <code>GET</code>: se reintenta si falla la conexión, o responde 429 o 5xx (4 intentos en 11 minutos), con la misma <code>Idempotency-Key</code>, y que no cobre dos veces depende de que tu API la respete. Cualquier otra respuesta de tu API, aunque sea un error, no se reintenta.</p>
     </section>
 
     <section id="cortar" class="grid gap-4">
@@ -725,7 +731,7 @@ const campaignEndpoints = [
       <p>El agente puede pasar una llamada a una persona de tu equipo. Mientras el cliente escucha música, llama a la persona, le cuenta en pocas palabras de qué se trata, y si marca 1 los conecta. La conversación con la persona también queda transcripta en el panel. Se arma en tres pasos.</p>
       <p><strong>1. Las personas.</strong> Cada una con su teléfono de Argentina, al que se la llama. Cuántas podés cargar depende del plan.</p>
       <CodeBlock label="curl" code={teamMember} />
-      <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre.</p>
+      <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre. Con <code>after_hours_area_id</code> pasa a otra área fuera de horario, y con <code>no_answer_area_id</code> si nadie acepta. Con <code>"delivery": "whatsapp"</code> el área no llama: manda un aviso por WhatsApp a una persona (con <code>whatsapp_notify</code>) y el agente le dice al cliente que ya avisó. En <code>whatsapp</code> van la cuenta, las plantillas aprobadas (<code>template</code> y <code>call_template</code>) y <code>wait_seconds</code>.</p>
       <CodeBlock label="curl" code={area} />
       <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora con el motor <code>classic</code> o con <a href="/desarrolladores/docs/tu-propio-agente#herramientas">tu propio agente</a>.</p>
       <CodeBlock label="JSON" code={agentHandoff} />
@@ -733,7 +739,7 @@ const campaignEndpoints = [
         <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
         <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
         <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende, por minuto iniciado; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
-        <li><strong>Dónde no hay derivación:</strong> en las campañas y en los mensajes de WhatsApp. Sí en las entrantes por tu línea o por WhatsApp, y en las salientes que lanzás con <code>POST /calls</code>.</li>
+        <li><strong>Dónde no hay derivación:</strong> en las campañas ni en la respuesta de WhatsApp a una campaña. Sí en las entrantes por tu línea o por WhatsApp, en las salientes que lanzás con <code>POST /calls</code> y en los mensajes de texto de WhatsApp, solo hacia las áreas con una plantilla: se le manda a una persona por vez y quien toca el botón recibe los datos y el reenvío de lo que escribe el cliente durante 24 horas, sin que conteste el agente.</li>
       </ul>
       <div class="table-wrap"><table>
         <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>

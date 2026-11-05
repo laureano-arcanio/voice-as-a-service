@@ -174,6 +174,8 @@ class AnthropicClient:
                 if on_message is not None:
                     on_message(limit)
                 said.append(limit)
+                # Una derivacion pedida en esta vuelta se respeta; un end_call, no: el turno no corta en el tope.
+                platform_tools.apply(turn, [c for c in calls if c["name"] == platform_tools.TRANSFER_CALL], state)
                 break
             if customer and tools is not None:
                 rounds += 1

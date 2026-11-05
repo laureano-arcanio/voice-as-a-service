@@ -214,3 +214,18 @@ def test_code_test_without_runner_says_so(api, admin, monkeypatch):
     out = admin.post(f"{V1}/clients/{c['id']}/tools/test",
                      json={**code_tool(), "args": {"dni": "1"}, "secrets": {"MOCK_KEY": "x" * 10}}).json()
     assert not out["ok"] and "no están disponibles" in out["error"]
+
+
+def test_test_renders_call_phone_from_the_example_call(api, admin, mock_api_url):
+    """La prueba con un numero de ejemplo llena {{call.phone}} (la UI manda from y phone): no sale vacio."""
+    c = make_client(admin, max_tools=None)
+    tool = turnos_tool(mock_api_url)
+    tool["definition"]["http"]["query"]["fecha"] = {"type": "string", "value": "{{call.phone}}"}
+    body = {"type": "http", "definition": tool["definition"], "args": {"sucursal": "norte"},
+            "secrets": {"MOCK_TOKEN": mock_api.TOKEN}}
+    with_call = admin.post(f"{V1}/clients/{c['id']}/tools/test", json={
+        **body, "call": {"from": "+5491100000000", "phone": "+5491100000000", "channel": "voice",
+                         "mode": "inbound"}}).json()
+    assert "5491100000000" in str(with_call["request"]), with_call
+    without = admin.post(f"{V1}/clients/{c['id']}/tools/test", json=body).json()
+    assert "5491100000000" not in str(without["request"])

@@ -1,0 +1,7 @@
+{
+  "name": "datos.nombre",
+  "titular": "cobertura.titular",
+  "phone_paths": ["datos.celular", "datos.otro_telefono"],
+  "contact_phone_paths": ["contactos[*].telefono"],
+  "filters": ["datos.documento", "datos.codigo"]
+}

@@ -140,9 +140,12 @@ export function TeamPage() {
                               {m.phone ?? <Dash />}
                             </Table.Td>
                             <Table.Td>
-                              <Badge color={m.active ? 'green' : 'gray'}>
-                                {m.active ? 'Activa' : 'Inactiva'}
-                              </Badge>
+                              <Group gap={6} wrap="nowrap">
+                                <Badge color={m.active ? 'green' : 'gray'}>
+                                  {m.active ? 'Activa' : 'Inactiva'}
+                                </Badge>
+                                {m.whatsapp_notify && <Badge color="blue">Recibe WhatsApp</Badge>}
+                              </Group>
                             </Table.Td>
                             {directCalls && (
                               <Table.Td>
@@ -190,7 +193,8 @@ export function TeamPage() {
             </Group>
             <Text size="sm" c="dimmed" mb="sm">
               El agente elige el área por lo que atiende y llama a sus personas en orden, dentro de su
-              horario. Si nadie atiende, toma el mensaje.
+              horario. Si nadie atiende, pasa a otra área o toma el mensaje. Un área puede, en cambio, solo
+              avisar por WhatsApp.
             </Text>
             <QueryState query={areas}>
               {(rows) =>
@@ -220,9 +224,14 @@ export function TeamPage() {
                           return (
                             <Table.Tr key={a.id}>
                               <Table.Td>
-                                <Text size="sm" fw={600}>
-                                  {a.name}
-                                </Text>
+                                <Group gap={6} wrap="nowrap">
+                                  <Text size="sm" fw={600}>
+                                    {a.name}
+                                  </Text>
+                                  {a.delivery === 'whatsapp' && (
+                                    <Badge color="blue">Solo aviso por WhatsApp</Badge>
+                                  )}
+                                </Group>
                                 {a.description && (
                                   <Text size="xs" c="dimmed" lineClamp={1} maw={280} title={a.description}>
                                     {a.description}
@@ -289,6 +298,7 @@ export function TeamPage() {
           key={dialog.area?.id ?? 'new'}
           area={dialog.area}
           members={members}
+          areas={areas.data ?? []}
           onClose={() => setDialog(null)}
         />
       )}

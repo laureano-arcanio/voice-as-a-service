@@ -1005,7 +1005,7 @@ class ToolTestIn(BaseModel):
     secrets: dict[str, str] | None = Field(default=None, description="Secretos para esta prueba (no se guardan; "
                                                                      "pisan los del cliente y los del agente)")
     call: dict[str, Any] | None = Field(default=None, description="Datos de llamada de ejemplo: id, channel, mode, "
-                                                                  "from, to")
+                                                                  "from, to, phone")
 
 
 class ToolDraftTestIn(ToolTestIn):
@@ -2380,6 +2380,7 @@ class TeamMemberIn(BaseModel):
     phone: str | None = Field(default=None, max_length=32, description="Para transferir llamadas (Argentina)")
     user_id: str | None = Field(default=None, description="Usuario del panel (softphone web)")
     active: bool = True
+    whatsapp_notify: bool = Field(default=False, description="Recibe por WhatsApp, a su teléfono, los avisos de sus áreas")
 
 
 class TeamMemberPatch(BaseModel):
@@ -2387,6 +2388,7 @@ class TeamMemberPatch(BaseModel):
     phone: str | None = Field(default=None, max_length=32)
     user_id: str | None = None
     active: bool | None = None
+    whatsapp_notify: bool | None = None
 
 
 class TeamMemberOut(ORM):
@@ -2396,6 +2398,7 @@ class TeamMemberOut(ORM):
     phone: str | None
     user_id: str | None
     active: bool
+    whatsapp_notify: bool
     created_at: UTCDateTime
 
 
@@ -2405,6 +2408,25 @@ class HandoffSchedule(BaseModel):
     week: dict[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], list[tuple[str, str]]] = Field(
         default_factory=dict, description='Por día, franjas "HH:MM" (ej. {"mon": [["09:00", "13:00"], ["16:00", "20:00"]]})')
     closed: list[datetime.date] = Field(default_factory=list)
+
+
+class HandoffWhatsappTemplate(BaseModel):
+    """Una plantilla aprobada de Meta de la cuenta del área."""
+    name: str = Field(min_length=1, max_length=512)
+    language: str = Field(min_length=1, max_length=16, description="Código de Meta (ej. es_AR)")
+    params: list[str] = Field(default_factory=list, max_length=20, description=(
+        "Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la "
+        "conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp"))
+
+
+class HandoffWhatsapp(BaseModel):
+    """WhatsApp del área: al menos una plantilla."""
+    account_id: str = Field(description="Número de WhatsApp conectado del cliente")
+    template: HandoffWhatsappTemplate | None = Field(
+        default=None, description="Rotación, con botón; en un área delivery=whatsapp, el aviso, sin botón")
+    call_template: HandoffWhatsappTemplate | None = Field(
+        default=None, description="Complemento de la llamada, sin botón")
+    wait_seconds: int = Field(default=120, ge=30, le=3600, description="Espera por persona en la rotación")
 
 
 class HandoffAreaIn(BaseModel):
@@ -2420,6 +2442,11 @@ class HandoffAreaIn(BaseModel):
         default="resume", description="Si la persona corta: resume (el agente vuelve) o end (se despide y corta)")
     return_digits: str = Field(default="2", max_length=4, description="Tecla de la persona para volver a la IA (sin *)")
     messages: dict[str, str] = Field(default_factory=dict, description="Textos que cambian los de /handoff-areas/defaults")
+    after_hours_area_id: str | None = Field(default=None, description="Área a la que pasa fuera de horario")
+    no_answer_area_id: str | None = Field(default=None, description="Área a la que pasa si nadie acepta o no se puede llamar")
+    delivery: Literal["call", "whatsapp"] = Field(
+        default="call", description="call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación")
+    whatsapp: HandoffWhatsapp | None = None
 
 
 class HandoffAreaPatch(BaseModel):
@@ -2434,6 +2461,10 @@ class HandoffAreaPatch(BaseModel):
     on_person_hangup: Literal["resume", "end"] | None = None
     return_digits: str | None = Field(default=None, max_length=4)
     messages: dict[str, str] | None = None
+    after_hours_area_id: str | None = None
+    no_answer_area_id: str | None = None
+    delivery: Literal["call", "whatsapp"] | None = None
+    whatsapp: HandoffWhatsapp | None = None
 
 
 class HandoffAreaOut(ORM):
@@ -2452,6 +2483,10 @@ class HandoffAreaOut(ORM):
     on_person_hangup: str
     return_digits: str
     messages: dict[str, str] = Field(description="Solo los que cambian el default")
+    after_hours_area_id: str | None
+    no_answer_area_id: str | None
+    delivery: str
+    whatsapp: HandoffWhatsapp | None
     created_at: UTCDateTime
 
 
@@ -2462,7 +2497,9 @@ class HoldMusicOut(BaseModel):
 
 class HandoffDefaultsOut(BaseModel):
     messages: dict[str, str]
-    variables: list[str]
+    variables: list[str] = Field(description="Además, las variables que trae la herramienta de «Antes de la conversación» del agente, por su nombre")
+    pre_accept_messages: list[str] = Field(default_factory=list, description="Mensajes que salen antes de que alguien acepte: solo admiten `pre_accept_variables`")
+    pre_accept_variables: list[str] = Field(default_factory=list, description="Variables que admiten los mensajes de `pre_accept_messages`")
 
 
 class EventOut(ORM):

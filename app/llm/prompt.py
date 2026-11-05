@@ -121,8 +121,10 @@ def build_system_prompt(workflow: Workflow, channel: str = "voice", state: Conve
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
     rules = "\n".join(f"- {render_variables(r)}" for r in workflow.conversation.rules)
     campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
+    # Con pre-call, la guia ya renderizada con sus variables (engine.run_pre_call).
+    guide = state.progress.opening_guide if state is not None else None
     greeting = (f"\n\nAPERTURA (la persona escribe primero; guía para tu primer mensaje):\n"
-                f"{workflow.conversation.opening.strip()}" if whatsapp else "")
+                f"{(workflow.conversation.opening if guide is None else guide).strip()}" if whatsapp else "")
     data = f"\n\nDATOS A OBTENER (los nombres son internos):\n{chr(10).join(fields)}" if fields else ""
     return f"""Sos {workflow.agent.name}, {workflow.agent.role}. Idioma: {workflow.agent.language}. {CHANNEL[channel]}
 

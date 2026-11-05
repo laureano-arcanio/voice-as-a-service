@@ -43,4 +43,11 @@ if [[ -n "$voice" && -n "$model" ]]; then
 else
     log "AVISO: sin VLLM_TTS_VOICE o VLLM_TTS_MODEL en .env, no se calienta el TTS"
 fi
+
+# Registros (perfil de compose, fuera del up de arriba). La clave significa "activo en este host".
+# Sin --wait y a lo último: su falla no le quita a este server llamadas ni WhatsApp.
+if [[ -n "$(env_get REGISTROS_HEALTH_URL)" ]]; then
+    log "Registros"
+    docker compose --profile registros up -d --no-deps registros || log "AVISO: Registros no arrancó"
+fi
 log "listo"

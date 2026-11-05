@@ -82,6 +82,7 @@ class ConversationEngine:
         # Herramientas del cliente (http y code, docs/features/HERRAMIENTAS.md): las del agente y su contexto, por turno.
         self.tools = ConversationTools(store.sessions)
         self.external = None    # tu propio agente, al primer turno (app/llm/external.py)
+        self._late_pre_calls: set[asyncio.Task] = set()     # pre-calls vencidos: que terminen y dejen su fila
 
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
@@ -139,6 +140,60 @@ class ConversationEngine:
             text = contact_data.render_template(text, contact)
         state.messages = [Message(role="assistant", text=text)]
         return state, text
+
+    async def run_pre_call(self, conversation_id: str, actor: str | None = None) -> str | None:
+        """El pre-call del agente, si tiene, antes de que empiece la conversacion. Espera hasta su timeout_ms: si
+        falla o vence, la conversacion sigue sin datos (la tarea no se cancela, para que quede su fila en tool_runs,
+        y lo que traiga tarde se ignora). Devuelve la apertura renderizada en voz; None en WhatsApp o sin pre-call."""
+        state = self.store.get(conversation_id)
+        if state is None:
+            return None
+        workflow = self.workflow(state)
+        pre_call = workflow.workflows.pre_call if workflow.workflows else None
+        if pre_call is None:
+            return None
+        task = asyncio.ensure_future(self.tools.run_workflow(workflow, state, pre_call.tool, actor, "pre_call"))
+        done, _ = await asyncio.wait([task], timeout=pre_call.timeout_ms / 1000)
+        assigned, hidden = {}, set()
+        if not done:
+            logger.warning("pre-call %s: paso los %s ms, sigue sin datos", conversation_id, pre_call.timeout_ms)
+            self._late_pre_calls.add(task)
+            task.add_done_callback(self._late_pre_call_done)
+        elif task.exception() is not None:
+            logger.error("pre-call %s: fallo", conversation_id, exc_info=task.exception())
+        else:
+            assigned, hidden = task.result().assigned, task.result().hidden
+        return self._apply_pre_call(conversation_id, workflow, assigned, hidden)
+
+    def _late_pre_call_done(self, task: asyncio.Task) -> None:
+        self._late_pre_calls.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            logger.error("pre-call: fallo despues del tope", exc_info=task.exception())
+
+    def _apply_pre_call(self, conversation_id: str, workflow: Workflow, assigned: dict, hidden: set[str]) -> str | None:
+        """Suma lo que trajo el pre-call, sin pisar lo que ya estaba (datos de campaña, telefono precargado): todo a
+        tool_vars; lo visible, a los campos o a los datos del contacto (de ahi al prompt o, con tu propio agente, al
+        header X-Atentina-Contact). La apertura se renderiza siempre, tambien sin datos: no se lee "{{nombre}}"."""
+        state = self.store.get(conversation_id)
+        visible = {k: v for k, v in assigned.items() if k not in hidden}
+        state.progress.tool_vars = {**state.progress.tool_vars, **assigned}
+        preloaded, rest = contact_data.preload(workflow, visible)
+        for name, value in preloaded.items():
+            if state.fields.get(name) is None:
+                state.fields[name] = value
+                if name not in state.progress.preloaded:
+                    state.progress.preloaded.append(name)
+        state.progress.contact = {**rest, **state.progress.contact}
+        text = None
+        if state.channel == "whatsapp":
+            state.progress.opening_guide = contact_data.render_template(workflow.conversation.opening, visible)
+        else:
+            # La ultima: en el respaldo de equipo a agente, la apertura va despues de lo hablado en la espera.
+            message = next((m for m in reversed(state.messages) if m.role == "assistant"), None)
+            if message is not None:
+                text = message.text = contact_data.render_template(message.text, visible)
+        self.store.save(state)
+        return text
 
     async def process_turn(self, conversation_id: str, user_message: str,
                            on_message: Callable[[str], None] | None = None, *,

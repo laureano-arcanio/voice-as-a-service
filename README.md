@@ -80,6 +80,7 @@ Otro admin: `make create-admin EMAIL=...`; API key de un cliente: `make api-key 
 | `make up-nginx` | `proxy` (inferencia por la IP fija, `PROXY_PORT`; en producción no se reenvía en el router) |
 | `make up-pbx` | `asterisk` (lo recrea para releer `.env` y `asterisk/conf/`) |
 | `make up-tunnel`, `make up-monitoring`, `make crm-up` | túnel de Cloudflare, observabilidad, CRM |
+| `make registros-up` | app de fichas Registros (`apps/registros/`, perfil de compose aparte: `make up` no la levanta; [`docs/features/REGISTROS.md`](docs/features/REGISTROS.md)) |
 
 `make logs S=<servicio>`, `make health` y `make help` para el resto. `make restart` no relee `.env`: después de
 editarlo, `make up-pbx` o `make up`. Antes de recrear algo que corta llamadas, `make calls-active`.
@@ -95,8 +96,9 @@ Tests: `make test` (LLM falso, sin servicios reales).
    ([`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md)). `LIVEKIT_SIP_TRUNK_ID` vacío: el agente busca el trunk
    saliente por nombre.
 3. `VLLM_API_KEY` (clave real siempre) y `PUBLIC_HOST`.
-4. Telefonía (`ANURA_*`, `LIVEKIT_SIP_*`), demo, WhatsApp (`WA_*`), túnel, correo (Resend), Mercado Pago, backup y
-   monitoreo: tabla completa (de dónde sale cada una y cuál no se puede regenerar, como `WA_TOKEN_KEY`) en
+4. Telefonía (`ANURA_*`, `LIVEKIT_SIP_*`), demo, WhatsApp (`WA_*`; la derivación al equipo suma `WA_HANDOFF_*`,
+   `WA_TEAM_*`, `WORKFLOW_TICK_SECONDS` y `POST_CALL_WAIT_SECONDS`, opcionales), Registros (`REGISTROS_*` y
+   `BACKUP_EXTRA_DBS`, opcionales), túnel, correo (Resend), Mercado Pago, backup y monitoreo: tabla completa (de dónde sale cada una y cuál no se puede regenerar, como `WA_TOKEN_KEY`) en
    [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), 3.2.
 
 `.env.example` todavía trae defaults viejos (LiveKit Cloud, Qwen): el `.env` de producción es la referencia.

@@ -7,7 +7,7 @@ Dos tipos, con el mismo encabezado (descripcion, confirmacion, frases de voz y r
 - code: una funcion `export default async function ({ args, secrets, call, vars })` en JavaScript,
   que corre en el sandbox (tools-runner). `parameters` es el JSON Schema de args.
 
-Templates en los valores fijos: {{secrets.NOMBRE}}, {{call.id|channel|mode|from|to}}, {{agent.slug|version}},
+Templates en los valores fijos: {{secrets.NOMBRE}}, {{call.id|channel|mode|from|to|phone}}, {{agent.slug|version}},
 {{now}}, {{today}}, {{fields.x}}, {{contact.x}}, {{vars.x}}.
 """
 import re
@@ -28,7 +28,7 @@ HOST_RE = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-
 
 # Los nombres de las herramientas de la plataforma: el cliente no los puede usar.
 RESERVED = {"end_call", "transfer_call"}
-CALL_KEYS = {"id", "channel", "mode", "from", "to"}
+CALL_KEYS = {"id", "channel", "mode", "from", "to", "phone"}
 AGENT_KEYS = {"slug", "version"}
 NAMESPACES = {"secrets", "call", "agent", "fields", "contact", "vars", "now", "today"}
 # Headers que arma el cliente HTTP o la plataforma.
@@ -57,7 +57,7 @@ def check_template(text: str, where: str) -> None:
         if ns == "secrets" and not SECRET_RE.fullmatch(key):
             raise ValueError(f"{where}: secreto {key!r}: mayúsculas, números y _ (ej. CRM_TOKEN)")
         if ns == "call" and key not in CALL_KEYS:
-            raise ValueError(f"{where}: {{{{call.{key}}}}} no existe (id, channel, mode, from, to)")
+            raise ValueError(f"{where}: {{{{call.{key}}}}} no existe (id, channel, mode, from, to, phone)")
         if ns == "agent" and key not in AGENT_KEYS:
             raise ValueError(f"{where}: {{{{agent.{key}}}}} no existe (slug, version)")
 

@@ -12,6 +12,7 @@ cliente. Estado: en producción desde el 1-oct-2026 (llamadas por SIP con el nú
 | Embedded Signup (alta con la app de Atentina) | Código desplegado, apagado con `WA_EMBEDDED_SIGNUP=false` hasta que Meta apruebe el Tech Provider |
 | Llamadas de WhatsApp por SIP | En producción, solo con el número de Atentina |
 | Ruteo por contacto (`wa_routes`) | En producción |
+| Derivación a personas del equipo (rotación, aviso, reenvío) | Implementada y probada en local con Meta simulado; sin desplegar, sin probar con un toque de botón real ni con un `failed` real de Meta |
 
 Revisión de Meta (Tech Provider y App Review): [META_APP_REVIEW.md](META_APP_REVIEW.md).
 
@@ -23,8 +24,8 @@ Modelos en `app/models/whatsapp.py`. El texto de los mensajes no está acá: va 
 | Tabla | Qué guarda | Migración |
 |---|---|---|
 | `wa_accounts` | Un número conectado: `client_id`, `agent_id` (agente por defecto), `phone_number_id` (único), `waba_id`, `display_phone_number`, `access_token` (cifrado; NULL = `WA_ACCESS_TOKEN`), `status` (`connected`, `pending`, `disconnected`) y `status_reason`, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`, `own_app`), `pin_enc`; en `own_app`, `app_secret` y `verify_token` cifrados y `webhook_key` única | 0004, 0005, 0038 |
-| `wa_threads` | Una fila por conversación de WhatsApp: `account_id`, `wa_id` (como lo manda Meta, `549…`), `contact_name`, `last_user_at`, `closed_at` (cerrada: el próximo mensaje abre otra). | 0004, 0007 |
-| `wa_messages` | Por `wamid` (único): dedupe y estados. `direction` (`in`/`out`), `type` (`text`, `audio`, `template`…), `status` (entrante: `received`, `answered`, `ignored`, `error`; saliente: `sent`, `delivered`, `read`, `failed`), `error` de Meta | 0004 |
+| `wa_threads` | Una fila por conversación de WhatsApp: `account_id`, `wa_id` (como lo manda Meta, `549…`), `contact_name`, `last_user_at`, `closed_at` (cerrada: el próximo mensaje abre otra). La derivación a una persona del equipo vive acá: `handoff_status`, `handoff_area_id`, `handoff_leg_id`, `handoff_started_at`, `handoff_closed_at`, `handoff_deadline`, `handoff_voice_note`, `handoff_delivery_tries` y `handoff_retakes` | 0004, 0007, 0048, 0049 |
+| `wa_messages` | Por `wamid` (único): dedupe y estados. `direction` (`in`/`out`), `type` (`text`, `audio`, `template`…; `team_notice` y `team_relay` para lo que se le envía al equipo), `status` (entrante: `received`, `answered`, `ignored`, `error`; saliente: `sent`, `delivered`, `read`, `failed`), `error` de Meta | 0004 |
 | `wa_routes` | Ruteo por contacto: `account_id`, `agent_id` y `contacts` (lista de `wa_id`) | 0015 |
 | `wa_account_status_log` | Historial de estado, calidad y límite de cada cuenta (para Reportes) | 0036 |
 | `tiers.whatsapp` | Si el plan incluye WhatsApp (cuentas, mensajes y llamadas) | 0025 |
@@ -46,7 +47,7 @@ de una cuenta sin token propio (alta manual, WABA de Atentina) son solo de admin
 | `POST /accounts/{id}/refresh` | Relee de Meta nombre, calidad y límite |
 | `GET/POST /accounts/{id}/templates` | Plantillas en vivo contra Meta (sin tabla); alta con tope `WA_TEMPLATES_PER_HOUR` |
 | `PUT /accounts/{id}/routes` | Reemplaza la lista completa de reglas de ruteo |
-| `POST /threads/{conversation_id}/close` | Cierra la conversación: el próximo mensaje abre otra con la versión vigente del agente |
+| `POST /threads/{conversation_id}/close` | Cierra la conversación: el próximo mensaje abre otra con la versión vigente del agente. También corta el reenvío al operador, aunque el hilo ya esté cerrado: es la salida manual de una emergencia tomada |
 
 Webhook (`app/whatsapp/webhook.py`, fuera de `/api/v1`):
 
@@ -74,6 +75,8 @@ Todo corre en `app` (no en `agent`): el webhook es HTTP y no hay room.
 | `app/whatsapp/graph.py` | Cliente de la Graph API (`WA_GRAPH_VERSION`, v25.0): texto, audio, plantillas, media, registro |
 | `app/whatsapp/audio.py` | OGG/Opus → WAV 16 kHz → STT; TTS → WAV → OGG/Opus (PyAV, sin ffmpeg) |
 | `app/whatsapp/store.py` | Acceso a `wa_accounts`, `wa_threads`, `wa_messages` |
+| `app/whatsapp/handoffs.py` | Derivación a personas del equipo: reserva, rotación por plantillas, toque, entrega, reenvío (`TextHandoffs`) |
+| `app/whatsapp/team_notify.py` | Envío de plantillas al equipo y aviso de un área; lo usan también `agent` y `app/voice/handoff.py` |
 | `app/whatsapp/signup.py` | Embedded Signup: código → token, suscripción, registro, plantillas |
 | `app/whatsapp/own_app.py` | Cuentas con la app de Meta del cliente |
 | `app/whatsapp/crypto.py` | Tokens, PIN y secretos cifrados con `WA_TOKEN_KEY` (Fernet) |
@@ -146,6 +149,110 @@ WhatsApp; la voz de Anura sigue con el agente del número.
   `calls.start_inbound`.
 - UI: WhatsApp → menú de la fila → **Ruteo por contacto** (`RoutesModal.tsx`).
 
+### Derivación a personas del equipo
+
+Con `transfer_call` el agente pasa una conversación de texto a una persona del equipo (personas con «Recibe WhatsApp» y
+áreas con plantillas: [EQUIPO_TELEFONIA.md](EQUIPO_TELEFONIA.md)). El estado vive en `wa_threads`, fuera de
+`store.save`; cada transición es un `UPDATE ... WHERE` y, si afecta 0 filas, ese camino no hace nada. Un loop de `app`
+(`handoff_loop`, cada `WA_HANDOFF_TICK_SECONDS`) retoma lo vencido.
+
+- **Quién deriva:** `transfer_call` solo está en una conversación **nueva** que no sea respuesta a una campaña, y solo
+  con las áreas del agente que tienen `template` (en un área de aviso, es el aviso). Un hilo abierto antes de configurar
+  deriva recién en su próxima conversación; **Cerrar conversación** lo fuerza. Sin texto del modelo, sale el mensaje
+  `transfer` del área. La respuesta a la persona sale en su formato (nota de voz si el turno lo fue).
+- **Reserva antes de responder:** `reserve` deja la rotación en `sending` antes de contestarle a la persona, y `start`
+  la arranca en su propia tarea después de enviar la respuesta. Si `app` muere en el medio, el barrido la retoma. Solo
+  deriva el último turno: una retracción del turno no despacha dos. Si falla el segundo intento de un turno rehecho,
+  vale la derivación ya decidida.
+- **Una rotación viva por contacto y cuenta, sin importar el área.** Otra derivación se ignora (evento `handoff.ignored`
+  con `area`, `live_area`, `live_status`, `other_conversation`) y la persona lee el texto que escribió el modelo: un
+  agente con dos áreas con rotación las atiende de a una. Un toque tardío de otra conversación del contacto se corta
+  solo si la derivación nueva gana. Un área borrada en el medio se reserva sin área y termina en `no_answer` ("el equipo").
+
+| `handoff_status` | Significa | `handoff_deadline` | Si vence |
+|---|---|---|---|
+| `sending` | Enviando la siguiente plantilla o el aviso | +30 s | El barrido retoma el avance |
+| `waiting` | Esperando el toque del tramo vigente | +`wait_seconds` del área (30 a 3600, 120) | El tramo queda `no_answer` y avanza |
+| `delivering` | Alguien tocó; entrega en curso | +20 s | El barrido retoma la entrega |
+| `accepted` | El operador tiene los datos; reenvío vigente | +`WA_HANDOFF_RELAY_HOURS` (24 h) | Fin del reenvío; el barrido no lo mira |
+| `closed` | Rotación terminada | +`WA_HANDOFF_LATE_MINUTES` (30) | Fin del toque tardío |
+
+**Rotación.** Cada intento es un tramo de `handoff_legs` con el `wamid` de la plantilla, creado antes del envío y ya
+cerrado (`ended_at`): no ocupa canal ni descuenta minutos. Se le manda a una persona por vez (`candidates` con el toggle,
+menos las ya intentadas en esta rotación) y se espera `wait_seconds`. Sigue por `after_hours_area_id` fuera de horario y
+por `no_answer_area_id` si nadie acepta o no hay a quién, con un tope de 10 pases (sin repetir áreas); al final, a la
+persona se le dice `no_answer` o `after_hours`. Un área de aviso (`delivery=whatsapp`) manda una plantilla sin botón a
+**una** persona (si Meta la rechaza, a la siguiente), dice `notified` solo si salió y no arma el post-call salvo que sea
+`always`. Antes de cada plantilla se relee a la persona: la desactivada o borrada se saltea, y si la relectura falla no
+se envía. El envío tiene un tope de `SEND_DEADLINE` (20 s) y el de plantilla va por la cuenta de WhatsApp del área.
+
+**Toque.** El botón de la plantilla llega como `button` con `context.id`, que identifica el tramo por su `wamid`. Solo
+cuenta si es del mismo número, cliente y cuenta que envió la plantilla, y mientras la rotación está en `sending`,
+`waiting` o `closed` con toque tardío vigente. El primero que toca pasa la rotación a `delivering`. Los demás reciben un
+texto, fuera de la conversación: `tap_wait` (quien ya tocó, mientras se entrega), `tap_taken` (otro la tomó) o
+`tap_closed` (cerrada, otra rotación o la persona se fue). Quien tocó y perdió queda registrado: recibe la entrega si la
+del otro falla. Un toque de una plantilla cuyo `wamid` todavía no se registró sigue como botón común y no acepta: el
+operador acepta con la plantilla que manda la retoma.
+
+**Entrega**, en este orden: (a) `operator_ack` sin datos de la persona; (b) el post-call del agente, con espera de hasta
+`POST_CALL_WAIT_SECONDS` (3) si no termina, y la entrega sigue igual; (c) un solo texto con la nota del post-call
+(`operator_message`; si falló, `post_call_failed`) y `operator_contact` con nombre, teléfono y motivo (se recorta la nota
+antes que el teléfono); (d) `accepted`: se manda `accepted` a la persona, el tramo queda `connected` y arranca el reenvío.
+Se relee al operador justo antes de enviarle el contacto. Si el envío del contacto falla, se reintenta hasta 3 veces; si
+una entrega falla (`no_route`, `ack_rejected`, `contact_rejected`, `retakes_exhausted` o un `failed` de Meta), le toca,
+en orden, a quien tocó y perdió, al tramo que ese toque desplazó si sigue vigente, o a la siguiente persona; con la
+rotación ya terminada vuelve a `closed` sin repetirle el mensaje a la persona. Un post-call ya hecho no se repite con el
+operador siguiente. Un `failed` tardío de Meta no reabre un reenvío cerrado a mano y no actúa si hubo un envío
+posterior sano al mismo número.
+
+**Reenvío de 24 h.** Con la rotación en `accepted` la IA no contesta: lo que escribe la persona va al operador, sin el
+modelo, como `team_relay` con el formato `*Nombre · +549…*` y el texto. Las notas de voz se transcriben y van como
+`[audio] …`; imagen, documento, sticker, video y ubicación, como `[La persona envió: imagen]`; un audio que no se pudo
+transcribir, como `[Audio que no se pudo transcribir]`. No se graba audio. El mensaje queda en la conversación y la baja
+de campañas por palabra no corre. Si el envío al operador falla o el operador se fue, el reenvío termina, la persona lo
+sabe (`relay_failed`) y su siguiente mensaje va a la IA, que puede derivar otra vez.
+
+**Respuesta fija al equipo.** A quien recibió un aviso o un reenvío en las últimas `WA_TEAM_NOTICE_HOURS` (24) y escribe
+sin tener una conversación activa se le responde `WA_TEAM_REPLY`, sin modelo ni conversación. Si además es cliente final del agente, recibe la fija mientras no tenga una conversación activa con él.
+
+**Recuperación.** Un `sending` o `delivering` vencido es un paso abandonado. Los tramos sin `wamid` pasan a `interrupted`
+(se vuelve a intentar a esa persona; quedan fuera de los reportes) y un `wamid` que llega tarde los deja tocables. Tope de
+5 retomas seguidas (`MAX_RETAKES`, solo en `sending` y `delivering`): al llegar, en `sending` se cierra con `no_answer` y
+en `delivering` es una falla de entrega, con `handoff.whatsapp_failed` `reason=retakes_exhausted`. Cota: el lease (30 s en
+`sending`, 20 s en `delivering`) más el tick; el envío suma hasta 24 s (20 de Meta y 4 del resumen). Medido con
+`docker kill` y `docker stop` y tick de 10 s: 4 a 9 s desde que vuelve el proceso.
+
+**Eventos** (`channel: whatsapp`): `handoff.requested`, `dialing`, `whatsapp_sent`, `whatsapp_failed` (`reason`, entre
+otras `no_template`, `meta_rejected`, `meta_failed`, `no_route`, `retakes_exhausted`), `no_answer`, `confirmed` (puede
+repetirse en una conversación), `connected`, `notified`, `unavailable`, `rerouted`, `relay_failed` e `ignored`. Sin
+teléfonos ni textos en logs ni eventos. Reportes: [REPORTES.md](REPORTES.md).
+
+**Límites y riesgos aceptados:**
+
+- **Un reinicio de `app`, también un deploy común, pierde el mensaje** que está en debounce, transcripción o LLM: queda
+  `received` y la persona no recibe nada. Solo sobrevive una derivación ya reservada.
+- **Una sola rotación viva por contacto bloquea a las demás áreas:** mientras dura (`wait_seconds` por persona; con 3 personas
+  en un área y el default de 120 s, 6 minutos), una derivación a otra área se ignora y la persona puede leer «Te paso con
+  Soporte» sin que Soporte se entere hasta que vuelva a escribir. Se ve con `handoff.ignored` en `GET /events`. Un
+  área de aviso bloquea solo mientras está en `sending`: segundos, hasta 24 s.
+- **Con el reenvío vigente, si el operador no actúa, nadie más se entera** durante 24 h: la IA no contesta ni escala. Se
+  corta con **Cerrar conversación** o llamando por teléfono.
+- **Doble pedido del post-call:** si `app` muere durante el cobro, la herramienta se vuelve a llamar con la misma
+  `Idempotency-Key`; que no cobre dos veces depende de la API del cliente.
+- **Cobro sin entrega:** si el post-call ya corrió y después nadie puede recibir el contacto, el cobro queda `done` y no se
+  revierte.
+- **Dos operadores pueden quedar con el contacto** si un envío de uno llegó a Meta pese a un error de red.
+- **Un mensaje ya en vuelo hacia Meta sale igual** aunque el operador se haya desactivado.
+- **Toque tardío con otro operador en turno:** el segundo se entera al tocar; puede cobrar después de que la persona oyó
+  `no_answer`, y recibe `accepted`.
+- **Si una entrega falla con otra plantilla en vuelo** (hasta 20 s), la rotación puede cerrar `no_answer` aunque esa
+  persona todavía pueda tocar. Con dos plantillas tocables de la misma persona se espera sobre la otra.
+- **Con una respuesta de más de 30 s**, el operador recibe la plantilla antes que la persona. Tras una caída durante el
+  envío, la plantilla le puede llegar dos veces.
+- **Un texto con NUL** no llega al operador, y un turno normal con NUL falla al guardar: se pierde ese mensaje.
+- **Sin medir:** leases, `MAX_RETAKES`, hasta 100 pasos por tick (`BATCH`) y el efecto sobre el LLM y el TTS.
+- Un solo canal por emergencia: voz y texto de la misma persona son dos conversaciones, con dos rotaciones y dos cobros.
+
 ### Alta de un número
 
 | Vía | Quién | Cómo |
@@ -175,7 +282,8 @@ también `account_update` con `PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`, `ACC
 se loguea. `phone_number_quality_update` guarda `messaging_limit`; `message_template_status_update` solo se loguea.
 
 **Plantillas:** se listan y crean en vivo contra Meta. Variables `{{1}}`… solo en el cuerpo, con un ejemplo por
-variable; encabezado y pie fijos; botón de enlace (https fijo) y respuesta rápida "No me interesa". La UI ofrece
+variable; encabezado y pie fijos; botón de enlace (https fijo), un botón de respuesta rápida con texto libre sin variables
+(por ejemplo «Aceptar», el de la rotación) y el de baja "No me interesa". La UI ofrece
 Utilidad y Marketing (Autenticación tiene texto fijo de Meta).
 
 ### Llamadas de WhatsApp por SIP
@@ -271,6 +379,7 @@ Apagar: `make wa-calling-disable` (Meta borra la config SIP y el ícono desapare
 | Conversación | `WA_SESSION_HOURS`, `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS`, `WA_MAX_TURN_CHARS`, `WA_MAX_TURNS` |
 | Audios | `WA_AUDIO_REPLY`, `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, `WA_AUDIO_VOICE_FLAG`, `WA_AUDIO_TOO_LONG_REPLY`, `WA_AUDIO_EMPTY_REPLY`, `WA_AUDIO_ERROR_REPLY` |
 | Campañas | `WA_CAMPAIGN_TICK_SECONDS`, `WA_CAMPAIGN_REPLY_DAYS`, `WA_CAMPAIGN_MAX_RECIPIENTS`, `WA_OPTOUT_REPLY` ([CAMPANAS.md](CAMPANAS.md)) |
+| Derivación a personas | `WA_HANDOFF_TICK_SECONDS` (10), `WA_HANDOFF_LATE_MINUTES` (30), `WA_HANDOFF_RELAY_HOURS` (24), `WA_TEAM_NOTICE_HOURS` (24), `WA_TEAM_REPLY`, `POST_CALL_WAIT_SECONDS` (3); el post-call: `WORKFLOW_TICK_SECONDS` ([HERRAMIENTAS.md](HERRAMIENTAS.md)). Valores sin medir |
 | Llamadas por SIP | `WA_SIP_HOST`, `WA_SIP_PORT`, `WA_SIP_USER`, `WA_SIP_PASSWORD`, `CLOUDFLARE_DNS_API_TOKEN` |
 
 Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
@@ -278,10 +387,21 @@ Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
 ## Desplegar y probar
 
 - Cambios de código de WhatsApp: `make calls-active && make up-agent` (recrea `app`; la imagen compila `web/`).
-  Migraciones: `make migrate-test` y `make migrate`.
+  Migraciones: `make migrate-test` y `make migrate`. Recrear `app` pierde los mensajes en debounce, transcripción o LLM
+  (ver Derivación a personas, límites). La derivación sale con las migraciones 0048 y 0049, el post-call y las áreas con
+  plantilla; antes de desplegar, mirar `POST_CALL_WAIT_SECONDS` en el `.env` de server2: con 20 s o más, el lease de la
+  entrega vence durante una espera sana (default 3).
+- **Vuelta atrás de la derivación:** `git revert` y deploy no alcanzan, porque `docker-compose.yml` corre
+  `alembic upgrade head` al arrancar `migrate`. Primero `make migrate-down REV=0048` (si sale solo el tope de retomas) o `REV=0047` (si sale toda la
+  función: la 0048 sale junta), con la imagen que todavía tiene la migración, y después el revert y el deploy. Antes, cerrar las rotaciones
+  abiertas (`UPDATE wa_threads SET handoff_status='closed', handoff_deadline=now() AT TIME ZONE 'utc' WHERE handoff_status IN ('sending','waiting','delivering','accepted')`)
+  y esperar que no queden conversaciones con `post_call_status` `armed`, `pending` o `running`, o esos cobros no corren.
+  Entre el `migrate-down` y el deploy, el `app` en marcha lee una columna que ya no existe y WhatsApp falla en esa ventana
+  (sin medir).
 - Cambios del ruteo de llamadas o de Asterisk: `make livekit-sip` y `make up-pbx` (corta las llamadas en curso).
 - Tests (`make test`, Meta, STT y TTS simulados): `tests/test_whatsapp_*.py` (webhook, service, audio, signup,
-  own_app, templates, prompt, graph, api) con payloads en `tests/fixtures/wa/`.
+  own_app, templates, prompt, graph, api, handoffs, team_notify) con payloads en `tests/fixtures/wa/` y
+  `tests/fixtures/wa_button_webhook.json` (el toque de un botón).
 - A mano: `make wa-send TO=54351… TEXT="hola"`; escribirle al número y ver la conversación en Conversaciones
   (origen "WhatsApp").
 - Embedded Signup: `WA_EMBEDDED_SIGNUP=true` con `WA_APP_ID`, `WA_APP_SECRET`, `WA_CONFIG_ID` y `WA_TOKEN_KEY`; en
@@ -305,3 +425,8 @@ Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
   medir.
 - **Consumo:** costo de Meta por cliente en el dashboard y consumo de mensajes en el tier.
 - **Eval con canal `whatsapp`** (`make eval-llm`) comparado con voz.
+- **Derivación con Meta real:** el toque de un botón de plantilla (`context.id` = `wamid` del tramo) y el `failed` de Meta
+  de una plantilla, un acuse o un reenvío, y si Meta lo envía antes de responder al envío. Los tests y el QA local usan un
+  Graph simulado. Sin medir: la capacidad con rotaciones y reenvíos en curso junto a las llamadas.
+- **Aviso al administrador** si el operador que tomó una emergencia no actúa durante el reenvío de 24 h.
+- **Doble canal:** la persona que escribe por una emergencia ya tomada y además llama.

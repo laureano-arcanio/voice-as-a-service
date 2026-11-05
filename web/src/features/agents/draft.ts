@@ -96,6 +96,7 @@ export const SECTION_PART: Record<string, Part> = {
   resultado: 'datos',
   herramientas: 'herramientas',
   derivacion: 'herramientas',
+  automaticas: 'herramientas',
   voz: 'voz',
   externo: 'modelo',
   modelo: 'modelo',
@@ -186,6 +187,8 @@ export interface Draft {
   llm: LlmDraft | null;
   /** Derivacion a personas (docs/features/EQUIPO_TELEFONIA.md): areas del equipo del cliente y musica de espera. */
   handoff: HandoffDraft;
+  /** Herramientas automaticas, ocultas al modelo: pre-call y post-call (docs/features/HERRAMIENTAS.md). */
+  workflows: WorkflowsDraft;
   /** Tu propio agente: prendido si no es null. */
   external: ExternalDraft | null;
 }
@@ -231,6 +234,42 @@ function fromHandoffDraft(h: HandoffDraft): Record<string, unknown> | undefined 
   return {
     areas: h.areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
     hold_music: { enabled: h.holdMusic.enabled, track: h.holdMusic.track, volume: h.holdMusic.volume },
+  };
+}
+
+/** Defaults de PreCallWorkflow y PostCallWorkflow (app/conversation/models.py). */
+export const PRE_CALL_TIMEOUT = { default: 1500, min: 200, max: 5000 };
+export type PostCallWhen = 'handoff_accepted' | 'always';
+
+export interface WorkflowsDraft {
+  /** Corre antes de la conversacion; sus datos llegan al agente. null = sin pre-call. */
+  preCall: { tool: string; timeoutMs: number } | null;
+  /** Corre una vez, al cumplirse la condicion. null = sin post-call. */
+  postCall: { tool: string; when: PostCallWhen } | null;
+}
+
+function toWorkflowsDraft(raw: unknown): WorkflowsDraft {
+  const w = obj(raw);
+  const pre = obj(w.pre_call);
+  const post = obj(w.post_call);
+  return {
+    preCall: str(pre.tool)
+      ? {
+          tool: str(pre.tool),
+          timeoutMs: typeof pre.timeout_ms === 'number' ? pre.timeout_ms : PRE_CALL_TIMEOUT.default,
+        }
+      : null,
+    postCall: str(post.tool)
+      ? { tool: str(post.tool), when: post.when === 'always' ? 'always' : 'handoff_accepted' }
+      : null,
+  };
+}
+
+function fromWorkflowsDraft(w: WorkflowsDraft): Record<string, unknown> | undefined {
+  if (!w.preCall && !w.postCall) return undefined;
+  return {
+    ...(w.preCall ? { pre_call: { tool: w.preCall.tool, timeout_ms: w.preCall.timeoutMs } } : {}),
+    ...(w.postCall ? { post_call: { tool: w.postCall.tool, when: w.postCall.when } } : {}),
   };
 }
 
@@ -416,6 +455,7 @@ export function toDraft(d: Definition): Draft {
     generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
     handoff: toHandoffDraft(d.handoff),
+    workflows: toWorkflowsDraft(d.workflows),
     external: toExternalDraft(d.external),
   };
 }
@@ -437,6 +477,7 @@ export function fromDraft(draft: Draft): Definition {
   }
   const last = draft.outcomes.length - 1;
   const handoff = fromHandoffDraft(draft.handoff);
+  const workflows = fromWorkflowsDraft(draft.workflows);
   const external = draft.external;
   const toolSettings = {
     ...(draft.maxToolCallsPerTurn != null ? { max_calls_per_turn: draft.maxToolCallsPerTurn } : {}),
@@ -485,6 +526,8 @@ export function fromDraft(draft: Draft): Definition {
     ...(!external && draft.clientTools.length ? { tools: toolEntries(draft).map((e) => e.value) } : {}),
     ...(!external && Object.keys(toolSettings).length ? { tool_settings: toolSettings } : {}),
     ...(handoff ? { handoff } : {}),
+    // Tambien con tu propio agente: el pre-call y el post-call (el cobro) corren igual.
+    ...(workflows ? { workflows } : {}),
   };
 }
 
@@ -607,6 +650,7 @@ export type ErrorTarget =
         | 'resultados'
         | 'herramientas'
         | 'derivacion'
+        | 'automaticas'
         | 'externo';
     }
   | { section: 'dato'; key: string }
@@ -639,6 +683,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'tools' || head === 'tool_settings') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'handoff') return { section: 'derivacion' };
+  if (head === 'workflows') return { section: 'automaticas' };
   if (head === 'external') return { section: 'externo' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
@@ -699,6 +744,10 @@ const PATH_WORDS: Record<string, string> = {
   generation: 'Parámetros',
   params: '',
   handoff: 'Derivación a personas',
+  workflows: 'Automáticas',
+  pre_call: 'antes de la conversación',
+  post_call: 'después de la conversación',
+  timeout_ms: 'tiempo máximo',
   external: 'Tu propio agente',
   system: 'prompt de sistema',
   first_token_timeout_ms: 'espera del primer texto',

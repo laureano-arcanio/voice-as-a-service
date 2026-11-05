@@ -1,37 +1,44 @@
 """Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md).
 
 - Miembros: nombre, telefono (para transferir una llamada; solo Argentina, porque Asterisk no marca
-  otra cosa), WhatsApp (puente de la bandeja; unico por cliente) y usuario opcional. Tope del tier:
-  `max_team_members`.
+  otra cosa), si recibe avisos por WhatsApp a ese telefono (`whatsapp_notify`) y usuario opcional. Tope del
+  tier: `max_team_members`.
 - Areas: miembros en orden, horario semanal con dias cerrados, timbre por miembro, estrategia
-  (`sequential` o `round_robin`), tecla de vuelta a la IA y mensajes. `candidates` da a quien llamar
-  ahora, en orden.
+  (`sequential` o `round_robin`), tecla de vuelta a la IA, mensajes, area siguiente fuera de horario o si
+  nadie acepta, y envio (`delivery`: llamada o solo aviso por WhatsApp). `candidates` da a quien llamar ahora,
+  en orden.
 """
+import asyncio
 import datetime
+import json
+import logging
 import re
 from itertools import pairwise
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, HandoffArea, HandoffAreaMember, PhoneNumberMember, TeamMember, User
+from ..models import Agent, Client, HandoffArea, HandoffAreaMember, PhoneNumberMember, TeamMember, User, WaAccount
 from . import limits as limits_service
 from . import phones
 from .errors import Conflict, Invalid, NotFound, QuotaExceeded
 
+logger = logging.getLogger(__name__)
+
 STRATEGIES = ("sequential", "round_robin")
 FALLBACKS = ("take_message",)
 ON_PERSON_HANGUP = ("resume", "end")
+DELIVERIES = ("call", "whatsapp")
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 DAY_NAMES = {"mon": "lunes", "tue": "martes", "wed": "miércoles", "thu": "jueves", "fri": "viernes",
              "sat": "sábados", "sun": "domingos"}
 DEFAULT_TZ = "America/Argentina/Buenos_Aires"
 
-# Mensajes por defecto (plan 4.7); cada area cambia los que quiera. Variables: {{area}}, {{persona}},
-# {{cliente}}, {{resumen}} y {{horario}}.
+# Mensajes por defecto (plan 4.7); cada area cambia los que quiera. Variables: {{area}}, {{persona}}, {{cliente}},
+# {{resumen}}, {{horario}}, {{nombre}} y las que traiga el pre-call del agente.
 DEFAULT_MESSAGES = {
     "transfer": "Te paso con {{area}}, un momento por favor.",
     "whisper": "Derivación de {{area}}: {{resumen}}. Marcá 1 para atender.",
@@ -42,10 +49,28 @@ DEFAULT_MESSAGES = {
     "after_hours": "{{area}} atiende {{horario}}. Te tomo el mensaje y te contactan.",
     "resume": "¿Te puedo ayudar con algo más?",
     "goodbye": "Gracias por comunicarte, que tengas un buen día.",
+    "post_call_failed": "No se pudo confirmar el registro.",
+    "operator_ack": "Recibido. Estamos confirmando, te paso los datos en un momento.",
+    "operator_contact": "Contacto: {{nombre}}, {{cliente}}. Motivo: {{resumen}}. Ya podés responderle desde tu "
+                        "WhatsApp.",
+    "accepted": "{{persona}} recibió tu pedido y te va a contactar. Lo que escribas acá también le llega.",
+    "notified": "Ya le avisé a {{area}}. Te van a contactar.",
+    "relay_failed": "No pude hacerle llegar tu mensaje a {{persona}}. Escribime de nuevo si necesitás avisarle a "
+                    "otra persona.",
+    "tap_wait": "Estamos confirmando, te paso los datos en un momento.",
+    "tap_taken": "Ya la tomó {{persona}}.",
+    "tap_closed": "Esta solicitud ya se cerró.",
 }
+# Salen antes de aceptar: un operador que no tomo el pedido no ve datos de la persona. _texts(contact=False) solo da estas
+# variables, y validate_messages rechaza las demas en estos mensajes.
+PRE_ACCEPT_MESSAGES = ("operator_ack", "tap_wait", "tap_taken", "tap_closed")
+PRE_ACCEPT_VARIABLES = ("area", "persona", "horario")
 MESSAGE_MAX = 500
 _VAR = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+# Nombre de un parametro de plantilla: area, persona, cliente, resumen, horario o una variable del pre-call.
+_TEMPLATE_PARAM = re.compile(r"[a-z][a-z0-9_]*")
+WAIT_SECONDS_MIN, WAIT_SECONDS_MAX, WAIT_SECONDS_DEFAULT = 30, 3600, 120
 
 
 # ---------- miembros ----------
@@ -87,7 +112,7 @@ def get_member(s: Session, client_id: str | None, member_id: str) -> TeamMember:
 
 
 def create_member(s: Session, client: Client, *, name: str, phone: str | None = None,
-                  user_id: str | None = None, active: bool = True) -> TeamMember:
+                  user_id: str | None = None, active: bool = True, whatsapp_notify: bool = False) -> TeamMember:
     cap = limits_service.effective_limits(s, client).max_team_members
     if cap is not None:
         count = s.scalar(select(func.count()).select_from(TeamMember).where(TeamMember.client_id == client.id))
@@ -96,7 +121,7 @@ def create_member(s: Session, client: Client, *, name: str, phone: str | None = 
                        else f"Tu plan incluye {cap} persona{'s' if cap != 1 else ''} en el equipo")
             raise QuotaExceeded(message, "team_members_limit")
     member = TeamMember(client_id=client.id, name=name.strip(), phone=normalize_phone(phone, argentina=True),
-                        user_id=user_id or None, active=active)
+                        user_id=user_id or None, active=active, whatsapp_notify=whatsapp_notify)
     _check_member(s, client.id, member)
     s.add(member)
     s.flush()
@@ -119,6 +144,8 @@ def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
         member.user_id = changes["user_id"] or None
     if "active" in changes:
         member.active = bool(changes["active"])
+    if "whatsapp_notify" in changes:
+        member.whatsapp_notify = bool(changes["whatsapp_notify"])
     _check_member(s, member.client_id, member)
     s.flush()
     return member
@@ -230,7 +257,14 @@ def validate_messages(raw: dict | None) -> dict:
             raise Invalid(f"Mensaje desconocido: {key} (son {', '.join(DEFAULT_MESSAGES)})")
         text = (text or "").strip()
         if len(text) > MESSAGE_MAX:
-            raise Invalid(f"El mensaje {key} pasa de {MESSAGE_MAX} caracteres")
+            raise Invalid(f"El mensaje {key} pasa de {MESSAGE_MAX} caracteres",
+                          details=[{"path": f"messages.{key}", "message": f"Pasa de {MESSAGE_MAX} caracteres"}])
+        if key in PRE_ACCEPT_MESSAGES and any(v not in PRE_ACCEPT_VARIABLES for v in _VAR.findall(text)):
+            allowed = ", ".join(f"{{{{{v}}}}}" for v in PRE_ACCEPT_VARIABLES)
+            # `errors` marca el campo (messages.<clave>) para la UI; `detail` nombra la clave para quien usa la API.
+            what = f"todavía no lleva los datos de la persona: solo admite {allowed}"
+            raise Invalid(f"El mensaje {key} {what}",
+                          details=[{"path": f"messages.{key}", "message": what[0].upper() + what[1:]}])
         if text and text != DEFAULT_MESSAGES[key]:
             out[key] = text
     return out
@@ -240,7 +274,7 @@ def messages(area: HandoffArea) -> dict[str, str]:
     return DEFAULT_MESSAGES | (area.messages or {})
 
 
-def render(text: str, **values: str) -> str:
+def render(text: str, /, **values: str) -> str:
     """Reemplaza {{variables}}; una que no venga queda vacia."""
     return re.sub(r"\s{2,}", " ", _VAR.sub(lambda m: str(values.get(m.group(1), "")), text)).strip()
 
@@ -279,7 +313,64 @@ def _set_members(s: Session, area: HandoffArea, member_ids: list[str]) -> None:
         s.add(HandoffAreaMember(area_id=area.id, member_id=member_id, position=i))
 
 
-def _apply(area: HandoffArea, changes: dict) -> None:
+def _template(raw, key: str) -> dict:
+    """Una plantilla de `whatsapp`, normalizada. `params` va en orden: Meta los recibe por posicion."""
+    if not isinstance(raw, dict):
+        raise Invalid(f"whatsapp.{key}: tiene que tener name, language y params")
+    name, language, params = raw.get("name"), raw.get("language"), raw.get("params") or []
+    if not isinstance(name, str) or not name.strip() or not isinstance(language, str) or not language.strip():
+        raise Invalid(f"whatsapp.{key}: indicá el nombre y el idioma de la plantilla")
+    if not isinstance(params, list):
+        raise Invalid(f"whatsapp.{key}.params: tiene que ser una lista")
+    for param in params:
+        if not isinstance(param, str) or not _TEMPLATE_PARAM.fullmatch(param):
+            raise Invalid(f"whatsapp.{key}.params: {param!r} no es un nombre válido (minúsculas, números y _)")
+    return {"name": name.strip(), "language": language.strip(), "params": params}
+
+
+def validate_whatsapp(s: Session, client_id: str, raw: dict | None, delivery: str) -> dict | None:
+    """El bloque `whatsapp` normalizado, o Invalid. La cuenta tiene que ser del cliente del area. El telefono de la
+    persona (`cliente`) no sale antes de que acepte: solo lo lleva la plantilla de un area de aviso."""
+    if raw is None:
+        if delivery == "whatsapp":
+            raise Invalid("Un área que avisa por WhatsApp necesita su cuenta y su plantilla")
+        return None
+    account = s.get(WaAccount, raw.get("account_id") or "")
+    if account is None or account.client_id != client_id:
+        raise Invalid("whatsapp.account_id: la cuenta no existe o es de otro cliente")
+    out: dict = {"account_id": account.id}
+    for key in ("template", "call_template"):
+        if raw.get(key) is not None:
+            out[key] = _template(raw[key], key)
+    if "template" not in out and "call_template" not in out:
+        raise Invalid("whatsapp: indicá al menos una plantilla")
+    if delivery == "whatsapp" and "template" not in out:
+        raise Invalid("whatsapp.template: un área que avisa por WhatsApp necesita su plantilla")
+    wait = raw.get("wait_seconds")
+    wait = WAIT_SECONDS_DEFAULT if wait is None else wait
+    if isinstance(wait, bool) or not isinstance(wait, int) or not WAIT_SECONDS_MIN <= wait <= WAIT_SECONDS_MAX:
+        raise Invalid(f"whatsapp.wait_seconds: entre {WAIT_SECONDS_MIN} y {WAIT_SECONDS_MAX}")
+    out["wait_seconds"] = wait
+    if "cliente" in out.get("call_template", {}).get("params", []):
+        raise Invalid("whatsapp.call_template: no puede llevar cliente: el teléfono no sale antes de aceptar")
+    if delivery == "call" and "cliente" in out.get("template", {}).get("params", []):
+        raise Invalid("whatsapp.template: no puede llevar cliente en la rotación: el teléfono no sale antes de aceptar")
+    return out
+
+
+def _route_target(s: Session, area: HandoffArea, key: str, target_id: str | None) -> str | None:
+    """El area siguiente: del mismo cliente y no ella misma. Los ciclos largos se cortan al derivar."""
+    if not target_id:
+        return None
+    if target_id == area.id:
+        raise Invalid(f"{key}: el área no puede pasar a sí misma")
+    target = s.get(HandoffArea, target_id)
+    if target is None or target.client_id != area.client_id:
+        raise Invalid(f"{key}: el área no existe o es de otro cliente")
+    return target.id
+
+
+def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
     if "name" in changes:
         name = (changes["name"] or "").strip()
         if not name:
@@ -313,6 +404,16 @@ def _apply(area: HandoffArea, changes: dict) -> None:
         area.return_digits = digits
     if "messages" in changes:
         area.messages = validate_messages(changes["messages"])
+    for key in ("after_hours_area_id", "no_answer_area_id"):
+        if key in changes:
+            setattr(area, key, _route_target(s, area, key, changes[key]))
+    if "delivery" in changes:
+        if changes["delivery"] not in DELIVERIES:
+            raise Invalid(f"Envío desconocido (son {', '.join(DELIVERIES)})")
+        area.delivery = changes["delivery"]
+    # Se valida junto: `cliente` y la plantilla obligatoria dependen de delivery.
+    if "delivery" in changes or "whatsapp" in changes:
+        area.whatsapp = validate_whatsapp(s, area.client_id, changes.get("whatsapp", area.whatsapp), area.delivery)
 
 
 def _check_name(s: Session, area: HandoffArea) -> None:
@@ -324,8 +425,8 @@ def _check_name(s: Session, area: HandoffArea) -> None:
 
 
 def create_area(s: Session, client_id: str, *, member_ids: list[str] | None = None, **fields) -> HandoffArea:
-    area = HandoffArea(client_id=client_id, name="", messages={})
-    _apply(area, fields)
+    area = HandoffArea(client_id=client_id, name="", messages={}, delivery="call")
+    _apply(s, area, {"delivery": "call", **fields})
     if not area.name:
         raise Invalid("El área necesita un nombre")
     _check_name(s, area)
@@ -337,8 +438,9 @@ def create_area(s: Session, client_id: str, *, member_ids: list[str] | None = No
 
 
 def update_area(s: Session, area: HandoffArea, *, member_ids: list[str] | None = None, **changes) -> HandoffArea:
-    _no_nulls(changes, {"schedule", "messages", "description"})
-    _apply(area, changes)
+    _no_nulls(changes, {"schedule", "messages", "description", "after_hours_area_id", "no_answer_area_id",
+                        "whatsapp"})
+    _apply(s, area, changes)
     _check_name(s, area)
     if member_ids is not None:
         _set_members(s, area, member_ids)
@@ -355,10 +457,15 @@ def agents_using(s: Session, area: HandoffArea) -> list[str]:
 
 def delete_area(s: Session, area: HandoffArea) -> None:
     """No se borra un area que usa un agente: su definicion quedaria con un area inexistente y no se podria
-    guardar hasta sacarla."""
+    guardar hasta sacarla. Tampoco una a la que pasa otra area: esa ruta se perderia sin aviso."""
     if used := agents_using(s, area):
         raise Conflict(f"El área la usan los agentes {', '.join(used)}: sacala de su derivación antes de borrarla",
                        "area_in_use")
+    referencing = list(s.scalars(select(HandoffArea.name).where(
+        HandoffArea.client_id == area.client_id, HandoffArea.id != area.id,
+        or_(HandoffArea.after_hours_area_id == area.id, HandoffArea.no_answer_area_id == area.id))))
+    if referencing:
+        raise Conflict(f"Pasan a esta área: {', '.join(referencing)}. Cambialas antes de borrarla", "area_in_use")
     for row in s.scalars(select(HandoffAreaMember).where(HandoffAreaMember.area_id == area.id)):
         s.delete(row)
     s.delete(area)
@@ -388,16 +495,20 @@ def check_agent_handoff(s: Session, client_id: str, handoff: dict | None) -> lis
     return errors
 
 
-def call_areas(s: Session, client_id: str, handoff) -> list[dict]:
+def call_areas(s: Session, client_id: str, handoff, channel: str = "voice") -> list[dict]:
     """Las areas de una llamada como las ve el LLM (Progress.handoff_areas): las activas del agente, con su
-    horario. `handoff`: el HandoffConfig del agente."""
+    horario y si fuera de horario pasan a otra (`redirects`). `handoff`: el HandoffConfig del agente. Por WhatsApp,
+    solo las que tienen plantilla de rotacion o aviso."""
     out = []
     for target in handoff.areas if handoff else []:
         area = s.get(HandoffArea, target.area_id)
         if area is None or area.client_id != client_id or not area.active:
             continue
+        if channel == "whatsapp" and not (area.whatsapp or {}).get("template"):
+            continue
         out.append({"id": area.id, "name": area.name, "when": target.when or area.description,
-                    "schedule": area.schedule, "schedule_text": describe_schedule(area.schedule)})
+                    "schedule": area.schedule, "schedule_text": describe_schedule(area.schedule),
+                    "redirects": bool(area.after_hours_area_id)})
     return out
 
 
@@ -420,3 +531,36 @@ def candidates(s: Session, area: HandoffArea, now: datetime.datetime | None = No
             k = ids.index(area.last_member_id) + 1
             ordered = ordered[k:] + ordered[:k]
     return ordered
+
+
+# ---------- resumen para la persona que atiende ----------
+
+# Espera del resumen del LLM: en voz el timbre suele tardar mas, asi que casi nunca espera.
+SUMMARY_TIMEOUT = 4.0
+FALLBACK_SUMMARY = "una consulta"
+SUMMARY_SCHEMA = {"type": "object", "properties": {"resumen": {"type": "string"}}, "required": ["resumen"]}
+
+
+def summary_messages(conversation: str) -> list[dict]:
+    """Pedido al LLM del resumen para el whisper: quien llama y que necesita, en una frase."""
+    return [{"role": "system", "content": (
+                "Resumí la llamada para la persona del equipo que la va a atender, en una sola frase de hasta 15 "
+                "palabras: quién llama (si dijo su nombre) y qué necesita. "
+                'Respondé en JSON: {"resumen": "..."}')},
+            {"role": "user", "content": conversation}]
+
+
+async def summarize(llm, conversation: str) -> str:
+    content, _ = await llm.structured(summary_messages(conversation), SUMMARY_SCHEMA, "resumen", thinking=False,
+                                      max_tokens=200)
+    return str(json.loads(content).get("resumen") or "")
+
+
+async def safe_summary(llm, conversation: str, timeout: float | None = None) -> str:
+    """El resumen con tope: si el LLM falla, tarda o no dice nada, FALLBACK_SUMMARY. No lanza."""
+    try:
+        text = await asyncio.wait_for(summarize(llm, conversation), SUMMARY_TIMEOUT if timeout is None else timeout)
+    except Exception:
+        logger.exception("derivacion: sin resumen")
+        return FALLBACK_SUMMARY
+    return text.strip() or FALLBACK_SUMMARY

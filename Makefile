@@ -43,6 +43,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
         server2-ssh server2-setup server2-discos replica-host-disable solo-principal crm-tunnel \
+        registros-db registros-migrate registros-up registros-down registros-restore registros-logs registros-psql registros-cli registros-test registros-dev registros-dev-down registros-ops-test \
         dev-env dev-up dev-down dev-restart dev-ps dev-logs dev-migrate dev-psql dev-web dev-health dev-login dev-reset deploy-status \
         db-reset clean
 
@@ -128,8 +129,10 @@ up-pbx: solo-principal ## Solo Asterisk; lo recrea para releer .env y asterisk/c
 	$(COMPOSE) up -d --build --force-recreate asterisk
 	@echo "Asterisk arriba. Estado de la troncal: make pbx-status (el registro con Anura tarda unos segundos)"
 
+# Con el perfil de Registros, para que no quede corriendo y trabe la red. En la réplica ese perfil no
+# es válido (registros depende de db, que ahí está fuera): se baja sin él.
 down: ## Para y elimina los contenedores (conserva volumenes: PostgreSQL, pesos, voces)
-	$(COMPOSE) down
+	@if $(COMPOSE) --profile registros config -q >/dev/null 2>&1; then $(COMPOSE) --profile registros down; else $(COMPOSE) down; fi
 
 restart: ## Reinicia servicios (no relee .env: para eso, make up). Ej: make restart S=agent
 	$(COMPOSE) restart $(S)
@@ -333,6 +336,38 @@ crm-logs: ## Logs del CRM
 crm-psql: ## psql contra la base del CRM
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" crm'
 
+# Por dónde se llega a db desde make y scripts/ops/registros_db.sh; registros-ops-test lo apunta a su Postgres temporal.
+DB_EXEC ?= $(COMPOSE) exec -T db
+
+registros-db: ## Crea rol y base de Registros y le quita el acceso a las demas bases (docs/features/REGISTROS.md). Idempotente
+	@scripts/ops/registros_db.sh
+
+registros-migrate: registros-db ## Migraciones de Registros, con su propio rol
+	$(COMPOSE) --profile registros run --rm --build --no-deps registros alembic upgrade head
+
+registros-up: solo-principal registros-migrate ## Levanta Registros en http://127.0.0.1:8040 (no toca app ni agent)
+	$(COMPOSE) --profile registros up -d --build --no-deps --wait registros
+
+registros-down: ## Para Registros. La base queda intacta
+	$(COMPOSE) --profile registros stop registros
+
+registros-restore: registros-db ## Restaura un volcado de Registros con su rol, que queda dueño (la base tiene que estar vacia). Ej: make registros-restore DUMP=scratch/restore/.../registros.sql.gz
+	@[ -r "$(DUMP)" ] || { echo "Uso: make registros-restore DUMP=<volcado .sql.gz>"; exit 1; }
+	@set -o pipefail; zcat "$(DUMP)" | $(DB_EXEC) psql -q -v ON_ERROR_STOP=1 -U registros -d registros >/dev/null
+	@echo "Registros restaurado desde $(DUMP)"
+
+registros-logs: ## Logs de Registros
+	$(COMPOSE) --profile registros logs -f --tail=100 registros
+
+registros-psql: ## psql contra la base de Registros, con su rol
+	$(COMPOSE) exec db psql -U registros -d registros
+
+registros-cli: ## CLI de Registros; FORM=<carpeta> la monta en /form. Ej: make registros-cli ARGS="create-tenant --slug empresa --name Empresa --amount 1000" o make registros-cli FORM=ruta ARGS="load-form --tenant empresa --dir /form"
+	$(COMPOSE) --profile registros run --rm --no-deps $(if $(FORM),-v $(abspath $(FORM)):/form:ro) registros python -m registros.cli $(ARGS)
+
+registros-ops-test: ## Prueba rol, permisos, restauracion y perfil de compose de Registros con un Postgres temporal (no toca la base)
+	scripts/ops/registros_ops_test.sh
+
 seguimientos-enviar: ## Manda una tanda de mails por Resend, 1 cada ~2 min (en seco sin ENVIAR=1). Ej: make seguimientos-enviar TANDA=comercial/archivo/envios/2026-10-21-seguimientos-pendientes.md N=50 ENVIAR=1
 	python3 scripts/mercado/enviar_seguimientos.py $(TANDA) --cantidad $(or $(N),50) $(if $(ENVIAR),--enviar)
 
@@ -437,7 +472,20 @@ mcp-registry-publish: ## Publica deploy/mcp/server.json en el registro oficial d
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con make test-tools-code)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/deploy:/app/deploy:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/deploy:/app/deploy:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro -v $(CURDIR)/docker-compose.yml:/app/docker-compose.yml:ro -v $(CURDIR)/Dockerfile:/app/Dockerfile:ro -v $(CURDIR)/.dockerignore:/app/.dockerignore:ro -v $(CURDIR)/.env.example:/app/.env.example:ro -v $(CURDIR)/apps:/app/apps:ro app pytest -q $(ARGS)
+
+REGISTROS_TEST := docker compose -f apps/registros/compose.test.yaml
+REGISTROS_DEV := $(REGISTROS_TEST) -p registros-dev --profile dev
+
+registros-test: ## Tests de la app Registros con su propio Postgres, sin servicios externos. Ej: make registros-test ARGS="tests/test_auth.py -x"
+	$(REGISTROS_TEST) --profile test run --rm --build tests pytest -q $(ARGS); status=$$?; $(REGISTROS_TEST) --profile test down -v; exit $$status
+
+registros-dev: ## App Registros en :8041 con Postgres de prueba y datos de ejemplo, para QA local (dev@ejemplo.test o dev@otro.test, clave dev-registros)
+	$(REGISTROS_DEV) up -d --build --wait dev
+	@echo "Registros en http://$$(hostname -I | cut -d' ' -f1):$${REGISTROS_DEV_PORT:-8041}. Tenants ejemplo y otro; usuario dev@<tenant>.test, clave dev-registros; claves de API reg_dev_<tenant>_read y reg_dev_<tenant>_charge"
+
+registros-dev-down: ## Baja la app Registros de QA local y borra sus datos de prueba
+	$(REGISTROS_DEV) down -v
 
 E2E_SIP := docker compose -f docker-compose.e2e-sip.yml
 

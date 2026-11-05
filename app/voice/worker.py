@@ -23,7 +23,7 @@ from livekit import api, rtc
 
 from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
-from ..conversation import opening_audio, recordings
+from ..conversation import opening_audio, recordings, workflows
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Message, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
@@ -70,6 +70,8 @@ RECORDING_PREROLL_SECONDS = 0.3
 # Con record_audio y recording_notice, antes de la apertura (docs/features/EQUIPO_TELEFONIA.md). El mismo de las
 # llamadas directas.
 RECORDING_NOTICE = direct.RECORDING_NOTICE
+# Al cerrar, cuanto se espera a los avisos por WhatsApp en curso: el resumen (4 s) mas el envio a Meta.
+NOTICE_WAIT_SECONDS = 8.0
 
 
 class _MonoResampler:
@@ -556,7 +558,18 @@ async def entrypoint(ctx: JobContext):
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
-    current: dict = {"transfer": None, "line": None, "attempts": team_attempts}   # derivacion en curso y su lado de LiveKit
+    # Derivacion en curso, su lado de LiveKit y los avisos por WhatsApp, que siguen aunque el cliente corte.
+    current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": []}
+
+    async def wait_notices() -> None:
+        """Hasta NOTICE_WAIT_SECONDS, tambien por los que aparezcan mientras tanto. Es de mejor esfuerzo."""
+        deadline = time.monotonic() + NOTICE_WAIT_SECONDS
+        while pending := [task for task in current["notices"] if not task.done()]:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                logger.warning("llamada %s: %d avisos sin terminar", conversation_id, len(pending))
+                return
+            await asyncio.wait(pending, timeout=left)
 
     async def finalize(reason: str = ""):
         for task in watchdogs:
@@ -568,7 +581,12 @@ async def entrypoint(ctx: JobContext):
         agent.flush_recording()
         # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
         # de ahi); en el motor clasico, si corto el cliente, es la unica.
-        await engine.finish(conversation_id)
+        try:
+            await wait_notices()
+            await engine.finish(conversation_id)
+        finally:
+            # Antes de leer la llamada: una fallida o sin fila no pierde la marca, y el post-call ve lo extraido.
+            workflows.mark_ended(sessions, conversation_id)
         with sessions() as s:
             call = s.get(CallRow, conversation_id)
             if call is None or call.status == CallStatus.fallida:
@@ -684,9 +702,25 @@ async def entrypoint(ctx: JobContext):
         llm = engine.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in st.messages), st.client_id)
         return await transfer.summarize(llm, render_conversation(st))
 
+    def tool_vars() -> dict:
+        st = engine.store.get(conversation_id)
+        return dict(st.progress.tool_vars) if st is not None else {}
+
+    def spawn_notice(coro) -> asyncio.Task:
+        task = asyncio.create_task(coro)
+        current["notices"].append(task)
+        return task
+
     async def run_transfer(area_name: str, announced: bool) -> None:
+        if current["transfer"] is not None:
+            return
         customer = customer_identity()
-        if current["transfer"] is not None or customer is None:
+        if customer is None:
+            # Ya corto: no hay a quien conectar, pero un aviso sale igual.
+            spawn_notice(transfer.Transfer(
+                sessions=sessions, line=None, conversation_id=conversation_id, client_id=state.client_id, areas=areas,
+                customer="", caller=caller_number, summary=handoff_summary, get_vars=tool_vars,
+                spawn_notice=spawn_notice).notify_only(area_name))
             return
         session.input.set_audio_enabled(False)   # el agente no le contesta al cliente mientras espera
         tr = None
@@ -701,7 +735,8 @@ async def entrypoint(ctx: JobContext):
                 sessions=sessions, line=line, conversation_id=conversation_id, client_id=state.client_id,
                 areas=areas, customer=customer, caller=caller_number, summary=handoff_summary,
                 on_message=add_message, hang_up=hang_up, hold_music=handoff_cfg.hold_music.enabled,
-                first_attempt=current["attempts"])
+                first_attempt=current["attempts"], get_vars=tool_vars, spawn_notice=spawn_notice,
+                on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow))
             await line.start()
             outcome = await tr.run(area_name, announced=announced)
             logger.info("llamada %s: derivacion a %r %s (%s)", conversation_id, area_name, outcome.status,
@@ -768,6 +803,27 @@ async def entrypoint(ctx: JobContext):
 
     session.on("user_input_transcribed", on_transcript)
 
+    def gone_during_pre_call() -> bool:
+        """Mientras esperaba: corto el cliente (sale por on_participant_left o, en una entrante, ya no esta), o la
+        cortaron desde la API, que borra la room sin esa salida (call_service.hang_up)."""
+        if ending["reason"] or not ctx.room.isconnected() or (mode == CallMode.entrante and customer_identity() is None):
+            return True
+        with sessions() as s:
+            call = s.get(CallRow, conversation_id)
+            return call is None or bool(call.ended_reason)
+
+    # Pre-call, con finalize y la salida del cliente ya registrados. Antes de todo lo que la persona oye y de marcar.
+    if workflow.workflows and workflow.workflows.pre_call and mode != CallMode.loadtest:
+        if (rendered := await engine.run_pre_call(conversation_id)) is not None:
+            opening = rendered
+        if gone_during_pre_call():
+            logger.info("llamada %s: termino durante el pre-call", conversation_id)
+            started_at = team_started
+            if not ending["reason"]:
+                ending["reason"] = "customer_hangup"
+                ctx.shutdown(reason="customer_hangup")
+            return
+
     await session.start(agent=agent, room=ctx.room)
 
     # La room queda en la llamada: con ella se corta desde la API (call_service.hang_up).
@@ -811,6 +867,7 @@ async def entrypoint(ctx: JobContext):
     else:
         started_at = time.time()
         update_call(status=CallStatus.en_curso, started_at=utcnow())
+    workflows.arm(sessions, conversation_id, mode, workflow, only_when="always")
     if mode in quota.MINUTE_MODES:
         watchdogs.append(asyncio.create_task(quota_watchdog()))
     if not phone and metadata.get("max_duration_seconds"):

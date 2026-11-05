@@ -8,7 +8,7 @@ import { ToolSecretsContext } from './ToolSecretsContext';
 const MENU_WIDTH = 118;
 
 /**
- * Boton "Variables" con el menu de secretos y variables. Con onVar inserta {{secrets.X}} o {{call.from}}
+ * Boton "Variables" con el menu de secretos y variables. Con onVar inserta {{secrets.X}} o {{call.phone}}
  * donde esta el cursor; sin onVar (campo que lleva solo el nombre de un secreto) lista solo los secretos.
  */
 export function VariablesMenu({

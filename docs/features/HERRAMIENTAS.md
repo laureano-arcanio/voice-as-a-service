@@ -2,7 +2,8 @@
 
 Lo que un agente puede hacer durante la conversación: llamar a una API del cliente (`http`) o correr una función
 JavaScript suya en un sandbox (`code`), con secretos cifrados y credenciales del cliente, más las herramientas de
-plataforma `end_call` y `transfer_call`. Todo por function calling nativo. Estado: en producción desde el
+plataforma `end_call` y `transfer_call`. Todo por function calling nativo. Además, dos herramientas automáticas que el
+modelo no ve: antes y después de la conversación (ver Workflows). Estado: en producción desde el
 26-oct-2026 (secretos del cliente y credenciales, desde el 27-oct-2026). Plan: `tiers.max_tools` y
 `tiers.code_tools` (claves `custom_tools` y `code_tools` de `services/features.TIER_HAS`).
 
@@ -17,6 +18,7 @@ plataforma `end_call` y `transfer_call`. Todo por function calling nativo. Estad
 | `credentials` (0035) | `client_id`, `slug`, `name`, `description`, `auth` (JSON de un `Auth`, sin valor: `auth.secret` es el nombre del secreto) |
 | `tool_runs` (0036) | una fila por ejecución en una conversación: `slug`, `type`, `ok`, `status_code`, `ms`, `error` (reportes del admin) |
 | `tiers` (0032) | `max_tools` (`NULL` = sin tope, `0` = no incluido), `code_tools` |
+| `conversations.post_call_status`, `_attempts`, `_next_at`, `_note` (0048) | Estado del post-call de la conversación (ver Workflows) |
 
 - Secretos: nombre `^[A-Z][A-Z0-9_]{1,63}$`, valor hasta 10.000 caracteres, cifrado con Fernet y `WA_TOKEN_KEY`
   (`app/whatsapp/crypto.py`, el mismo de `llm_connections`). La API nunca devuelve el valor (solo `last4`).
@@ -74,7 +76,7 @@ Los de `path` son siempre obligatorios; los de query, con `"required": true`; lo
 | Template | Valor |
 |---|---|
 | `{{secrets.NOMBRE}}` | secreto del cliente o del agente |
-| `{{call.id}}`, `{{call.channel}}`, `{{call.mode}}`, `{{call.from}}`, `{{call.to}}` | conversación, canal (`voice`, `whatsapp`, `web`), modo (`entrante`, `saliente`, `whatsapp`...), números E.164 |
+| `{{call.id}}`, `{{call.channel}}`, `{{call.mode}}`, `{{call.from}}`, `{{call.to}}`, `{{call.phone}}` | conversación, canal (`voice`, `whatsapp`, `web`), modo (`entrante`, `saliente`, `whatsapp`...), números E.164; `phone` es siempre la otra punta (el menú Variables lo ofrece y la prueba lo llena) |
 | `{{agent.slug}}`, `{{agent.version}}` | agente |
 | `{{now}}`, `{{today}}` | fecha y hora en `AGENT_TIMEZONE` |
 | `{{fields.x}}`, `{{contact.x}}`, `{{vars.x}}` | dato obtenido, contacto de campaña, valor guardado por otra herramienta (`assign`) |
@@ -193,7 +195,85 @@ reservados para los slugs del cliente.
 | Herramienta | Cuándo | Parámetros | Efecto |
 |---|---|---|---|
 | `end_call` | siempre | `motivo`: `terminada` \| `fuera_de_tema` (con tu propio agente, `outcome`: un id de `completion.outcomes`) | `status = completed`; `fuera_de_tema` → `ended_reason=off_topic` y resultado "Fuera de tema" |
-| `transfer_call` | llamada de voz con áreas de derivación (`progress.handoff_areas`) | `area` (enum de las áreas; la descripción dice cuándo pasar a cada una y si atiende ahora) | `AgentTurn.handoff`; si también vino `end_call`, gana cortar |
+| `transfer_call` | llamada de voz con áreas de derivación (`progress.handoff_areas`), o WhatsApp de texto con áreas con plantilla | `area` (enum de las áreas; la descripción dice cuándo pasar a cada una y si atiende ahora) | `AgentTurn.handoff`; si también vino `end_call`, gana cortar |
+
+## Workflows: antes y después de la conversación
+
+Herramientas del cliente que corre la plataforma sola, **sin que el modelo las vea**. Sirven para traer datos de la
+persona al empezar y para registrar algo al terminar, sin que dependan de lo que el modelo decida. En la definición
+del agente (versionada):
+
+```json
+"workflows": {
+  "pre_call":  {"tool": "buscar_ficha", "timeout_ms": 1500},
+  "post_call": {"tool": "registrar_cobro", "when": "handoff_accepted"}
+}
+```
+
+- `timeout_ms`: 200 a 5000 (1500). `when`: `handoff_accepted` (una persona del equipo aceptó la derivación) o `always`. Un solo
+  post-call por agente. Sin el bloque, todo sigue igual. Un agente con «tu propio agente» también los lleva.
+- **Reglas al guardar** (`check_agent_tools`, errores con `path` `workflows.<pre_call|post_call>.tool`): la herramienta
+  existe, es del cliente, el plan la incluye y sus secretos están; **no tiene parámetros que complete el modelo** (todos
+  sus valores van fijos); no está también en `tools`; no es la misma en el pre-call y el post-call; y el post-call tiene que
+  ser `http` con método distinto de `GET`, porque es lo único que lleva `Idempotency-Key`. Borrar una herramienta que usa
+  un workflow: 409 `tool_in_use`.
+- **Ejecución:** `ConversationTools.run_workflow`, con `Idempotency-Key` fija `<conversación>:pre_call` o
+  `<conversación>:post_call`. Deja una fila en `tool_runs` y el evento `workflow.pre_call` o `workflow.post_call` (`ok`,
+  `status`, `ms`, `slug`; `reason` `not_executable` si no se pudo ejecutar o `max_attempts`). **La respuesta no se guarda**
+  en mensajes, traza ni eventos; `tool_runs.error` y `tools[].last_error` de un workflow traen solo el diagnóstico
+  (`herramienta automática: <código> | HTTP <n> | falla de conexión: sí/no`). El texto de error de las herramientas que
+  llama el modelo sigue guardándose (hasta 255 caracteres; solo el admin lo ve, en `/reports/technical`).
+- **`{{call.phone}}`:** siempre la otra punta de la conversación (el teléfono de quien llama, o el de la persona en una
+  saliente; en WhatsApp, `+wa_id`). `{{call.from}}` en una saliente es el número de la empresa, así que no sirve para
+  identificar a la persona.
+
+**Pre-call.** Reutiliza `assign`: cada valor va a `progress.tool_vars` (disponible para herramientas, mensajes del área y
+plantillas) y los de `hide: false` pasan por `contact.preload`: precargan un campo del agente con el mismo nombre y el
+resto llega al prompt como «Datos del contacto» (con «tu propio agente», en el header `X-Atentina-Contact`). Los de
+`hide: true` nunca llegan al modelo. **Suma, no pisa:** gana lo que ya estaba (datos de campaña, teléfono precargado). La
+apertura se renderiza con las variables visibles, también si el pre-call falló (no se lee `{{nombre}}`): en voz reemplaza
+la última apertura, y por WhatsApp (que no tiene apertura) va a la guía de apertura del prompt.
+
+| Canal | Cuándo corre | Quién espera |
+|---|---|---|
+| Voz (todos los modos salvo `loadtest`) | En el worker, antes de `session.start` y de marcar | Una entrante o una llamada de WhatsApp: la persona, hasta `timeout_ms`. Una saliente: nadie |
+| WhatsApp de texto | Solo al crear la conversación, antes del primer turno | Nadie, pero retiene el lock de ese contacto hasta `timeout_ms` |
+| `POST /conversations/{id}/turns` | No corre: no es un canal real | |
+
+Si falla o vence, la conversación sigue sin datos: la tarea no se cancela (queda su fila en `tool_runs`) y su resultado
+tardío se ignora. Si la persona corta durante la espera, la llamada termina sin apertura, sin pasar a `en_curso` y sin
+armar el post-call.
+
+**Post-call.** Durable, como el resumen por email (`app/mail/call_summary.py`): el worker o WhatsApp marcan en
+`conversations.post_call_*` y un loop de `app` (`post_call_loop`, cada `WORKFLOW_TICK_SECONDS`, 10) lo ejecuta, porque el
+worker puede morir con la llamada. Corre **una sola vez por conversación**.
+
+| `post_call_status` | Significa | Pasa a |
+|---|---|---|
+| `null` | No corresponde o todavía no | `armed` o `pending` |
+| `armed` | Se cumplió la condición con la llamada en curso. Si el worker muere, el loop lo toma al vencer `next_at` (duración máxima + 600 s) | `pending` |
+| `pending` | Listo para correr, desde `next_at` | `running` |
+| `running` | Corriendo; si `app` muere, se retoma al vencer `next_at` (180 s) | `done`, `pending` o `failed` |
+| `done` | La herramienta respondió 2xx, diga lo que diga | Final |
+| `failed` | Respondió otra cosa, no se pudo ejecutar o se agotó el transporte | Final, con evento |
+
+- **Qué se reintenta (solo transporte):** timeout o error de conexión, 429 y 5xx, también del servidor de tokens. Hasta 4
+  intentos en 11 minutos (esperas de 0, 1 y 10 minutos), con la misma `Idempotency-Key`. Un 2xx (incluido `charged: false`),
+  un 3xx o un 4xx **nunca** se reintentan. Sin pedido hecho (URL bloqueada, secreto o variable faltante, herramienta
+  borrada o editada después a `code` o `GET`): `failed` sin llamar a nada. Cada intento tiene tope de 150 s y el claim
+  es condicional, así que dos retomas no corren a la vez.
+- **Cuándo se arma.** Por voz, `handoff_accepted`: al marcar 1 la persona y conectarse; `always`: con la llamada
+  conectada. `finalize` pasa `armed` a `pending` después de la extracción. Por texto, `handoff_accepted` corre al aceptar el
+  operador, **antes de la extracción** (una `{{fields.x}}` va vacía), como paso (b) de la entrega
+  ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)); `always` sin aceptación se arma en la transacción que cierra
+  el hilo y pasa a `pending` después de la extracción. No se arma en `prueba`, `loadtest` ni `celular`.
+- **Nota para el operador (solo por texto):** si la respuesta es un objeto con `operator_message` de tipo texto no vacío,
+  se guarda en `post_call_note` (hasta 1000 caracteres) y va en el mensaje con el contacto. Es lo único de la respuesta que
+  se conserva; no se expone en la API ni el MCP. En voz, el operador no oye si se cobró.
+- **Límites aceptados:** si `app` muere durante el post-call, la herramienta se vuelve a llamar con la misma clave y evitar
+  el doble efecto depende de que la API del cliente la respete; un `kill -9` en ese momento deja al operador leyendo «No se
+  pudo confirmar» aunque el cobro haya salido. Un `failed` asíncrono de Meta después de un post-call hecho no lo deshace.
+  Con `POST_CALL_WAIT_SECONDS` de 20 o más, el lease de la entrega vence durante una espera sana.
 
 ## Flujo de un turno
 
@@ -210,7 +290,8 @@ reservados para los slugs del cliente.
    el `assistant` con `tool_calls` y un `tool` por resultado. Se vuelve a llamar al LLM.
 4. `messages.failed` lo dice la plataforma por el TTS cuando la herramienta falla (solo voz).
 5. Tope: `tool_settings.max_calls_per_turn` cuenta **vueltas** al LLM con herramientas del cliente; al llegar, el
-   turno termina con `limit_message` (no se fuerza al modelo a contestar).
+   turno termina con `limit_message` (no se fuerza al modelo a contestar); si en esa vuelta pidió `transfer_call`, la
+   derivación se respeta (un `end_call` no).
 6. Cada ejecución queda en la traza del mensaje (`Message.llm`: `kind: herramienta`, argumentos, ms, resultado y
    `tool: {slug, type, revision, ok, status, ms}`) y en `tool_runs`.
 7. Con un LLM BYOK y respaldo propio: si el proveedor falla después de ejecutar una herramienta, no hay respaldo (la
@@ -267,6 +348,10 @@ agente de IA que usa el MCP (lo dice su descripción). Catálogo en [`../MCP_HER
 - **Editor del agente, sección Herramientas** (`web/src/features/agents/`): elegir herramientas, aviso **Falta X**, y
   la tabla de secretos con Del cliente / Propio / Falta, Cargar valor, Usar otro valor acá, Pasar al cliente y Volver
   al del cliente.
+- **Editor del agente, sección «Antes y después de la conversación»** (pestaña Herramientas, también con «tu propio
+  agente»): elige la herramienta del pre-call, su tiempo máximo de espera, la del post-call y **Cuándo corre**. Solo ofrece
+  herramientas con todos sus valores fijos, y avisa si la elegida ya no sirve o si el post-call es `handoff_accepted` y el
+  agente no tiene áreas (esa condición nunca se cumple; no mira áreas inactivas ni sin plantilla).
 - **Traza** en el chat de prueba y el detalle de la conversación (`web/src/features/calls/ChatView.tsx`): argumentos,
   estado, ms y resultado de cada ejecución.
 
@@ -294,7 +379,7 @@ agente de IA que usa el MCP (lo dice su descripción). Catálogo en [`../MCP_HER
   `make calls-active && make up-agent`.
 - Migraciones: `make migrate-test` antes de `make migrate`.
 - `make test`: `tests/test_tools_http.py`, `test_tools_api.py`, `test_tools_secrets.py`, `test_motor_tools.py`,
-  `test_platform_tools.py`, con LLM falso.
+  `test_platform_tools.py`, `test_workflows.py` (workflows) y `test_voice_wiring.py` (el worker), con LLM falso.
 - `make test-tools-code`: `tests/test_tools_code.py` contra un sandbox de prueba aislado (`scripts/tools/runner_test.sh`,
   lo levanta y lo baja; `make tools-runner-test` lo deja arriba).
 - `make e2e-tools`: `tests/test_tools_e2e.py`, todo por la API y por el MCP con LLM falso, la API falsa

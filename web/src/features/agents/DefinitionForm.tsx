@@ -51,6 +51,7 @@ import {
 import { ExternalSection } from './ExternalSection';
 import { HandoffEditor } from './HandoffSection';
 import { LlmSection } from './LlmSection';
+import { WorkflowsEditor } from './WorkflowsSection';
 import { SecretsSection } from './SecretsSection';
 import { neededSecrets } from './grants';
 import { ClientToolsEditor } from './ToolsSection';
@@ -771,6 +772,16 @@ export function DefinitionForm({
           description="A qué áreas del equipo puede pasar la llamada el agente, cuándo, y qué escucha el cliente mientras espera."
         >
           <HandoffEditor draft={draft} update={update} clientId={clientId} errors={errors} />
+        </Section>
+
+        <Section
+          name="automaticas"
+          title="Antes y después de la conversación"
+          description="Herramientas que corre la plataforma sola, sin que el modelo las vea: una al empezar, para traer datos de la persona, y otra al terminar, para registrar lo que pasó."
+        >
+          <PlanGate feature="custom_tools" what="herramientas para tus agentes">
+            <WorkflowsEditor draft={draft} update={update} clientId={clientId} errors={errors} />
+          </PlanGate>
         </Section>
 
         {!external && (

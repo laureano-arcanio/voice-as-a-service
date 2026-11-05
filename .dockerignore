@@ -13,6 +13,8 @@ venv/
 # Fuera del contexto de build de app/agent: temporales, checkpoints del TTS (~40 GB)
 # y lo que genera npm (la SPA se compila dentro del build).
 scratch/
+# Apps aparte, con imagen propia (apps/registros): no entran a la de la plataforma.
+apps/
 tts/finetune/work/
 web/node_modules/
 web/dist/

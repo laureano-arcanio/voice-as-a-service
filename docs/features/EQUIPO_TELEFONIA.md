@@ -3,7 +3,8 @@
 El equipo del cliente (personas, áreas, horarios) atiende llamadas de dos formas: el agente le **deriva** una
 llamada en curso (transferencia atendida) o el número lo **atiende el equipo** sin agente; además, el equipo
 **llama** desde el panel o la app `telefono.` con el número de la empresa. Todo queda en Conversaciones, con
-transcripción, audio por frase, minutos y eventos.
+transcripción, audio por frase, minutos y eventos. Una derivación también puede avisar por WhatsApp a las personas del
+equipo, y por WhatsApp de texto se rota entre ellas con plantillas ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)).
 
 Estado: en producción (derivación desde el 23-oct-2026; llamadas directas desde el 27-oct-2026; app `telefono.`
 desde el 28-oct-2026). La derivación está probada con llamadas reales en producción (30-oct-2026); las llamadas
@@ -15,12 +16,12 @@ saliente necesita además `outbound_calls`).
 
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
-| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`. Necesita teléfono o usuario | 0023, 0042 |
-| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default) | 0023 |
+| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o usuario | 0023, 0042, 0048 |
+| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
 | `tiers.max_team_members` | Tope de personas (`NULL` sin tope, `0` no incluido) | 0023 |
-| `handoff_legs` | Un tramo por intento a una persona: `area_id` (nulo en las entrantes al equipo), `team_member_id`, `phone`, `result`, `sip_status`, `created_at`/`answered_at`/`connected_at`/`ended_at`, `billed_seconds` | 0024 |
+| `handoff_legs` | Un tramo por intento a una persona: `area_id` (nulo en las entrantes al equipo), `team_member_id`, `phone`, `result` (también `whatsapp_sent` e `interrupted` en la rotación por WhatsApp), `sip_status`, `created_at`/`answered_at`/`connected_at`/`ended_at`, `billed_seconds`, `wamid` (la plantilla enviada; único) | 0024, 0048 |
 | `call_logs.user_id`, `answered_by` (`agent`/`team`), `opted_out_confirmed` | Quién llamó o atendió; quién atendió la entrante; se llamó a una baja con confirmación | 0039 |
 | `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo (default `agent`, 0045) | 0039 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
@@ -32,7 +33,8 @@ saliente necesita además `outbound_calls`).
   entrante al equipo sigue siendo `entrante`, con `answered_by=team` y la conversación sin agente.
 - En la definición del agente (versionada): `handoff.areas` (`area_id` y `when`, hasta 10, sin repetir) y
   `handoff.hold_music` (`enabled`, `track` = `default` o un `.ogg` de `storage/hold-music/`, `volume` 0,05-1,
-  default 0,3). `external.on_errors` puede ser `transfer:<area_id>` de una de esas áreas.
+  default 0,3). `external.on_errors` puede ser `transfer:<area_id>` de una de esas áreas. `workflows` (herramientas
+  automáticas antes y después de la conversación) está en [HERRAMIENTAS.md](HERRAMIENTAS.md).
 - En los mensajes de la conversación: `Message.at` (hora), `handoff_leg` (tramo) y `person` (nombre de la persona;
   el panel muestra "Ana (equipo)").
 - Horario (`schedule`, el mismo en áreas y números): `{tz, week: {mon: [["09:00","18:00"]], ...}, closed:
@@ -44,9 +46,9 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 
 | Ruta | Qué hace | MCP |
 |---|---|---|
-| `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` |
-| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario y mensajes. Borrar un área que usa un agente: 409 `area_in_use` | `*_handoff_area`, `list_handoff_areas` |
-| `GET /handoff-areas/defaults` | Mensajes por defecto | `get_handoff_area_defaults` |
+| `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo, con `whatsapp_notify` | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` |
+| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en `null` quitan la ruta o las plantillas. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
+| `GET /handoff-areas/defaults` | Mensajes por defecto, sus variables, y qué mensajes salen antes de aceptar (`pre_accept_messages`) con las únicas variables que admiten (`pre_accept_variables`: `area`, `persona`, `horario`) | `get_handoff_area_defaults` |
 | `GET /hold-music` | Temas de espera (`default` y los `.ogg`) | `list_hold_music` |
 | `GET /events` | Eventos por `conversation_id`, `type` (exacto o prefijo `handoff.`), `since`/`until`, cursor `after_id` | `list_events` |
 | `POST /direct-calls` | Saliente directa `{contact_id \| phone, from_number_id?, confirm_opted_out?, user_id?}` → `{conversation_id, room, status, livekit_url, token?, join_url?}` | `start_direct_call` (destructiva) |
@@ -108,11 +110,14 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
 8. Si nadie atiende: `busy` si el último intento dio ocupado, si no `no_answer`. El texto queda en la conversación
    y el modelo toma el mensaje en el turno siguiente (regla de la plantilla, no del código).
 
-No derivan: loadtest, campañas (metadata `handoff` en `services/calls.py`), WhatsApp de mensajería, agentes sin
-áreas y la demo de la landing salvo con `DEMO_HANDOFF=true`.
+No derivan: loadtest, campañas (metadata `handoff` en `services/calls.py`), la respuesta por WhatsApp a una campaña,
+agentes sin áreas (por WhatsApp de texto, sin áreas con plantilla) y la demo de la landing salvo con `DEMO_HANDOFF=true`.
+El WhatsApp de texto deriva por su cuenta ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)).
 
 Mensajes por área (`DEFAULT_MESSAGES` en `app/services/handoff.py`; variables `{{area}}`, `{{persona}}`,
-`{{cliente}}`, `{{resumen}}`, `{{horario}}`; hasta 500 caracteres):
+`{{cliente}}`, `{{resumen}}`, `{{horario}}`, `{{nombre}}` y las que traiga la herramienta de «Antes de la conversación»
+del agente, por su nombre; hasta 500 caracteres). Las de la derivación (`area`, `persona`, `cliente`, `resumen`,
+`horario`) no las pisa una variable del pre-call, una que falta queda vacía y `{{vars.x}}` no vale acá:
 
 | Clave | Default |
 |---|---|
@@ -122,6 +127,57 @@ Mensajes por área (`DEFAULT_MESSAGES` en `app/services/handoff.py`; variables `
 | `busy` | "En este momento {{area}} está ocupado. Podés volver a llamar en 10 minutos, o te tomo los datos y te contacta alguien del equipo." |
 | `after_hours` | "{{area}} atiende {{horario}}. Te tomo el mensaje y te contactan." |
 | `resume` / `goodbye` | "¿Te puedo ayudar con algo más?" / "Gracias por comunicarte, que tengas un buen día." |
+| `notified` | "Ya le avisé a {{area}}. Te van a contactar." (área de aviso) |
+| `post_call_failed` | "No se pudo confirmar el registro." (en lugar de la nota del post-call, por texto) |
+| `operator_ack` | "Recibido. Estamos confirmando, te paso los datos en un momento." (al operador que tocó, por texto) |
+| `operator_contact` | "Contacto: {{nombre}}, {{cliente}}. Motivo: {{resumen}}. Ya podés responderle desde tu WhatsApp." |
+| `accepted` | "{{persona}} recibió tu pedido y te va a contactar. Lo que escribas acá también le llega." (a la persona, por texto) |
+| `relay_failed` | "No pude hacerle llegar tu mensaje a {{persona}}. Escribime de nuevo si necesitás avisarle a otra persona." |
+| `tap_wait` / `tap_taken` / `tap_closed` | "Estamos confirmando, te paso los datos en un momento." / "Ya la tomó {{persona}}." / "Esta solicitud ya se cerró." (respuestas al toque) |
+
+`operator_ack`, `tap_wait`, `tap_taken` y `tap_closed` salen **antes de que alguien acepte**: un operador que no tomó el
+pedido no ve datos de la persona, así que solo admiten `{{area}}`, `{{persona}}` y `{{horario}}`; con otra variable, la
+API responde 422 (`errors` con `path` `messages.<clave>`) y la UI marca el campo.
+
+### Rutas, avisos y WhatsApp al equipo
+
+Código: `Transfer` en `app/voice/handoff.py` (voz) y `app/whatsapp/team_notify.py` (envío de plantillas, común a voz y
+texto).
+
+- **Rutas:** `Transfer.run` es un bucle sobre las áreas con un conjunto de visitadas. Fuera de horario sigue por
+  `after_hours_area_id`; si nadie acepta, no hay personas, no hay canal o faltan minutos salientes, por
+  `no_answer_area_id`. La música sigue entre pases y el mensaje (`no_answer`, `after_hours`) sale solo al final. Un ciclo
+  se corta al volver a un área ya visitada, y una ruta a un área inactiva o de otro cliente se ignora. Cada pase emite
+  `handoff.rerouted`, no `handoff.unavailable`; sin rutas, todo queda como antes. El modelo ve un área cerrada que
+  redirige como "atiende ahora". Un rango de horario no cruza la medianoche: para cubrir la noche, el área diurna pasa
+  fuera de horario a un área sin horario (`schedule: null`).
+- **Área de aviso** (`delivery=whatsapp`, por voz o por texto): no llama ni espera aceptación. Manda una plantilla a
+  **una** persona, la primera de las candidatas con «Recibe WhatsApp» (si Meta la rechaza, a la siguiente), y el agente
+  dice `notified` solo si salió; si no, sigue por `no_answer_area_id` o dice `no_answer`. Por voz corre en una tarea
+  propia que sobrevive a la derivación: si el cliente corta antes o durante el envío, el aviso sale igual (de mejor
+  esfuerzo: `finalize` espera esas tareas hasta 8 s). Antes de enviar se relee a cada persona; quien se fue se saltea, y si
+  no se intentó con nadie el resultado es `no_members`, y si la relectura falla, `internal` y no se envía.
+- **Complemento de la llamada** (`call_template`, sin botón): a cada persona a la que se llama, una vez por derivación, sin
+  demorar el marcado. Va sin botón para que no toquen «Aceptar» en vez de atender.
+- **Plantillas** (`handoff_areas.whatsapp`): `params` es una lista ordenada (Meta recibe por posición): `area`, `persona`,
+  `cliente`, `resumen`, `horario` o cualquier nombre `[a-z][a-z0-9_]*` de una variable del pre-call; sin valor va `-`.
+  `cliente` (el teléfono) solo en la plantilla de un área de aviso: se rechaza en `call_template` y en la `template` de un
+  área de llamada, porque antes de aceptar no se entrega el teléfono. Con menos de 8 dígitos (caller oculto), `cliente`
+  va `-`. El resumen del LLM (hasta 4 s) solo se pide si la plantilla lo lleva. El envío usa la cuenta del área, que tiene
+  que ser del cliente, estar activa y conectada, con plan con WhatsApp; tope de 20 s. Si falla, queda
+  `handoff.whatsapp_failed` con el motivo y la derivación sigue: nada de esto lanza.
+- **Datos del pre-call en la voz:** los mensajes y las plantillas leen `progress.tool_vars` en cada área. Un whisper como
+  `Derivación de {{area}}: {{resumen}}. {{nota_operador}}. Marcá 1 para atender.` le dice al operador quién es y si está
+  al día; **no oye si se cobró**. Un mensaje `whisper` con `{{cliente}}` da el teléfono antes del 1 (comportamiento previo).
+- **Post-call:** al marcar 1 y conectar, la derivación arma el post-call `handoff_accepted` ([HERRAMIENTAS.md](HERRAMIENTAS.md)).
+  Un área de aviso no lo arma.
+- **Reportes:** el pase a un área de llamada no suma como pedida en esa área; la emergencia cuenta una vez, donde terminó.
+  A un área de aviso no es un pase: el pedido quedó sin atender y esa área lo cuenta ([REPORTES.md](REPORTES.md)).
+- **Por texto:** `transfer_call` solo con áreas con `template`; la rotación y el reenvío están en
+  [WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo).
+- **Límite aceptado, voz:** un operador desactivado mientras suena la cadena todavía puede ser llamado, oír el whisper con el
+  resumen y recibir la plantilla con el resumen y las variables del pre-call (nunca `cliente`). Sale de leer el código; no
+  se reprodujo.
 
 ### Saliente directa
 
@@ -187,7 +243,13 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 ### UI
 
 - **Equipo** (`web/src/features/team/`): personas y áreas con horario, orden, mensajes, tecla de vuelta y qué
-  hacer si la persona corta; punto verde de presencia.
+  hacer si la persona corta; punto verde de presencia. La persona tiene el interruptor **Recibe WhatsApp** (necesita
+  teléfono). El área elige **Cómo se avisa** (**Se llama** o **Solo aviso por WhatsApp**), **Fuera de horario, pasa a**,
+  **Si nadie acepta, pasa a** y su WhatsApp: el número que envía, la plantilla (de rotación con botón de respuesta
+  rápida, de la llamada o del aviso, sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
+  de «Antes de la conversación»; si no llega, va «-») y la espera por persona. En un área de aviso no se validan ni se
+  envían como inválidos el timbre, la tecla ni los mensajes ocultos: se conserva lo guardado. La ayuda de los cuatro
+  mensajes de antes de aceptar dice qué variables admiten.
 - **Teléfono del equipo** (Canales, `/telefono`, `PlanGate direct_calls`): agenda con búsqueda, "marcá un número",
   bajas con confirmación, bloqueados apagados; `/telefono/llamada/:id` entra a una llamada creada por API o MCP.
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
@@ -263,11 +325,12 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 ## Desplegar y probar
 
 - Tests (LLM y teléfono falsos): `tests/test_handoff.py`, `test_handoff_transfer.py`, `test_direct_calls.py`,
-  `test_direct_voice.py`, `test_phone_app_host.py` y `test_migration_0023/0024/0039.py`, en `make test`.
+  `test_direct_voice.py`, `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
+  `test_voice_wiring.py` y `test_migration_0023/0024/0039.py`, en `make test`.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y
-  corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales) y `direct.py` (saliente contra un eco
+  corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1) y `direct.py` (saliente contra un eco
   del Anura falso y entrante al equipo por celular). El timbre en el panel está solo en los tests con LiveKit falso.
 - Desplegar un cambio: `make migrate-test` si hay migración, `make migrate`, `make calls-active && make up-agent`
   (recrea `app` y `agent`; la imagen de `app` compila `web/`).
@@ -276,6 +339,7 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   ruta, se prueba en `app.atentina.com.ar/movil`.
 - Volver atrás la 0039: tiene `downgrade` (probado en `tests/test_migration_0039.py`): `make migrate-down REV=0038`,
   con la imagen que todavía tiene la 0039 y antes de volver el código.
+- Rutas, avisos y rotación por WhatsApp (0048 y 0049, con `downgrade`): vuelta atrás en [WHATSAPP.md](WHATSAPP.md#desplegar-y-probar).
 
 ## Pendientes
 

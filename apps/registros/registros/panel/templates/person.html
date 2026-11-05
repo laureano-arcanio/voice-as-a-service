@@ -1,0 +1,33 @@
+<div class="title-row">
+  <h1 id="title">Nueva ficha</h1>
+  <a href="/personas">Volver a las fichas</a>
+</div>
+<p id="error" class="error" role="alert" hidden></p>
+<section id="status" class="card status" data-person-id="$person_id" hidden>
+  <span id="al-dia-badge" class="badge"></span>
+  <span id="al-dia-by" class="muted"></span>
+  <span class="spacer"></span>
+  <button type="button" id="al-dia-toggle" class="ghost"></button>
+</section>
+<form id="ficha" class="card ficha" novalidate>
+$form
+  <div id="form-errors" class="error" role="alert" hidden></div>
+  <ul id="form-warnings" class="warnings" hidden></ul>
+  <p id="saved" class="ok-text" role="status" hidden></p>
+  <div class="actions">
+    <button type="submit">Guardar</button>
+    <button type="button" id="reload" class="ghost" hidden>Traer la versión actual</button>
+    <span class="spacer"></span>
+    <button type="button" id="delete" class="danger" hidden>Dar de baja</button>
+  </div>
+</form>
+<section id="charges" class="card" hidden>
+  <h2>Cobros</h2>
+  <p id="charges-empty" class="muted" hidden>Esta ficha todavía no tiene cobros.</p>
+  <div class="table-wrap">
+    <table id="charges-table" hidden>
+      <thead><tr><th>Fecha</th><th>Monto</th><th>Titular</th><th>Teléfono</th><th>Estado</th><th>Detalle</th></tr></thead>
+      <tbody id="charges-rows"></tbody>
+    </table>
+  </div>
+</section>

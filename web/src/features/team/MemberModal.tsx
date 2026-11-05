@@ -15,12 +15,15 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
       phone: member?.phone ?? '',
       user_id: member?.user_id ?? '',
       active: member?.active ?? true,
+      whatsapp_notify: member?.whatsapp_notify ?? false,
     },
     validate: {
       name: (v) => (v.trim() ? null : 'Poné un nombre'),
       phone: (v, values) => (v.trim() || values.user_id ? null : 'Cargá un teléfono o un usuario del panel'),
     },
   });
+
+  const hasPhone = !!form.values.phone.trim();
 
   // Un usuario del panel es de una sola persona: se ofrecen los libres y el de esta.
   const userOptions = (users.data ?? [])
@@ -42,6 +45,8 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
                 phone: v.phone.trim() || null,
                 user_id: v.user_id || null,
                 active: v.active,
+                // Sin teléfono no hay a dónde avisar.
+                whatsapp_notify: v.whatsapp_notify && !!v.phone.trim(),
               },
             },
             {
@@ -66,6 +71,17 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
             placeholder="351 555-1234"
             maxLength={32}
             {...form.getInputProps('phone')}
+          />
+          <Switch
+            label="Recibe WhatsApp"
+            description={
+              hasPhone
+                ? 'Le avisamos por WhatsApp, a este mismo teléfono, de los pedidos de sus áreas. Los avisos salen con las plantillas de cada área.'
+                : 'Cargá un teléfono para poder avisarle por WhatsApp.'
+            }
+            disabled={!hasPhone}
+            checked={hasPhone && form.values.whatsapp_notify}
+            onChange={(e) => form.setFieldValue('whatsapp_notify', e.currentTarget.checked)}
           />
           <Select
             label="Usuario del panel"

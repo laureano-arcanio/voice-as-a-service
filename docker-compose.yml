@@ -108,6 +108,33 @@ services:
       start_period: 15s
       retries: 5
 
+  registros:
+    # App de fichas (apps/registros, docs/features/REGISTROS.md). Base y rol propios en el mismo db;
+    # sin env_file, para no recibir secretos de la plataforma.
+    # Con perfil: docker compose up --wait (deploy/boot.sh), make up y healthcheck.sh no lo ven, y su
+    # estado no condiciona el arranque del resto. Se levanta con make registros-up.
+    profiles: ["registros"]
+    build: ./apps/registros
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      REGISTROS_DB_DSN: postgresql+psycopg://registros:${REGISTROS_DB_PASSWORD:-}@db:5432/registros
+      REGISTROS_DB_POOL_SIZE: ${REGISTROS_DB_POOL_SIZE:-5}
+      REGISTROS_DB_MAX_OVERFLOW: ${REGISTROS_DB_MAX_OVERFLOW:-2}
+      REGISTROS_SESSION_SECRET: ${REGISTROS_SESSION_SECRET:-}
+      REGISTROS_SESSION_HOURS: ${REGISTROS_SESSION_HOURS:-12}
+      REGISTROS_PUBLIC_URL: ${REGISTROS_PUBLIC_URL:-http://127.0.0.1:8040}
+    ports:
+      - "127.0.0.1:8040:8040"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8040/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 5
+
   agent:
     build:
       context: .

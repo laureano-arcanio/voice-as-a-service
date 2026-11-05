@@ -65,12 +65,13 @@ from .billing.loop import billing_loop
 from .campaigns.callbacks import callback_loop
 from .campaigns.loop import campaign_loop
 from .config import settings
+from .conversation.workflows import post_call_loop
 from .mail.call_summary import call_summary_loop
 from .mcp import server as mcp_server
 from .services.demo import allowed_origins
 from .services.studio import studio_loop
 from .whatsapp import webhook as wa_webhook
-from .whatsapp.service import sweep_loop
+from .whatsapp.service import handoff_loop, sweep_loop
 
 logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
@@ -90,6 +91,10 @@ async def lifespan(app: FastAPI):
     call_summaries = asyncio.create_task(call_summary_loop())
     # Texto a voz y transcripcion, de a un trabajo por motor (app/services/studio.py).
     studio_jobs = asyncio.create_task(studio_loop())
+    # Post-call de los agentes: durable, como el resumen por email (app/conversation/workflows.py).
+    post_calls = asyncio.create_task(post_call_loop())
+    # Rotacion por WhatsApp de texto: tramos vencidos y entregas por retomar (app/whatsapp/handoffs.py).
+    wa_handoffs = asyncio.create_task(handoff_loop())
     yield
     sweep.cancel()
     sending.cancel()
@@ -97,6 +102,8 @@ async def lifespan(app: FastAPI):
     billing_sweep.cancel()
     call_summaries.cancel()
     studio_jobs.cancel()
+    post_calls.cancel()
+    wa_handoffs.cancel()
 
 
 def create_app() -> FastAPI:

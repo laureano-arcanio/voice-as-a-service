@@ -44,3 +44,8 @@ Listo. Restaurar (docs/MIGRACION_SERVER.md, 4):
   storage/:    tar -xzf $dir/storage.tar.gz
   certificado: sudo tar -xzf $dir/letsencrypt.tar.gz -C asterisk
 EOF
+# Conecta como el rol registros, que queda dueño; registros-db vuelve a poner el REVOKE, que no viaja en
+# el dump. Si crm se restaura después, otro make registros-db.
+if [[ -f "$dir/registros.sql.gz" ]]; then
+    echo "  registros:   make registros-restore DUMP=$dir/registros.sql.gz"
+fi

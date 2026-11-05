@@ -31,29 +31,31 @@ def end_call_tool(outcomes: list[str] | None = None) -> dict:
     }}
 
 
-def transfer_call_tool(areas: list[dict]) -> dict:
-    """Las areas de la llamada (state.progress.handoff_areas): nombre, cuando pasarla, horario y si atiende ahora."""
+def transfer_call_tool(areas: list[dict], channel: str = "voice") -> dict:
+    """Las areas de la conversacion (state.progress.handoff_areas): nombre, cuando pasarla, horario y si atiende ahora.
+    Una cerrada que redirige fuera de horario atiende igual: sigue por el area siguiente."""
     from ..services.handoff import is_open     # services importa conversation: aca, para no hacer un ciclo
     lines = []
     for a in areas:
         when = " ".join((a.get("when") or "").split()).rstrip(".")
         hours = a.get("schedule_text") or ""
-        now = "atiende ahora" if is_open(a.get("schedule")) else "cerrada ahora"
+        now = "atiende ahora" if is_open(a.get("schedule")) or a.get("redirects") else "cerrada ahora"
         lines.append(f"{a['name']}{' (' + when + ')' if when else ''}: {hours + ', ' if hours else ''}{now}")
     return {"type": "function", "function": {
         "name": TRANSFER_CALL,
-        "description": ("Pasa la llamada a una persona del equipo del area, despues de decir lo que escribiste en "
-                        "este mensaje. Areas: " + "; ".join(lines)),
+        "description": (f"Pasa la {'conversacion' if channel == 'whatsapp' else 'llamada'} a una persona del equipo del "
+                        "area, despues de decir lo que escribiste en este mensaje. Areas: " + "; ".join(lines)),
         "parameters": {"type": "object", "properties": {"area": {"type": "string", "enum": [a["name"] for a in areas]}},
                        "required": ["area"]},
     }}
 
 
 def tools_for(state: ConversationState, outcomes: list[str] | None = None) -> list[dict]:
-    """end_call siempre; transfer_call en una llamada con areas."""
+    """end_call siempre; transfer_call si la conversacion tiene areas. Por WhatsApp de texto las llena _turn, solo las
+    que tienen plantilla (app/whatsapp/service.py)."""
     tools = [end_call_tool(outcomes)]
-    if state.channel == "voice" and state.progress.handoff_areas:
-        tools.append(transfer_call_tool(state.progress.handoff_areas))
+    if state.progress.handoff_areas:
+        tools.append(transfer_call_tool(state.progress.handoff_areas, state.channel))
     return tools
 
 

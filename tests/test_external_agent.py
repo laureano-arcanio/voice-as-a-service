@@ -17,6 +17,8 @@ from app.llm import external as external_module
 from app.services import llm_connections as svc
 
 from .test_api import V1, admin, make_client, make_tier  # noqa: F401
+from .tools_mock import mock_api_url, mock_server  # noqa: F401  (fixtures)
+from .voice_harness import add_tool, http_tool
 
 REAL_CHECK = svc.check_base_url
 
@@ -285,3 +287,32 @@ def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint, monkeypatch):
     assert not out.get("isError"), out
     assert new_id not in [c["id"] for c in calls.get(url, headers=auth).json()]
 
+
+# --- Workflows -------------------------------------------------------------------------------------
+
+async def test_pre_call_reaches_the_external_agent_by_header_not_prompt(api, admin, endpoint, mock_api_url):  # noqa: F811
+    """Tu propio agente no usa el prompt de la definicion: el pre-call corre igual, lo visible va en
+    X-Atentina-Contact (como los datos de campaña), lo oculto no sale, y la apertura se renderiza. La guia de
+    WhatsApp no aplica: el cuerpo lleva el system de la conexion, sin datos."""
+    acme, conn, r = setup(admin, system="Sos el agente de Acme.")
+    assert r.status_code == 201, r.text
+    assert admin.patch(f"{V1}/tiers/{acme['tier']['id']}", json={"max_tools": None}).status_code == 200
+    tool = http_tool("buscar_ficha", mock_api_url + "/identificar", assign=[
+        {"var": "nombre", "path": "name"}, {"var": "nota", "path": "operator_note", "hide": True}])
+    add_tool(admin, acme, tool)
+    agent = r.json()
+    definition = {**agent["definition"], "workflows": {"pre_call": {"tool": "buscar_ficha"}}}
+    definition["conversation"] = {**definition["conversation"], "opening": "Hola {{nombre}}."}
+    saved = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
+    assert saved.status_code == 200, saved.text
+
+    state, _ = api.engine.start_conversation(agent["id"], acme["id"])
+    assert await api.engine.run_pre_call(state.conversation_id) == "Hola María Gómez."
+    endpoint.replies = [sse({"content": "Hola María."})]
+    await api.engine.process_turn(state.conversation_id, "Buen día")
+
+    assert json.loads(endpoint.requests[-1].headers["x-atentina-contact"]) == {"nombre": "María Gómez"}
+    body = endpoint.body()
+    assert body["messages"][0]["content"] == "Sos el agente de Acme."
+    assert "al día" not in json.dumps(body) and "al d" not in endpoint.requests[-1].headers["x-atentina-contact"]
+    assert api.engine.store.get(state.conversation_id).progress.tool_vars["nota"] == "María Gómez, al día"

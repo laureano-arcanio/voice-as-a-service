@@ -10,6 +10,11 @@ export function notifyError(err: unknown, title = 'No se pudo completar') {
   notifications.show({ color: 'red', title, message: errorMessage(err), autoClose: 8000 });
 }
 
+/** Un formulario que no se pudo guardar por lo que falta o está mal: se ve aunque el error quede fuera de pantalla. */
+export function notifyInvalid(message: string, title = 'Revisá el formulario') {
+  notifications.show({ color: 'yellow', title, message, autoClose: 8000 });
+}
+
 /** Resultado del mail para crear la clave (alta de cliente o reenvio). */
 export function notifyInvite(invite: Invite, prefix = '') {
   if (invite.status === 'sent') {

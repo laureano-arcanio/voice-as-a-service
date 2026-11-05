@@ -190,6 +190,21 @@ async def eco(request: Request):
     return {"headers": {k: v for k, v in request.headers.items() if k.startswith("x-") or k == "authorization"}}
 
 
+@app.post("/identificar")
+async def identificar(request: Request):
+    """Para un pre-call: datos de quien llama, unos para el modelo y otros ocultos (assign con hide)."""
+    await _record(request)
+    return {"status": "single", "name": "María Gómez", "al_dia": True, "record": "Ficha: https://fichas.test/c/1",
+            "operator_note": "María Gómez, al día", "sin_asignar": "dato que no pidió ningún assign"}
+
+
+@app.post("/cobrar")
+async def cobrar(request: Request):
+    """Para un post-call: registra una sola vez por Idempotency-Key, como tiene que hacer la API del cliente."""
+    entry = await _record(request)
+    return {"charged": True, "operator_message": f"Cobro registrado ({entry['headers'].get('idempotency-key')})."}
+
+
 def main() -> None:
     import uvicorn
     ap = argparse.ArgumentParser()

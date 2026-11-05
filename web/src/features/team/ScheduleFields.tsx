@@ -46,7 +46,7 @@ export function ScheduleFields({
         </>
       )}
       {error && (
-        <Text size="sm" c="red" role="alert">
+        <Text size="sm" c="red" role="alert" data-area-error>
           {error}
         </Text>
       )}

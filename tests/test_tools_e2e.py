@@ -2,6 +2,7 @@
 cliente, contra la API falsa (scripts/tools/mock_api.py) y, si esta TOOLS_RUNNER_TEST_URL, el sandbox de codigo
 real (make e2e-tools lo levanta). El LLM es falso, con respuestas grabadas: prueba el codigo, no el modelo
 (AGENTS.md, "Reglas de desarrollo"). La calidad del modelo la mide make eval-tools."""
+import asyncio
 import json
 import os
 from types import SimpleNamespace
@@ -13,9 +14,12 @@ from app.agents.definitions import DbDefinitions
 from app.agents.templates import reference_data
 from app.api import deps
 from app.config import settings
+from app.conversation import workflows
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
+from app.db import utcnow
 from app.llm.client import LLMClient
+from app.models import ConversationRow
 from scripts.tools import mock_api
 
 from .test_api import V1, admin  # noqa: F401  (fixture)
@@ -206,3 +210,55 @@ def test_tools_by_mcp(world):
                                                                       "tools": definition["tools"]})
     assert [v["revision"] for v in call("list_tool_versions", slug="consultar_turnos")["items"]] == [1]
     check_conversations(w, agent["id"])
+
+
+def test_workflows_by_api(world):
+    """Pre-call y post-call contra la API falsa, armados por la API: los valores fijos llegan y nada va al modelo."""
+    w = world
+    bearer = {"type": "bearer", "secret": "MOCK_TOKEN"}
+    fixed = {"type": "object", "properties": {"conversation_id": {"type": "string", "value": "{{call.id}}"},
+                                              "from": {"type": "string", "value": "{{call.phone}}"}}}
+    for slug, path, assign in (("buscar_ficha", "/identificar", [{"var": "nombre", "path": "name"},
+                                                                 {"var": "nota", "path": "operator_note", "hide": True}]),
+                               ("registrar_cobro", "/cobrar", [])):
+        r = w.admin.post(f"{V1}/clients/{w.client['id']}/tools", json={"slug": slug, "type": "http", "definition": {
+            "description": "Workflow.", "assign": assign,
+            "http": {"method": "POST", "url": w.base + path, "auth": bearer, "body": fixed}}})
+        assert r.status_code == 201, r.text
+    definition = {**reference_data("eval_tools"), "tools": []}
+    definition["conversation"]["opening"] = "Hola {{nombre}}."
+    agent = w.admin.post(f"{V1}/agents", json={"client_id": w.client["id"], "name": "Sofía", "slug": "sofia",
+                                               "definition": definition}).json()
+    assert w.admin.post(f"{V1}/agents/{agent['id']}/secrets",
+                        json={"name": "MOCK_TOKEN", "value": mock_api.TOKEN}).status_code == 201
+    r = w.admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": {
+        **agent["definition"], "workflows": {"pre_call": {"tool": "buscar_ficha"},
+                                             "post_call": {"tool": "registrar_cobro"}}}})
+    assert r.status_code == 200, r.text
+    engine = w.api.app.dependency_overrides[deps.get_conversation_engine]()
+    cid = w.admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()["conversation_id"]
+
+    async def flow():
+        opening = await engine.run_pre_call(cid, actor=None)
+        with w.api.sessions() as s:
+            row = s.get(ConversationRow, cid)
+            row.post_call_status, row.post_call_next_at = "pending", utcnow()
+            s.commit()
+        await workflows.run_once(w.api.sessions, engine)
+        return opening
+
+    mock_api.RECEIVED.clear()
+    assert asyncio.run(flow()) == "Hola María Gómez."
+    identify, charge = [r for r in mock_api.RECEIVED if r["path"] in ("/identificar", "/cobrar")]
+    assert identify["headers"]["authorization"] == f"Bearer {mock_api.TOKEN}"
+    assert json.loads(identify["body"])["conversation_id"] == cid
+    assert charge["headers"]["idempotency-key"] == f"{cid}:post_call"
+    with w.api.sessions() as s:
+        assert s.get(ConversationRow, cid).post_call_status == "done"
+
+    # Lo visible llega al prompt; lo oculto, no.
+    w.llm.replies = [("Hola.", [])]
+    w.admin.post(f"{V1}/conversations/{cid}/turns", json={"message": "Hola"})
+    system = w.llm.requests[-1]["messages"][0]["content"]
+    assert "María Gómez" in system and "al día" not in system
+    assert not any(t["function"]["name"] in ("buscar_ficha", "registrar_cobro") for t in w.llm.requests[-1].get("tools", []))

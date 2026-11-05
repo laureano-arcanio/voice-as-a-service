@@ -10,9 +10,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
+    false,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -79,6 +81,7 @@ class WaThread(Base):
     __tablename__ = "wa_threads"
     __table_args__ = (
         Index("ix_wa_threads_account_waid_created", "account_id", "wa_id", "created_at"),
+        Index("ix_wa_threads_handoff", "handoff_status", "handoff_deadline"),
     )
     conversation_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("conversations.id", ondelete="CASCADE"), primary_key=True)
@@ -91,6 +94,19 @@ class WaThread(Base):
     # Cerrada desde el dashboard: el proximo mensaje del contacto empieza otra conversacion.
     closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    # Derivacion por WhatsApp de texto: la rotacion y, con el operador que la tomo, el reenvio.
+    handoff_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    handoff_area_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("handoff_areas.id", ondelete="SET NULL"), nullable=True)
+    handoff_leg_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("handoff_legs.id", ondelete="SET NULL"), nullable=True)
+    handoff_started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    handoff_closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    handoff_deadline: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    handoff_voice_note: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    handoff_delivery_tries: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Retomas seguidas de un paso abandonado (sending o delivering): el tope cierra la rotacion y libera al contacto.
+    handoff_retakes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class WaMessage(IdMixin, Base):
@@ -106,7 +122,7 @@ class WaMessage(IdMixin, Base):
         String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True)
     direction: Mapped[str] = mapped_column(String(3))        # in | out
     wa_id: Mapped[str] = mapped_column(String(32))
-    # text, audio, image, document, sticker, video, location, template, other
+    # text, audio, image, document, sticker, video, location, template, other, team_notice, team_relay
     type: Mapped[str] = mapped_column(String(16))
     # in: received, answered, ignored, error. out: sent, delivered, read, failed.
     status: Mapped[str] = mapped_column(String(16))

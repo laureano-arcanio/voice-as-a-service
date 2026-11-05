@@ -23,6 +23,11 @@ TYPES = frozenset({
     # Entrante al equipo (llamadas directas): nadie atendio y se uso el respaldo (agent, voicemail o hangup), con el
     # motivo (team_no_answer o after_hours).
     "team.fallback",
+    # Workflows del agente: ok, status, ms y slug, nunca la respuesta.
+    "workflow.pre_call", "workflow.post_call",
+    # Ruteo entre areas y avisos o rotacion por WhatsApp (por texto se reutilizan los handoff.* con channel: whatsapp).
+    "handoff.rerouted", "handoff.notified", "handoff.whatsapp_sent", "handoff.whatsapp_failed", "handoff.relay_failed",
+    "handoff.ignored",   # transfer_call por texto con otra rotacion viva del contacto
 })
 ACTORS = frozenset({"system", "agent", "customer", "person"})
 

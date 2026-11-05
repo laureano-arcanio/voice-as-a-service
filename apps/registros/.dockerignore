@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+docs/
+tests/
+compose.test.yaml
+README.md

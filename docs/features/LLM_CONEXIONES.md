@@ -38,7 +38,7 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 - Cambiar etapas o modelo es una versión nueva del agente; las conversaciones en curso siguen con la suya.
 - `external` (`ExternalConfig`): `model` vacío = `default_model` de la conexión; `system` (hasta 20.000) se antepone
   si está; `first_token_timeout_ms` 500 a 20.000; `max_errors` 1 a 10; `on_errors` `hang_up` o `transfer:<área>`
-  (el área tiene que estar en `handoff.areas`). Un agente con `external` no lleva `tools` del cliente.
+  (el área tiene que estar en `handoff.areas`). Un agente con `external` no lleva `tools` del cliente. Sí lleva `workflows` (antes y después de la conversación; [HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): el pre-call llega al endpoint por `X-Atentina-Contact`, no como prompt, y el panel los conserva y edita.
 
 ## API
 
@@ -122,10 +122,12 @@ canales que pasan por el motor (llamadas, WhatsApp, link para llamar, campañas,
 lo que dijo una persona del equipo va como `assistant` con `name`), `tools` y `user: <conversation_id>`.
 
 - Herramientas: `end_call` con `outcome` (enum de `completion.outcomes`; sin él, el último resultado de la lista) y,
-  en una llamada de voz con áreas, `transfer_call` con `area` (`app/llm/platform_tools.py`).
+  en una llamada de voz con áreas (o un WhatsApp de texto con áreas con plantilla), `transfer_call` con `area`
+  (`app/llm/platform_tools.py`).
 - Datos de la llamada **solo en headers** (el cuerpo lleva solo campos estándar: un endpoint que reenvía a OpenAI
   rechazaría los desconocidos): `X-Atentina-Conversation-Id`, `-Channel`, `-Mode`, `-From`, `-To`, `-Agent`, `-Turn`
-  (1 = primer mensaje de la persona) y, si hay, `-Contact` (JSON de la campaña) y `-Context` (motivo de una saliente),
+  (1 = primer mensaje de la persona) y, si hay, `-Contact` (JSON de la campaña y los datos visibles que trajo el pre-call del agente) y `-Context` (motivo de
+  una saliente),
   recortados a 2000. Lo no ASCII va con escapes JSON. Los vacíos no van.
 
 **Respuesta** (cliente → Atentina): SSE de chat completions. `delta.content` va al TTS a medida que llega;

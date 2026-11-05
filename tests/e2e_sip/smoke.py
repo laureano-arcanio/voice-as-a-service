@@ -176,4 +176,8 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    code = asyncio.run(main())
+    sys.stdout.flush()
+    # Sin el cierre normal: a veces el SDK de LiveKit aborta (panic de Rust) al liberar la room y da 139 aunque pasen
+    # todos los casos. Igual que transfer.py y direct.py.
+    os._exit(code)

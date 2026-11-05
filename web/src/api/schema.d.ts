@@ -1479,7 +1479,8 @@ export interface paths {
          * Close Thread
          * @description Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
          *     version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
-         *     llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada.
+         *     llamada (extraccion final del clasico). Cerrar una ya cerrada solo corta el reenvio al operador,
+         *     si sigue vigente: es la salida manual de una emergencia ya tomada.
          */
         post: operations["close_thread_api_v1_whatsapp_threads__conversation_id__close_post"];
         delete?: never;
@@ -2869,8 +2870,8 @@ export interface paths {
         put?: never;
         /**
          * Create Member
-         * @description Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas; el WhatsApp,
-         *     para el puente de la bandeja. Cuenta para el tope del plan (`max_team_members`).
+         * @description Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas y, con
+         *     `whatsapp_notify`, para avisarle por WhatsApp. Cuenta para el tope del plan (`max_team_members`).
          */
         post: operations["create_member_api_v1_team_post"];
         delete?: never;
@@ -2906,7 +2907,8 @@ export interface paths {
         };
         /**
          * Area Defaults
-         * @description Los mensajes por defecto de un área y las variables que aceptan.
+         * @description Los mensajes por defecto de un área y las variables que aceptan. También aceptan las variables que trae
+         *     la herramienta de «Antes de la conversación» del agente, por su nombre (`{{nota_operador}}`).
          */
         get: operations["area_defaults_api_v1_handoff_areas_defaults_get"];
         put?: never;
@@ -2949,7 +2951,8 @@ export interface paths {
         put?: never;
         /**
          * Create Area
-         * @description Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente.
+         * @description Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área
+         *     pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`).
          */
         post: operations["create_area_api_v1_handoff_areas_post"];
         delete?: never;
@@ -2975,7 +2978,8 @@ export interface paths {
         head?: never;
         /**
          * Update Area
-         * @description Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista.
+         * @description Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;
+         *     `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas.
          */
         patch: operations["update_area_api_v1_handoff_areas__area_id__patch"];
         trace?: never;
@@ -6786,6 +6790,24 @@ export interface components {
             messages?: {
                 [key: string]: string;
             };
+            /**
+             * After Hours Area Id
+             * @description Área a la que pasa fuera de horario
+             */
+            after_hours_area_id?: string | null;
+            /**
+             * No Answer Area Id
+             * @description Área a la que pasa si nadie acepta o no se puede llamar
+             */
+            no_answer_area_id?: string | null;
+            /**
+             * Delivery
+             * @description call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación
+             * @default call
+             * @enum {string}
+             */
+            delivery?: "call" | "whatsapp";
+            whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
         };
         /** HandoffAreaOut */
         HandoffAreaOut: {
@@ -6826,6 +6848,13 @@ export interface components {
             messages: {
                 [key: string]: string;
             };
+            /** After Hours Area Id */
+            after_hours_area_id: string | null;
+            /** No Answer Area Id */
+            no_answer_area_id: string | null;
+            /** Delivery */
+            delivery: string;
+            whatsapp: components["schemas"]["HandoffWhatsapp"] | null;
             /**
              * Created At
              * Format: date-time
@@ -6857,6 +6886,13 @@ export interface components {
             messages?: {
                 [key: string]: string;
             } | null;
+            /** After Hours Area Id */
+            after_hours_area_id?: string | null;
+            /** No Answer Area Id */
+            no_answer_area_id?: string | null;
+            /** Delivery */
+            delivery?: ("call" | "whatsapp") | null;
+            whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
         };
         /** HandoffDefaultsOut */
         HandoffDefaultsOut: {
@@ -6864,8 +6900,21 @@ export interface components {
             messages: {
                 [key: string]: string;
             };
-            /** Variables */
+            /**
+             * Variables
+             * @description Además, las variables que trae la herramienta de «Antes de la conversación» del agente, por su nombre
+             */
             variables: string[];
+            /**
+             * Pre Accept Messages
+             * @description Mensajes que salen antes de que alguien acepte: solo admiten `pre_accept_variables`
+             */
+            pre_accept_messages?: string[];
+            /**
+             * Pre Accept Variables
+             * @description Variables que admiten los mensajes de `pre_accept_messages`
+             */
+            pre_accept_variables?: string[];
         };
         /** HandoffIn */
         HandoffIn: {
@@ -6894,6 +6943,45 @@ export interface components {
             };
             /** Closed */
             closed?: string[];
+        };
+        /**
+         * HandoffWhatsapp
+         * @description WhatsApp del área: al menos una plantilla.
+         */
+        HandoffWhatsapp: {
+            /**
+             * Account Id
+             * @description Número de WhatsApp conectado del cliente
+             */
+            account_id: string;
+            /** @description Rotación, con botón; en un área delivery=whatsapp, el aviso, sin botón */
+            template?: components["schemas"]["HandoffWhatsappTemplate"] | null;
+            /** @description Complemento de la llamada, sin botón */
+            call_template?: components["schemas"]["HandoffWhatsappTemplate"] | null;
+            /**
+             * Wait Seconds
+             * @description Espera por persona en la rotación
+             * @default 120
+             */
+            wait_seconds?: number;
+        };
+        /**
+         * HandoffWhatsappTemplate
+         * @description Una plantilla aprobada de Meta de la cuenta del área.
+         */
+        HandoffWhatsappTemplate: {
+            /** Name */
+            name: string;
+            /**
+             * Language
+             * @description Código de Meta (ej. es_AR)
+             */
+            language: string;
+            /**
+             * Params
+             * @description Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp
+             */
+            params?: string[];
         };
         /**
          * HoldMusicOut
@@ -9771,6 +9859,12 @@ export interface components {
              * @default true
              */
             active?: boolean;
+            /**
+             * Whatsapp Notify
+             * @description Recibe por WhatsApp, a su teléfono, los avisos de sus áreas
+             * @default false
+             */
+            whatsapp_notify?: boolean;
         };
         /** TeamMemberOut */
         TeamMemberOut: {
@@ -9786,6 +9880,8 @@ export interface components {
             user_id: string | null;
             /** Active */
             active: boolean;
+            /** Whatsapp Notify */
+            whatsapp_notify: boolean;
             /**
              * Created At
              * Format: date-time
@@ -9802,6 +9898,8 @@ export interface components {
             user_id?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Whatsapp Notify */
+            whatsapp_notify?: boolean | null;
         };
         /** TeamOutcome */
         TeamOutcome: {
@@ -10219,7 +10317,7 @@ export interface components {
             } | null;
             /**
              * Call
-             * @description Datos de llamada de ejemplo: id, channel, mode, from, to
+             * @description Datos de llamada de ejemplo: id, channel, mode, from, to, phone
              */
             call?: {
                 [key: string]: unknown;
@@ -10338,7 +10436,7 @@ export interface components {
             } | null;
             /**
              * Call
-             * @description Datos de llamada de ejemplo: id, channel, mode, from, to
+             * @description Datos de llamada de ejemplo: id, channel, mode, from, to, phone
              */
             call?: {
                 [key: string]: unknown;

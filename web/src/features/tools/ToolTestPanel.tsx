@@ -208,7 +208,10 @@ export function ToolTestPanel({
       args: sent,
       agent_id: agentId,
       secrets: Object.keys(adhoc).length ? adhoc : null,
-      call: from.trim() ? { from: from.trim(), channel: 'voice', mode: 'inbound' } : null,
+      // Como una entrante: el numero de quien llama es el de la persona ({{call.from}} y {{call.phone}}).
+      call: from.trim()
+        ? { from: from.trim(), phone: from.trim(), channel: 'voice', mode: 'inbound' }
+        : null,
     });
   };
 
@@ -272,7 +275,7 @@ export function ToolTestPanel({
         )}
         <TextInput
           label="Número de quien llama (ejemplo)"
-          description="Para {{call.from}}."
+          description="Para {{call.phone}} y {{call.from}}, como en una llamada entrante."
           placeholder="+5493511234567"
           value={from}
           onChange={(e) => setFrom(e.currentTarget.value)}

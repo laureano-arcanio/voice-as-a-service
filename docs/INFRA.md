@@ -53,15 +53,17 @@ en el `.env` de server2: todos los targets de `make` usan el compose principal, 
 La réplica usa `docker-compose.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml`
 y `STACK_ROLE=replica`: solo levanta los modelos y `make up*` se niega. En server2, `make up` levanta todo y
 termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `make up-inference`, `make up-stt`,
-`make up-nginx`, `make up-pbx`, `make up-tools`, `make up-tunnel`, `make up-monitoring`, `make crm-up`.
+`make up-nginx`, `make up-pbx`, `make up-tools`, `make up-tunnel`, `make up-monitoring`, `make crm-up`,
+`make registros-up`.
 
 | Servicio | Qué es | Imagen | Puerto host | GPU |
 |---|---|---|---|---|
-| `db` | PostgreSQL 16 (base de la app y base `crm`) | postgres:16-alpine | 127.0.0.1:5432 | — |
+| `db` | PostgreSQL 16 (base de la app y bases `crm` y `registros`) | postgres:16-alpine | 127.0.0.1:5432 | — |
 | `migrate` | Una vez antes de `app`/`agent`: `alembic upgrade head` + seed idempotente (`app/cli.py`) | build | — | — |
 | `app` | FastAPI: API `/api/v1`, UI (`web/dist`), MCP, webhooks y loops de fondo | build | 8011 (todas las interfaces) | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS) contra el LiveKit propio | build | — | — |
 | `crm` | CRM de ventas: API y UI ([`features/CRM.md`](features/CRM.md)) | build | 127.0.0.1:8030 | — |
+| `registros` | App de fichas (`apps/registros/`, [`features/REGISTROS.md`](features/REGISTROS.md)): perfil de compose `registros`, sin `.env` de la plataforma, rol y base propios, pool de 7 conexiones | build (`apps/registros/`) | 127.0.0.1:8040 | — |
 | `tools-runner` | Sandbox de las herramientas de código: un proceso Deno por función, solo en la red interna `atentina-tools` | build (`tools-runner/`) | — | — |
 | `tools-egress` | Única salida de `tools-runner`: Smokescreen, niega IPs privadas, loopback y metadata | build | — | — |
 | `vllm-llm` | LLM `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4`, parser de herramientas `gemma4` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
@@ -194,10 +196,11 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 **Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/`):
 - `atentina-gpu-limits.service`: topes de las GPUs (solo .99).
 - `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min), el
-  túnel, `make livekit-sip` y el calentamiento del TTS. En la réplica, solo los modelos y el calentamiento.
+  túnel, `make livekit-sip`, el calentamiento del TTS y, si el `.env` tiene `REGISTROS_HEALTH_URL`, Registros (último paso,
+  sin `--wait`: su falla no corta llamadas ni WhatsApp). En la réplica, solo los modelos y el calentamiento.
   En server2 instalado el 2-nov-2026 y validado con un simulacro (`--dry-run`), **sin probar con un reinicio real**.
 - `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`), solo server2.
-- El monitoreo y el CRM vuelven por `restart: unless-stopped`.
+- El monitoreo, el CRM y Registros vuelven por `restart: unless-stopped`.
 - **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
   (`RECORDINGS_DIR`) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
   event loop del worker. Sin montar, el backup falla a propósito y el chequeo avisa.
@@ -206,8 +209,8 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 
 | Cuándo | Qué |
 |---|---|
-| 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
-| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, topes de GPU, certificado SIP (< 14 días), backup completo en 26 h; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
+| 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), las de `BACKUP_EXTRA_DBS` (`registros`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
+| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, topes de GPU, certificado SIP (< 14 días), backup completo en 26 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
 | 04:15 | `scripts/ops/sip-cert-renew.sh`: renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso |
 
 - **Copia externa a S3: no activa.** Está implementada (`make backup-key`, `make backup-s3-setup`,
@@ -219,7 +222,8 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 ## Exposición a internet
 
 - **Túnel de Cloudflare** (`atentina-demo`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit (7880), `wa.` →
-  `/wa/webhook`, `app.` → todo `app` (dashboard), `llamar.` y `telefono.` → `app`. No hace falta 443 en el router.
+  `/wa/webhook`, `app.` → todo `app` (dashboard), `llamar.` y `telefono.` → `app`, `registros.` → `http://127.0.0.1:8040` (Registros; la ruta la crea el usuario al desplegarlo). No hace falta 443
+  en el router. Registros se expone sin tope de cuerpo ni límite de login por IP ([`features/REGISTROS.md`](features/REGISTROS.md)).
 - `app.atentina.com.ar` es público sin Cloudflare Access: la app se defiende sola (sesión revocable, límites
   de login por IP real desde `TRUSTED_PROXY_CIDRS`, CSRF por `Origin`, CSP, HSTS). Detalle en
   [`ARQUITECTURA.md`](ARQUITECTURA.md).
@@ -235,11 +239,13 @@ Hechos del código que atan la plataforma a **un solo `app` y un solo server**:
 
 - **Loops de fondo en el proceso HTTP:** el `lifespan` de `app/main.py` arranca el barrido de WhatsApp
   (`sweep_loop`), las campañas (`campaign_loop`), los webhooks de campañas (`callback_loop`), los
-  vencimientos de planes (`billing_loop`) y los resúmenes por mail (`call_summary_loop`). Cada copia de
+  vencimientos de planes (`billing_loop`), los resúmenes por mail (`call_summary_loop`), el post-call de los agentes
+  (`post_call_loop`) y la rotación de derivaciones por WhatsApp (`handoff_loop`). Cada copia de
   `app` los correría todos.
 - **Webhook de WhatsApp sin persistencia previa:** `app/whatsapp/webhook.py` devuelve 200 después de
   agendar tareas en memoria (`WhatsAppService.handle_payload`), sin guardar el evento. Un reinicio en ese
-  momento pierde el mensaje; debounce y locks por contacto viven en memoria.
+  momento pierde el mensaje, y también el que está en debounce, transcripción o LLM; debounce y locks por contacto viven en
+  memoria. Solo sobrevive una derivación ya reservada ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
 - **Campañas:** el dialer de voz reclama contactos con `FOR UPDATE SKIP LOCKED`, pero el crédito de ritmo
   vive en memoria (`app/campaigns/dialer.py` supone un solo worker de uvicorn). El envío de WhatsApp
   (`app/whatsapp/sender.py`) lleva el ritmo en memoria y `recover()` marca `failed` todo lo `in_progress`

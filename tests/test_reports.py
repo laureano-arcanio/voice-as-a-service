@@ -3,6 +3,7 @@ import datetime
 import uuid
 
 import pytest
+from sqlalchemy import select
 
 from app.models import (
     BillingPayment,
@@ -351,6 +352,60 @@ def test_transfers_report(api, data):
     assert next(d for d in out["daily"] if d["date"] == "2026-10-02") == {"date": "2026-10-02", "requested": 2,
                                                                           "answered": 1}
     assert "whatsapp" not in out
+
+
+def test_emergency_answered_in_the_second_area_counts_once(api, data):
+    """El pase (handoff.rerouted) no suma en la primera; la que termina, si. Tramo por WhatsApp: sin espera."""
+    before = report(data["admin"], "transfers", client_id=data["acme"])["kpis"]
+    ac, agent = data["acme"], data["agent_a"]
+    with api.sessions() as s:
+        first, second = HandoffArea(client_id=ac, name="Entrada"), HandoffArea(client_id=ac, name="Guardia")
+        member = TeamMember(client_id=ac, name="Lía")
+        s.add_all([first, second, member])
+        s.flush()
+        c = conv(s, ac, agent, T(7, 10), duration=60)
+        lost = conv(s, ac, agent, T(7, 11), duration=60)
+        s.add_all([
+            Event(client_id=ac, type="handoff.requested", conversation_id=c, area_id=first.id, at=T(7, 10, 1)),
+            Event(client_id=ac, type="handoff.rerouted", conversation_id=c, area_id=first.id, at=T(7, 10, 2)),
+            Event(client_id=ac, type="handoff.requested", conversation_id=c, area_id=second.id, at=T(7, 10, 2)),
+            Event(client_id=ac, type="handoff.connected", conversation_id=c, area_id=second.id, at=T(7, 10, 3)),
+            # Nadie atendio en ninguna: tambien cuenta una vez, sin atender.
+            Event(client_id=ac, type="handoff.requested", conversation_id=lost, area_id=first.id, at=T(7, 11, 1)),
+            Event(client_id=ac, type="handoff.rerouted", conversation_id=lost, area_id=first.id, at=T(7, 11, 2)),
+            Event(client_id=ac, type="handoff.requested", conversation_id=lost, area_id=second.id, at=T(7, 11, 2)),
+            HandoffLeg(client_id=ac, conversation_id=c, area_id=second.id, team_member_id=member.id,
+                       phone="+5491100000003", result="connected", wamid="wamid.tardo", created_at=T(7, 10, 2), answered_at=T(7, 10, 30),
+                       connected_at=T(7, 10, 30), ended_at=T(7, 10, 40), billed_seconds=0),
+            # Un envio interrumpido se vuelve a intentar: no es un intento sin atender.
+            HandoffLeg(client_id=ac, conversation_id=c, area_id=second.id, team_member_id=member.id,
+                       phone="+5491100000003", result="interrupted", created_at=T(7, 10, 2), ended_at=T(7, 10, 2),
+                       billed_seconds=0),
+        ])
+        s.commit()
+    out = report(data["admin"], "transfers", client_id=ac)
+    k = out["kpis"]
+    assert (k["requested"], k["answered"], k["not_answered"]) == (before["requested"] + 2, before["answered"] + 1,
+                                                                 before["not_answered"] + 1)
+    areas = {a["name"]: a for a in out["by_area"]}
+    assert (areas["Guardia"]["requested"], areas["Guardia"]["answered"], areas["Guardia"]["not_answered"]) == (2, 1, 1)
+    assert "Entrada" not in areas
+    # 28 minutos para tocar el boton no son espera de atencion.
+    assert k["avg_answer_seconds"] == before["avg_answer_seconds"]
+    assert next(m for m in out["by_member"] if m["name"] == "Lía")["avg_answer_seconds"] is None
+    lia = next(m for m in out["by_member"] if m["name"] == "Lía")
+    assert (lia["attempts"], lia["not_answered"]) == (1, 0)
+
+
+def test_team_messages_count_in_the_messages_report(api, data):
+    ac = data["acme"]
+    before = report(data["admin"], "messages", client_id=ac)["delivery"]["sent"]
+    with api.sessions() as s:
+        account = s.scalars(select(WaAccount).where(WaAccount.client_id == ac)).first()
+        s.add_all([WaMessage(account_id=account.id, direction="out", wa_id="5493511111111", type=kind, status="sent",
+                             created_at=T(7, 10)) for kind in ("team_notice", "team_relay")])
+        s.commit()
+    assert report(data["admin"], "messages", client_id=ac)["delivery"]["sent"] == before + 2
 
 
 def test_campaigns_report(api, data):

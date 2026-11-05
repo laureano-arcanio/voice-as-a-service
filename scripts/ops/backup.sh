@@ -4,6 +4,7 @@
 # Docker. Copia externa a S3 si BACKUP_S3_BUCKET está en .env: base, .env, storage/ y certificado
 # cifrados con la llave pública de deploy/backup-key.asc (la privada no está en el server), y el
 # checkpoint tal cual. Restaurar: scripts/ops/backup-fetch.sh (docs/MIGRACION_SERVER.md, 4).
+# BACKUP_EXTRA_DBS en .env: otras bases del mismo db, con el mismo trato (coma o espacio entre nombres).
 # --if-due: no hace nada si el último backup completo tiene menos de 25 h. El cron lo corre a las
 # 03:30 y, con esa bandera, cada hora: si el host estuvo apagado a las 03:30, se recupera solo.
 set -euo pipefail
@@ -36,6 +37,18 @@ if docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
     crm_file="$DEST/db/crm-$STAMP.sql.gz"
     docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d crm --no-owner' | gzip > "$crm_file"
 fi
+
+# Bases extra. Una listada que no existe corta acá, sin backup.ok: healthcheck.sh avisa a las 26 h.
+extra_dbs=()
+extra_names="$(env_get BACKUP_EXTRA_DBS)"
+for name in ${extra_names//,/ }; do
+    # "db" pisaría el volcado de la base principal.
+    [[ "$name" =~ ^[A-Za-z0-9_]+$ && "$name" != db ]] || { echo "BACKUP_EXTRA_DBS: nombre inválido ($name)" >&2; exit 1; }
+    extra_file="$DEST/db/$name-$STAMP.sql.gz"
+    docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$1" --no-owner' sh "$name" | gzip > "$extra_file"
+    [[ $(zcat "$extra_file" | head -c 1000 | wc -c) -gt 100 ]] || { echo "backup de la base $name vacío" >&2; exit 1; }
+    extra_dbs+=("$name")
+done
 
 # .env: tiene los secretos (WA_TOKEN_KEY: sin ella no se leen los tokens de los clientes).
 env_file="$DEST/env/env-$STAMP"
@@ -73,6 +86,7 @@ if [[ -n "$(env_get BACKUP_S3_BUCKET)" ]]; then
     enc() { backup_gpg --trust-model always -e -r "$fpr" -o "$tmp/$2" "$1"; }
     enc "$db_file" db.sql.gz.gpg
     [[ -n "$crm_file" ]] && enc "$crm_file" crm.sql.gz.gpg
+    for name in "${extra_dbs[@]}"; do enc "$DEST/db/$name-$STAMP.sql.gz" "$name.sql.gz.gpg"; done
     enc "$env_file" env.gpg
     enc "$storage_file" storage.tar.gz.gpg
     [[ -n "$le_file" ]] && enc "$le_file" letsencrypt.tar.gz.gpg

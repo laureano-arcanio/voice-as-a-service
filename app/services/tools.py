@@ -1,7 +1,8 @@
 """Herramientas, secretos y credenciales del cliente (docs/features/HERRAMIENTAS.md).
 
 - Herramientas: del cliente, por slug. El plan dice cuantas (`max_tools`) y si pueden ser codigo
-  (`code_tools`). Cambiar una sube su `revision`; borrarla falla si un agente vigente la usa.
+  (`code_tools`). Cambiar una sube su `revision`; borrarla falla si un agente vigente la usa, en `tools` o en
+  `workflows` (pre-call y post-call: las corre la plataforma, el modelo no las ve).
 - Secretos: del cliente (para todos sus agentes) y de un agente, que pisa al del cliente con el mismo nombre.
   Cifrados (Fernet con WA_TOKEN_KEY, como las keys de llm_connections) y no se devuelven nunca: solo el nombre
   y los ultimos 4. Al guardar un agente, cada secreto que piden sus herramientas tiene que estar en el cliente o
@@ -45,7 +46,7 @@ CODE_TEMPLATE = '''/**
  * @param {object} input
  * @param {object} input.args     Lo que completa el agente, según "Parámetros".
  * @param {object} input.secrets  Los secretos que marcaste en "Secretos que usa" (del cliente o del agente).
- * @param {object} input.call     La conversación: id, channel, mode, from, to, agent.
+ * @param {object} input.call     La conversación: id, channel, mode, from, to, phone, agent.
  * @param {object} input.vars     Lo que guardaron otras herramientas.
  * @returns Un objeto JSON: es lo que lee el agente.
  */
@@ -113,12 +114,19 @@ def get_tool(s: Session, client_id: str, slug: str) -> ClientTool:
     return row
 
 
+def _workflow_tools(definition: dict) -> list[str]:
+    """Las herramientas de workflows.pre_call y post_call de una definicion guardada."""
+    flows = definition.get("workflows") or {}
+    return [flow["tool"] for flow in (flows.get("pre_call"), flows.get("post_call")) if flow and flow.get("tool")]
+
+
 def used_by(s: Session, client_id: str) -> dict[str, list[dict]]:
     """slug -> agentes vigentes (no archivados) del cliente que la usan: [{id, slug, name}]."""
     out: dict[str, list[dict]] = {}
     for agent in s.scalars(select(Agent).where(Agent.client_id == client_id, Agent.archived_at.is_(None))):
-        for grant in agent.definition.get("tools") or []:
-            if slug := grant.get("tool"):
+        slugs = [g.get("tool") for g in agent.definition.get("tools") or []] + _workflow_tools(agent.definition)
+        for slug in slugs:
+            if slug:
                 out.setdefault(slug, []).append({"id": agent.id, "slug": agent.slug, "name": agent.name})
     return out
 
@@ -266,7 +274,7 @@ def list_secrets(s: Session, agent: Agent) -> list[dict]:
     cliente), los del cliente que piden sus herramientas (`source` client) y los que faltan (`missing`).
     used_by: las herramientas del agente que lo piden."""
     needs: dict[str, list[str]] = {}
-    for spec in agent_tool_specs(s, agent.client_id, agent.definition):
+    for spec in agent_tool_specs(s, agent.client_id, agent.definition, workflows=True):
         for name in S.required_secrets(spec.tool):
             needs.setdefault(name, []).append(spec.slug)
     own = _agent_secrets(s, agent.id)
@@ -367,7 +375,7 @@ def delete_secret(s: Session, agent: Agent, row: AgentSecret) -> None:
     if agent.client_id and row.name in client_secret_names(s, agent.client_id):
         s.delete(row)
         return
-    users = [spec.slug for spec in agent_tool_specs(s, agent.client_id, agent.definition)
+    users = [spec.slug for spec in agent_tool_specs(s, agent.client_id, agent.definition, workflows=True)
              if row.name in S.required_secrets(spec.tool)]
     if users:
         raise Conflict(f"Lo usan las herramientas del agente: {', '.join(users)}", "secret_in_use")
@@ -593,10 +601,13 @@ def _grants(definition: dict | Workflow) -> list[ToolGrant]:
     return [ToolGrant(tool=g["tool"]) for g in definition.get("tools") or [] if isinstance(g, dict) and g.get("tool")]
 
 
-def agent_tool_specs(s: Session, client_id: str | None, definition: dict | Workflow) -> list[ToolSpec]:
-    """Las herramientas del cliente que usa el agente, en su orden. Las que faltan se ignoran (se valida al
-    guardar el agente)."""
+def agent_tool_specs(s: Session, client_id: str | None, definition: dict | Workflow, *,
+                     workflows: bool = False) -> list[ToolSpec]:
+    """Las herramientas del cliente que ve el modelo, en su orden. Las que faltan se ignoran (se valida al guardar
+    el agente). Con `workflows` (definicion guardada), tambien las ocultas: piden secretos como las demas."""
     grants = _grants(definition)
+    if workflows and isinstance(definition, dict):
+        grants = [*grants, *[ToolGrant(tool=slug) for slug in _workflow_tools(definition)]]
     if not grants or client_id is None:
         return []
     rows = {r.slug: r for r in s.scalars(select(ClientTool).where(
@@ -613,10 +624,27 @@ def agent_tool_specs(s: Session, client_id: str | None, definition: dict | Workf
     return out
 
 
+def _workflow_errors(key: str, row: ClientTool, spec: ToolSpec, visible: set[str]) -> list[str]:
+    """Una herramienta de workflow la corre la plataforma: nada lo completa el modelo y el modelo no la ve. El
+    post-call se reintenta con la misma clave: solo http que no sea GET lleva Idempotency-Key (tools/runtime.py)."""
+    out = []
+    if row.slug in visible:
+        out.append(f"La herramienta {row.slug!r} no puede estar también en las herramientas del agente")
+    if S.llm_parameters(spec.tool).get("properties"):
+        out.append(f"La herramienta {row.slug!r} tiene parámetros que completa el modelo: en una herramienta automática "
+                   "todos los valores van fijos")
+    if key == "post_call" and (not isinstance(spec.tool, S.HttpTool) or spec.tool.http.method == "GET"):
+        out.append(f"La herramienta {row.slug!r} no sirve para «Después de la conversación»: tiene que ser una API que no sea de solo lectura (GET)")
+    return out
+
+
 def check_agent_tools(s: Session, client_id: str, agent_id: str | None, normalized: dict) -> None:
     """Al guardar un agente: cada herramienta existe, es del cliente, el plan la incluye y sus secretos estan (en
-    el cliente o en el agente)."""
-    entries = [(i, g) for i, g in enumerate(normalized.get("tools") or []) if g.get("tool")]
+    el cliente o en el agente). Las de `workflows`, ademas, cumplen _workflow_errors."""
+    entries = [(f"tools.{i}.tool", g["tool"]) for i, g in enumerate(normalized.get("tools") or []) if g.get("tool")]
+    flows = normalized.get("workflows") or {}
+    workflow_paths = {f"workflows.{key}.tool": key for key in ("pre_call", "post_call") if flows.get(key)}
+    entries += [(path, flows[key]["tool"]) for path, key in workflow_paths.items()]
     if not entries:
         return
     client = s.get(Client, client_id)
@@ -625,11 +653,14 @@ def check_agent_tools(s: Session, client_id: str, agent_id: str | None, normaliz
     have = set(client_secret_names(s, client_id)) | (set(secret_names(s, agent_id)) if agent_id else set())
     creds = credentials_map(s, client_id)
     errors = []
-    for i, g in entries:
-        row = rows.get(g["tool"])
-        path = f"tools.{i}.tool"
+    visible = {g.get("tool") for g in normalized.get("tools") or []}
+    if flows.get("pre_call") and flows.get("post_call") and flows["pre_call"]["tool"] == flows["post_call"]["tool"]:
+        errors.append({"path": "workflows.post_call.tool", "message": "«Antes de la conversación» y «Después de la "
+                                                                      "conversación» no pueden usar la misma herramienta"})
+    for path, slug in entries:
+        row = rows.get(slug)
         if row is None:
-            errors.append({"path": path, "message": f"El cliente no tiene la herramienta {g['tool']!r}"})
+            errors.append({"path": path, "message": f"El cliente no tiene la herramienta {slug!r}"})
             continue
         if lim is not None and (lim.max_tools == 0 or (row.type == "code" and not lim.code_tools)):
             errors.append({"path": path, "message": f"Tu plan no incluye la herramienta {row.slug!r} "
@@ -644,6 +675,8 @@ def check_agent_tools(s: Session, client_id: str, agent_id: str | None, normaliz
         if missing:
             errors.append({"path": path, "message": f"Faltan los secretos {', '.join(sorted(missing))}: cargalos en "
                                                     "Secretos (para todos los agentes) o en el agente"})
+        if key := workflow_paths.get(path):
+            errors += [{"path": path, "message": m} for m in _workflow_errors(key, row, spec, visible)]
     if errors:
         raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
 
@@ -670,7 +703,7 @@ async def test_tool(s_factory, client_id: str, tool_type: str, definition: dict,
     call = call or {}
     ctx = ToolContext(conversation_id=str(call.get("id") or "prueba"), channel=call.get("channel") or "voice",
                       mode=call.get("mode") or "prueba", from_=call.get("from"), to=call.get("to"),
-                      agent_slug=agent_slug, secrets=values)
+                      phone=call.get("phone"), agent_slug=agent_slug, secrets=values)
     spec = ToolSpec(slug=slug, type=tool_type, revision=revision, tool=tool)
     return await run(spec, args, ctx)
 

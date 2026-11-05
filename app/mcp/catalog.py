@@ -712,8 +712,8 @@ _WRITE: tuple[Tool, ...] = (
 
     # ---------- team ----------
     Tool("create_team_member", "team", "Sumar una persona al equipo",
-         "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y el WhatsApp para el "
-         "puente de mensajes.", method="POST", path="/team", body="TeamMemberIn", features=("team",)),
+         "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para "
+         "avisarle por WhatsApp.", method="POST", path="/team", body="TeamMemberIn", features=("team",)),
     Tool("update_team_member", "team", "Editar una persona del equipo", "Cambia los datos de una persona.",
          method="PATCH", path="/team/{member_id}", params={"member_id": _s("ID de la persona.")},
          required=("member_id",), body="TeamMemberPatch", features=("team",)),
@@ -721,16 +721,19 @@ _WRITE: tuple[Tool, ...] = (
          method="DELETE", path="/team/{member_id}", params={"member_id": _s("ID de la persona.")},
          required=("member_id",), features=("team",), destructive=True),
     Tool("get_handoff_area_defaults", "team", "Mensajes por defecto de un área",
-         "Los mensajes por defecto de un área de derivación y las variables que aceptan.",
+         "Los mensajes por defecto de un área de derivación y las variables que aceptan. También aceptan las "
+         "que trae la herramienta de «Antes de la conversación» del agente, por su nombre.",
          path="/handoff-areas/defaults", features=("team",)),
     Tool("list_hold_music", "team", "Música de espera", "Los temas de música de espera para la derivación.",
          path="/hold-music", features=("team",)),
     Tool("create_handoff_area", "team", "Crear un área de derivación",
-         "Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente. El agente "
-         "deriva a las áreas activas según su descripción.", method="POST", path="/handoff-areas",
+         "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa "
+         "fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`). El agente deriva a las "
+         "áreas activas según su descripción.", method="POST", path="/handoff-areas",
          body="HandoffAreaIn", features=("team",)),
     Tool("update_handoff_area", "team", "Editar un área de derivación",
-         "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista.",
+         "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; "
+         "`after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas.",
          method="PATCH", path="/handoff-areas/{area_id}", params={"area_id": _s("ID del área.")},
          required=("area_id",), body="HandoffAreaPatch", features=("team",)),
     Tool("delete_handoff_area", "team", "Borrar un área de derivación", "Borra un área de derivación.",

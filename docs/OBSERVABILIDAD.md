@@ -29,6 +29,8 @@ blackbox (sondas internas y externas) ────────────┘   
 
 `scripts/ops/healthcheck.sh` (cron, cada 2 min) sigue aparte, como vigía: si Prometheus se cae, el
 chequeo sigue avisando por el mismo tema de ntfy.
+Si el `.env` tiene `REGISTROS_HEALTH_URL`, también avisa cuando Registros no da 200 en `/health` ([`features/REGISTROS.md`](features/REGISTROS.md));
+sin la clave no lo mira.
 
 ## 2. Qué se mide y por qué
 

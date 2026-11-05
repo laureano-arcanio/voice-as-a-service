@@ -194,6 +194,23 @@ class HandoffConfig(BaseModel):
     hold_music: HoldMusic = Field(default_factory=HoldMusic)
 
 
+class PreCallWorkflow(BaseModel):
+    """Herramienta oculta al modelo que corre antes de la conversacion; su `assign` trae los datos."""
+    tool: str = Field(min_length=1)
+    timeout_ms: int = Field(default=1500, ge=200, le=5000)
+
+
+class PostCallWorkflow(BaseModel):
+    """Herramienta oculta al modelo que corre una vez, al cumplirse `when`: si el operador acepto, o siempre."""
+    tool: str = Field(min_length=1)
+    when: Literal["handoff_accepted", "always"] = "handoff_accepted"
+
+
+class AgentWorkflows(BaseModel):
+    pre_call: PreCallWorkflow | None = None
+    post_call: PostCallWorkflow | None = None
+
+
 class Workflow(BaseModel):
     """Definicion de un agente. Se guarda como JSON (agents.definition en la base,
     app/agents/templates/*.json las plantillas). id y version los fija la app: el
@@ -228,6 +245,8 @@ class Workflow(BaseModel):
     tool_settings: ToolSettings | None = None
     # Llamadas: areas del equipo a las que puede derivar (herramienta transfer_call).
     handoff: HandoffConfig | None = None
+    # Herramientas automaticas, ocultas al modelo (se validan al guardar: services/tools.check_agent_tools).
+    workflows: AgentWorkflows | None = None
     # Tu propio agente: el endpoint del cliente contesta cada turno (sin el prompt de la definicion ni extraccion).
     external: ExternalConfig | None = None
 
@@ -331,6 +350,8 @@ class Progress(BaseModel):
     handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
     # Tu propio agente: errores seguidos del endpoint del cliente (vuelve a 0 con un turno bueno).
     external_errors: int = 0
+    # WhatsApp con pre-call: la guia de apertura ya renderizada, que reemplaza a conversation.opening en el prompt.
+    opening_guide: str | None = None
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.

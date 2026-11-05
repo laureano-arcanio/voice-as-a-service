@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -13,6 +13,7 @@ class ConversationRow(Base):
         # El dashboard lista de la mas nueva a la mas vieja y filtra por fecha y cliente.
         Index("ix_conversations_created_at", "created_at"),
         Index("ix_conversations_client_created", "client_id", "created_at"),
+        Index("ix_conversations_post_call", "post_call_status", "post_call_next_at"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     # RESTRICT: un cliente o agente con conversaciones no se borra (se desactiva o archiva).
@@ -40,5 +41,11 @@ class ConversationRow(Base):
     # Tokens del LLM sumados de todos los turnos (el usage de cada respuesta; 0 si el proveedor no lo da).
     llm_input_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     llm_output_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Post-call del agente: armed, pending, running, done o failed; NULL si no corresponde o todavia no. La nota
+    # es solo el mensaje para el operador, recortado: la respuesta de la herramienta no se guarda.
+    post_call_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    post_call_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    post_call_next_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    post_call_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

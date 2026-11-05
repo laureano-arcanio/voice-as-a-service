@@ -1,10 +1,18 @@
 """Equipo, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md, fase 1)."""
 import datetime
 
+import pytest
+import sqlalchemy as sa
+from alembic import command
+from cryptography.fernet import Fernet
 from sqlalchemy import select
 
-from app.models import CallRow, CallStatus, Event, HandoffArea
+from app.config import settings
+from app.conversation.models import Workflow
+from app.llm.platform_tools import transfer_call_tool
+from app.models import CallRow, CallStatus, Event, HandoffArea, WaAccount
 from app.services import calls as call_service
+from app.services import events as events_service
 from app.services import handoff
 
 from .test_api import (  # noqa: F401  (admin: fixture)
@@ -13,7 +21,9 @@ from .test_api import (  # noqa: F401  (admin: fixture)
     client_user,
     make_agent,
     make_client,
+    make_tier,
 )
+from .test_migration_0005 import _run
 
 DID = "+541152630861"
 
@@ -176,3 +186,402 @@ def test_messages_have_time(api, admin):
     m = Message(role="user", text="hola")
     assert m.at is not None and m.at.tzinfo is not None
     assert Message.model_validate({"role": "user", "text": "viejo", "at": None}).at is None
+
+
+# ---------- ruteo entre areas ----------
+
+def new_area(user, cid, name="Ventas", **body):
+    r = user.post(f"{V1}/handoff-areas", params={"client_id": cid}, json={"name": name, **body})
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_defaults_change_nothing(api, admin):
+    c = make_client(admin)
+    m = member(admin, c["id"], phone="3511111111")
+    assert m["whatsapp_notify"] is False
+    area = new_area(admin, c["id"])
+    assert (area["delivery"], area["whatsapp"]) == ("call", None)
+    assert area["after_hours_area_id"] is None and area["no_answer_area_id"] is None
+    agent = make_agent(admin, c)
+    definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
+    assert "workflows" not in definition
+    # Un agente existente se guarda igual: la definicion no gana claves.
+    r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
+    assert r.status_code == 200, r.text
+    drop = ("version",)
+    assert {k: v for k, v in r.json()["definition"].items() if k not in drop} == \
+        {k: v for k, v in definition.items() if k not in drop}
+
+
+def test_area_routes_stay_in_the_client(api, admin):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    theirs = new_area(admin, other["id"], "Ajena")
+    guardia = new_area(admin, c["id"], "Guardia")
+    # Otro cliente, al crear y al cambiar, en las dos rutas.
+    for key in ("after_hours_area_id", "no_answer_area_id"):
+        r = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]}, json={"name": "X", key: theirs["id"]})
+        assert r.status_code == 422 and key in r.json()["detail"]
+        assert admin.patch(f"{V1}/handoff-areas/{guardia['id']}", json={key: theirs["id"]}).status_code == 422
+        assert admin.patch(f"{V1}/handoff-areas/{guardia['id']}", json={key: "no-existe"}).status_code == 422
+        # A si misma, tampoco.
+        assert admin.patch(f"{V1}/handoff-areas/{guardia['id']}", json={key: guardia["id"]}).status_code == 422
+    entrada = new_area(admin, c["id"], "Entrada", after_hours_area_id=guardia["id"], no_answer_area_id=guardia["id"])
+    assert entrada["after_hours_area_id"] == guardia["id"] and entrada["no_answer_area_id"] == guardia["id"]
+    # Un ciclo largo se guarda: se corta al derivar.
+    r = admin.patch(f"{V1}/handoff-areas/{guardia['id']}", json={"no_answer_area_id": entrada["id"]})
+    assert r.status_code == 200, r.text
+    admin.patch(f"{V1}/handoff-areas/{guardia['id']}", json={"no_answer_area_id": None})
+
+    # Un area a la que pasa otra no se borra, hasta quitar las dos rutas.
+    r = admin.delete(f"{V1}/handoff-areas/{guardia['id']}")
+    assert r.status_code == 409 and r.json()["code"] == "area_in_use" and "Entrada" in r.json()["detail"]
+    admin.patch(f"{V1}/handoff-areas/{entrada['id']}", json={"after_hours_area_id": None})
+    assert admin.delete(f"{V1}/handoff-areas/{guardia['id']}").status_code == 409
+    r = admin.patch(f"{V1}/handoff-areas/{entrada['id']}", json={"no_answer_area_id": None})
+    assert r.json()["no_answer_area_id"] is None
+    assert admin.delete(f"{V1}/handoff-areas/{guardia['id']}").status_code == 204
+
+
+def test_client_user_cannot_route_to_another_client(api, admin):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    theirs = new_area(admin, other["id"], "Ajena")
+    user = client_user(api, admin, c)
+    mine = new_area(user, None, "Mia")
+    assert user.patch(f"{V1}/handoff-areas/{mine['id']}", json={"no_answer_area_id": theirs["id"]}).status_code == 422
+    assert user.patch(f"{V1}/handoff-areas/{theirs['id']}", json={"no_answer_area_id": mine["id"]}).status_code == 404
+
+
+def test_call_areas_redirects_and_channel(api, admin):
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    account = wa_account(api, c, agent)
+    closed = {"week": {}}
+    guardia = new_area(admin, c["id"], "Guardia", schedule=closed)
+    entrada = new_area(admin, c["id"], "Entrada", schedule=closed, after_hours_area_id=guardia["id"], whatsapp={
+        "account_id": account, "template": {"name": "rotacion", "language": "es_AR"}})
+    solo_llamada = new_area(admin, c["id"], "Solo", whatsapp={
+        "account_id": account, "call_template": {"name": "llamada", "language": "es_AR"}})
+    definition = {**admin.get(f"{V1}/agents/{agent['id']}").json()["definition"], "handoff": {"areas": [
+        {"area_id": a["id"]} for a in (guardia, entrada, solo_llamada)]}}
+    r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
+    assert r.status_code == 200, r.text
+    config = Workflow.model_validate(r.json()["definition"]).handoff
+    with api.sessions() as s:
+        voice = handoff.call_areas(s, c["id"], config)
+        text = handoff.call_areas(s, c["id"], config, channel="whatsapp")
+    assert [(a["name"], a["redirects"]) for a in voice] == [("Guardia", False), ("Entrada", True), ("Solo", False)]
+    assert [a["name"] for a in text] == ["Entrada"]
+    # Cerrada sin ruta dice cerrada; con ruta atiende, porque la llamada sigue por la otra area.
+    described = transfer_call_tool(voice)["function"]["description"]
+    assert "Guardia: con horario a confirmar, cerrada ahora" in described
+    assert "Entrada: con horario a confirmar, atiende ahora" in described
+    # Una conversacion en curso, guardada sin la clave, sigue funcionando.
+    old = [{k: v for k, v in a.items() if k != "redirects"} for a in voice]
+    assert "Entrada: con horario a confirmar, cerrada ahora" in transfer_call_tool(old)["function"]["description"]
+
+
+# ---------- WhatsApp del area ----------
+
+def wa_account(api, client, agent, pnid="111") -> str:
+    with api.sessions() as s:
+        row = WaAccount(client_id=client["id"], agent_id=agent["id"], phone_number_id=pnid, waba_id="222",
+                        display_phone_number="+54 351 000", name="Prueba")
+        s.add(row)
+        s.commit()
+        return row.id
+
+
+def template(*params):
+    return {"name": "equipo", "language": "es_AR", "params": list(params)}
+
+
+def test_area_whatsapp_rules(api, admin):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    account = wa_account(api, c, make_agent(admin, c))
+    foreign = wa_account(api, other, make_agent(admin, other), pnid="333")
+    area = new_area(admin, c["id"])
+
+    def patch(**body):
+        return admin.patch(f"{V1}/handoff-areas/{area['id']}", json=body)
+
+    good = {"account_id": account, "template": template("area")}
+    bad = [
+        ({"account_id": foreign, "template": template("area")}, "call"),         # cuenta de otro cliente
+        ({"account_id": "no-existe", "template": template("area")}, "call"),
+        ({"account_id": account}, "call"),                                       # sin plantillas
+        ({**good, "wait_seconds": 29}, "call"),
+        ({**good, "wait_seconds": 3601}, "call"),
+        ({"account_id": account, "template": template("Con Espacio")}, "call"),  # parametro invalido
+        ({"account_id": account, "template": template("cliente")}, "call"),      # telefono antes de aceptar
+        ({"account_id": account, "call_template": template("cliente")}, "call"),
+        ({**good, "call_template": template("cliente")}, "whatsapp"),
+        ({"account_id": account, "call_template": template("area")}, "whatsapp"),  # el aviso necesita template
+        (None, "whatsapp"),
+    ]
+    for whatsapp, delivery in bad:
+        r = patch(whatsapp=whatsapp, delivery=delivery)
+        assert r.status_code == 422, (whatsapp, delivery, r.text)
+    assert admin.get(f"{V1}/handoff-areas/{area['id']}").json()["whatsapp"] is None
+    # Tampoco cambiando solo el delivery de un area sin plantilla.
+    assert patch(delivery="whatsapp").status_code == 422
+    assert admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]},
+                      json={"name": "Otra", "whatsapp": {"account_id": foreign, "template": template()}}
+                      ).status_code == 422
+
+    # Rotacion y complemento: los defaults anidados se completan aunque el PATCH no los mande.
+    r = patch(whatsapp={"account_id": account, "template": {"name": "rotacion", "language": "es_AR"},
+                        "call_template": template("area", "nota_operador")})
+    assert r.status_code == 200, r.text
+    assert r.json()["whatsapp"] == {"account_id": account, "wait_seconds": 120,
+                                    "template": {"name": "rotacion", "language": "es_AR", "params": []},
+                                    "call_template": template("area", "nota_operador")}
+
+    # El aviso lleva cliente; volver a llamada con esa plantilla, no.
+    aviso = new_area(admin, c["id"], "Aviso", delivery="whatsapp",
+                     whatsapp={"account_id": account, "template": template("cliente", "resumen", "ficha")})
+    assert aviso["delivery"] == "whatsapp" and aviso["whatsapp"]["template"]["params"][0] == "cliente"
+    r = admin.patch(f"{V1}/handoff-areas/{aviso['id']}", json={"delivery": "call"})
+    assert r.status_code == 422 and "cliente" in r.json()["detail"]
+    # Sin plantilla, un aviso no queda.
+    assert admin.patch(f"{V1}/handoff-areas/{aviso['id']}", json={"whatsapp": None}).status_code == 422
+    # Cambiar otra cosa no revalida la cuenta.
+    r = admin.patch(f"{V1}/handoff-areas/{aviso['id']}", json={"description": "Consultas"})
+    assert r.status_code == 200 and r.json()["whatsapp"]["template"]["name"] == "equipo"
+    assert patch(whatsapp=None).json()["whatsapp"] is None
+
+
+def test_team_whatsapp_notify(api, admin):
+    c = make_client(admin)
+    m = member(admin, c["id"], phone="3511111111", whatsapp_notify=True)
+    assert m["whatsapp_notify"] is True
+    assert admin.patch(f"{V1}/team/{m['id']}", json={"whatsapp_notify": False}).json()["whatsapp_notify"] is False
+    assert admin.patch(f"{V1}/team/{m['id']}", json={"whatsapp_notify": None}).status_code == 422
+
+
+def test_new_messages_and_events(admin):
+    defaults = admin.get(f"{V1}/handoff-areas/defaults").json()
+    assert "nombre" in defaults["variables"]
+    # Los mensajes de antes de aceptar y sus variables salen de las constantes del servicio, no de una copia.
+    assert defaults["pre_accept_messages"] == list(handoff.PRE_ACCEPT_MESSAGES)
+    assert defaults["pre_accept_variables"] == list(handoff.PRE_ACCEPT_VARIABLES)
+    assert set(defaults["pre_accept_messages"]) <= set(defaults["messages"])
+    assert set(defaults["pre_accept_variables"]) <= set(defaults["variables"])
+    assert {"post_call_failed", "operator_ack", "operator_contact", "accepted", "notified", "relay_failed",
+            "tap_wait", "tap_taken", "tap_closed"} <= set(defaults["messages"])
+    assert {"workflow.pre_call", "workflow.post_call", "handoff.rerouted", "handoff.notified", "handoff.whatsapp_sent",
+            "handoff.whatsapp_failed", "handoff.relay_failed"} <= events_service.TYPES
+    # Las variables del pre-call entran con el mismo reemplazo de siempre.
+    assert handoff.render("{{nota_operador}}. {{vars.x}}listo", nota_operador="Al día") == "Al día. {{vars.x}}listo"
+
+
+def test_pre_accept_message_error_marks_the_field(api, admin):
+    """Un mensaje de antes de aceptar con una variable de más: el 422 nombra la clave en `detail` (API) y la
+    marca en `errors` (UI), sin repetir la clave en el texto del campo."""
+    c = make_client(admin)
+    area = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]}, json={"name": "Ventas"}).json()
+    for key in handoff.PRE_ACCEPT_MESSAGES:
+        r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"messages": {key: "Hola {{cliente}}"}})
+        body = r.json()
+        assert r.status_code == 422 and body["code"] == "invalid", r.text
+        assert key in body["detail"] and "{{area}}, {{persona}}, {{horario}}" in body["detail"]
+        assert "antes de aceptar" not in body["detail"]
+        assert [e["path"] for e in body["errors"]] == [f"messages.{key}"]
+        assert key not in body["errors"][0]["message"]
+        assert body["errors"][0]["message"].startswith("Todavía no lleva los datos de la persona")
+    r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"messages": {"busy": "x" * 501}})
+    assert r.status_code == 422 and [e["path"] for e in r.json()["errors"]] == ["messages.busy"]
+
+
+# ---------- workflows del agente ----------
+
+def post_tool(slug="registrar_cobro", method="POST", **http):
+    body = {} if method in ("GET", "DELETE") else {"body": {"type": "object", "properties": {
+        "conversation_id": {"type": "string", "value": "{{call.id}}"}}}}
+    return {"slug": slug, "type": "http", "definition": {
+        "description": "Sin parametros del modelo.",
+        "http": {"method": method, "url": f"https://api.acme.com/{slug}", **body, **http}}}
+
+
+def code_tool(slug="buscar_codigo"):
+    return {"slug": slug, "type": "code", "definition": {
+        "description": "Sin parametros del modelo.", "allowed_hosts": ["api.acme.com"],
+        "parameters": {"type": "object", "properties": {}},
+        "code": "export default async function () { return {}; }"}}
+
+
+@pytest.fixture
+def flows(api, admin, monkeypatch):
+    """Un agente sin herramientas y `save`, que guarda su definicion con otras claves."""
+    monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
+    c = make_client(admin, max_tools=None, code_tools=True)
+    agent = make_agent(admin, c)
+    definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
+    assert not definition.get("tools")
+
+    def tool(body):
+        r = admin.post(f"{V1}/clients/{c['id']}/tools", json=body)
+        assert r.status_code == 201, r.text
+
+    def save(**keys):
+        return admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": {**definition, **keys}})
+
+    tool(post_tool("buscar_ficha"))
+    tool(post_tool("registrar_cobro"))
+    return c, agent, tool, save
+
+
+def bad_path(r, path):
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "invalid_definition"
+    assert path in [e["path"] for e in r.json()["errors"]], r.text
+
+
+def test_workflows_are_saved_with_their_defaults(flows):
+    _, _, _, save = flows
+    r = save(workflows={"pre_call": {"tool": "buscar_ficha"}, "post_call": {"tool": "registrar_cobro"}})
+    assert r.status_code == 200, r.text
+    assert r.json()["definition"]["workflows"] == {
+        "pre_call": {"tool": "buscar_ficha", "timeout_ms": 1500},
+        "post_call": {"tool": "registrar_cobro", "when": "handoff_accepted"}}
+    assert not r.json()["definition"].get("tools")
+    r = save(workflows={"post_call": {"tool": "registrar_cobro", "when": "always"}})
+    assert r.json()["definition"]["workflows"] == {"post_call": {"tool": "registrar_cobro", "when": "always"}}
+    # Lo que no sea un valor conocido no pasa el modelo.
+    for bad in ({"post_call": {"tool": "registrar_cobro", "when": "nunca"}},
+                {"pre_call": {"tool": "buscar_ficha", "timeout_ms": 199}},
+                {"pre_call": {"tool": "buscar_ficha", "timeout_ms": 5001}},
+                {"pre_call": {"tool": ""}}):
+        assert save(workflows=bad).status_code == 422, bad
+
+
+def test_workflow_tool_rules(flows):
+    c, _, tool, save = flows
+    # Inexistente, tambien en un agente sin tools (antes el chequeo salia temprano).
+    bad_path(save(workflows={"pre_call": {"tool": "no_existe"}}), "workflows.pre_call.tool")
+    # La misma como pre-call y post-call.
+    same = save(workflows={"pre_call": {"tool": "buscar_ficha"}, "post_call": {"tool": "buscar_ficha"}})
+    bad_path(same, "workflows.post_call.tool")
+    assert "«Antes de la conversación» y «Después de la conversación»" in same.text
+    # Tambien en las herramientas que ve el modelo.
+    bad_path(save(tools=[{"tool": "buscar_ficha"}], workflows={"pre_call": {"tool": "buscar_ficha"}}),
+             "workflows.pre_call.tool")
+    # Con parametros del modelo.
+    tool({"slug": "con_parametro", "type": "http", "definition": {
+        "description": "Pide un DNI.", "http": {"method": "POST", "url": "https://api.acme.com/x", "body": {
+            "type": "object", "properties": {"dni": {"type": "string", "description": "DNI"}}}}}})
+    params = save(workflows={"pre_call": {"tool": "con_parametro"}})
+    bad_path(params, "workflows.pre_call.tool")
+    assert "herramienta automática" in params.text
+    # Sin sus secretos.
+    tool(post_tool("con_secreto", auth={"type": "bearer", "secret": "REGISTROS_KEY"}))
+    r = save(workflows={"pre_call": {"tool": "con_secreto"}})
+    bad_path(r, "workflows.pre_call.tool")
+    assert "REGISTROS_KEY" in r.text
+    # Post-call: http y no GET. Pre-call: admite las dos.
+    tool(code_tool())
+    tool(post_tool("leer", method="GET"))
+    code = save(workflows={"post_call": {"tool": "buscar_codigo"}})
+    get = save(workflows={"post_call": {"tool": "leer"}})
+    bad_path(code, "workflows.post_call.tool")
+    bad_path(get, "workflows.post_call.tool")
+    # Mensajes para el cliente: sin vocabulario interno (post-call, workflow, http).
+    for r in (same, params, code, get):
+        for word in ("post-call", "pre-call", "workflow", "no GET", "http y"):
+            assert word not in " ".join(e["message"] for e in r.json()["errors"]), (word, r.text)
+    assert "Después de la conversación" in code.text and "solo lectura" in get.text
+    assert save(workflows={"pre_call": {"tool": "buscar_codigo"}}).status_code == 200
+    assert save(workflows={"pre_call": {"tool": "leer"}}).status_code == 200
+
+
+def test_workflow_tool_outside_the_plan(api, admin):
+    tier = make_tier(admin, name="baja", max_tools=None, code_tools=True)
+    c = make_client(admin, tier=tier)
+    r = admin.post(f"{V1}/clients/{c['id']}/tools", json=code_tool())
+    assert r.status_code == 201, r.text
+    # El plan baja: ya no incluye herramientas de codigo.
+    assert admin.patch(f"{V1}/tiers/{tier['id']}", json={"code_tools": False}).status_code == 200
+    agent = make_agent(admin, c)
+    definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
+    r = admin.put(f"{V1}/agents/{agent['id']}/definition",
+                  json={"definition": {**definition, "workflows": {"pre_call": {"tool": "buscar_codigo"}}}})
+    bad_path(r, "workflows.pre_call.tool")
+    assert "plan" in r.text
+
+
+def test_workflow_tool_is_in_use(flows, admin):
+    c, agent, tool, save = flows
+    tool(post_tool("con_secreto", auth={"type": "bearer", "secret": "REGISTROS_KEY"}))
+    r = admin.post(f"{V1}/agents/{agent['id']}/secrets", json={"name": "REGISTROS_KEY", "value": "x" * 16})
+    assert r.status_code == 201, r.text
+    r = save(workflows={"pre_call": {"tool": "con_secreto"}, "post_call": {"tool": "registrar_cobro"}})
+    assert r.status_code == 200, r.text
+    for slug in ("con_secreto", "registrar_cobro"):
+        r = admin.delete(f"{V1}/clients/{c['id']}/tools/{slug}")
+        assert r.status_code == 409 and r.json()["code"] == "tool_in_use", slug
+    users = admin.get(f"{V1}/clients/{c['id']}/tools/registrar_cobro").json()["used_by"]
+    assert [u["id"] for u in users] == [agent["id"]]
+    # Sus secretos cuentan como los de cualquier herramienta del agente.
+    secrets = admin.get(f"{V1}/agents/{agent['id']}/secrets").json()
+    assert [(x["name"], x["used_by"]) for x in secrets] == [("REGISTROS_KEY", ["con_secreto"])]
+    r = admin.delete(f"{V1}/agents/{agent['id']}/secrets/REGISTROS_KEY")
+    assert r.status_code == 409 and r.json()["code"] == "secret_in_use"
+    # Pedir un secreto nuevo tampoco puede romper al agente.
+    changed = post_tool("registrar_cobro", auth={"type": "bearer", "secret": "OTRO"})
+    r = admin.put(f"{V1}/clients/{c['id']}/tools/registrar_cobro",
+                  json={"type": "http", "definition": changed["definition"]})
+    assert r.status_code == 422 and r.json()["code"] == "missing_secret"
+    # Sin el workflow, se borra.
+    assert save().status_code == 200
+    assert admin.delete(f"{V1}/clients/{c['id']}/tools/registrar_cobro").status_code == 204
+
+
+def test_workflow_tools_are_hidden_from_the_model(api, flows):
+    from app.services import tools as tools_service
+    c, _, _, save = flows
+    r = save(workflows={"pre_call": {"tool": "buscar_ficha"}, "post_call": {"tool": "registrar_cobro"}})
+    definition = r.json()["definition"]
+    with api.sessions() as s:
+        assert tools_service.agent_tool_specs(s, c["id"], definition) == []
+        assert tools_service.agent_tool_specs(s, c["id"], Workflow.model_validate(definition)) == []
+
+
+def test_tool_of_another_client_is_rejected(api, admin, flows):
+    other = make_client(admin, slug="otro", max_tools=None)
+    agent = make_agent(admin, other)
+    definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
+    r = admin.put(f"{V1}/agents/{agent['id']}/definition",
+                  json={"definition": {**definition, "workflows": {"pre_call": {"tool": "buscar_ficha"}}}})
+    bad_path(r, "workflows.pre_call.tool")
+
+
+def test_opening_guide_defaults_to_none():
+    from app.conversation.models import Progress
+    assert Progress().opening_guide is None
+    assert Progress.model_validate({"tool_vars": {}}).opening_guide is None
+
+
+# ---------- migracion 0048 ----------
+
+def test_0048_upgrade_downgrade(tmp_path):
+    engine = sa.create_engine(f"sqlite:///{tmp_path}/mig.db")
+    _run(engine, command.upgrade, "0047")
+    _run(engine, command.upgrade, "0048")
+    columns = {t: {c["name"]: c for c in sa.inspect(engine).get_columns(t)} for t in
+               ("conversations", "team_members", "handoff_areas", "handoff_legs", "wa_threads")}
+    assert {"post_call_status", "post_call_attempts", "post_call_next_at", "post_call_note"} <= set(
+        columns["conversations"])
+    assert not columns["team_members"]["whatsapp_notify"]["nullable"]
+    assert {"after_hours_area_id", "no_answer_area_id", "delivery", "whatsapp"} <= set(columns["handoff_areas"])
+    assert "wamid" in columns["handoff_legs"]
+    assert {"handoff_status", "handoff_deadline", "handoff_delivery_tries"} <= set(columns["wa_threads"])
+    inspector = sa.inspect(engine)
+    assert "ix_conversations_post_call" in [i["name"] for i in inspector.get_indexes("conversations")]
+    assert "ix_wa_threads_handoff" in [i["name"] for i in inspector.get_indexes("wa_threads")]
+    assert {"handoff_areas"} == {fk["referred_table"] for fk in inspector.get_foreign_keys("handoff_areas")
+                                 if fk["constrained_columns"][0].endswith("_area_id")}
+    _run(engine, command.downgrade, "0047")
+    inspector = sa.inspect(engine)
+    assert "wamid" not in {c["name"] for c in inspector.get_columns("handoff_legs")}
+    assert "delivery" not in {c["name"] for c in inspector.get_columns("handoff_areas")}
+    _run(engine, command.upgrade, "0048")
