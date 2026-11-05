@@ -58,8 +58,9 @@ Las demás etapas son a mano (UI o API).
    plantilla, `events_loop` arma solo los borradores de seguimiento. **Todo mail es borrador hasta que el usuario
    lo aprueba** (UI: Leads, filtro Pendiente, o `POST /api/messages/approve`); pasa a `queued`.
 2. `send_loop` manda **un `queued` por ventana** (`CRM_SEND_WINDOW_SECONDS`, 120) en un momento al azar, con al
-   menos `CRM_SEND_MIN_GAP_SECONDS` (30) entre dos, solo en `CRM_SEND_HOURS` (9–18, lunes a viernes,
-   `America/Argentina/Buenos_Aires`) y hasta `CRM_SEND_DAILY_MAX` (50) por día. Antes de cada uno revisa blocklist,
+   menos `CRM_SEND_MIN_GAP_SECONDS` (30) entre dos, solo en `CRM_SEND_HOURS` (lunes a viernes,
+   `America/Argentina/Buenos_Aires`) y hasta `CRM_SEND_DAILY_MAX` por día. Defaults del código: 9–18 y 50; en
+   producción, por `.env` de server2 desde el 5-nov-2026: 7–18 y 100. Antes de cada uno revisa blocklist,
    `do_not_contact` y que el lead no haya respondido. `CRM_SEND_ENABLED=false` frena la cola.
 3. `POST /emails` de Resend con `Idempotency-Key` = id del mensaje, `In-Reply-To`/`References` del último mensaje
    del hilo (el seguimiento cae en el mismo hilo), `bcc` a `CRM_MAIL_BCC` (el hilo queda en Gmail: lo que sale por
