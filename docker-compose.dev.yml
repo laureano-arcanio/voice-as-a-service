@@ -1,7 +1,7 @@
 # Entorno de desarrollo (docs/DESARROLLO.md): app, base y voz para probar antes de desplegar. Es un stack aparte
 # (proyecto atentina-dev, se usa solo con `make dev-*`), sin Asterisk, túnel ni monitoreo. No lee .env: sus credenciales
 # están en .env.dev, sin las de Anura, WhatsApp, MercadoPago ni Resend, y su base y sus audios son propios.
-# La inferencia es la de los modelos de este host, compartidos con producción (réplica del balanceador).
+# La inferencia es la de los modelos de este host.
 name: atentina-dev
 
 x-app: &app

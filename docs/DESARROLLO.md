@@ -2,7 +2,7 @@
 
 | Entorno | Host | Código | Datos |
 |---|---|---|---|
-| Desarrollo | `192.168.1.99` (además, réplica de los modelos) | Copia de trabajo, cualquier rama | Base propia, sin datos de producción; credenciales en `.env.dev` |
+| Desarrollo | `192.168.1.99` | Copia de trabajo, cualquier rama | Base propia, sin datos de producción; credenciales en `.env.dev` |
 | Producción | server2 (`192.168.1.98`) | Siempre `main`, sin cambios locales | Base y `.env` reales |
 
 **Flujo:** se planifica y se valida ([ciclo de `AGENTS.md`](../AGENTS.md#ciclo-de-desarrollo)) → se desarrolla y se prueba en el entorno local → commit a `main` y push → se despliega con el agente
@@ -34,8 +34,8 @@ se envían: los mails quedan en `make dev-logs S=app`), túnel ni monitoreo. Eso
 prueba no toma el micrófono: abrir un túnel con `ssh -L 8211:127.0.0.1:8211 -L 7880:127.0.0.1:7880 192.168.1.99` y entrar por `http://localhost:8211`.
 
 **Trampas:**
-- Los modelos son los de este host, los mismos que reciben tráfico de producción por el balanceador: nada de pruebas de carga
-  contra el entorno local. Un cambio de modelo se prueba con su override y el test de capacidad ([`INFRA.md`](INFRA.md)).
+- Los modelos son los de este host y no reciben tráfico de producción (su réplica está en `disabled` en el balanceador,
+  [`LLM_REPLICAS.md`](features/LLM_REPLICAS.md)). Un cambio de modelo se prueba con su override y el test de capacidad ([`INFRA.md`](INFRA.md)).
 - `.env.dev` no se versiona y no lleva credenciales de producción. Copia del `.env` solo la clave y los nombres de los modelos.
   Si cambia el modelo del LLM, actualizar `.env.dev.example` y `.env.dev`, o el LLM da 404.
 - `make dev-backend` (SQLite, `:8111`) sigue para mirar la UI rápido, pero lee las `LIVEKIT_*` y demás claves del `.env`.

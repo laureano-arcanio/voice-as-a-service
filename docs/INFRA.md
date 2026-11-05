@@ -4,10 +4,10 @@ Agente de voz con inferencia propia: LLM, STT y TTS corren en GPUs propias, sin 
 cubre los hosts, los servicios del compose, el reparto de GPU, la telefonía, el arranque, los backups y la
 exposición a internet.
 
-**Dos servers (desde el 2-nov-2026):** server2 (`192.168.1.98`) es el principal y corre todo; el otro
-(`192.168.1.99`) es réplica de los tres modelos para el balanceador
-([`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md)) y entorno de desarrollo, en un stack aparte
-([`DESARROLLO.md`](DESARROLLO.md)). Salvo que se indique, "este host" en este doc es server2.
+**Dos servers (desde el 2-nov-2026):** server2 (`192.168.1.98`) es el principal y corre todo, y atiende solo la
+inferencia de producción: sin respaldo de inferencia. El otro (`192.168.1.99`) es el entorno de desarrollo, en un stack
+aparte ([`DESARROLLO.md`](DESARROLLO.md)); sus tres modelos no reciben producción: su réplica está en `disabled` en el
+balanceador ([`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md)). Salvo que se indique, "este host" en este doc es server2.
 
 Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, LiveKit),
 [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md) (server nuevo, router, corte),
@@ -16,7 +16,7 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 
 ## Host y hardware
 
-| Pieza | server2 (`atentina-region-2`), principal | Réplica de inferencia |
+| Pieza | server2 (`atentina-region-2`), principal | 192.168.1.99, desarrollo (modelos fuera del reparto) |
 |---|---|---|
 | CPU, RAM, placa | Ryzen 7 5700 (8/16), 30 GB, Gigabyte B550 Eagle WIFI6 (PCIe Gen3) | Ryzen 7 5700X (8/16), 64 GB, ASRock B550M Pro SE |
 | GPU del LLM | RTX 3090 24 GB, índice 0, `01:00.0`, Gen3 x16, 350 W | RTX 3090 24 GB, índice 1, `07:00.0`, Gen4 x16, 280 W; también dibuja el escritorio |
@@ -24,7 +24,7 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 | Red | LAN `192.168.1.98` (reserva DHCP). IP pública `181.104.113.28`: los reenvíos del router van acá | LAN `192.168.1.99` (reserva DHCP) |
 | Discos | NVMe de 477 GB en `/` (Docker, repo, base); HDD 750 GB en `/mnt/storage-server-region-2` (audios y backups); HDD 1 TB con datos personales, sin montar al arrancar | NVMe de 465 GB en `/` y NVMe de 1,8 TB en `/home` |
 
-- **Topes de GPU:** en la réplica, en cada arranque: 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz y
+- **Topes de GPU:** en .99, en cada arranque: 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz y
   *persistence mode* (`deploy/gpu-limits.sh`, `atentina-gpu-limits.service`). Sin tope, dos 3090 apagaron ese server por
   un pico de consumo. server2 va sin tope por decisión del usuario (`GPU_SIN_TOPE=1` en su `.env`: `deploy/install.sh`,
   `healthcheck.sh` y la alerta `GpuSinTope` lo respetan); su pico bajo carga no está medido. El tope cambia el `hw_id`
@@ -98,10 +98,11 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 3090 (`GPU_LLM_ID`: 0 en server2, 1 en la réplica) | `vllm-llm` (en la réplica, + escritorio) | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
-| 3080 Ti (`GPU_TTS_ID`: 1 en server2, 0 en la réplica) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
+| 3090 (`GPU_LLM_ID`: 0 en server2, 1 en .99) | `vllm-llm` (en .99, + escritorio) | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
+| 3080 Ti (`GPU_TTS_ID`: 1 en server2, 0 en .99) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
 
-- **Reparto vigente sin medir con carga.** El KV del talker (6.096 tokens) cubre el máximo medido en la 3090
+- **Reparto vigente sin medir con carga.** server2 atiende solo, sin test de capacidad por decisión del usuario
+  (5-nov-2026): ver [`capacity/`](capacity/README.md). El KV del talker (6.096 tokens) cubre el máximo medido en la 3090
   (~3.700 con 96 llamadas); queda ~1,1 GB libre en la 3080 Ti para el STT bajo carga. Las fracciones del TTS
   van escritas en `docker-compose.gpu-3080ti.yml`; `VLLM_TTS_GPU_MEMORY_UTILIZATION` no rige.
 
@@ -118,7 +119,9 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
   p95 ≤ 3 s (codo, saturan las dos GPUs); con 64 también la CPU del host (~0,12 cores por llamada) y el
   servicio colapsa; potencia de las dos GPUs, 559 W de pico.
 - Con sobrecarga (~110 llamadas, CAP-002) el talker del TTS se cae y no se recupera solo: recrear
-  `vllm-tts` y calentarlo. Docker lo sigue viendo `running`.
+  `vllm-tts` y calentarlo. Docker lo sigue viendo `running`. Con server2 solo, HAProxy cicla (503 para todos, 500 en
+  los pedidos que pasan) y **nadie avisa**: riesgo aceptado por el usuario (5-nov-2026); ciclo medido y respuesta
+  operativa en [`features/LLM_REPLICAS.md`](features/LLM_REPLICAS.md).
 - Todo cambio de modelo, reparto de GPU, flags de memoria o hardware se mide con el test de capacidad
   y se registra en [`capacity/`](capacity/README.md) (`CAP-NNN`), con un override `docker-compose.<nombre>.yml`.
   Volver a lo vigente: `make up-inference` sin `-f` extra.
@@ -189,7 +192,7 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 ## Arranque, backup y cron
 
 **Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/`):
-- `atentina-gpu-limits.service`: topes de las GPUs (solo la réplica).
+- `atentina-gpu-limits.service`: topes de las GPUs (solo .99).
 - `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min), el
   túnel, `make livekit-sip` y el calentamiento del TTS. En la réplica, solo los modelos y el calentamiento.
   En server2 instalado el 2-nov-2026 y validado con un simulacro (`--dry-run`), **sin probar con un reinicio real**.

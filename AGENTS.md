@@ -3,7 +3,7 @@
 Atentina: agentes de voz (teléfono, web y WhatsApp) con **inferencia propia**: LLM, STT y TTS corren en GPUs
 locales. Plataforma multi-cliente (clientes, tiers, agentes versionados en JSON, números) con API `/api/v1`,
 UI React en `web/`, worker de voz LiveKit y MCP. En producción desde el 28-oct-2026. **Producción: server2 (192.168.1.98), siempre en `main`.**
-El host `192.168.1.99`, donde se trabaja con el repo, es el **entorno de desarrollo** ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)) y réplica de los tres modelos ([`docs/INFRA.md`](docs/INFRA.md)).
+El host `192.168.1.99`, donde se trabaja con el repo, es el **entorno de desarrollo** ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)); sus tres modelos no reciben producción: server2 atiende solo ([`docs/INFRA.md`](docs/INFRA.md)).
 
 ## Dónde está cada cosa
 
@@ -153,7 +153,7 @@ Detalle y resto en [`docs/INFRA.md`](docs/INFRA.md).
   recrear los tres. El parser de herramientas de `vllm-llm` tiene que ser el del modelo, o todo agente da 400.
 - **TTS no comparte GPU con el LLM ni con otra réplica.** `--gpu-memory-utilization` es fracción de la memoria total;
   los que comparten GPU no arrancan a la vez (`depends_on` los encadena).
-- **La 3090 de la réplica tiene tope de 280 W** (`atentina-gpu-limits.service`): sin tope, un pico apagó ese server. La de
+- **La 3090 de .99 tiene tope de 280 W** (`atentina-gpu-limits.service`): sin tope, un pico apagó ese server. La de
   server2 va a 350 W por decisión del usuario (`GPU_SIN_TOPE=1`), con el pico bajo carga sin medir.
 - **Redis de LiveKit no persiste**: tras reiniciar el host, `make livekit-sip` (lo hace `make up` y el arranque).
 - **DTMF `*` en Anura corta otra llamada activa de la cuenta**: los códigos para personas van con `#`.

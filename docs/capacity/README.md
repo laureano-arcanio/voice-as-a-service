@@ -8,6 +8,15 @@ anteriores con el loadtest (EXP-001 a 013) están en [`../archive/experiments/`]
 
 Hardware: **2 × RTX 3090 a 280 W** (LLM solo en la GPU 0; TTS + STT en la GPU 1), Ryzen 7 5700X, 64 GB.
 
+- **Producción: server2 solo** (3090 + 3080 Ti, [`INFRA`](../INFRA.md)): **sin medir**, por decisión del usuario
+  (5-nov-2026), sin compromiso de CAP. Lo que hay no es capacidad, es lo que pasó con poco tráfico (5-nov-2026):
+  - Pico simultáneo en `call_logs`: 1 llamada (34 en total), en una ventana de 8 días como mucho (producción desde el
+    28-oct, server2 principal desde el 2-nov). Solo llamadas: no cuenta WhatsApp, API de inferencia ni Estudio.
+  - Unos 3 días de Prometheus, solo la parte que atendió server2: KV del LLM máximo 6,9 %; `num_requests_waiting`
+    máximo 0 en LLM y STT, y 1 en una serie de TTS.
+  - HAProxy desde el 2-nov 09:27, pedidos a server2 / a .99: LLM 102 / 46, STT 630 / 637, TTS 760 / 668; `hrsp_5xx` 0 en
+    todos. La réplica estuvo caída unas 11,8 h (`chkdown=3`, 42.355 s): server2 atendió solo ese tiempo sin 5xx.
+  - Replays PCIe en las dos GPU de server2: 0.
 - **LLM vigente, Gemma 4 26B-A4B** (`docker-compose.gemma4-26b.yml`, 32 secuencias, contexto 16384): **sin
   medir.** Falta un CAP. Su KV cache es ~5 veces menor que el del Qwen3.5-9B (63.013 tokens para todas las
   llamadas, según `vllm:cache_config_info`), así que el techo va a ser más bajo que el de CAP-001. No usar los números de abajo como capacidad
