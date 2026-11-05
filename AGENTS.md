@@ -95,7 +95,7 @@ El modelo se pasa en el parámetro `model` de cada lanzamiento. El `technical-le
 | Cambiar la landing | Astro + Tailwind en `landing/` ([`docs/features/LANDING.md`](docs/features/LANDING.md)), [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md). |
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |
 | Server nuevo o migración | [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), en orden. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
-| Réplica de inferencia, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): en server2, `make llm-lb-status`, `make up-llm-lb`. |
+| Réplica de inferencia, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): en server2, `make llm-lb-status`, `make up-llm-lb` (recrea y se niega con llamadas en curso; ventana y usuarios que no cubre en el doc). |
 | Función, bug o cambio de código | [Ciclo de desarrollo](#ciclo-de-desarrollo): `technical-leader` → `validador` → `desarrollador` → `qa` → `documentador`. |
 | Probar un cambio | Entorno local: `make dev-up`, http://192.168.1.99:8211 ([`docs/DESARROLLO.md`](docs/DESARROLLO.md)). |
 | Desplegar a producción | Agente [`deploy`](.claude/agents/deploy.md), solo desde `main` y después de probar en local. `make deploy-status` muestra lo pendiente. |

@@ -46,15 +46,32 @@ Anura ni `LIVEKIT_URL`: nunca dos Asterisk, dos `cloudflared` ni dos `agent`. Ar
 
 ```
 # En server2:
-make up-llm-lb        # levanta/recrea solo HAProxy y muestra el estado
-make llm-lb-status    # UP/DOWN, pedidos en curso y totales por réplica y motor
+make up-llm-lb        # recrea solo HAProxy (--force-recreate) y muestra el estado; se niega con llamadas en curso (FORCE=1 lo saltea)
+make llm-lb-status    # UP/DOWN/MAINT, pedidos en curso y totales por réplica y motor; sin salida = balanceador caído
 make health           # incluye llm-lb (:8104, :8105, :8106)
 # En la réplica:
 make up-inference     # recarga los tres modelos (~4 min); server2 sigue atendiendo
 ```
 
-Cambios en `haproxy.cfg`: `make up-llm-lb` (no corta llamadas: `app` y `agent` reconectan). Cambios en el `.env`
-que toquen `VLLM_LLM_BASE_URL`: `make calls-active && make up-agent`.
+Cambios en `haproxy.cfg`: `make up-llm-lb`. `haproxy.cfg` es un bind mount y compose no recrea sin `--force-recreate`
+aunque el archivo cambie (medido, con inodo nuevo y con el mismo): por eso el target siempre recrea. `app` y `agent`
+reconectan por DNS de Docker, sin recrearse. Cambios en el `.env` que toquen `VLLM_LLM_BASE_URL`:
+`make calls-active && make up-agent`.
+
+**Ventana al recrear:** SIP y audio no pasan por `llm-lb`, los turnos sí. HAProxy cierra los listeners y espera lo que
+está en curso, hasta 10 s (`SIGUSR1`; a los 10 s, `SIGKILL`). Medido con HAProxy 3.2.26 y backends falsos en .99; en
+server2 puede variar:
+
+| Caso | Sin servicio |
+|---|---|
+| En reposo | 0,2 a 1,2 s |
+| Con un pedido largo en curso | 10 a 11 s; ese pedido se corta a los 10 s |
+| Pedido de 6 s a punto de terminar | completa; 2,5 a 3,7 s sin servicio |
+
+El `--wait` del make tarda 16 a 26 s: el servicio vuelve antes. `calls-active` solo mira llamadas; no cubre otros usuarios
+de `llm-lb`, que pueden fallar en la ventana: Estudio (el trabajo en curso pasa a `failed`, sin reintento ni cobro:
+mirar antes `studio_items` en `queued` o `processing`), TTS de la API y pruebas de voz, API de inferencia, audios de
+WhatsApp y su motor (`max_retries=2`). Recrear en horario de poco tráfico.
 
 ## Pendientes
 

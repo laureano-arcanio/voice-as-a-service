@@ -95,8 +95,9 @@ up-app: solo-principal ## Solo app (API + UI): build, migraciones y recreate, si
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
 	$(COMPOSE) up -d --build --wait $(INFERENCE_SERVICES)
 
-up-llm-lb: solo-principal ## Levanta el balanceador de la inferencia (llm-lb, HAProxy; docker-compose.llm-lb.yml en COMPOSE_FILE). app y agent lo toman con VLLM_{LLM,STT,TTS}_BASE_URL=http://llm-lb:{8000,8001,8002}/v1 y make up-agent
-	$(COMPOSE) up -d --wait --no-deps llm-lb
+up-llm-lb: solo-principal ## Levanta el balanceador de la inferencia (llm-lb, HAProxy; docker-compose.llm-lb.yml en COMPOSE_FILE). app y agent lo toman con VLLM_{LLM,STT,TTS}_BASE_URL=http://llm-lb:{8000,8001,8002}/v1 y make up-agent. Se niega con llamadas en curso (FORCE=1 lo saltea)
+	@[ "$(FORCE)" = 1 ] || $(MAKE) --no-print-directory calls-active
+	$(COMPOSE) up -d --force-recreate --wait --no-deps llm-lb
 	@$(MAKE) --no-print-directory llm-lb-status
 
 llm-lb-status: ## Estado de las replicas de LLM, STT y TTS en HAProxy (UP/DOWN, pedidos en curso y totales)
