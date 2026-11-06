@@ -113,6 +113,9 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    minutos salientes.
 8. Si nadie atiende: `busy` si el último intento dio ocupado, si no `no_answer`. El texto queda en la conversación
    y el modelo toma el mensaje en el turno siguiente (regla de la plantilla, no del código).
+   Ese aviso de vuelta se puede interrumpir: sin eso LiveKit descarta lo que la persona dice encima
+   (`discard_audio_if_uninterruptible`) y un pedido hecho durante el aviso se perdía. "Te paso con…" no se interrumpe.
+   Si el modelo derivó sin decir nada, el aviso de transferencia queda como el texto de ese turno.
 
 No derivan: loadtest, campañas (metadata `handoff` en `services/calls.py`), la respuesta por WhatsApp a una campaña,
 agentes sin áreas (por WhatsApp de texto, sin áreas con plantilla) y la demo de la landing salvo con `DEMO_HANDOFF=true`.

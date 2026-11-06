@@ -79,7 +79,7 @@ class Line(Protocol):
     events: ("dtmf", identidad, digito), ("left", identidad), ("text", identidad, texto, pcm16k)."""
     events: asyncio.Queue
 
-    async def say(self, text: str) -> None: ...                    # al cliente, con la voz del agente
+    async def say(self, text: str, interruptible: bool = False) -> None: ...   # al cliente, con la voz del agente
     async def hold(self, on: bool) -> None: ...                    # musica de espera, solo al cliente
     async def dial(self, identity: str, phone: str, ring_seconds: int) -> DialResult: ...
     async def first_words(self, identity: str, seconds: float) -> str: ...   # STT de lo primero que se oye
@@ -623,14 +623,16 @@ class Transfer:
         await self._back(texts["resume"], values)
         return ended
 
-    async def _say(self, text: str) -> None:
+    async def _say(self, text: str, interruptible: bool = False) -> None:
         self.on_message("assistant", text)
-        await self.line.say(text)
+        await self.line.say(text, interruptible=interruptible)
 
     async def _back(self, text: str, values: dict) -> None:
-        """Vuelve el agente: el texto queda en la conversacion (el LLM lo ve en el turno siguiente)."""
+        """Vuelve el agente: el texto queda en la conversacion (el LLM lo ve en el turno siguiente). Se puede
+        interrumpir: sin interrupciones, LiveKit descarta lo que dice la persona encima (discard_audio_if_uninterruptible)
+        y un pedido hecho durante el aviso se perdia."""
         await self.line.resume()
-        await self._say(handoff.render(text, **values))
+        await self._say(handoff.render(text, **values), interruptible=True)
 
 
 # ---------- LiveKit ----------
@@ -808,8 +810,8 @@ class RoomLine:
         self.room.local_participant.set_track_subscription_permissions(
             allow_all_participants=False, participant_permissions=perms)
 
-    async def say(self, text: str) -> None:
-        await self.session.say(text, allow_interruptions=False, add_to_chat_ctx=False).wait_for_playout()
+    async def say(self, text: str, interruptible: bool = False) -> None:
+        await self.session.say(text, allow_interruptions=interruptible, add_to_chat_ctx=False).wait_for_playout()
 
     async def hold(self, on: bool) -> None:
         if not on:

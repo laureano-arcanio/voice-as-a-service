@@ -35,7 +35,7 @@ class FakeLine:
         self.log: list[tuple] = []
         self.identity_of: dict[str, str] = {}
 
-    async def say(self, text):
+    async def say(self, text, interruptible=False):
         self.log.append(("say", text))
 
     async def hold(self, on):

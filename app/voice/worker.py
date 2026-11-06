@@ -690,9 +690,10 @@ async def entrypoint(ctx: JobContext):
         if st is None:
             return
         last = st.messages[-1] if st.messages else None
-        # El turno que llamo a transfer_call queda solo: su aviso va despues, como resultado de la derivacion.
+        # El turno que llamo a transfer_call queda solo: los avisos van despues, como resultado de la derivacion.
+        # Si el modelo no dijo nada, el aviso de transferencia es lo que dijo ese turno.
         if (role == "assistant" and not leg and last is not None and last.role == "assistant"
-                and not last.handoff_leg and not last.handoff):
+                and not last.handoff_leg and (not last.handoff or not last.text.strip())):
             last.text = f"{last.text} {text}".strip()
         else:
             st.messages.append(Message(role=role, text=text, person=person, handoff_leg=leg,
