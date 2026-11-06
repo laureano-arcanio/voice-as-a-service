@@ -88,7 +88,10 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
 
 1. Al empezar la llamada, `services/handoff.call_areas` deja las áreas del agente en `Progress.handoff_areas`. El
    modelo ve `transfer_call` con `area` como `enum` de los nombres; la descripción lleva cada área con su `when`,
-   su horario y si atiende ahora. Vale para todos los agentes, también con `external`.
+   su horario y si atiende ahora. Vale para todos los agentes, también con `external`. La respuesta que derivó
+   guarda el área (`Message.handoff`) y el historial del LLM la reconstruye como `tool_calls` + resultado `tool`
+   (`prompt.classic_history`; con Anthropic queda solo el texto); los avisos que siguen van en otro mensaje. Sin
+   eso el modelo veía "te paso con X" sin herramienta y en la segunda derivación no la llamaba.
 2. El worker dice lo que el modelo escribió en ese turno (si no dijo nada, el mensaje `transfer`) y revisa el
    área (activa, en horario, con miembros con teléfono) y `quota.handoff_check` (cliente activo, minutos
    salientes, canal libre). Si no se puede: evento `handoff.unavailable` y el mensaje que corresponde.

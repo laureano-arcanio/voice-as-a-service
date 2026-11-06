@@ -152,12 +152,22 @@ def build_turn_messages(workflow: Workflow, state: ConversationState, user_messa
 
 def classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
     """La conversacion como mensajes del chat. En una llamada derivada, lo que dijo la persona del equipo va como
-    assistant con su nombre (`name`), y lo que dijo quien llama, como user."""
+    assistant con su nombre (`name`), y lo que dijo quien llama, como user.
+    La respuesta que derivo (Message.handoff) va con su llamada a transfer_call y el resultado: sin eso el modelo
+    ve que "te paso con X" solo alcanza y en la siguiente derivacion no llama a la herramienta."""
     out: list[dict] = []
-    for m in messages:
+    for i, m in enumerate(messages):
         item = {"role": m.role, "content": _turn_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
         if m.person:
             item["name"] = "".join(c if c.isalnum() else "_" for c in m.person)[:64]
+        if m.role == "assistant" and m.handoff:
+            call_id = f"call_handoff_{i}"
+            item["content"] = item["content"] or None
+            item["tool_calls"] = [{"id": call_id, "type": "function", "function": {
+                "name": "transfer_call", "arguments": json.dumps({"area": m.handoff}, ensure_ascii=False)}}]
+            out += [item, {"role": "tool", "tool_call_id": call_id,
+                           "content": f"Derivacion a {m.handoff} ejecutada; lo que paso despues sigue en la conversacion."}]
+            continue
         out.append(item)
     return out
 

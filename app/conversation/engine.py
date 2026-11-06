@@ -239,7 +239,8 @@ class ConversationEngine:
         if turn_tools:
             state.progress.tool_vars = turn_tools.ctx.vars
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
-                           Message(role="assistant", text=result.assistant_message, llm=trace)]
+                           Message(role="assistant", text=result.assistant_message, llm=trace,
+                                   handoff=result.handoff)]
         self.store.save(state)
 
         # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
@@ -290,7 +291,8 @@ class ConversationEngine:
             ids = [o.id for o in workflow.completion.outcomes]
             state.progress.outcome = outcome if outcome in ids else ids[-1]
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
-                           Message(role="assistant", text=turn.assistant_message, llm=[trace])]
+                           Message(role="assistant", text=turn.assistant_message, llm=[trace],
+                                   handoff=turn.handoff)]
         self.store.save(state)
         return state, turn
 

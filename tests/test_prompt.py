@@ -96,3 +96,16 @@ def test_whatsapp_without_pre_call_prompt_is_the_same():
     assert system == build_system_prompt(wf, "whatsapp") and wf.conversation.opening in system
     # En voz la apertura no va al prompt, tenga o no guia.
     assert "APERTURA" not in build_system_prompt(wf, "voice", whatsapp_state("Hola"))
+
+
+def test_classic_history_derivacion_con_tool_call():
+    """La respuesta que derivo va con su transfer_call y el resultado; el aviso posterior, aparte."""
+    from app.conversation.models import Message
+    from app.llm.prompt import classic_history
+    out = classic_history([Message(role="user", text="pasame con ventas"),
+                           Message(role="assistant", text="Te paso con Ventas.", handoff="Ventas"),
+                           Message(role="assistant", text="No pude comunicarte con Ventas.")], False)
+    assert [m["role"] for m in out] == ["user", "assistant", "tool", "assistant"]
+    call = out[1]["tool_calls"][0]
+    assert call["function"]["name"] == "transfer_call" and '"Ventas"' in call["function"]["arguments"]
+    assert out[2]["tool_call_id"] == call["id"]

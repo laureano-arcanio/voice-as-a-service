@@ -685,12 +685,14 @@ async def entrypoint(ctx: JobContext):
     def add_message(role: str, text: str, person: str | None = None, leg: str | None = None,
                     pcm: bytes | None = None) -> None:
         """Lo que dice el agente durante la derivacion y lo que se habla con la persona, en la conversacion.
-        Un aviso del agente seguido de otro va en el mismo mensaje."""
+        Un aviso del agente seguido de otro va en el mismo mensaje, salvo detras del turno que derivo."""
         st = engine.store.get(conversation_id)
         if st is None:
             return
         last = st.messages[-1] if st.messages else None
-        if role == "assistant" and not leg and last is not None and last.role == "assistant" and not last.handoff_leg:
+        # El turno que llamo a transfer_call queda solo: su aviso va despues, como resultado de la derivacion.
+        if (role == "assistant" and not leg and last is not None and last.role == "assistant"
+                and not last.handoff_leg and not last.handoff):
             last.text = f"{last.text} {text}".strip()
         else:
             st.messages.append(Message(role=role, text=text, person=person, handoff_leg=leg,

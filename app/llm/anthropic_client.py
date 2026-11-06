@@ -55,9 +55,10 @@ def to_messages(messages: list[dict]) -> tuple[str, list[dict]]:
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
     rest: list[dict] = []
     for m in messages:
-        if m["role"] == "system":
+        # El historial trae la derivacion como tool_calls + tool (prompt.classic_history): aca queda el texto.
+        if m["role"] in ("system", "tool"):
             continue
-        content = f"{m['name']}: {m['content']}" if m.get("name") else m["content"]
+        content = f"{m['name']}: {m['content']}" if m.get("name") else (m["content"] or "")
         if rest and rest[-1]["role"] == m["role"]:
             rest[-1]["content"] += "\n" + content
         else:
