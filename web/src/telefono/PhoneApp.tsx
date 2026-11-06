@@ -81,7 +81,7 @@ function usePhone() {
   const reason = (phone?: string | null): string | null =>
     c.disabledReason ??
     (phone && blocked.has(phone)
-      ? 'El número está bloqueado: se desbloquea en el panel, Contactos.'
+      ? 'El número está bloqueado: se desbloquea en el panel, Tus clientes.'
       : c.busy
         ? 'Ya estás en una llamada.'
         : !from
@@ -468,7 +468,7 @@ function ContactScreen({
           )}
           {isBlocked && (
             <Alert color="red" p="xs" mx="md" mb="sm">
-              <Text size="sm">Número bloqueado: no se puede llamar. Se desbloquea en el panel, Contactos.</Text>
+              <Text size="sm">Número bloqueado: no se puede llamar. Se desbloquea en el panel, Tus clientes.</Text>
             </Alert>
           )}
           {k.notes && <p className="tel-notes">{k.notes}</p>}

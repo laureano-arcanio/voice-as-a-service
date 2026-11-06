@@ -242,7 +242,7 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 
 ### UI
 
-- **Equipo** (`web/src/features/team/`): personas y áreas con horario, orden, mensajes, tecla de vuelta y qué
+- **Tu equipo** (`web/src/features/team/`): personas y áreas con horario, orden, mensajes, tecla de vuelta y qué
   hacer si la persona corta; punto verde de presencia. La persona tiene el interruptor **Recibe WhatsApp** (necesita
   teléfono). El área elige **Cómo se avisa** (**Se llama** o **Solo aviso por WhatsApp**), **Fuera de horario, pasa a**,
   **Si nadie acepta, pasa a** y su WhatsApp: el número que envía, la plantilla (de rotación con botón de respuesta
@@ -256,7 +256,7 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
   teclado DTMF (`publishDtmf`), transcripción en vivo, Atender/Rechazar. El panel sale de la room en `pagehide`, no
   con `disconnectOnPageLeave` de LiveKit (cortaba en `beforeunload` cancelado y en `freeze` del celular).
 - **Números:** "Atiende: el agente / el equipo" con personas, dónde suena primero, timbre, horario y respaldo.
-  **Mi cuenta:** "Avisar que la llamada se graba" para las directas. **Contactos:** Llamar (directa) junto a
+  **Mi cuenta:** "Avisar que la llamada se graba" para las directas. **Tus clientes:** Llamar (directa) junto a
   Llamar con un agente. Ver [GUIA_UI.md](../GUIA_UI.md).
 
 ### App `telefono.`

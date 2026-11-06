@@ -11,7 +11,7 @@ Hay dos roles, y cada uno trabaja en su área ([`ARQUITECTURA.md`](ARQUITECTURA.
   - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
   - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos, Playground y Voces.
   - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
-  - **Agenda:** Contactos y Equipo.
+  - **Tus clientes** y **Tu equipo**, sueltos, después de Canales.
   - **Developers:** API keys y Uso de la API.
   - **Cuenta:** Números (`/account`) y Plan.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
@@ -177,12 +177,12 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
 - **Herramientas:** qué puede hacer además de hablar.
   - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** que usan sus herramientas: **Del cliente** (cargados en Agentes > Secretos), **Propio** (un valor solo de este agente, que pisa al del cliente) o **Falta** (con **Cargar valor**). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
   - **Derivación a personas:** las áreas del cliente (de
-    **Equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
+    **Tu equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
     (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
     inactiva queda marcada, pero el agente no la ofrece. Con alguna área, **Música de espera** (prendida por
     defecto): tema (**Música de espera estándar** o los que haya en el servidor) y volumen (5 a 100 %). Sin áreas
     marcadas no se guarda nada de esto. Por WhatsApp de texto el agente solo deriva a las áreas que tienen una plantilla
-    de WhatsApp (ver [Equipo](#equipo-team)).
+    de WhatsApp (ver [Tu equipo](#tu-equipo-team)).
   - **Antes y después de la conversación** (también con «Tu propio agente»): dos herramientas del cliente que corre la
     plataforma sola, sin que el modelo las vea ([`HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
     **Antes de la conversación** corre apenas entra la llamada o el chat (por ejemplo, buscar a la persona por su
@@ -251,14 +251,14 @@ agente**.
      está directo en la fila). El agente puede derivar al equipo con sus áreas, como siempre.
    - **El equipo** (planes con llamadas directas; en el Free queda deshabilitado y se explica por qué): atienden
      personas, sin agente, y la llamada se graba. Se configura acá mismo:
-     - **Personas:** las de Equipo, en el orden en que suenan (**Agregar persona al número**, **Quitar del
+     - **Personas:** las de Tu equipo, en el orden en que suenan (**Agregar persona al número**, **Quitar del
        número**); al menos una. Cada una muestra por dónde le puede sonar: su celular, "Solo en el panel"
        (tiene usuario del panel pero no celular), "Solo en el celular" o "No le puede sonar".
      - **Suena primero:** **En su celular** (llama al celular de cada persona, en orden, y si ninguna atiende suena en
        el panel a las que están Disponibles) o **En el panel** (suena a todas las Disponibles a la vez y, si nadie
        atiende, llama a los celulares en orden).
      - **Timbre por persona:** de 5 a 60 s (20 por defecto) antes de pasar a la siguiente.
-     - **Horario (opcional):** por día, igual que en las áreas de Equipo.
+     - **Horario (opcional):** por día, igual que en las áreas de Tu equipo.
      - **Si nadie atiende o es fuera de horario:** **Pasa al agente** (el **Agente de respaldo**, que arranca
        sabiendo que nadie del equipo contestó), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
        mensaje y corta**; en estos dos, el **Mensaje** es opcional (vacío usa el de siempre).
@@ -405,7 +405,7 @@ alcanza. En la navegación, arriba de todo.
   suelto en formato +549…), número de origen y **Llamar**. Con un contacto, su nombre y email también le
   llegan al agente (como en una campaña: `{{nombre}}` en la apertura). Sin motivo ni modo prueba desde el
   27-oct-2026 (la API sigue aceptando `context`; para probar un agente, la pestaña Probar).
-- Un número en la lista de bajas de voz del cliente (Contactos, Bajas) no se llama (409).
+- Un número en la lista de bajas de voz del cliente (Tus clientes, Bajas) no se llama (409).
 - **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. Si nadie atendió o estaba ocupado, la llamada queda igual en la lista (y en Conversaciones) con la marca **No atendida**. El resultado sale
   de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
   email, al cortar le llega al equipo, con el motivo.
@@ -430,7 +430,7 @@ está siendo grabada." es opcional (**Cuenta > Números**). Entrando como el cli
 3. El navegador pide el micrófono. Usá auriculares: sin ellos la voz del contacto vuelve como eco.
 4. **Contacto que pidió no recibir llamadas** (marca "No quiere llamadas"): se puede llamar igual, con una
    confirmación ("Llamar igual"); en el detalle de la llamada queda quién lo confirmó.
-5. **Bloqueado** (Contactos, Números bloqueados): el botón queda apagado y el tooltip dice por qué. También se
+5. **Bloqueado** (Tus clientes, Números bloqueados): el botón queda apagado y el tooltip dice por qué. También se
    apaga si ya estás en una llamada.
 
 **Barra de llamada** (abajo, en todo el panel del cliente; la llamada sigue mientras navegás):
@@ -447,14 +447,14 @@ está siendo grabada." es opcional (**Cuenta > Números**). Entrando como el cli
 - **Disponible** (switch en el encabezado de Teléfono del equipo y en la barra): mientras está prendido y el panel abierto,
   te suenan las entrantes de los números atendidos por el equipo donde estés en la lista de personas (ver [Números
   de teléfono](#4-números-de-teléfono-números), **Quién atiende**). Hace falta que tu usuario esté asociado a una
-  persona de Equipo.
+  persona de Tu equipo.
 - Una entrante muestra "Llamada entrante", el número o contacto, la línea a la que llaman y un timbre. **Atender**
   te pasa a la llamada; **Rechazar** la saca solo de tu pantalla. Si la atiende otra persona primero, el aviso
   es "La atendió otra persona".
 - Si el número suena primero en el celular, la persona atiende ahí ("marcá 1 para atender") y no hace falta el panel.
 - En el celular se puede usar el panel como teléfono con la pestaña abierta y la pantalla encendida: con la
   pantalla bloqueada el navegador puede cortar el micrófono. Para recibir llamadas con el celular apagado o la
-  app cerrada, cargá el celular de la persona en Equipo.
+  app cerrada, cargá el celular de la persona en Tu equipo.
 
 **Llamada creada desde la API o el MCP** (por ejemplo, tu agente de IA que pide "llamá a Juan"): la API devuelve un
 link `/telefono/llamada/<id>`. Al abrirlo con tu usuario aparece **Entrar a la llamada** (A, Desde): el click da el
@@ -484,7 +484,7 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
 - **Cortar llamada** (arriba a la derecha, mientras está en curso): cuelga en el momento; termina con
   `hangup_by_user`.
 - **Bloquear número** (en las entrantes): las próximas llamadas de ese número a los números del cliente se
-  cortan sin atender. Se desbloquea en Contactos, **Números bloqueados**.
+  cortan sin atender. Se desbloquea en Tus clientes, **Números bloqueados**.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y
   los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último
   mensaje del contacto, no se puede mandar texto libre). No hay latencia por turno. Mientras la
@@ -662,9 +662,9 @@ Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider
 10. Un número de **alta manual** (nuestra WABA, que carga el admin entrando como el cliente) no muestra registro,
     datos de Meta ni plantillas al cliente: los maneja el admin.
 
-### Contactos (`/contacts`)
+### Tus clientes (`/contacts`)
 
-La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo único obligatorio es el teléfono
+Los clientes del negocio (contactos): de ahí salen los destinatarios de las campañas. Lo único obligatorio es el teléfono
 (único por cliente, se normaliza a formato internacional); nombre, email y una nota (texto libre, como la de un contacto del teléfono)
 son opcionales.
 
@@ -676,7 +676,7 @@ son opcionales.
    o varios seleccionados. Un archivado no entra en campañas nuevas y se saltea en las
    que tenía pendientes. Recargar su teléfono no lo desarchiva: **Desarchivar** es explícito.
 3. **Ficha** (clic en la fila): datos, nota y campañas en que participó o participa.
-4. **Tope:** el tier limita los contactos activos de la agenda.
+4. **Tope:** el tier limita los contactos activos.
 5. **Llamar:** el ícono de teléfono de cada fila y el botón **Llamar** de la ficha hacen una llamada directa
    (hablás vos, desde el navegador; ver [Teléfono del equipo](#teléfono-del-equipo-telefono)), saliendo del número que elegiste
    en Teléfono del equipo. Apagado, con el motivo en el tooltip, si el plan no la incluye, el número está bloqueado,
@@ -686,7 +686,7 @@ son opcionales.
    atender y quedan como rechazadas (`blocked_number`). Se cargan acá (teléfono y motivo) o desde el detalle
    de una llamada (**Bloquear número**). No cambian las campañas: para no llamar a alguien están las bajas.
 
-### Equipo (`/team`)
+### Tu equipo (`/team`)
 
 Las personas del cliente a las que el agente les pasa una llamada o un chat, agrupadas en áreas
 ([`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)). A qué áreas deriva cada
@@ -815,7 +815,7 @@ Registro y cobro por transferencia ([`COBROS.md`](features/COBROS.md)):
   (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
 - **Lo que el plan no incluye** ([`ARQUITECTURA.md`](ARQUITECTURA.md#funciones-por-plan)): el cliente ve
-  un candado en la navegación (Llamadas del agente, WhatsApp, Contactos, Teléfono del equipo, Equipo, Campañas) y, en esa pantalla, un aviso
+  un candado en la navegación (Llamadas del agente, WhatsApp, Tus clientes, Teléfono del equipo, Tu equipo, Campañas) y, en esa pantalla, un aviso
   con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
   al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
   equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
@@ -860,6 +860,6 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | "Falta aceptar las condiciones nuevas" (`terms_pending`) | Las llamadas directas exigen la versión vigente de las condiciones y la política de privacidad, y el cliente todavía no la aceptó. Un usuario del cliente (no el admin en soporte) las acepta en el aviso **Condiciones del servicio** al entrar al panel. Mientras tanto no se llama, no se atiende y no se puede poner un número en el equipo; las entrantes de un número del equipo van a su agente. |
 | "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos salientes. |
 | "No tenés un número para llamar" | El cliente no tiene números asignados: los asigna el admin (Números). |
-| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su celular** primero, suena en el celular y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
+| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su celular** primero, suena en el celular y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
 | Una entrante del equipo cae al agente, al mensaje o se corta | Nadie atendió o es fuera de horario (`team_no_answer`, `after_hours`): se aplica **Si nadie atiende o es fuera de horario** del número. También si el número está en el equipo pero sin personas activas con celular o usuario del panel. |
 | Se escucha el eco de la propia voz en una llamada del equipo | Usá auriculares. |

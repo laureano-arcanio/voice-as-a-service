@@ -47,7 +47,7 @@ export function startProblem(e: unknown): CallProblem {
     case 'blocked_number':
       return {
         title: 'El número está bloqueado',
-        message: 'Desbloquealo en Contactos, Números bloqueados, para llamarlo.',
+        message: 'Desbloquealo en Tus clientes, Números bloqueados, para llamarlo.',
         code: c,
       };
     case 'no_phone_number':

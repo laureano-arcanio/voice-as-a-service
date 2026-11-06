@@ -207,7 +207,7 @@ export function ContactDetailPage() {
       leftSection={<IconArrowLeft size={16} />}
       w="fit-content"
     >
-      Contactos
+      Tus clientes
     </Button>
   );
 
@@ -294,7 +294,7 @@ export function ContactDetailPage() {
             {isBlocked && (
               <Alert color="red" p="xs">
                 <Text size="sm">
-                  Número bloqueado: no se puede llamar. Se desbloquea en Contactos, Números bloqueados.
+                  Número bloqueado: no se puede llamar. Se desbloquea en Tus clientes, Números bloqueados.
                 </Text>
               </Alert>
             )}

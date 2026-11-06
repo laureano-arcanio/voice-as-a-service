@@ -15,7 +15,6 @@ import {
   IconGavel,
   IconMessages,
   IconMicrophone,
-  IconNotebook,
   IconPhone,
   IconPhoneCall,
   IconPhoneOutgoing,
@@ -90,14 +89,8 @@ export const CLIENT_NAV: NavEntry[] = [
       },
     ],
   },
-  {
-    label: 'Agenda',
-    icon: IconNotebook,
-    items: [
-      { to: '/contacts', label: 'Contactos', icon: IconAddressBook, feature: 'contacts' },
-      { to: '/team', label: 'Equipo', icon: IconUsersGroup, feature: 'team' },
-    ],
-  },
+  { to: '/contacts', label: 'Tus clientes', icon: IconAddressBook, feature: 'contacts' },
+  { to: '/team', label: 'Tu equipo', icon: IconUsersGroup, feature: 'team' },
   {
     label: 'Developers',
     icon: IconCode,

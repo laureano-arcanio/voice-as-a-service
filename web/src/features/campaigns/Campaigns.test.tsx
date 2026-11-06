@@ -547,7 +547,7 @@ describe('campañas: alta de llamadas', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Cobranzas', hidden: true }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
     expect(
-      await screen.findByText('Elegí a quién llamar: contactos de la agenda o un CSV.'),
+      await screen.findByText('Elegí a quién llamar: tus clientes o un CSV.'),
     ).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });

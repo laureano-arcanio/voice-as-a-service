@@ -132,7 +132,7 @@ describe('HandoffEditor', () => {
     mockApi([]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
     expect(await screen.findByText(/todavía no tiene áreas/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Crealas en Equipo' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Crealas en Tu equipo' })).toHaveAttribute(
       'href',
       '/team',
     );

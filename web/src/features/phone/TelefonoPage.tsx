@@ -68,7 +68,7 @@ function CallButton({
   const reason = c.disabledReason
     ? c.disabledReason
     : blocked
-      ? 'El número está bloqueado: desbloquealo en Contactos, Números bloqueados.'
+      ? 'El número está bloqueado: desbloquealo en Tus clientes, Números bloqueados.'
       : c.busy
         ? 'Ya estás en una llamada.'
         : !fromId
@@ -208,7 +208,7 @@ function ContactPanel({
         {blocked && (
           <Alert color="red" p="xs">
             <Text size="sm">
-              Número bloqueado: no se puede llamar. Se desbloquea en Contactos, Números bloqueados.
+              Número bloqueado: no se puede llamar. Se desbloquea en Tus clientes, Números bloqueados.
             </Text>
           </Alert>
         )}
@@ -400,9 +400,9 @@ export function TelefonoPage() {
                         'Ningún contacto coincide con la búsqueda.'
                       ) : (
                         <>
-                          Tu agenda está vacía: cargá contactos en{' '}
+                          Todavía no hay clientes: cargalos en{' '}
                           <Anchor component={Link} to="/contacts" inherit>
-                            Contactos
+                            Tus clientes
                           </Anchor>{' '}
                           o marcá un número abajo.
                         </>

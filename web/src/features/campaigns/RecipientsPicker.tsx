@@ -56,7 +56,7 @@ function ContactChooser({
         {(data) =>
           data.items.length === 0 ? (
             <Text size="sm" c="dimmed" ta="center" py="md">
-              {q ? 'No hay contactos con esa búsqueda.' : 'La agenda no tiene contactos activos.'}
+              {q ? 'No hay contactos con esa búsqueda.' : 'Todavía no hay clientes activos.'}
             </Text>
           ) : (
             <>
@@ -130,7 +130,7 @@ export function RecipientsPicker({
           <Stack gap="xs">
             <Textarea
               aria-label="Contactos (CSV)"
-              description="Con encabezado: telefono (obligatorio), nombre, email y notas. Quienes no estén en la agenda se agregan."
+              description="Con encabezado: telefono (obligatorio), nombre, email y notas. Quienes no estén en Tus clientes se agregan."
               placeholder={'telefono,nombre,email\n351 555-1234,Ana Pérez,ana@empresa.com'}
               autosize
               minRows={4}

@@ -115,7 +115,7 @@ describe('contactos: lista', () => {
     const row = screen.getByRole('row', { name: /5493515551234/ });
     expect(within(row).getByText('Prefiere que lo llamen por la tarde')).toBeInTheDocument();
     expect(screen.getByText('Archivado')).toBeInTheDocument();
-    expect(await screen.findByText('40 de 100 contactos activos en tu plan.')).toBeInTheDocument();
+    expect(await screen.findByText('40 de 100 clientes activos en tu plan.')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
   });
 

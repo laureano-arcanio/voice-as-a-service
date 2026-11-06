@@ -37,7 +37,7 @@ export function DirectCallButton({
     : phone.disabledReason
       ? phone.disabledReason
       : isBlocked
-        ? 'El número está bloqueado: desbloquealo en Contactos, Números bloqueados.'
+        ? 'El número está bloqueado: desbloquealo en Tus clientes, Números bloqueados.'
         : phone.busy
           ? 'Ya estás en una llamada.'
           : numbers.data && !from

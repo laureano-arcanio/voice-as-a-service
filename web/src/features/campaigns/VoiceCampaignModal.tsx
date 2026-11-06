@@ -287,7 +287,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
           <RecipientsPicker value={recipients} onChange={setRecipients} />
           {noRecipients && (
             <Text size="sm" c="red">
-              Elegí a quién llamar: contactos de la agenda o un CSV.
+              Elegí a quién llamar: tus clientes o un CSV.
             </Text>
           )}
           {overContacts && (

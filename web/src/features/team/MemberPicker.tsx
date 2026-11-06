@@ -90,7 +90,7 @@ export function MemberPicker({
       )}
       {members.length === 0 ? (
         <Text size="sm" c="dimmed">
-          Todavía no hay personas en el equipo: cargalas primero en Equipo, sección Personas.
+          Todavía no hay personas en el equipo: cargalas primero en Tu equipo, sección Personas.
         </Text>
       ) : (
         available.length > 0 && (

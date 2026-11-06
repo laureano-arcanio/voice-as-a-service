@@ -241,7 +241,7 @@ export function AddContactsModal({ campaign, onClose }: { campaign: Campaign; on
         description={
           whatsapp
             ? csvHelp(campaign.template_params ?? 0)
-            : 'Con encabezado: telefono (obligatorio), nombre, email y las demás columnas como datos del contacto. Quienes no estén en la agenda se agregan.'
+            : 'Con encabezado: telefono (obligatorio), nombre, email y las demás columnas como datos del contacto. Quienes no estén en Tus clientes se agregan.'
         }
         placeholder={'telefono,nombre\n351 555-1234,Ana'}
         autosize
@@ -276,7 +276,7 @@ export function AddContactsModal({ campaign, onClose }: { campaign: Campaign; on
       ) : byAgenda ? (
         <Tabs defaultValue="agenda">
           <Tabs.List mb="md">
-            <Tabs.Tab value="agenda">De la agenda</Tabs.Tab>
+            <Tabs.Tab value="agenda">De tus clientes</Tabs.Tab>
             <Tabs.Tab value="csv">Cargar un CSV</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="agenda">

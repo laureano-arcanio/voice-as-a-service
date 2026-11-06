@@ -398,7 +398,7 @@ function BlockCallerButton({ c }: { c: CallDetail }) {
     const ok = await confirmAction({
       title: `Bloquear ${phone}`,
       message:
-        'Sus próximas llamadas a los números de este cliente se cortan sin atender. Se desbloquea en Contactos, Números bloqueados.',
+        'Sus próximas llamadas a los números de este cliente se cortan sin atender. Se desbloquea en Tus clientes, Números bloqueados.',
       confirmLabel: 'Bloquear',
       danger: true,
     });

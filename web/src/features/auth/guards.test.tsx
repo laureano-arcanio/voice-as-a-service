@@ -88,7 +88,7 @@ describe('navegación por área', () => {
     const client = navItemsFor('client').map((i) => i.label);
     expect(client).toContain('Números');
     expect(client).toContain('Plan');
-    expect(client).toContain('Contactos');
+    expect(client).toContain('Tus clientes');
     for (const l of ['Clientes', 'Tiers', 'Usuarios', 'Cobros']) expect(client).not.toContain(l);
     expect(navItemsFor('client').every((i) => !i.to.startsWith('/admin'))).toBe(true);
   });
@@ -100,7 +100,7 @@ describe('navegación por área', () => {
     expect(admin).toEqual(
       expect.arrayContaining(['Clientes', 'Números', 'Tiers', 'Cobros', 'Usuarios', 'Agentes']),
     );
-    for (const l of ['Contactos', 'Equipo']) expect(admin).not.toContain(l);
+    for (const l of ['Tus clientes', 'Tu equipo']) expect(admin).not.toContain(l);
   });
 
   it('navFor devuelve el menú del área', () => {
@@ -120,7 +120,8 @@ describe('navegación por área', () => {
       'Transcribir',
       'Agentes: Mis agentes, Herramientas, Secretos, Modelos, Playground, Voces',
       'Canales: WhatsApp, Llamadas del agente, Teléfono del equipo, Campañas',
-      'Agenda: Contactos, Equipo',
+      'Tus clientes',
+      'Tu equipo',
       'Developers: API keys, Uso de la API',
       'Cuenta: Números, Plan',
     ]);

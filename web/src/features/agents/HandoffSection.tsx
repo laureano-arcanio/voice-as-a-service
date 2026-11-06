@@ -120,7 +120,7 @@ export function HandoffEditor({
                 <Text size="sm">
                   Este cliente todavía no tiene áreas.{' '}
                   <Anchor component={Link} to={teamLink} inherit>
-                    Crealas en Equipo
+                    Crealas en Tu equipo
                   </Anchor>{' '}
                   (por ejemplo Ventas o Administración, con las personas que atienden y su horario) y después
                   elegí acá a cuáles puede pasar la llamada.
@@ -166,7 +166,7 @@ export function HandoffEditor({
               <Alert key={a.areaId} color="yellow" title="Un área ya no existe">
                 <Group justify="space-between" gap="xs">
                   <Text size="sm">
-                    {errorAt(errors, `handoff.areas.${a.i}.area_id`) ?? 'Se borró en Equipo.'} Sacala para
+                    {errorAt(errors, `handoff.areas.${a.i}.area_id`) ?? 'Se borró en Tu equipo.'} Sacala para
                     poder guardar.
                   </Text>
                   <Button

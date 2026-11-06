@@ -74,7 +74,7 @@ export function ContactsPage() {
   };
 
   const noAgenda = plan.data?.max_contacts === 0;
-  const blocked = noAgenda ? 'Tu plan no incluye la agenda de contactos' : null;
+  const blocked = noAgenda ? 'Tu plan no incluye la lista de clientes' : null;
   const items = contacts.data?.items ?? [];
   const total = contacts.data?.total ?? 0;
   const allChecked = items.length > 0 && items.every((c) => selected.has(c.id));
@@ -144,14 +144,14 @@ export function ContactsPage() {
   const usage = plan.data;
   const agendaNote =
     usage && usage.max_contacts != null && usage.max_contacts > 0
-      ? `${formatNumber(usage.contacts_active, 0)} de ${formatNumber(usage.max_contacts, 0)} contactos activos en tu plan.`
+      ? `${formatNumber(usage.contacts_active, 0)} de ${formatNumber(usage.max_contacts, 0)} clientes activos en tu plan.`
       : null;
 
   return (
     <Stack gap="md">
       <PageHeader
-        title="Contactos"
-        description="La agenda del negocio: a quién llaman y le escriben las campañas. Los contactos no se borran, se archivan."
+        title="Tus clientes"
+        description="Las personas a las que llaman y escriben las campañas. No se borran, se archivan."
         actions={
           <>
             <Tooltip label={blocked} withArrow disabled={!blocked}>
@@ -178,7 +178,7 @@ export function ContactsPage() {
       />
       <PlanAlert
         feature="contacts"
-        what="la agenda de contactos"
+        what="la lista de clientes"
         hint="Los números bloqueados, más abajo, sí: cortan las llamadas de quien no querés que llame."
       />
       <Card>

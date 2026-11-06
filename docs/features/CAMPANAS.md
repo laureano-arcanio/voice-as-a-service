@@ -64,7 +64,7 @@ MCP: `list_contacts`, `get_contact`, `update_contact`, `import_contacts`, `archi
 `add_campaign_contacts`, `start_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`, `list_campaigns`,
 `get_campaign`, `get_campaign_plan`, `list_campaign_contacts`, `get_campaign_stats`, `get_campaign_report`.
 
-UI: `web/src/features/contacts/` (Agenda → Contactos: búsqueda, filtro Activos/Archivados/Todos, CSV con vista
+UI: `web/src/features/contacts/` (Tus clientes: búsqueda, filtro Activos/Archivados/Todos, CSV con vista
 previa, archivar en lote, ficha con campañas) y `web/src/features/campaigns/` (Canales → Campañas: alta de
 WhatsApp y de llamadas, `VoiceCampaignModal`, detalle con avance, resultados, atendidas por hora, contactos y
 polling cada 5 s).
@@ -174,7 +174,7 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
 | `GET/POST /blocked-numbers`, `DELETE /blocked-numbers/{phone}` | `blocked_numbers` (`client_id`, `phone` E.164, `note`; migración 0021): las **llamadas entrantes** de ese número (línea o llamada de WhatsApp, por `wa.wacid`) se cortan sin atender y quedan `rechazada` / `blocked_number` (`services/calls.start_inbound`); una llamada directa a ese número da 403. No toca los mensajes de WhatsApp ni las salientes de campaña (para eso, las bajas) |
 | `POST /calls/{conversation_id}/hangup` | Corta una llamada en curso (cierra la room de LiveKit); termina con `hangup_by_user`. 409 si no está en curso |
 
-UI: tarjeta Bloqueados en Contactos (`BlockedNumbersCard.tsx`), **Bloquear número** y **Cortar llamada** en el detalle
+UI: tarjeta Bloqueados en Tus clientes (`BlockedNumbersCard.tsx`), **Bloquear número** y **Cortar llamada** en el detalle
 de la conversación. MCP: `list_blocked_numbers`, `block_number`, `unblock_number`, `hangup_call`.
 
 ## Reglas y trampas

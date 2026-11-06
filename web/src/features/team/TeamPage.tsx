@@ -102,7 +102,7 @@ export function TeamPage() {
   return (
     <Stack gap="md">
       <PageHeader
-        title="Equipo"
+        title="Tu equipo"
         description="Las personas a las que el agente les pasa una llamada o un chat, agrupadas en áreas con su horario."
       />
 

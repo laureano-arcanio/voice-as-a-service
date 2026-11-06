@@ -64,7 +64,7 @@ function ContactPicker({
   return (
     <Select
       label="Contacto"
-      description="De la agenda (Contactos). Sus datos también le llegan al agente."
+      description="De tus clientes. Sus datos también le llegan al agente."
       placeholder="Buscá por nombre o teléfono"
       data={list.map((c) => ({ value: c.id, label: contactLabel(c) }))}
       value={value?.id ?? null}
@@ -74,7 +74,7 @@ function ContactPicker({
       onSearchChange={setSearch}
       // La búsqueda la hace la API: no filtrar de nuevo acá.
       filter={({ options }) => options}
-      nothingFoundMessage={contacts.isPending ? 'Buscando…' : 'Sin contactos: cargalos en Contactos'}
+      nothingFoundMessage={contacts.isPending ? 'Buscando…' : 'Sin contactos: cargalos en Tus clientes'}
       clearable
       error={error ?? (contacts.isError ? errorMessage(contacts.error) : undefined)}
     />
@@ -241,7 +241,7 @@ export function OutboundCallsPage() {
                 setTargetError(null);
               }}
               data={[
-                { value: 'contact', label: 'Contacto de la agenda' },
+                { value: 'contact', label: 'Uno de tus clientes' },
                 { value: 'phone', label: 'Otro número' },
               ]}
             />
