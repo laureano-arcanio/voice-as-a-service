@@ -33,7 +33,7 @@ from ..config import settings
 from ..conversation import recordings
 from ..conversation.models import Message
 from ..db import utcnow
-from ..models import CallRing, CallRow, CallStatus, Client
+from ..models import CallRing, CallRow, CallStatus, Client, PhoneNumber, TeamMember
 from ..services import calls as call_service
 from ..services import campaign_calls, direct_calls, events
 from ..services import handoff as handoff_service
@@ -410,9 +410,28 @@ class TeamCall:
         return "quota" if remaining is not None and remaining <= 0 else None
 
     def _phone_connected(self, member) -> None:
-        """Atendio en su celular: si tiene usuario del panel, la llamada queda a su nombre (y ocupado)."""
+        """Atendio en su celular: si tiene usuario del panel, la llamada queda a su nombre (y ocupado), y queda
+        como la ultima que atendio el numero (round robin)."""
         if member.user_id:
             _update_call(self.sessions, self.conversation_id, user_id=member.user_id)
+        self._mark_last(member.id)
+
+    def _mark_last(self, member_id: str) -> None:
+        # Solo si el numero sigue siendo del cliente de la llamada (pudo reasignarse) y la persona existe. Un error
+        # no corta la llamada recien conectada.
+        if not self.route.number_id:
+            return
+        try:
+            with self.sessions() as s:
+                number = s.get(PhoneNumber, self.route.number_id)
+                person = s.get(TeamMember, member_id)
+                if number is None or number.client_id != self.client_id or person is None \
+                        or person.client_id != self.client_id:
+                    return
+                number.last_member_id = member_id
+                s.commit()
+        except Exception:
+            logger.exception("directa %s: no se pudo anotar quien atendio el numero", self.conversation_id)
 
     # -- panel --
 

@@ -591,8 +591,10 @@ _WRITE: tuple[Tool, ...] = (
          "Elige quién atiende las llamadas entrantes de un número del cliente y cómo, o le cambia la etiqueta. "
          "`answer_mode`: `agent` (lo atiende el agente `agent_id`, que puede derivar con sus áreas) o `team` (suena "
          "a las personas del equipo `member_ids`, en ese orden; cada una con celular o usuario del panel). Con "
-         "`team`: `ring_first` (`phone`: el celular de cada una, en orden; `panel`: a los Disponibles en el panel, "
-         "a la vez; si nadie atiende, en el otro), `ring_seconds` de timbre por persona, `schedule` (horario; "
+         "`team`: `strategy` (`sequential`: los celulares siempre desde la primera; `round_robin`: desde la "
+         "siguiente a la última que atendió en su celular), `ring_first` (`phone`: el celular de cada una, en "
+         "orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` "
+         "de timbre por persona, `schedule` (horario; "
          "null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; "
          "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`.",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},

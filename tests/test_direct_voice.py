@@ -8,7 +8,7 @@ import pytest
 from livekit.agents import vad as agents_vad
 
 from app.config import settings
-from app.models import CallRing, CallRow, CallStatus, ConversationRow, Event, HandoffLeg
+from app.models import CallRing, CallRow, CallStatus, ConversationRow, Event, HandoffLeg, PhoneNumber
 from app.services import calls as call_service
 from app.services import direct_calls
 from app.voice import direct
@@ -16,7 +16,7 @@ from app.voice import handoff as transfer
 from app.voice.listen import Listener
 from livekit import rtc
 
-from .test_api import V1, admin, client_user, make_agent  # noqa: F401  (admin: fixture)
+from .test_api import V1, admin, client_user, make_agent, make_client  # noqa: F401  (admin: fixture)
 from .test_direct_calls import DID, add_contact, setup
 from .test_handoff import member
 from .test_handoff_transfer import CUSTOMER, FakeLine
@@ -568,6 +568,104 @@ def test_team_phone_connected_is_cut_by_duration_and_minutes(api, admin, monkeyp
     monkeypatch.setattr(call_service, "call_remaining_seconds", lambda s, cid: 0)
     team = team_call(api, c, inbound, TeamLine({"+5493512222222": "confirm"}))
     assert asyncio.run(team.run()) == "answered" and team.reason == "quota_exhausted"
+
+
+def next_inbound(api):
+    """Otra entrante al mismo numero (lee la estrategia y la ultima que atendio)."""
+    with api.sessions() as s:
+        inbound = call_service.start_inbound(s, api.engine, DID, "+5493513962553")
+        call_service.update_call(s, inbound.conversation_id, status=CallStatus.en_curso)
+    inbound.team.ring_seconds = 1
+    return inbound
+
+
+def dialed(line):
+    return [x[1] for x in line.log if x[0] == "dial"]
+
+
+def last_member(api, number_id):
+    with api.sessions() as s:
+        return s.get(PhoneNumber, number_id).last_member_id
+
+
+THREE = (("Juan", "3511111111", None), ("Pedro", "3512222222", None), ("Luis", "3513333333", None))
+JUAN, PEDRO, LUIS = "+5493511111111", "+5493512222222", "+5493513333333"
+
+
+@pytest.mark.parametrize("strategy, second", [("round_robin", [LUIS]), ("sequential", [JUAN, PEDRO])])
+def test_team_phone_order_by_strategy(api, admin, monkeypatch, tmp_path, strategy, second):
+    # Juan no atiende y Pedro marca 1: queda como la ultima. Rotativa: la siguiente entrante empieza por Luis;
+    # en orden, otra vez por Juan.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, *THREE, strategy=strategy)
+    number_id = inbound.team.number_id
+    line = TeamLine({JUAN: "no_answer", PEDRO: "confirm"}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    assert dialed(line) == [JUAN, PEDRO]
+    member_ids = [p.member_id for p in inbound.team.members]
+    assert last_member(api, number_id) == member_ids[1]
+
+    inbound = next_inbound(api)
+    line = TeamLine({JUAN: "no_answer", PEDRO: "confirm", LUIS: "confirm"}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    assert dialed(line) == second
+    # Se anota siempre, sin mirar la estrategia (pasar a Rotativa despues sigue a la ultima real).
+    assert last_member(api, number_id) == member_ids[2 if strategy == "round_robin" else 1]
+
+
+def test_team_panel_rings_everyone_then_the_phones_rotate(api, admin, monkeypatch, tmp_path):
+    c, inbound, users = team_setup(api, admin, monkeypatch, tmp_path, ("Ana", "3511111111", "ana"),
+                                   ("Pedro", "3512222222", "pedro"), ring_first="panel", strategy="round_robin")
+    ana_member = inbound.team.members[0].member_id
+    with api.sessions() as s:
+        s.get(PhoneNumber, inbound.team.number_id).last_member_id = ana_member
+        s.commit()
+    inbound = next_inbound(api)
+    for u, _ in users.values():
+        u.put(f"{V1}/me/presence", json={"available": True})
+    # El panel suena a las dos a la vez (nadie atiende); despues los celulares, desde Pedro.
+    line = TeamLine({"+5493511111111": "confirm", "+5493512222222": "confirm"}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    with api.sessions() as s:
+        rung = {r.user_id for r in s.query(CallRing).filter_by(conversation_id=inbound.conversation_id)}
+    assert rung == {users["ana"][1], users["pedro"][1]}
+    assert dialed(line) == ["+5493512222222"]
+    assert last_member(api, inbound.team.number_id) == inbound.team.members[0].member_id != ana_member
+
+
+def test_team_marking_the_last_one_never_cuts_the_call(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None),
+                               strategy="round_robin")
+    number_id = inbound.team.number_id
+    # Un error de base al anotar: se loguea y la llamada sigue.
+    monkeypatch.setattr(direct, "TeamMember", object())
+    line = TeamLine({"+5493512222222": "confirm"}, connected=[("text", "PERSON", "Hola"), ("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert [m[1] for m in messages(api, inbound.conversation_id)] == ["Hola"]
+    assert last_member(api, number_id) is None
+
+
+def test_team_number_reassigned_mid_call_is_not_marked(api, admin, monkeypatch, tmp_path):
+    # Liberaron el numero (o paso a otro cliente) con la llamada sonando: no se anota una persona de este cliente.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None),
+                               strategy="round_robin")
+    number_id = inbound.team.number_id
+    other = make_client(admin, slug="otro")
+    with api.sessions() as s:
+        s.get(PhoneNumber, number_id).client_id = other["id"]
+        s.commit()
+    line = TeamLine({"+5493512222222": "confirm"}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    assert last_member(api, number_id) is None
+
+
+def test_team_person_deleted_mid_call_is_not_marked(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None),
+                               strategy="round_robin")
+    admin.delete(f"{V1}/team/{inbound.team.members[0].member_id}")
+    line = TeamLine({"+5493512222222": "confirm"}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    assert last_member(api, inbound.team.number_id) is None
 
 
 # ---------- lado de LiveKit ----------

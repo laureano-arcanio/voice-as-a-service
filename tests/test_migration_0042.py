@@ -47,7 +47,8 @@ def test_0042_upgrade_downgrade_upgrade(tmp_path):
              "Column('whatsapp', JSON()", "ix_wa_threads_handoff", "handoff_status",
              "handoff_area_id", "handoff_leg_id", "handoff_started_at", "handoff_closed_at", "handoff_deadline",
              "handoff_voice_note", "handoff_delivery_tries", "fk_wa_threads_handoff",
-             "handoff_retakes")     # este, de la 0049
+             "handoff_retakes",     # este, de la 0049
+             "'phone_numbers'", "fk_phone_numbers_last_member")     # y estos, de la 0050
     assert [d for d in diff if any(t in repr(d) for t in TABLES) and not any(c in repr(d) for c in later)] == []
     assert "whatsapp" not in _cols(engine, "team_members")
     assert "wa_reply_minutes" not in _cols(engine, "handoff_areas")

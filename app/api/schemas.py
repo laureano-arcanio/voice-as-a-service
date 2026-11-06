@@ -460,6 +460,9 @@ class PhoneNumberUpdate(BaseModel):
         default=None, description="team: las personas del número; agent: el agente (puede derivar con sus áreas)")
     member_ids: list[str] | None = Field(default=None, description="Personas del equipo, en el orden en que suenan; "
                                                                     "cada una con celular o usuario del panel")
+    strategy: Literal["sequential", "round_robin"] | None = Field(
+        default=None, description="Con el equipo: sequential, siempre desde la primera; round_robin, desde la "
+                                  "siguiente a la última que atendió en su celular. El panel suena a todas a la vez")
     ring_first: Literal["phone", "panel"] | None = Field(
         default=None, description="Dónde suena primero: phone (el celular de cada uno, en orden) o panel (los "
                                   "Disponibles, a la vez); si nadie atiende, en el otro")
@@ -494,6 +497,7 @@ class PhoneNumberOut(ORM):
     assigned_at: UTCDateTime | None
     created_at: UTCDateTime
     answer_mode: Literal["team", "agent"]
+    strategy: Literal["sequential", "round_robin"]
     ring_first: Literal["phone", "panel"]
     ring_seconds: int
     schedule: "HandoffSchedule | None" = None

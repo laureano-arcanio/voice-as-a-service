@@ -7,6 +7,7 @@ import { type ScheduleDraft, toDraft, toSchedule } from '@/features/team/schedul
 export type AnswerMode = 'team' | 'agent';
 export type RingFirst = 'phone' | 'panel';
 export type TeamFallback = 'agent' | 'voicemail' | 'hangup';
+export type Strategy = NonNullable<PhoneNumberUpdate['strategy']>;
 
 export const RING_FIRST_OPTIONS: { value: RingFirst; label: string }[] = [
   { value: 'phone', label: 'En su celular' },
@@ -18,6 +19,13 @@ export const RING_FIRST_HELP: Record<RingFirst, string> = {
     'Llama al celular de cada persona, en orden. Si ninguna atiende, suena en el panel a las que estén Disponibles.',
   panel:
     'Suena en el panel a las personas Disponibles, a todas a la vez. Si nadie atiende, llama a sus celulares en orden.',
+};
+
+/** Ayuda de En orden / Rotativa en un número: el panel suena a todas a la vez, solo el celular rota. */
+export const STRATEGY_HELP: Record<Strategy, string> = {
+  sequential: 'Siempre empieza por la primera persona de la lista y sigue en orden.',
+  round_robin:
+    'En los celulares, empieza por la siguiente a la última que atendió (marcó 1), para repartirlas. En el panel suena a todas a la vez y no rota.',
 };
 
 export const FALLBACK_OPTIONS: { value: TeamFallback; label: string }[] = [
@@ -40,6 +48,7 @@ export interface AnsweringDraft {
   answer_mode: AnswerMode;
   agent_id: string;
   member_ids: string[];
+  strategy: Strategy;
   ring_first: RingFirst;
   ring_seconds: number | string;
   schedule: ScheduleDraft;
@@ -53,6 +62,7 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     answer_mode: n.answer_mode,
     agent_id: n.agent_id ?? '',
     member_ids: (n.members ?? []).map((m) => m.id),
+    strategy: n.strategy,
     ring_first: n.ring_first,
     ring_seconds: n.ring_seconds,
     schedule: toDraft(n.schedule),
@@ -75,6 +85,7 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
   return {
     ...base,
     member_ids: v.member_ids,
+    strategy: v.strategy,
     ring_first: v.ring_first,
     ring_seconds: Number(v.ring_seconds),
     schedule: toSchedule(v.schedule),

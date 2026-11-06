@@ -1720,7 +1720,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo\n`team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule` y el respaldo\n`team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -24726,6 +24726,14 @@
       ],
       "title": "Answer Mode"
      },
+     "strategy": {
+      "type": "string",
+      "enum": [
+       "sequential",
+       "round_robin"
+      ],
+      "title": "Strategy"
+     },
      "ring_first": {
       "type": "string",
       "enum": [
@@ -24781,6 +24789,7 @@
      "assigned_at",
      "created_at",
      "answer_mode",
+     "strategy",
      "ring_first",
      "ring_seconds",
      "team_fallback",
@@ -24843,6 +24852,22 @@
       ],
       "title": "Member Ids",
       "description": "Personas del equipo, en el orden en que suenan; cada una con celular o usuario del panel"
+     },
+     "strategy": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sequential",
+         "round_robin"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Strategy",
+      "description": "Con el equipo: sequential, siempre desde la primera; round_robin, desde la siguiente a la última que atendió en su celular. El panel suena a todas a la vez"
      },
      "ring_first": {
       "anyOf": [

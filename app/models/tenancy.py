@@ -221,6 +221,11 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     # Si nadie atiende o fuera de horario: agent (el agente del numero), voicemail (mensaje y graba) o hangup.
     team_fallback: Mapped[str] = mapped_column(String(16), default="voicemail", server_default="voicemail")
     team_fallback_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Con team, el orden de los celulares (como handoff_areas): sequential, siempre desde la primera; round_robin,
+    # desde la siguiente a la ultima que atendio en su celular (last_member_id; el panel no cuenta).
+    strategy: Mapped[str] = mapped_column(String(16), default="sequential", server_default="sequential")
+    last_member_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
 
 
 class Role(enum.StrEnum):

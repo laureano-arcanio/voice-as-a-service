@@ -18,6 +18,7 @@ from app.models import (
     ContactOptout,
     ConversationRow,
     LegalAcceptance,
+    PhoneNumber,
     UserPresence,
 )
 from app.services import calls as call_service
@@ -468,6 +469,48 @@ def test_phone_number_answering_settings(api, admin):
     assert [m["id"] for m in ana.get(f"{V1}/phone-numbers").json()[0]["members"]] == [panel["id"]]
     out = admin.post(f"{V1}/phone-numbers/{n['id']}/release").json()
     assert out["members"] == [] and out["answer_mode"] == "agent" and out["schedule"] is None
+
+
+def test_phone_number_strategy(api, admin):
+    c, n, ana, _ = setup(api, admin)
+    ids = [member(admin, c["id"], name=x, phone=f"35100000{i:02d}")["id"] for i, x in enumerate("ABC")]
+    url = f"{V1}/phone-numbers/{n['id']}"
+    assert n["strategy"] == "sequential"
+    for body in ({"strategy": "random"}, {"strategy": None}):
+        assert ana.patch(url, json=body).status_code == 422, body
+    r = ana.patch(url, json={"answer_mode": "team", "member_ids": ids, "strategy": "round_robin"})
+    assert r.status_code == 200 and r.json()["strategy"] == "round_robin", r.text
+    assert ana.get(f"{V1}/phone-numbers").json()[0]["strategy"] == "round_robin"
+    # Otro cliente no lo ve ni lo cambia.
+    other = client_user(api, admin, make_client(admin, slug="otro"), email="otro@otro.com")
+    assert other.patch(url, json={"strategy": "sequential"}).status_code == 404
+
+    def order():
+        with api.sessions() as s:
+            return [p.name for p in call_service.start_inbound(s, api.engine, DID, "+5493516775617").team.members]
+
+    # Rotativa: desde la siguiente a la ultima que atendio; si ya no esta en el numero, desde la primera.
+    assert order() == ["A", "B", "C"]
+    with api.sessions() as s:
+        s.get(PhoneNumber, n["id"]).last_member_id = ids[1]
+        s.commit()
+    assert order() == ["C", "A", "B"]
+    ana.patch(url, json={"member_ids": [ids[0], ids[2]]})
+    assert order() == ["A", "C"]
+    ana.patch(url, json={"member_ids": ids, "strategy": "sequential"})
+    assert order() == ["A", "B", "C"]
+    # Borrar a la ultima la saca del round robin (a mano: SQLite no aplica la FK).
+    admin.delete(f"{V1}/team/{ids[1]}")
+    with api.sessions() as s:
+        assert s.get(PhoneNumber, n["id"]).last_member_id is None
+        s.get(PhoneNumber, n["id"]).last_member_id = ids[0]
+        s.commit()
+    # Liberar y volver a asignar: el numero vuelve al default, sin la ultima del cliente anterior.
+    ana.patch(url, json={"strategy": "round_robin"})
+    out = admin.post(f"{url}/release").json()
+    assert out["strategy"] == "sequential"
+    with api.sessions() as s:
+        assert s.get(PhoneNumber, n["id"]).last_member_id is None
 
 
 # ---------- entrantes: equipo o agente ----------

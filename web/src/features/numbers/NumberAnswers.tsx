@@ -99,6 +99,7 @@ function TeamSummary({ number: n }: { number: PhoneNumber }) {
       </Text>
       <Text size="xs" c="dimmed">
         Suena primero {first}
+        {n.strategy === 'round_robin' ? ' · rotativa' : ''}
         {n.schedule ? ' · con horario' : ''}
       </Text>
     </Stack>

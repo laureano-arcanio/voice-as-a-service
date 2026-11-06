@@ -21,7 +21,17 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, HandoffArea, HandoffAreaMember, PhoneNumberMember, TeamMember, User, WaAccount
+from ..models import (
+    Agent,
+    Client,
+    HandoffArea,
+    HandoffAreaMember,
+    PhoneNumber,
+    PhoneNumberMember,
+    TeamMember,
+    User,
+    WaAccount,
+)
 from . import limits as limits_service
 from . import phones
 from .errors import Conflict, Invalid, NotFound, QuotaExceeded
@@ -152,14 +162,16 @@ def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
 
 
 def delete_member(s: Session, member: TeamMember) -> None:
-    # Sale de sus areas y sus numeros (a mano: SQLite no aplica las FK) y de su lugar en el round robin; los
-    # eventos quedan sin team_member_id.
+    # Sale de sus areas y sus numeros (a mano: SQLite no aplica las FK) y de su lugar en el round robin de areas y
+    # numeros; los eventos quedan sin team_member_id.
     for row in s.scalars(select(HandoffAreaMember).where(HandoffAreaMember.member_id == member.id)):
         s.delete(row)
     for row in s.scalars(select(PhoneNumberMember).where(PhoneNumberMember.member_id == member.id)):
         s.delete(row)
     for area in s.scalars(select(HandoffArea).where(HandoffArea.last_member_id == member.id)):
         area.last_member_id = None
+    for number in s.scalars(select(PhoneNumber).where(PhoneNumber.last_member_id == member.id)):
+        number.last_member_id = None
     s.delete(member)
     s.flush()
 
@@ -525,12 +537,16 @@ def candidates(s: Session, area: HandoffArea, now: datetime.datetime | None = No
     by_id = {m.id: m for m in s.scalars(select(TeamMember).where(TeamMember.id.in_(ids)))}
     ordered = [by_id[i] for i in ids if i in by_id]
     ordered = [m for m in ordered if m.active and m.phone]
-    if area.strategy == "round_robin" and area.last_member_id:
-        ids = [m.id for m in ordered]
-        if area.last_member_id in ids:
-            k = ids.index(area.last_member_id) + 1
-            ordered = ordered[k:] + ordered[:k]
-    return ordered
+    return rotate(ordered, area.last_member_id) if area.strategy == "round_robin" else ordered
+
+
+def rotate(ordered: list, last_id: str | None) -> list:
+    """Round robin (areas y entrante al equipo): la lista empezando por el siguiente a last_id; si no esta, igual."""
+    ids = [m.id for m in ordered]
+    if last_id not in ids:
+        return list(ordered)
+    k = ids.index(last_id) + 1
+    return ordered[k:] + ordered[:k]
 
 
 # ---------- resumen para la persona que atiende ----------

@@ -629,7 +629,7 @@ export interface paths {
         /**
          * Update Number
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
-         *     o el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo
+         *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule` y el respaldo
          *     `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
@@ -8009,6 +8009,11 @@ export interface components {
              */
             answer_mode: "team" | "agent";
             /**
+             * Strategy
+             * @enum {string}
+             */
+            strategy: "sequential" | "round_robin";
+            /**
              * Ring First
              * @enum {string}
              */
@@ -8045,6 +8050,11 @@ export interface components {
              * @description Personas del equipo, en el orden en que suenan; cada una con celular o usuario del panel
              */
             member_ids?: string[] | null;
+            /**
+             * Strategy
+             * @description Con el equipo: sequential, siempre desde la primera; round_robin, desde la siguiente a la última que atendió en su celular. El panel suena a todas a la vez
+             */
+            strategy?: ("sequential" | "round_robin") | null;
             /**
              * Ring First
              * @description Dónde suena primero: phone (el celular de cada uno, en orden) o panel (los Disponibles, a la vez); si nadie atiende, en el otro

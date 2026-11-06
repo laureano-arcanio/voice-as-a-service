@@ -20,6 +20,7 @@ import { PlanAlert } from '@/components/PlanGate';
 import { useAgents } from '@/features/agents/api';
 import { useFeatureLock } from '@/features/billing/features';
 import { useTeam } from '@/features/team/api';
+import { STRATEGY_OPTIONS } from '@/features/team/labels';
 import { MemberPicker } from '@/features/team/MemberPicker';
 import { ScheduleFields } from '@/features/team/ScheduleFields';
 import { scheduleError } from '@/features/team/schedule';
@@ -32,6 +33,7 @@ import {
   MESSAGE_MAX,
   RING_FIRST_HELP,
   RING_FIRST_OPTIONS,
+  STRATEGY_HELP,
   toAnsweringBody,
   toAnsweringDraft,
 } from './answering';
@@ -190,18 +192,33 @@ export function EditNumberModal({
                   )}
 
                   <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-                    <Stack gap={4}>
-                      <Text size="sm" fw={600}>
-                        Suena primero
-                      </Text>
-                      <SegmentedControl
-                        aria-label="Suena primero"
-                        data={RING_FIRST_OPTIONS}
-                        {...form.getInputProps('ring_first')}
-                      />
-                      <Text size="xs" c="dimmed">
-                        {RING_FIRST_HELP[v.ring_first]}
-                      </Text>
+                    <Stack gap="sm">
+                      <Stack gap={4}>
+                        <Text size="sm" fw={600}>
+                          A quién se llama primero
+                        </Text>
+                        <SegmentedControl
+                          aria-label="A quién se llama primero"
+                          data={STRATEGY_OPTIONS}
+                          {...form.getInputProps('strategy')}
+                        />
+                        <Text size="xs" c="dimmed">
+                          {STRATEGY_HELP[v.strategy]}
+                        </Text>
+                      </Stack>
+                      <Stack gap={4}>
+                        <Text size="sm" fw={600}>
+                          Suena primero
+                        </Text>
+                        <SegmentedControl
+                          aria-label="Suena primero"
+                          data={RING_FIRST_OPTIONS}
+                          {...form.getInputProps('ring_first')}
+                        />
+                        <Text size="xs" c="dimmed">
+                          {RING_FIRST_HELP[v.ring_first]}
+                        </Text>
+                      </Stack>
                     </Stack>
                     <NumberInput
                       label="Timbre por persona"

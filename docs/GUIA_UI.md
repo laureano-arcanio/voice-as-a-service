@@ -254,6 +254,9 @@ agente**.
      - **Personas:** las de Tu equipo, en el orden en que suenan (**Agregar persona al número**, **Quitar del
        número**); al menos una. Cada una muestra por dónde le puede sonar: su celular, "Solo en el panel"
        (tiene usuario del panel pero no celular), "Solo en el celular" o "No le puede sonar".
+     - **A quién se llama primero:** **En orden** (siempre empieza por la primera persona de la lista) o
+       **Rotativa** (en los celulares empieza por la siguiente a la última que atendió, es decir, marcó 1; el panel
+       suena a todas a la vez y no rota). La fila lo muestra como "· rotativa".
      - **Suena primero:** **En su celular** (llama al celular de cada persona, en orden, y si ninguna atiende suena en
        el panel a las que están Disponibles) o **En el panel** (suena a todas las Disponibles a la vez y, si nadie
        atiende, llama a los celulares en orden).

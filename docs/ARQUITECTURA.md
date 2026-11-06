@@ -107,7 +107,7 @@ crm/                 FastAPI propio: routes (leads, outreach, reminders), servic
 apps/                apps aparte, cada una con su imagen, su base y su compose: registros/ (fichas; no importa app/ ni crm/)
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0049
+migrations/          Alembic, 0001 a 0050
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -123,7 +123,8 @@ usan los mismos servicios (el MCP, por dentro de `/api/v1`).
 del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un solo motor y `tool_versions`, 0034
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
 propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
-pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación.
+pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación, 0050 orden o rotativa en la
+entrante al equipo.
 
 ## Modelo de datos
 
@@ -179,7 +180,7 @@ incluido.
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `conversations` | Estado del motor (`fields`, `messages`, `progress`), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
-| `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`; personas en `phone_number_members`. |
+| `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `strategy` (`sequential`/`round_robin`, con `last_member_id`: la última que atendió en su celular), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`; personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | `blocked_numbers` | `(client_id, phone)` con `note`: sus entrantes (línea o WhatsApp) se cortan sin atender. API `/blocked-numbers`. |
 | `contact_requests` | Formulario de contacto de la landing, con `email_status`. |

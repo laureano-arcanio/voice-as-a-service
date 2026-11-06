@@ -338,6 +338,7 @@ const phoneNumberTeam = `curl -X PATCH ${API}/phone-numbers/<id del número> \\
   -d '{
     "answer_mode": "team",
     "member_ids": ["<id de Laura>", "<id de otra persona>"],
+    "strategy": "round_robin",
     "ring_first": "phone",
     "ring_seconds": 20,
     "schedule": {"week": {"mon": [["09:00", "18:00"]], "tue": [["09:00", "18:00"]]}},
@@ -348,6 +349,7 @@ const phoneNumberTeam = `curl -X PATCH ${API}/phone-numbers/<id del número> \\
 const phoneNumberFields = [
   { field: "answer_mode", text: "team: atiende el equipo, sin agente. agent (por defecto al asignar el número): atiende el agente del número, que puede derivar con sus áreas" },
   { field: "member_ids", text: "Las personas de GET /team, en el orden en que suenan. Cada una con celular o con usuario del panel; con team hace falta al menos una" },
+  { field: "strategy", text: "El orden de los celulares, como en las áreas. sequential (por defecto): siempre desde la primera. round_robin: desde la siguiente a la última que atendió en su celular (marcó 1). El panel suena a todas a la vez y no cuenta" },
   { field: "ring_first", text: "phone (por defecto): suena primero en el celular de cada una, en orden, y después en el panel de las que estén Disponibles. panel: primero en el panel de las Disponibles, a todas a la vez, y después en los celulares" },
   { field: "ring_seconds", text: "Cuánto suena por persona, de 5 a 60 segundos (20 por defecto)" },
   { field: "schedule", text: "Horario de atención, con el mismo formato que las áreas (tz, week y closed). null: siempre" },
@@ -785,7 +787,7 @@ const campaignEndpoints = [
       </table></div>
 
       <h3>Entrantes: el equipo o el agente</h3>
-      <p>Cada número de tu cuenta se configura para que lo atienda el equipo o el agente, con <code>PATCH /phone-numbers/{"{"}id{"}"}</code>. Con <code>team</code>, suena a las personas asignadas al número, sin agente, y si nadie atiende pasa al respaldo que elijas. Los números que ya tenían un agente siguen con el agente. Este ejemplo hace sonar a dos personas en su celular, de lunes a martes en horario de oficina, y deja un mensaje si nadie atiende:</p>
+      <p>Cada número de tu cuenta se configura para que lo atienda el equipo o el agente, con <code>PATCH /phone-numbers/{"{"}id{"}"}</code>. Con <code>team</code>, suena a las personas asignadas al número, sin agente, y si nadie atiende pasa al respaldo que elijas. Los números que ya tenían un agente siguen con el agente. Este ejemplo hace sonar a dos personas en su celular, rotando quién arranca, de lunes a martes en horario de oficina, y deja un mensaje si nadie atiende:</p>
       <CodeBlock label="curl" code={phoneNumberTeam} />
       <div class="table-wrap"><table>
         <thead><tr><th>Campo</th><th>Qué hace</th></tr></thead>

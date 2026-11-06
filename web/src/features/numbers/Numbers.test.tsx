@@ -27,6 +27,7 @@ const base = {
   client_name: 'Acme',
   assigned_at: '2026-10-01T12:00:00Z',
   created_at: '2026-10-01T12:00:00Z',
+  strategy: 'sequential',
   ring_first: 'phone',
   ring_seconds: 20,
   schedule: null,
@@ -164,6 +165,24 @@ describe('números: quién atiende', () => {
     );
   });
 
+  it('la fila dice "rotativa" solo si el número rota', async () => {
+    mockApi([
+      TEAM_NUMBER,
+      {
+        ...EMPTY_WITH_AGENT,
+        id: 'n7',
+        e164: '+541155550007',
+        members: TEAM_NUMBER.members,
+        strategy: 'round_robin',
+      } as PhoneNumber,
+    ]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const plain = await screen.findByRole('row', { name: /\+541155550001/ });
+    expect(within(plain).getByText('Suena primero en el panel')).toBeInTheDocument();
+    const rotating = screen.getByRole('row', { name: /\+541155550007/ });
+    expect(within(rotating).getByText(/Suena primero en su celular · rotativa/)).toBeInTheDocument();
+  });
+
   it('pasa un número sin personas al equipo: personas en orden, panel primero, timbre y respaldo al agente', async () => {
     const calls = mockApi([EMPTY_NUMBER]);
     renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
@@ -185,6 +204,9 @@ describe('números: quién atiende', () => {
     expect(within(dialog).getByText('Solo en el celular')).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByText('En el panel'));
+    expect(within(dialog).getByText(/Siempre empieza por la primera persona/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByText('Rotativa'));
+    expect(within(dialog).getByText(/En el panel suena a todas a la vez y no rota/)).toBeInTheDocument();
     const ring = within(dialog).getByLabelText(/Timbre por persona/);
     await userEvent.clear(ring);
     await userEvent.type(ring, '30');
@@ -206,6 +228,7 @@ describe('números: quién atiende', () => {
       answer_mode: 'team',
       agent_id: 'ag1',
       member_ids: ['m2', 'm1'],
+      strategy: 'round_robin',
       ring_first: 'panel',
       ring_seconds: 30,
       schedule: null,
@@ -342,12 +365,14 @@ describe('números: formulario y errores', () => {
   it('arma el PATCH del equipo y del agente desde el número', () => {
     const draft = toAnsweringDraft(TEAM_NUMBER);
     expect(draft.member_ids).toEqual(['m1', 'm2']);
+    expect(draft.strategy).toBe('sequential');
     expect(draft.schedule).toEqual(toDraft(null));
     expect(toAnsweringBody({ ...draft, label: ' Ventas ', team_fallback_message: ' hola ' })).toEqual({
       label: 'Ventas',
       answer_mode: 'team',
       agent_id: null,
       member_ids: ['m1', 'm2'],
+      strategy: 'sequential',
       ring_first: 'panel',
       ring_seconds: 20,
       schedule: null,

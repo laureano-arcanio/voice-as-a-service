@@ -44,6 +44,7 @@ from . import (
 from .campaigns import contact_vars
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
+from .handoff import rotate
 from .security import Principal
 
 logger = logging.getLogger(__name__)
@@ -246,6 +247,8 @@ class TeamRoute:
     agent_id: str | None
     number_e164: str = ""
     number_label: str = ""
+    # El numero, para anotar quien atendio en el celular (round robin, phone_numbers.last_member_id).
+    number_id: str = ""
 
 
 @dataclass
@@ -268,12 +271,15 @@ def number_people(s: Session, number_id: str, *, usable: bool = False) -> list[T
 
 
 def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
+    people = number_people(s, number.id, usable=True)
+    if number.strategy == "round_robin":
+        # Ordena solo los celulares (el panel suena a todos a la vez): la ultima anotada siempre tiene celular.
+        people = rotate(people, number.last_member_id)
     return TeamRoute(
-        members=[TeamPerson(member_id=m.id, name=m.name, phone=m.phone, user_id=m.user_id)
-                 for m in number_people(s, number.id, usable=True)],
+        members=[TeamPerson(member_id=m.id, name=m.name, phone=m.phone, user_id=m.user_id) for m in people],
         ring_first=number.ring_first, ring_seconds=number.ring_seconds, schedule=number.schedule,
         fallback=number.team_fallback, fallback_message=number.team_fallback_message, agent_id=number.agent_id,
-        number_e164=number.e164, number_label=number.label)
+        number_e164=number.e164, number_label=number.label, number_id=number.id)
 
 
 def dialed_e164(raw: str | None) -> str | None:

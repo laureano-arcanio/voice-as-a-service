@@ -1,5 +1,6 @@
 """Equipo, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md, fase 1)."""
 import datetime
+from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
@@ -139,6 +140,16 @@ def test_candidates_order_round_robin_and_hours(api, admin):
         assert [m.name for m in handoff.candidates(s, row)] == ["A", "C"]
         row.schedule = handoff.validate_schedule({"week": {}})
         assert handoff.candidates(s, row) == []
+
+
+def test_rotate_starts_after_the_last_one():
+    people = [SimpleNamespace(id=i) for i in "ABC"]
+    assert [m.id for m in handoff.rotate(people, "A")] == ["B", "C", "A"]
+    assert [m.id for m in handoff.rotate(people, "C")] == ["A", "B", "C"]
+    # Sin ultimo o con uno que ya no esta (lo sacaron, se desactivo): desde la primera.
+    assert [m.id for m in handoff.rotate(people, None)] == ["A", "B", "C"]
+    assert [m.id for m in handoff.rotate(people, "X")] == ["A", "B", "C"]
+    assert handoff.rotate([], "A") == []
 
 
 def test_describe_schedule_groups_days():

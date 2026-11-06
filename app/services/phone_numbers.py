@@ -12,7 +12,7 @@ from ..models import Agent, Client, PhoneNumber, PhoneNumberMember, TeamMember, 
 from . import legal_gate
 from .calls import normalize_e164
 from .errors import Conflict, Invalid, NotFound
-from .handoff import validate_schedule
+from .handoff import STRATEGIES, validate_schedule
 from .limits import check_direct_calls, effective_limits
 
 ANSWER_MODES = ("team", "agent")
@@ -82,6 +82,7 @@ def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
         s.execute(delete(PhoneNumberMember).where(PhoneNumberMember.phone_number_id == number.id))
     number.answer_mode, number.ring_first, number.ring_seconds = "agent", "phone", 20
     number.schedule, number.team_fallback, number.team_fallback_message = None, "voicemail", ""
+    number.strategy, number.last_member_id = "sequential", None
 
 
 def release(number: PhoneNumber) -> None:
@@ -134,11 +135,11 @@ def _set_members(s: Session, number: PhoneNumber, ids: list[str]) -> None:
 
 
 def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
-    """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), ring_first,
+    """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), strategy, ring_first,
     ring_seconds, schedule, team_fallback y team_fallback_message. Valida el resultado entero: con team, al
     menos una persona; con respaldo agent, un agente en el numero. El agente se cambia antes (set_agent)."""
     keys = ("answer_mode", "member_ids", "ring_first", "ring_seconds", "schedule", "team_fallback",
-            "team_fallback_message")
+            "team_fallback_message", "strategy")
     if not any(k in changes for k in keys):
         if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente
             _check_fallback(number)
@@ -152,6 +153,10 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         if changes["answer_mode"] not in ANSWER_MODES:
             raise Invalid("answer_mode: team o agent")
         number.answer_mode = changes["answer_mode"]
+    if "strategy" in changes:
+        if changes["strategy"] not in STRATEGIES:
+            raise Invalid("strategy: sequential o round_robin")
+        number.strategy = changes["strategy"]
     if "ring_first" in changes:
         if changes["ring_first"] not in RING_FIRST:
             raise Invalid("ring_first: phone o panel")
