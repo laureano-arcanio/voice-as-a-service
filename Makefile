@@ -480,9 +480,9 @@ REGISTROS_DEV := $(REGISTROS_TEST) -p registros-dev --profile dev
 registros-test: ## Tests de la app Registros con su propio Postgres, sin servicios externos. Ej: make registros-test ARGS="tests/test_auth.py -x"
 	$(REGISTROS_TEST) --profile test run --rm --build tests pytest -q $(ARGS); status=$$?; $(REGISTROS_TEST) --profile test down -v; exit $$status
 
-registros-dev: ## App Registros en :8041 con Postgres de prueba y datos de ejemplo, para QA local (dev@ejemplo.test o dev@otro.test, clave dev-registros)
+registros-dev: ## App Registros en :8041 con Postgres de prueba y datos de ejemplo, para QA local (dev@ejemplo.test o dev@otro.test, clave dev-registros; admin: espacio admin, dev@admin.test, clave dev-registros-admin)
 	$(REGISTROS_DEV) up -d --build --wait dev
-	@echo "Registros en http://$$(hostname -I | cut -d' ' -f1):$${REGISTROS_DEV_PORT:-8041}. Tenants ejemplo y otro; usuario dev@<tenant>.test, clave dev-registros; claves de API reg_dev_<tenant>_read y reg_dev_<tenant>_charge"
+	@echo "Registros en http://$$(hostname -I | cut -d' ' -f1):$${REGISTROS_DEV_PORT:-8041}. Tenants ejemplo y otro; usuario dev@<tenant>.test, clave dev-registros; claves de API reg_dev_<tenant>_read y reg_dev_<tenant>_charge. Admin: espacio admin, dev@admin.test, clave dev-registros-admin (/admin)"
 
 registros-dev-down: ## Baja la app Registros de QA local y borra sus datos de prueba
 	$(REGISTROS_DEV) down -v

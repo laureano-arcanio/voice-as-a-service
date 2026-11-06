@@ -86,7 +86,10 @@ def session_user(s: Session, token: str | None) -> User | None:
         s.commit()
         return None
     user = s.get(User, row.user_id)
-    return user if user is not None and user.active else None
+    if user is None or not user.active:
+        return None
+    # Espacio desactivado: también rechaza una sesión creada por un login en carrera con la desactivación.
+    return user if s.scalar(select(Tenant.active).where(Tenant.id == user.tenant_id)) else None
 
 
 def current_user(request: Request, s: DbSession) -> User:
@@ -97,6 +100,20 @@ def current_user(request: Request, s: DbSession) -> User:
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
+
+
+def is_admin(s: Session, user: User) -> bool:
+    return bool(s.scalar(select(Tenant.is_admin).where(Tenant.id == user.tenant_id)))
+
+
+def admin_user(user: CurrentUser, s: DbSession) -> User:
+    """Usuario del tenant admin. Un usuario de otro tenant recibe 404: no se confirma que /admin exista."""
+    if not is_admin(s, user):
+        raise HTTPException(404, "Not Found")
+    return user
+
+
+AdminUser = Annotated[User, Depends(admin_user)]
 
 
 # --- Límite de intentos ---
@@ -128,7 +145,8 @@ def _reserve_attempt(s: Session, tenant_id: str | None, email: str) -> AuditLog 
 def verify_login(s: Session, tenant_slug: str, email: str, password: str) -> tuple[User | None, bool]:
     """(usuario si la clave es correcta, bloqueado). El límite es por correo, en todos los tenants."""
     email = normalize_email(email)
-    tenant = s.scalar(select(Tenant).where(Tenant.slug == tenant_slug))
+    # Un espacio desactivado es como uno inexistente: mismo 401 y mismo costo de argon2.
+    tenant = s.scalar(select(Tenant).where(Tenant.slug == tenant_slug, Tenant.active.is_(True)))
     attempt = _reserve_attempt(s, tenant.id if tenant else None, email)
     if attempt is None:
         return None, True
@@ -261,23 +279,38 @@ class ApiCaller:
     key_id: str
 
 
+TENANT_INACTIVE = "Espacio desactivado"
+
+
 def api_caller(s: DbSession, authorization: Annotated[str | None, Header()] = None) -> ApiCaller:
+    """401: clave inválida o revocada. 403: clave válida de un espacio desactivado, para que la plataforma
+    distinga una cosa de la otra en el error de la herramienta."""
     scheme, _, token = (authorization or "").partition(" ")
-    key = None
+    row = None
     if scheme.lower() == "bearer" and token.strip():
-        key = s.scalar(select(ApiKey).where(ApiKey.key_hash == api_key_hash(token.strip()),
-                                            ApiKey.revoked_at.is_(None)))
-    if key is None:
+        row = s.execute(select(ApiKey, Tenant.active).join(Tenant, Tenant.id == ApiKey.tenant_id)
+                        .where(ApiKey.key_hash == api_key_hash(token.strip()), ApiKey.revoked_at.is_(None))).first()
+    if row is None:
         raise HTTPException(401, "Clave inválida", headers={"WWW-Authenticate": "Bearer"})
+    key, active = row
+    if not active:
+        raise HTTPException(403, TENANT_INACTIVE)
     return ApiCaller(tenant_id=key.tenant_id, scope=key.scope, key_id=key.id)
 
 
 Reader = Annotated[ApiCaller, Depends(api_caller)]  # read y charge
 
 
-def charge_caller(caller: Reader) -> ApiCaller:
+def charge_caller(caller: Reader, s: DbSession) -> ApiCaller:
     if caller.scope != SCOPE_CHARGE:
         raise HTTPException(403, "La clave no tiene el alcance charge")
+    # FOR KEY SHARE hasta el commit del cobro: desactivar (FOR UPDATE, admin_ops.set_tenant_active) espera a
+    # los cobros en curso, y un cobro que llega durante la desactivación la espera y da 403. Así, después de
+    # desactivar no se registra ningún cobro. No choca con editar el espacio (FOR NO KEY UPDATE).
+    active = s.scalar(select(Tenant.active).where(Tenant.id == caller.tenant_id)
+                      .with_for_update(read=True, key_share=True))
+    if not active:
+        raise HTTPException(403, TENANT_INACTIVE)
     return caller
 
 

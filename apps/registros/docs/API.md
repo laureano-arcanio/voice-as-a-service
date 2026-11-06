@@ -4,7 +4,7 @@ Para la plataforma: el pre-call identifica por teléfono, una herramienta visibl
 
 ## Claves
 
-`Authorization: Bearer <clave>`, creada con `create-key` (se muestra una vez).
+`Authorization: Bearer <clave>`, creada con `create-key` o desde `/admin` (se muestra una vez).
 
 | Alcance | Puede | Dónde va |
 |---|---|---|
@@ -16,7 +16,7 @@ Para la plataforma: el pre-call identifica por teléfono, una herramienta visibl
 | Error | Cuándo |
 |---|---|
 | 401 | Sin clave, inválida o revocada |
-| 403 | Clave `read` en `charges` |
+| 403 | Clave `read` en `charges`, o "Espacio desactivado": la clave es válida pero el administrador desactivó el espacio. No se reintenta: el pre-call falla, el post-call queda `failed` y no se cobra |
 | 422 | JSON inválido o campo faltante |
 | 503 | Sin base. La plataforma lo reintenta como falla de transporte |
 

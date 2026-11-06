@@ -1,0 +1,27 @@
+<div class="title-row">
+  <h1>Espacios</h1>
+  <button type="button" id="new-toggle">Nuevo espacio</button>
+</div>
+<p id="error" class="error" role="alert" hidden></p>
+<form id="new-tenant" class="card grid-form" novalidate hidden>
+  <h2>Nuevo espacio</h2>
+  <label>Identificador <input name="slug" maxlength="80" autocomplete="off" required>
+    <span class="hint">Minúsculas, números y guiones, de 2 a 80. No se puede cambiar después.</span></label>
+  <label>Nombre <input name="name" maxlength="200" autocomplete="off" required></label>
+  <label>Monto por cobro <input name="charge_amount" inputmode="decimal" autocomplete="off" required>
+    <span class="hint">Hasta 2 decimales. Rige para los cobros siguientes.</span></label>
+  <label>Moneda <input name="currency" value="ARS" maxlength="3" autocomplete="off" required>
+    <span class="hint">Tres letras mayúsculas.</span></label>
+  <p id="new-error" class="error" role="alert" hidden></p>
+  <div class="actions">
+    <button type="submit">Crear espacio</button>
+    <button type="button" id="new-cancel" class="ghost">Cancelar</button>
+  </div>
+</form>
+<div id="empty" class="card empty" hidden><p>Todavía no hay espacios.</p></div>
+<div id="results" class="card table-wrap" hidden>
+  <table>
+    <thead><tr><th>Espacio</th><th>Monto</th><th>Usuarios</th><th>Claves</th><th>Fichas</th><th>Formulario</th><th>Estado</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>

@@ -129,3 +129,20 @@ def login():
         return browser.post("/auth/login", json={"tenant": tenant.slug, "email": email, "password": password})
 
     return do
+
+
+ADMIN_EMAIL = "admin@example.com"
+ADMIN_PASSWORD = "clave-del-admin-larga"
+
+
+@pytest.fixture
+def make_admin(session):
+    """Tenant admin y su usuario, como create-admin."""
+    def make(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD) -> User:
+        from registros import admin_ops
+
+        user, _ = admin_ops.ensure_admin(session, email, password)
+        session.commit()
+        return user
+
+    return make

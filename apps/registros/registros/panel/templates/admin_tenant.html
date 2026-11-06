@@ -1,0 +1,105 @@
+<section id="tenant" data-tenant-id="$tenant_id">
+  <div class="title-row">
+    <h1 id="title">Espacio</h1>
+    <span class="actions">
+      <a class="button" id="persons-link" href="/admin/espacios/$tenant_id/fichas">Fichas</a>
+      <a href="/admin">Volver a los espacios</a>
+    </span>
+  </div>
+  <p id="error" class="error" role="alert" hidden></p>
+
+  <div class="card status">
+    <span id="active-badge" class="badge"></span>
+    <span id="active-note" class="muted"></span>
+    <span class="spacer"></span>
+    <button type="button" id="active-toggle" class="ghost" hidden></button>
+  </div>
+
+  <form id="data-form" class="card grid-form" novalidate>
+    <h2>Datos</h2>
+    <label>Identificador <input name="slug" disabled></label>
+    <label>Nombre <input name="name" maxlength="200" autocomplete="off" required></label>
+    <label>Monto por cobro <input name="charge_amount" inputmode="decimal" autocomplete="off" required>
+      <span class="hint">Rige para los cobros siguientes: los ya registrados no cambian.</span></label>
+    <label>Moneda <input name="currency" maxlength="3" autocomplete="off" required></label>
+    <p id="data-error" class="error" role="alert" hidden></p>
+    <p id="data-ok" class="ok-text" role="status" hidden></p>
+    <div class="actions"><button type="submit">Guardar</button></div>
+  </form>
+
+  <form id="form-form" class="card grid-form" novalidate>
+    <h2>Formulario</h2>
+    <p id="form-state" class="muted"></p>
+    <label>form.html <input type="file" name="form_html" accept=".html,.htm,text/html"></label>
+    <label>schema.json <input type="file" name="schema" accept=".json,application/json"></label>
+    <label>manifest.json <input type="file" name="manifest" accept=".json,application/json"></label>
+    <p class="hint">Los tres archivos juntos. Al cargarlos se rehacen los teléfonos de las fichas ya cargadas.</p>
+    <p id="form-error" class="error" role="alert" hidden></p>
+    <p id="form-ok" class="ok-text" role="status" hidden></p>
+    <div class="actions">
+      <button type="submit">Cargar formulario</button>
+      <button type="button" id="form-download" class="ghost" hidden>Bajar el actual</button>
+    </div>
+  </form>
+
+  <section class="card">
+    <h2>Usuarios</h2>
+    <p id="users-empty" class="muted" hidden>Este espacio todavía no tiene usuarios.</p>
+    <div class="table-wrap">
+      <table id="users-table" hidden>
+        <thead><tr><th>Correo</th><th>Estado</th><th>Creado</th><th></th></tr></thead>
+        <tbody id="users-rows"></tbody>
+      </table>
+    </div>
+    <form id="password-form" class="grid-form panel-inline" novalidate hidden>
+      <h3 id="password-title">Clave nueva</h3>
+      <label>Clave nueva <input name="password" type="password" autocomplete="new-password" maxlength="1024" required>
+        <span class="hint">Entre 8 y 1024 caracteres. Cierra las sesiones de esa persona.</span></label>
+      <p id="password-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="submit">Cambiar la clave</button>
+        <button type="button" id="password-cancel" class="ghost">Cancelar</button>
+      </div>
+    </form>
+    <form id="user-form" class="grid-form panel-inline" novalidate>
+      <h3>Nuevo usuario</h3>
+      <label>Correo <input name="email" type="email" autocomplete="off" maxlength="254" required></label>
+      <label>Clave <input name="password" type="password" autocomplete="new-password" maxlength="1024" required>
+        <span class="hint">Entre 8 y 1024 caracteres.</span></label>
+      <p id="user-error" class="error" role="alert" hidden></p>
+      <p id="user-ok" class="ok-text" role="status" hidden></p>
+      <div class="actions"><button type="submit">Crear usuario</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Claves de la API</h2>
+    <p id="keys-empty" class="muted" hidden>Este espacio todavía no tiene claves.</p>
+    <div class="table-wrap">
+      <table id="keys-table" hidden>
+        <thead><tr><th>Nombre</th><th>Alcance</th><th>Creada</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="keys-rows"></tbody>
+      </table>
+    </div>
+    <div id="key-box" class="key-box" hidden>
+      <p class="strong">Clave nueva: copiala ahora. No se vuelve a mostrar.</p>
+      <div class="actions">
+        <input id="key-value" class="mono key-value" readonly aria-label="Clave de API">
+        <button type="button" id="key-copy" class="ghost">Copiar</button>
+      </div>
+      <p id="key-hint" class="hint"></p>
+      <button type="button" id="key-close" class="ghost">Ya la copié</button>
+    </div>
+    <form id="key-form" class="grid-form panel-inline" novalidate>
+      <h3>Nueva clave</h3>
+      <label>Nombre <input name="name" maxlength="120" autocomplete="off" required placeholder="pre-call"></label>
+      <label>Alcance
+        <select name="scope">
+          <option value="read">read: identificar y elegir ficha (pre-call)</option>
+          <option value="charge">charge: además, registrar cobros (post-call)</option>
+        </select></label>
+      <p id="key-error" class="error" role="alert" hidden></p>
+      <div class="actions"><button type="submit">Crear clave</button></div>
+    </form>
+  </section>
+</section>

@@ -24,19 +24,30 @@ lo lleva en su imagen: `tests/test_apps_isolation.py`). Las herramientas solo sa
 ## Modelo
 
 Base `registros` y rol `registros` en la misma instancia de Postgres que la plataforma (como el CRM, con rol propio).
-Migraciones propias en `apps/registros/migrations/` (`0001_inicial`).
+Migraciones propias en `apps/registros/migrations/` (`0001_inicial`, `0002_admin`, `0003_tenant_active`).
 
 | Tabla | Qué guarda |
 |---|---|
-| `tenants` | `slug`, monto del cobro y el formulario del tenant (`form_html`, `form_schema`, `manifest`), cargado por CLI |
+| `tenants` | `slug`, monto del cobro y el formulario del tenant (`form_html`, `form_schema`, `manifest`), cargado por CLI o por el admin; `is_admin` marca el tenant `admin` (uno solo, índice único parcial); `active` (ver "Espacio desactivado") |
 | `users`, `sessions`, `api_keys` | Login del panel; claves de la API con alcance `read` o `charge` (hash, se muestran una vez) |
 | `persons`, `person_phones` | Ficha (datos del formulario, `al_dia`, versión, baja lógica) y sus teléfonos, sacados del formulario por el manifiesto |
 | `conversation_choices` | La ficha que la persona confirmó en una conversación, para el link y el cobro |
 | `charges` | Un cobro por `(tenant, conversation_id)`; hoy `simulated` |
 | `record_links` | Link `/c/<token>` de una conversación, con vencimiento |
-| `audit_log` | Login, vistas y cambios de fichas, aperturas de link |
+| `audit_log` | Login, vistas y cambios de fichas, aperturas de link. Nada de lo que hace el admin |
 
 Aislamiento por tenant en cada consulta. El panel no tiene formularios de ningún cliente en el código.
+
+**Administrador:** los usuarios del tenant `admin` (creados solo con `create-admin`) gestionan los demás tenants desde
+`/admin` (`/admin/api`): datos, formulario, usuarios, claves de API, activar o desactivar y lectura de fichas. Detalle y
+rutas: README de la app.
+
+**Espacio desactivado** (`PUT /admin/api/tenants/{id}/active`; el tenant `admin` no se desactiva): se borran las sesiones
+de sus usuarios, el login responde como a un espacio inexistente, una sesión que quede no vale (panel y páginas mandan al
+login, también `/c/<token>`) y `/v1` responde **403 "Espacio desactivado"** a una clave válida (401 sigue siendo clave
+inválida o revocada). El pre-call falla sin reintento y el agente atiende sin la ficha; el post-call queda `failed` y esa
+conversación no se cobra. Desactivar espera a los cobros en curso: después del 204 no se registra ninguno. El admin sigue
+viendo y editando el espacio y sus fichas. Reactivar revive las claves no revocadas y el login; las sesiones no vuelven.
 
 ## Operación
 
@@ -49,7 +60,7 @@ variables `REGISTROS_*`, no los secretos de la plataforma. Pool de 7 conexiones 
 |---|---|
 | `make registros-up` | `registros-db` y migraciones con su rol; levanta con `--wait`. No toca `app`, `agent` ni `db` |
 | `make registros-down` | Lo para; la base queda |
-| `make registros-cli ARGS="..."` | Tenants, formulario (`FORM=<carpeta>`), usuarios y claves de API |
+| `make registros-cli ARGS="..."` | Tenants, formulario (`FORM=<carpeta>`), usuarios, claves de API y administradores (`create-admin`) |
 | `make registros-restore DUMP=...` | Restaura un volcado conectado como `registros`, que queda dueño de las tablas |
 | `make registros-logs`, `registros-psql` | Logs y `psql` con su rol |
 | `make registros-test`, `registros-dev`, `registros-dev-down` | Tests con su Postgres; app de QA en `:8041` con datos de ejemplo |
@@ -79,7 +90,8 @@ Con la plataforma ya desplegada (las herramientas y los workflows que usan los `
 1. Claves en el `.env` de server2 (diff enmascarado): `REGISTROS_DB_PASSWORD`, `REGISTROS_SESSION_SECRET`,
    `REGISTROS_PUBLIC_URL=https://registros.atentina.com.ar`.
 2. `make registros-up`.
-3. Tenant, formulario, usuario y claves `read` y `charge`: `make registros-cli` (README de la app).
+3. Administrador: `make registros-cli ARGS="create-admin --email ..."` (pide la clave). Tenant, formulario, usuario y
+   claves `read` y `charge`: desde `/admin` o con `make registros-cli` (README de la app).
 4. Ruta del túnel `registros.atentina.com.ar` → `http://127.0.0.1:8040` (la crea el usuario).
 5. `BACKUP_EXTRA_DBS=registros` y `REGISTROS_HEALTH_URL=http://127.0.0.1:8040/health` en el `.env`; volver a correr
    `make registros-up`. Comprobar un `make backup` y una restauración en una base vacía.
@@ -102,6 +114,14 @@ Sin Registros los workflows fallan, el agente atiende y deriva igual, y los post
 - **Cualquier usuario del tenant** que abra el link ve la ficha completa, igual que en el panel; la apertura queda en
   `audit_log`. Un link reenviado no abre sin login.
 - **El modelo elige la ficha** por lo que entendió de la persona: se cobra a esa, y la nota la nombra.
+- **El admin ve todas las fichas y nada de lo que hace queda registrado** (decisión del usuario): ni sus vistas de fichas ni
+  sus cambios (altas, formularios, montos, claves de usuario, claves de API creadas o revocadas) van a `audit_log`; solo su
+  login y logout. Un acceso o un cambio indebido no se puede reconstruir.
+- **Sesión del admin robada = todos los tenants y todas sus fichas**, sin rastro. Cookie `HttpOnly`, `SameSite=Lax`,
+  `Secure` con https, 12 h; CSRF por `Origin`. No puede crear administradores (solo `create-admin`); desactivarlo o
+  cambiarle la clave cierra sus sesiones.
+- **Bloqueo del login del admin:** el límite de intentos es por correo; quien sepa el correo de un administrador le bloquea el
+  login 15 minutos. La CLI sigue andando.
 - **Registros en la red de la plataforma:** `app`, `agent` y demás alcanzan su puerto sin credenciales; la API exige clave.
 
 ## Pendientes

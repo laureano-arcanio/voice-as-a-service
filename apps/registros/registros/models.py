@@ -1,4 +1,4 @@
-"""Tablas de Registros (migrations/versions/0001_inicial.py)."""
+"""Tablas de Registros (migrations/versions/)."""
 import datetime
 from decimal import Decimal
 
@@ -42,16 +42,21 @@ def _now():
 
 class Tenant(Base):
     __tablename__ = "tenants"
+    __table_args__ = (Index("uq_tenants_is_admin", "is_admin", unique=True, postgresql_where=text("is_admin")),)
 
     id: Mapped[str] = _id()
     slug: Mapped[str] = mapped_column(String(80), unique=True)
     name: Mapped[str] = mapped_column(String(200))
     charge_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3), default="ARS", server_default="ARS")
-    # El formulario es dato del tenant, cargado por CLI; no hay formularios en el código.
+    # El formulario es dato del tenant, cargado por CLI o el admin; no hay formularios en el código.
     form_html: Mapped[str | None] = mapped_column(Text)
     form_schema: Mapped[dict | None] = mapped_column(JSONB)
     manifest: Mapped[dict | None] = mapped_column(JSONB)
+    # Sus usuarios administran los demás tenants (/admin). Solo lo pone la CLI (create-admin).
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    # Desactivado: sin login, sin sesiones y la API /v1 responde 403 (auth.py). El admin lo sigue viendo.
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     created_at: Mapped[datetime.datetime] = _now()
 
 

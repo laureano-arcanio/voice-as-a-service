@@ -1,4 +1,4 @@
-"""Datos de ejemplo de make registros-dev: dos tenants, para mirar a mano el aislamiento. Solo para el
+"""Datos de ejemplo de make registros-dev: dos tenants, para mirar a mano el aislamiento, y el admin. Solo para el
 Postgres de prueba (compose.test.yaml), que se borra con registros-dev-down."""
 import json
 import sys
@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from sqlalchemy import select  # noqa: E402
 
+from registros import admin_ops  # noqa: E402
 from registros.auth import api_key_hash, hash_password  # noqa: E402
 from registros.db import get_sessionmaker  # noqa: E402
 from registros.manifest import parse_manifest, sync_person  # noqa: E402
@@ -17,6 +18,8 @@ from registros.models import ApiKey, Person, Tenant, User  # noqa: E402
 
 FORM = ROOT / "tests" / "fixtures" / "form_ejemplo"
 PASSWORD = "dev-registros"
+ADMIN_EMAIL = "dev@admin.test"
+ADMIN_PASSWORD = "dev-registros-admin"
 PERSONS = {
     "ejemplo": [
         {"datos": {"nombre": "Ana Ejemplo", "documento": "20000001", "codigo": "A1", "celular": "+5493510000001"},
@@ -50,6 +53,7 @@ def seed() -> None:
                 person = Person(tenant_id=tenant.id, name="", titular_name="", data=data)
                 s.add(person)
                 sync_person(s, person, manifest)
+        admin_ops.ensure_admin(s, ADMIN_EMAIL, ADMIN_PASSWORD)
         s.commit()
 
 

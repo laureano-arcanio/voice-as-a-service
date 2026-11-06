@@ -1,0 +1,33 @@
+<section id="person" data-tenant-id="$tenant_id" data-person-id="$person_id">
+  <div class="title-row">
+    <h1 id="title">Ficha</h1>
+    <a href="/admin/espacios/$tenant_id/fichas">Volver a las fichas</a>
+  </div>
+  <p id="error" class="error" role="alert" hidden></p>
+  <div id="summary" class="card status" hidden>
+    <span id="al-dia-badge" class="badge"></span>
+    <span id="al-dia-by" class="muted"></span>
+    <span class="spacer"></span>
+    <span class="muted">Solo lectura</span>
+  </div>
+  <section id="data" class="card" hidden>
+    <h2>Datos</h2>
+    <p id="data-empty" class="muted" hidden>La ficha no tiene datos.</p>
+    <div class="table-wrap">
+      <table id="data-table">
+        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+        <tbody id="data-rows"></tbody>
+      </table>
+    </div>
+  </section>
+  <section id="charges" class="card" hidden>
+    <h2>Cobros</h2>
+    <p id="charges-empty" class="muted" hidden>Esta ficha todavía no tiene cobros.</p>
+    <div class="table-wrap">
+      <table id="charges-table" hidden>
+        <thead><tr><th>Fecha</th><th>Monto</th><th>Titular</th><th>Teléfono</th><th>Estado</th><th>Detalle</th></tr></thead>
+        <tbody id="charges-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</section>

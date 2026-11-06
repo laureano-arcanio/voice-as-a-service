@@ -7,12 +7,13 @@ from string import Template
 from urllib.parse import quote
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import audit
-from ..auth import SESSION_COOKIE, DbSession, session_user
+from .. import admin_ops
+from ..auth import SESSION_COOKIE, DbSession, is_admin, session_user
 from ..db import utcnow
 from ..models import ConversationChoice, Person, RecordLink, Tenant, User
 from .persons import get_active_person
@@ -25,10 +26,17 @@ _LOGIN = Template((TEMPLATES / "login.html").read_text(encoding="utf-8"))
 _LIST = (TEMPLATES / "list.html").read_text(encoding="utf-8")
 _PERSON = Template((TEMPLATES / "person.html").read_text(encoding="utf-8"))
 _HEADER = Template((TEMPLATES / "header.html").read_text(encoding="utf-8"))
+# Páginas del admin: cascarones que admin.js llena con /admin/api.
+_ADMIN_LIST = (TEMPLATES / "admin_list.html").read_text(encoding="utf-8")
+_ADMIN_TENANT = Template((TEMPLATES / "admin_tenant.html").read_text(encoding="utf-8"))
+_ADMIN_PERSONS = Template((TEMPLATES / "admin_persons.html").read_text(encoding="utf-8"))
+_ADMIN_PERSON = Template((TEMPLATES / "admin_person.html").read_text(encoding="utf-8"))
 
 HOME = "/personas"
+ADMIN_HOME = "/admin"
 # Rutas a las que se puede volver después del login. Solo estas: nada externo, ni //otro, ni /\otro.
-_NEXT_ALLOWED = re.compile(r"/personas(/nueva|/[0-9a-f-]{36})?|/c/[A-Za-z0-9_-]{1,64}")
+_NEXT_ALLOWED = re.compile(r"/personas(/nueva|/[0-9a-f-]{36})?|/c/[A-Za-z0-9_-]{1,64}"
+                           r"|/admin(/espacios/[0-9a-f-]{36}(/fichas(/[0-9a-f-]{36})?)?)?")
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{1,64}")
 # La de main.py, más form-action: el formulario del tenant no puede enviar a otro sitio.
 PAGE_CSP = "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'"
@@ -42,28 +50,36 @@ def _esc(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def _html(title: str, page: str, content: str, *, header: str = "", status: int = 200) -> HTMLResponse:
-    body = _LAYOUT.substitute(title=_esc(title), page=page, header=header, content=content)
+def _html(title: str, page: str, content: str, *, header: str = "", status: int = 200,
+          script: str = "panel.js") -> HTMLResponse:
+    body = _LAYOUT.substitute(title=_esc(title), page=page, header=header, content=content, script=script)
     return HTMLResponse(body, status_code=status, headers={"Content-Security-Policy": PAGE_CSP})
 
 
-def _header(s: Session, user: User) -> str:
+def _header(s: Session, user: User, home: str = HOME) -> str:
     tenant = s.get(Tenant, user.tenant_id)
-    return _HEADER.substitute(tenant=_esc(tenant.name), email=_esc(user.email))
+    return _HEADER.substitute(tenant=_esc(tenant.name), email=_esc(user.email), home=home)
 
 
 def _to_login(path: str) -> RedirectResponse:
     return RedirectResponse(f"/login?next={quote(safe_next(path), safe='')}", status_code=303)
 
 
-def _not_found(s: Session, user: User) -> HTMLResponse:
+def _not_found(s: Session, user: User, home: str = HOME) -> HTMLResponse:
     """Igual para lo que no existe y lo que es de otro tenant: no confirma nada."""
-    content = f'<div class="card empty"><h1>No encontramos esta página</h1><a href="{HOME}">Ir a las fichas</a></div>'
-    return _html("No encontrada", "error", content, header=_header(s, user), status=404)
+    label = "Ir a los espacios" if home == ADMIN_HOME else "Ir a las fichas"
+    content = f'<div class="card empty"><h1>No encontramos esta página</h1><a href="{home}">{label}</a></div>'
+    return _html("No encontrada", "error", content, header=_header(s, user, home), status=404,
+                 script="admin.js" if home == ADMIN_HOME else "panel.js")
 
 
 def _user(request: Request, s: Session) -> User | None:
     return session_user(s, request.cookies.get(SESSION_COOKIE))
+
+
+def _to_admin() -> RedirectResponse:
+    """El tenant admin no tiene fichas propias: sus usuarios van al panel del admin."""
+    return RedirectResponse(ADMIN_HOME, status_code=303)
 
 
 @router.get("/")
@@ -84,6 +100,8 @@ def list_page(request: Request, s: DbSession):
     user = _user(request, s)
     if user is None:
         return _to_login(HOME)
+    if is_admin(s, user):
+        return _to_admin()
     return _html("Fichas", "list", _LIST, header=_header(s, user))
 
 
@@ -104,6 +122,8 @@ def new_page(request: Request, s: DbSession):
     user = _user(request, s)
     if user is None:
         return _to_login("/personas/nueva")
+    if is_admin(s, user):
+        return _to_admin()
     return _form_page(s, user, "", "Nueva ficha")
 
 
@@ -112,6 +132,8 @@ def person_page(person_id: str, request: Request, s: DbSession):
     user = _user(request, s)
     if user is None:
         return _to_login(f"/personas/{person_id}")
+    if is_admin(s, user):
+        return _to_admin()
     if get_active_person(s, user.tenant_id, person_id) is None:
         return _not_found(s, user)
     return _form_page(s, user, person_id, "Ficha")
@@ -135,6 +157,8 @@ def open_link(token: str, request: Request, s: DbSession):
     user = _user(request, s)
     if user is None:
         return _to_login(f"/c/{token}")
+    if is_admin(s, user):
+        return _to_admin()
     link = s.get(RecordLink, token) if _TOKEN.fullmatch(token) else None
     if link is None or link.tenant_id != user.tenant_id:
         return _not_found(s, user)
@@ -158,3 +182,70 @@ def open_link(token: str, request: Request, s: DbSession):
     if len(persons) == 1:
         return RedirectResponse(f"/personas/{persons[0].id}", status_code=303)
     return _link_page(s, user, persons)
+
+
+# --- Admin ---
+
+
+def _admin_gate(request: Request, s: Session, path: str) -> tuple[User | None, Response | None]:
+    """Misma regla que AdminUser: sin sesión, al login con `next`; un usuario de cliente recibe 404."""
+    user = _user(request, s)
+    if user is None:
+        return None, _to_login(path)
+    if not is_admin(s, user):
+        return None, _not_found(s, user)
+    return user, None
+
+
+def _admin_html(s: Session, user: User, title: str, page: str, content: str) -> HTMLResponse:
+    return _html(title, page, content, header=_header(s, user, ADMIN_HOME), script="admin.js")
+
+
+def _admin_tenant(s: Session, user: User, tenant_id: str) -> Tenant | HTMLResponse:
+    """Espacio administrable; el tenant admin y lo que no existe dan el mismo 404."""
+    try:
+        return admin_ops.tenant_by_id(s, tenant_id)
+    except admin_ops.NotFound:
+        return _not_found(s, user, ADMIN_HOME)
+
+
+@router.get("/admin")
+def admin_page(request: Request, s: DbSession):
+    user, early = _admin_gate(request, s, ADMIN_HOME)
+    return early or _admin_html(s, user, "Espacios", "admin-list", _ADMIN_LIST)
+
+
+@router.get("/admin/espacios/{tenant_id}")
+def admin_tenant_page(tenant_id: str, request: Request, s: DbSession):
+    user, early = _admin_gate(request, s, f"{ADMIN_HOME}/espacios/{tenant_id}")
+    if early:
+        return early
+    tenant = _admin_tenant(s, user, tenant_id)
+    if isinstance(tenant, HTMLResponse):
+        return tenant
+    return _admin_html(s, user, tenant.name, "admin-tenant", _ADMIN_TENANT.substitute(tenant_id=tenant.id))
+
+
+@router.get("/admin/espacios/{tenant_id}/fichas")
+def admin_persons_page(tenant_id: str, request: Request, s: DbSession):
+    user, early = _admin_gate(request, s, f"{ADMIN_HOME}/espacios/{tenant_id}/fichas")
+    if early:
+        return early
+    tenant = _admin_tenant(s, user, tenant_id)
+    if isinstance(tenant, HTMLResponse):
+        return tenant
+    return _admin_html(s, user, f"Fichas de {tenant.name}", "admin-persons", _ADMIN_PERSONS.substitute(tenant_id=tenant.id))
+
+
+@router.get("/admin/espacios/{tenant_id}/fichas/{person_id}")
+def admin_person_page(tenant_id: str, person_id: str, request: Request, s: DbSession):
+    user, early = _admin_gate(request, s, f"{ADMIN_HOME}/espacios/{tenant_id}/fichas/{person_id}")
+    if early:
+        return early
+    tenant = _admin_tenant(s, user, tenant_id)
+    if isinstance(tenant, HTMLResponse):
+        return tenant
+    if get_active_person(s, tenant.id, person_id) is None:
+        return _not_found(s, user, ADMIN_HOME)
+    return _admin_html(s, user, "Ficha", "admin-person",
+                       _ADMIN_PERSON.substitute(tenant_id=tenant.id, person_id=_esc(person_id)))

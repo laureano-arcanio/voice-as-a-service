@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from conftest import FORM_EJEMPLO, PASSWORD
+from conftest import ADMIN_EMAIL, ADMIN_PASSWORD, FORM_EJEMPLO, PASSWORD
 from sqlalchemy import func, select, update
 
 from registros import auth, cli
@@ -228,7 +228,7 @@ def test_paginas_con_csp_sin_inline_y_sin_cache(browser, uno):
     assert " style=" not in r.text
 
 
-@pytest.mark.parametrize("name", ["panel.js", "panel.css"])
+@pytest.mark.parametrize("name", ["panel.js", "panel.css", "admin.js"])
 def test_estaticos(client, name):
     r = client.get(f"/static/{name}")
     assert r.status_code == 200
@@ -237,7 +237,8 @@ def test_estaticos(client, name):
 
 def test_el_js_no_arma_html_con_datos():
     # Una ficha se pinta con textContent: un nombre con marcado no se ejecuta nunca.
-    assert "innerHTML" not in (STATIC / "panel.js").read_text(encoding="utf-8")
+    for name in ("panel.js", "admin.js"):
+        assert "innerHTML" not in (STATIC / name).read_text(encoding="utf-8")
 
 
 def test_datos_de_tenant_y_usuario_escapados(session, browser, tenant_with_form):
@@ -890,3 +891,105 @@ def test_link_y_cookie_lax(client, uno, make_user, login):
     assert "samesite=lax" in r.headers["set-cookie"].lower()
     assert auth.SESSION_COOKIE in client.cookies
     assert PASSWORD not in r.text
+
+
+# --- Páginas del admin ---
+
+ZERO = "00000000-0000-0000-0000-000000000000"
+
+
+@pytest.fixture
+def admin_browser(make_admin, new_client):
+    make_admin()
+    client = new_client()
+    r = client.post("/auth/login", json={"tenant": "admin", "email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+    assert r.status_code == 200
+    return client
+
+
+def _admin_paths(tenant_id: str, person_id: str) -> list[str]:
+    base = f"/admin/espacios/{tenant_id}"
+    return ["/admin", base, f"{base}/fichas", f"{base}/fichas/{person_id}"]
+
+
+def test_paginas_del_admin_con_admin(admin_browser, uno, make_person):
+    person = make_person(uno, "Ana")
+    for path in _admin_paths(uno.id, person.id):
+        r = admin_browser.get(path)
+        assert r.status_code == 200, path
+        # Cargan admin.js y no el del panel de fichas.
+        assert 'src="/static/admin.js"' in r.text and "panel.js" not in r.text
+        csp = r.headers["content-security-policy"]
+        assert "unsafe-inline" not in csp and "script-src" not in csp.replace("default-src 'self'", "")
+        assert not re.search(r"<script(?![^>]*\bsrc=)", r.text) and " style=" not in r.text
+        assert r.headers["cache-control"] == "no-store"
+
+
+def test_paginas_del_admin_con_cliente_dan_404(browser, uno, dos, make_person):
+    person = make_person(dos, "Ana")
+    client = browser(uno)
+    for path in _admin_paths(dos.id, person.id):
+        r = client.get(path)
+        assert r.status_code == 404, path
+        assert "No encontramos esta página" in r.text and dos.slug not in r.text
+
+
+def test_paginas_del_admin_sin_sesion_van_al_login_con_next(client, uno, make_person):
+    person = make_person(uno, "Ana")
+    for path in _admin_paths(uno.id, person.id):
+        r = _no_redirect(client, path)
+        assert r.status_code == 303
+        assert r.headers["location"] == f"/login?next={path.replace('/', '%2F')}"
+
+
+def test_admin_login_vuelve_a_la_pagina_del_admin(client, uno, make_admin):
+    make_admin()
+    path = f"/admin/espacios/{uno.id}"
+    assert _next_of(client.get("/login", params={"next": path}).text) == path
+
+
+def test_pagina_del_admin_de_algo_que_no_existe_da_404(admin_browser, uno, dos, make_person, make_admin, session):
+    ajena = make_person(dos, "Ajena")
+    admin_tenant = session.scalar(select(Tenant).where(Tenant.is_admin))
+    assert admin_browser.get(f"/admin/espacios/{ZERO}").status_code == 404
+    assert admin_browser.get("/admin/espacios/no-es-un-id").status_code == 404
+    assert admin_browser.get(f"/admin/espacios/{admin_tenant.id}").status_code == 404  # el admin no se administra
+    assert admin_browser.get(f"/admin/espacios/{uno.id}/fichas/{ZERO}").status_code == 404
+    assert admin_browser.get(f"/admin/espacios/{uno.id}/fichas/{ajena.id}").status_code == 404  # ficha de otro espacio
+
+
+def test_pagina_del_admin_con_ficha_de_baja_da_404(admin_browser, uno, make_person):
+    baja = make_person(uno, "Baja", active=False)
+    assert admin_browser.get(f"/admin/espacios/{uno.id}/fichas/{baja.id}").status_code == 404
+
+
+def test_pagina_del_admin_no_escribe_audit(admin_browser, uno, make_person, session):
+    person = make_person(uno, "Ana")
+    session.expire_all()
+    before = len(list(session.scalars(select(AuditLog).where(AuditLog.action.notin_(["login", "logout"])))))
+    for path in _admin_paths(uno.id, person.id):
+        admin_browser.get(path)
+    session.expire_all()
+    assert len(list(session.scalars(select(AuditLog).where(AuditLog.action.notin_(["login", "logout"]))))) == before
+
+
+def test_nombre_del_espacio_escapado_en_paginas_del_admin(admin_browser, uno, session):
+    uno.name = "<script>alert(1)</script>"
+    session.commit()
+    r = admin_browser.get(f"/admin/espacios/{uno.id}")
+    assert "<script>alert" not in r.text and "&lt;script&gt;alert" in r.text
+
+
+def test_paginas_del_cliente_siguen_con_panel_js(browser, uno):
+    client = browser(uno)
+    for path in ("/personas", "/personas/nueva"):
+        r = client.get(path)
+        assert 'src="/static/panel.js"' in r.text and "admin.js" not in r.text
+    assert 'href="/personas"' in client.get("/personas").text
+    assert 'src="/static/panel.js"' in client.get("/login").text
+
+
+def test_admin_en_paginas_de_fichas_va_al_admin(admin_browser):
+    for path in ("/personas", "/personas/nueva"):
+        r = _no_redirect(admin_browser, path)
+        assert r.status_code == 303 and r.headers["location"] == "/admin"

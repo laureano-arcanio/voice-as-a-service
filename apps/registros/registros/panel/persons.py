@@ -324,20 +324,13 @@ class AlDiaIn(BaseModel):
     al_dia: bool
 
 
-@router.get("/persons")
-def list_persons(
-    user: CurrentUser,
-    s: DbSession,
-    q: Annotated[str, Query(max_length=200)] = "",
-    al_dia: bool | None = None,
-    page: Annotated[int, Query(ge=1, le=1_000_000)] = 1,
-    per_page: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
-) -> dict:
-    tenant = s.get(Tenant, user.tenant_id)
-    conditions = [Person.tenant_id == user.tenant_id, Person.active]
+def search_persons(s: Session, tenant_id: str, q: str, al_dia: bool | None, page: int, per_page: int) -> dict:
+    """Lista de fichas vigentes de ese tenant. La usan el panel del cliente y el admin."""
+    tenant = s.get(Tenant, tenant_id)
+    conditions = [Person.tenant_id == tenant_id, Person.active]
     q = q.replace("\x00", "").strip()
     if q:
-        conditions.append(_search_condition(user.tenant_id, q, _manifest_or_none(tenant)))
+        conditions.append(_search_condition(tenant_id, q, _manifest_or_none(tenant)))
     if al_dia is not None:
         conditions.append(Person.al_dia.is_(al_dia))
     total = s.scalar(select(func.count()).select_from(Person).where(*conditions))
@@ -366,6 +359,31 @@ def list_persons(
     }
 
 
+def person_detail(s: Session, tenant_id: str, person_id: str) -> tuple[Person, dict]:
+    """Ficha vigente de ese tenant con sus cobros; 404 si es de baja, de otro tenant o no existe. Sin audit:
+    lo registra quien llama, si corresponde."""
+    person = _person_or_404(s, tenant_id, person_id)
+    return person, _detail(s, person)
+
+
+# Parámetros de la lista, compartidos con /admin/api.
+SearchQ = Annotated[str, Query(max_length=200)]
+PageQ = Annotated[int, Query(ge=1, le=1_000_000)]
+PerPageQ = Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)]
+
+
+@router.get("/persons")
+def list_persons(
+    user: CurrentUser,
+    s: DbSession,
+    q: SearchQ = "",
+    al_dia: bool | None = None,
+    page: PageQ = 1,
+    per_page: PerPageQ = PAGE_SIZE_DEFAULT,
+) -> dict:
+    return search_persons(s, user.tenant_id, q, al_dia, page, per_page)
+
+
 @router.post("/persons", status_code=201)
 def create_person(body: PersonIn, user: CurrentUser, s: DbSession) -> dict:
     manifest = _validated(s.get(Tenant, user.tenant_id), body.data)
@@ -380,10 +398,10 @@ def create_person(body: PersonIn, user: CurrentUser, s: DbSession) -> dict:
 
 @router.get("/persons/{person_id}")
 def read_person(person_id: str, user: CurrentUser, s: DbSession) -> dict:
-    person = _person_or_404(s, user.tenant_id, person_id)
+    person, detail = person_detail(s, user.tenant_id, person_id)
     audit.record(s, user.tenant_id, "person_view", user_id=user.id, person_id=person.id)
     s.commit()
-    return _detail(s, person)
+    return detail
 
 
 @router.put("/persons/{person_id}")
