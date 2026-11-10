@@ -1063,7 +1063,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Conversation */
+        /**
+         * Start Conversation
+         * @description Con `caller_phone` o `workflows` (solo pruebas del panel; 403 panel_test_only con API key o el MCP): el
+         *     numero simulado precarga los campos de telefono y llega a las herramientas; `workflows` corre el pre-call.
+         */
         post: operations["start_conversation_api_v1_conversations_post"];
         delete?: never;
         options?: never;
@@ -4880,6 +4884,17 @@ export interface components {
              * @description Motivo del llamado en texto libre (lo que el contacto dejo en la web): el agente llama con ese contexto
              */
             context?: string | null;
+            /**
+             * Caller Phone
+             * @description Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a las herramientas como {{call.phone}}.
+             */
+            caller_phone?: string | null;
+            /**
+             * Workflows
+             * @description Solo pruebas desde el panel: corre el pre-call y el post-call del agente.
+             * @default false
+             */
+            workflows?: boolean;
         };
         /** CallInfo */
         CallInfo: {
@@ -6286,6 +6301,17 @@ export interface components {
         ConversationIn: {
             /** Agent Id */
             agent_id: string;
+            /**
+             * Caller Phone
+             * @description Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a las herramientas como {{call.phone}}.
+             */
+            caller_phone?: string | null;
+            /**
+             * Workflows
+             * @description Solo pruebas desde el panel: corre el pre-call y el post-call del agente.
+             * @default false
+             */
+            workflows?: boolean;
         };
         /** ConversationStartOut */
         ConversationStartOut: {

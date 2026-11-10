@@ -60,8 +60,10 @@ El código y la llamada son solo para un usuario del cliente (un admin en soport
    retrato, "Hablarle ahora", "Llamame" y "Editar"; "Crear otro agente"; próximos pasos (crear, hablarle, cargar la
    información del negocio, compartir el link) y las últimas cinco conversaciones. Con `?nuevo=<id>`, el aviso
    "¡Tu agente ya está listo!".
-4. **Hablarle ahora** (`VoiceCallModal`): llamada de prueba por el navegador (`POST /calls` sin teléfono +
-   `/calls/{id}/join`) con LiveKit, subtítulos en vivo y link a la conversación. No necesita el link para llamar.
+4. **Hablarle ahora** (`features/agents/VoiceCallModal`, el mismo modal de la pestaña Probar del agente): llamada de
+   prueba por el navegador (`startBrowserCall` en `features/calls/api.ts`: `POST /calls` sin teléfono +
+   `/calls/{id}/join`) con LiveKit, subtítulos en vivo y link a la conversación. No necesita el link para llamar. Inicio
+   no manda número simulado ni `workflows` (eso es de la pestaña Probar, para quien ya armó el agente).
 5. **Llamame** (`CallMeModal`): si el celular no está verificado, manda el código por WhatsApp y lo verifica; después
    `POST /onboarding/call-me`. El worker marca con `trial` en la metadata y la llamada queda en modo `celular`.
 

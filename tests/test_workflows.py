@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.agents.templates import reference_data
 from app.config import settings
 from app.conversation import workflows
-from app.conversation.models import ToolSettings, Workflow
+from app.conversation.models import AgentTurn, ToolSettings, Workflow
 from app.db import utcnow
 from app.llm.prompt import build_system_prompt
 from app.models import CallMode, CallRow, ClientTool, ConversationRow, Event, ToolRun, WaAccount, WaThread
@@ -289,6 +289,142 @@ def test_text_end_ignores_handoff_accepted(api, admin, client):  # noqa: F811
         workflows.arm_text_end(s, state.conversation_id, api.engine.workflow(state))
         s.commit()
     assert read(api, state.conversation_id).post_call_status is None
+
+
+# --- Post-call en las pruebas del panel (`workflows`) ----------------------------------------------
+
+def panel_call(api, agent, client, mode=CallMode.prueba, flag=True) -> tuple[str, Workflow]:
+    """Llamada de prueba como la deja POST /calls; flag: progress.test_workflows (solo lo pone el panel)."""
+    conversation_id = seed_call(api, agent["id"], client["id"], mode)
+    state = api.engine.store.get(conversation_id)
+    state.progress.test_workflows = flag
+    api.engine.store.save(state)
+    return conversation_id, api.engine.workflow(state)
+
+
+@pytest.mark.parametrize("when", ["always", "handoff_accepted"])
+def test_panel_voice_test_arms(api, admin, client, when):  # noqa: F811
+    agent = post_call_agent(admin, client, when=when)
+    conversation_id, workflow = panel_call(api, agent, client)
+    workflows.arm(api.sessions, conversation_id, CallMode.prueba, workflow, only_when=when)
+    assert read(api, conversation_id).post_call_status == "armed"
+
+
+@pytest.mark.parametrize("mode,flag", [(CallMode.prueba, False), (CallMode.celular, True), (CallMode.loadtest, True)],
+                         ids=["prueba-sin-flag", "celular", "loadtest"])
+def test_other_test_modes_never_arm(api, admin, client, mode, flag):  # noqa: F811
+    # Sin flag: la demo de la landing, Inicio y un POST /calls de una API key. celular y loadtest, ni con el flag.
+    agent = post_call_agent(admin, client)
+    conversation_id, workflow = panel_call(api, agent, client, mode, flag)
+    workflows.arm(api.sessions, conversation_id, mode, workflow)
+    assert read(api, conversation_id).post_call_status is None
+
+
+def test_test_calls_without_the_panel_flag_do_not_arm(api, admin, client):  # noqa: F811
+    # Inicio (panel sin `workflows`) y una API key: la llamada de prueba queda sin el flag.
+    agent = post_call_agent(admin, client)
+    key = admin.post(f"{V1}/clients/{client['id']}/api-keys", json={"name": "crm"}).json()["key"]
+    started = [admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json(),
+               api.client.post(f"{V1}/calls", json={"agent_id": agent["id"]},
+                               headers={"Authorization": f"Bearer {key}"}).json()]
+    for out in started:
+        assert out["mode"] == "prueba"
+        state = api.engine.store.get(out["conversation_id"])
+        assert state.progress.test_workflows is False
+        workflows.arm(api.sessions, out["conversation_id"], CallMode.prueba, api.engine.workflow(state))
+        assert read(api, out["conversation_id"]).post_call_status is None
+
+
+def start_text_test(api, admin, agent, workflows_flag=True) -> str:  # noqa: F811
+    r = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"], "workflows": workflows_flag})
+    assert r.status_code == 201, r.text
+    return r.json()["conversation_id"]
+
+
+def say(api, admin, conversation_id, status="active"):  # noqa: F811
+    api.llm.turns.append(AgentTurn(assistant_message="Listo.", status=status))
+    r = admin.post(f"{V1}/conversations/{conversation_id}/turns", json={"message": "Hola"})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_text_test_runs_once_when_completed(api, admin, client, http):  # noqa: F811
+    agent = post_call_agent(admin, client)
+    conversation_id = start_text_test(api, admin, agent)
+    row = read(api, conversation_id)
+    assert row.post_call_status == "armed"
+    assert abs((row.post_call_next_at - utcnow()).total_seconds() - 600) < 5
+    # Un turno corre el vencimiento.
+    update(api, conversation_id, post_call_next_at=utcnow() + datetime.timedelta(minutes=1))
+    say(api, admin, conversation_id)
+    assert (read(api, conversation_id).post_call_next_at - utcnow()).total_seconds() > 590
+    assert say(api, admin, conversation_id, "completed")["status"] == "completed"
+    assert read(api, conversation_id).post_call_status == "pending"
+    http.replies = [{"charged": True}]
+    asyncio.run(workflows.run_once(api.sessions, api.engine))
+    asyncio.run(workflows.run_once(api.sessions, api.engine))
+    assert read(api, conversation_id).post_call_status == "done" and len(http.requests) == 1
+    assert http.requests[0]["headers"]["Idempotency-Key"] == f"{conversation_id}:post_call"
+
+
+def test_abandoned_text_test_runs_when_it_expires(api, admin, client, http):  # noqa: F811
+    agent = post_call_agent(admin, client)
+    conversation_id = start_text_test(api, admin, agent)
+    say(api, admin, conversation_id)
+    http.replies = [{"charged": True}]
+    asyncio.run(workflows.run_once(api.sessions, api.engine))
+    assert http.requests == []                              # sigue la prueba
+    later = utcnow() + workflows.TEXT_TEST_IDLE + datetime.timedelta(seconds=1)
+    asyncio.run(workflows.run_once(api.sessions, api.engine, now=lambda: later))
+    assert read(api, conversation_id).post_call_status == "done" and len(http.requests) == 1
+
+
+@pytest.mark.parametrize("status", ["running", "done", "failed"])
+def test_turn_after_the_post_call_took_it_changes_nothing(api, admin, client, status):  # noqa: F811
+    agent = post_call_agent(admin, client)
+    conversation_id = start_text_test(api, admin, agent)
+    update(api, conversation_id, post_call_status=status, post_call_next_at=None)
+    say(api, admin, conversation_id)
+    say(api, admin, conversation_id, "completed")
+    row = read(api, conversation_id)
+    assert (row.post_call_status, row.post_call_next_at) == (status, None)
+
+
+def test_expiry_racing_the_last_turn_runs_once(api, admin, client, http):  # noqa: F811
+    # Vence mientras el modelo contesta el turno final: el loop lo reclama y mark_ended ya no encuentra `armed`.
+    agent = post_call_agent(admin, client)
+    conversation_id = start_text_test(api, admin, agent)
+    http.replies = [{"charged": True}, {"charged": True}]
+    real = api.llm.converse
+
+    async def converse(*args, **kw):
+        update(api, conversation_id, post_call_next_at=utcnow() - datetime.timedelta(seconds=1))
+        await workflows.run_once(api.sessions, api.engine)
+        raced.append(read(api, conversation_id).post_call_status)
+        return await real(*args, **kw)
+
+    raced = []
+
+    api.llm.converse = converse
+    say(api, admin, conversation_id, "completed")
+    asyncio.run(workflows.run_once(api.sessions, api.engine))
+    assert raced == ["done"]
+    assert read(api, conversation_id).post_call_status == "done" and len(http.requests) == 1
+
+
+def test_text_test_with_handoff_accepted_never_arms(api, admin, client):  # noqa: F811
+    agent = post_call_agent(admin, client, when="handoff_accepted")
+    conversation_id = start_text_test(api, admin, agent)
+    say(api, admin, conversation_id, "completed")
+    assert read(api, conversation_id).post_call_status is None
+
+
+def test_text_without_the_flag_has_no_post_call(api, admin, client, http):  # noqa: F811
+    agent = post_call_agent(admin, client)
+    conversation_id = start_text_test(api, admin, agent, workflows_flag=False)
+    say(api, admin, conversation_id, "completed")
+    asyncio.run(workflows.run_once(api.sessions, api.engine))
+    assert read(api, conversation_id).post_call_status is None and http.requests == []
 
 
 # --- Post-call: clasificacion ---------------------------------------------------------------------

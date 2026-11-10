@@ -225,7 +225,14 @@ del agente (versionada):
   llama el modelo sigue guardándose (hasta 255 caracteres; solo el admin lo ve, en `/reports/technical`).
 - **`{{call.phone}}`:** siempre la otra punta de la conversación (el teléfono de quien llama, o el de la persona en una
   saliente; en WhatsApp, `+wa_id`). `{{call.from}}` en una saliente es el número de la empresa, así que no sirve para
-  identificar a la persona.
+  identificar a la persona. En las pruebas del panel es el número simulado (`caller_phone`, abajo); sin él, va vacío.
+- **Pruebas del panel con número simulado:** `caller_phone` (E.164) en `POST /calls` sin teléfono y en
+  `POST /conversations`. En voz va a la llamada (`call_logs.phone`, modo `prueba`) y no a la metadata del worker: no
+  se marca ni se miran las bajas. Por texto queda en `progress.caller_phone` (sin llamada); con «tu propio agente», en
+  `X-Atentina-From`. En los dos precarga los campos de tipo `phone`. `workflows: true` es el opt-in de las herramientas
+  automáticas en esas pruebas (`progress.test_workflows`). Los dos solo con la sesión del panel: con API key u OAuth
+  (el MCP), 403 `panel_test_only`; el MCP no los ofrece. Con `phone`, `contact_id` o `loadtest`, 422. Una prueba con el
+  número de un contacto aparece con su nombre en Conversaciones y en el filtro por teléfono.
 
 **Pre-call.** Reutiliza `assign`: cada valor va a `progress.tool_vars` (disponible para herramientas, mensajes del área y
 plantillas) y los de `hide: false` pasan por `contact.preload`: precargan un campo del agente con el mismo nombre y el
@@ -238,7 +245,7 @@ la última apertura, y por WhatsApp (que no tiene apertura) va a la guía de ape
 |---|---|---|
 | Voz (todos los modos salvo `loadtest`) | En el worker, antes de `session.start` y de marcar | Una entrante o una llamada de WhatsApp: la persona, hasta `timeout_ms`. Una saliente: nadie |
 | WhatsApp de texto | Solo al crear la conversación, antes del primer turno | Nadie, pero retiene el lock de ese contacto hasta `timeout_ms` |
-| `POST /conversations/{id}/turns` | No corre: no es un canal real | |
+| Prueba por texto (`POST /conversations`) | Solo con `workflows: true`, al crearla | El que prueba: la respuesta del alta espera hasta `timeout_ms` y trae la apertura renderizada |
 
 Si falla o vence, la conversación sigue sin datos: la tarea no se cancela (queda su fila en `tool_runs`) y su resultado
 tardío se ignora. Si la persona corta durante la espera, la llamada termina sin apertura, sin pasar a `en_curso` y sin
@@ -266,7 +273,16 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
   conectada. `finalize` pasa `armed` a `pending` después de la extracción. Por texto, `handoff_accepted` corre al aceptar el
   operador, **antes de la extracción** (una `{{fields.x}}` va vacía), como paso (b) de la entrega
   ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)); `always` sin aceptación se arma en la transacción que cierra
-  el hilo y pasa a `pending` después de la extracción. No se arma en `prueba`, `loadtest` ni `celular`.
+  el hilo y pasa a `pending` después de la extracción. No se arma en `loadtest` ni `celular`; en `prueba`, solo si la
+  prueba es del panel con `workflows: true` (`progress.test_workflows`): la demo de la landing, Inicio y una API key no lo
+  traen.
+- **Pruebas del panel (`workflows: true`):** corren el post-call de verdad; si registra o cobra, lo hace. Cada prueba es una
+  conversación, así que cada una es un cobro distinto (la `Idempotency-Key` no cambia). Por voz se arma como en cualquier
+  llamada. Por texto (`TEXT_TEST_IDLE`, `app/conversation/workflows.py`), `always` se arma al crear la conversación con
+  vencimiento a 10 min, que cada turno corre: si el turno termina la conversación (`completed`), pasa a `pending` después de
+  la extracción; si nadie escribe en 10 min (abandono o «Empezar de nuevo»), el loop lo corre con lo extraído hasta ahí.
+  Un turno que llega después de que el loop lo tomó no cambia nada. `handoff_accepted` no corre por texto: el chat de
+  prueba no deriva.
 - **Nota para el operador (solo por texto):** si la respuesta es un objeto con `operator_message` de tipo texto no vacío,
   se guarda en `post_call_note` (hasta 1000 caracteres) y va en el mensaje con el contacto. Es lo único de la respuesta que
   se conserva; no se expone en la API ni el MCP. En voz, el operador no oye si se cobró.

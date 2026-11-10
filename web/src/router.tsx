@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { ProbarRedirect } from '@/features/agents/ProbarRedirect';
 import { AppLayout } from '@/components/AppLayout';
 import { NotFound, RouteError } from '@/components/NotFound';
 import { FullPageLoader, RequireAdminArea, RequireAuth, RequireClientArea } from '@/features/auth/guards';
@@ -124,10 +125,8 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/outbound/OutboundCallsPage')).OutboundCallsPage),
       },
       { path: 'agents', ...page(async () => (await import('@/features/agents/AgentsPage')).AgentsPage) },
-      {
-        path: 'probar',
-        ...page(async () => (await import('@/features/agents/TestAgentsPage')).TestAgentsPage),
-      },
+      // Enlaces a /probar?agent=x: se prueba en la pestaña Probar del agente.
+      { path: 'probar', element: <ProbarRedirect /> },
       {
         path: 'agents/:id',
         ...page(async () => (await import('@/features/agents/AgentDetailPage')).AgentDetailPage),

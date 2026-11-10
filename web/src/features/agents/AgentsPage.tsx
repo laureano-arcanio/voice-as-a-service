@@ -108,7 +108,7 @@ export function AgentsPage() {
                         <Table.Td>
                           <Button
                             component={Link}
-                            to={`/probar?agent=${a.id}`}
+                            to={`/agents/${a.id}?tab=probar`}
                             variant="subtle"
                             size="compact-sm"
                             leftSection={<IconPlayerPlay size={14} />}

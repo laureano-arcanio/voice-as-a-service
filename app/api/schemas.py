@@ -1162,6 +1162,12 @@ class ApiKeyCreated(ApiKeyOut):
 
 # ---------- llamadas ----------
 
+# Pruebas del panel (docs/features/HERRAMIENTAS.md): solo con sesion del panel, ni API key ni MCP.
+CALLER_PHONE_DESC = ("Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a "
+                     "las herramientas como {{call.phone}}.")
+TEST_WORKFLOWS_DESC = "Solo pruebas desde el panel: corre el pre-call y el post-call del agente."
+
+
 class CallIn(BaseModel):
     agent_id: str
     phone: str | None = Field(default=None, description="E.164; sin telefono es una llamada de prueba")
@@ -1173,6 +1179,8 @@ class CallIn(BaseModel):
     context: str | None = Field(default=None, max_length=2000,
                                 description="Motivo del llamado en texto libre (lo que el contacto dejo en la web): "
                                             "el agente llama con ese contexto")
+    caller_phone: str | None = Field(default=None, max_length=32, description=CALLER_PHONE_DESC)
+    workflows: bool = Field(default=False, description=TEST_WORKFLOWS_DESC)
 
 
 class CallStartedOut(BaseModel):
@@ -1419,6 +1427,8 @@ class CallDetail(BaseModel):
 
 class ConversationIn(BaseModel):
     agent_id: str
+    caller_phone: str | None = Field(default=None, max_length=32, description=CALLER_PHONE_DESC)
+    workflows: bool = Field(default=False, description=TEST_WORKFLOWS_DESC)
 
 
 class TurnIn(BaseModel):

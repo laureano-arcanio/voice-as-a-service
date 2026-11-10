@@ -31,8 +31,11 @@ from .models import Workflow
 
 logger = logging.getLogger(__name__)
 
-# Modos sin post-call: pruebas del panel, carga y la llamada de prueba al celular.
-NO_POST_CALL_MODES = {CallMode.prueba.value, CallMode.loadtest.value, CallMode.celular.value}
+# Modos sin post-call: carga y la llamada de prueba al celular, aunque traigan el flag de prueba.
+NO_POST_CALL_MODES = {CallMode.loadtest.value, CallMode.celular.value}
+# `prueba` tambien es la demo de la landing, el "Hablarle ahora" de Inicio y un POST /calls de una API key: solo arma
+# la prueba del panel que lo pidio (progress.test_workflows, que solo pone una sesion del panel). Puede cobrar de verdad.
+TEST_MODE = CallMode.prueba.value
 MAX_ATTEMPTS = 4
 # Espera tras cada falla de transporte; la cuarta da failed.
 BACKOFF = (datetime.timedelta(0), datetime.timedelta(minutes=1), datetime.timedelta(minutes=10))
@@ -42,6 +45,9 @@ RUNNING_LEASE = datetime.timedelta(seconds=180)
 # Por texto, sin aceptacion: lo que puede tardar engine.finish antes de pasar a pending.
 TEXT_END_LEASE = datetime.timedelta(seconds=60)
 ARMED_MARGIN_SECONDS = 600
+# Chat de prueba del panel: no hay corte. Sin mensajes en este tiempo se da por terminado (abandono o "Empezar de
+# nuevo") y corre con lo extraido hasta ahi. Cada turno lo corre.
+TEXT_TEST_IDLE = datetime.timedelta(minutes=10)
 BATCH = 50
 NOTE_MAX_CHARS = 1000
 
@@ -56,18 +62,48 @@ def arm(sessions: sessionmaker[Session], conversation_id: str, mode, workflow: W
     solo si el agente tiene esa condicion. No lanza: se llama con la persona ya conectada (voice/handoff.py)."""
     try:
         post_call = _post_call(workflow)
-        if post_call is None or getattr(mode, "value", mode) in NO_POST_CALL_MODES:
+        mode = getattr(mode, "value", mode)
+        if post_call is None or mode in NO_POST_CALL_MODES:
             return
         if only_when is not None and post_call.when != only_when:
             return
         expires = utcnow() + datetime.timedelta(seconds=settings.call_max_duration_seconds + ARMED_MARGIN_SECONDS)
         with sessions() as s:
+            if mode == TEST_MODE and not _test_workflows(s, conversation_id):
+                return
             s.execute(update(ConversationRow)
                       .where(ConversationRow.id == conversation_id, ConversationRow.post_call_status.is_(None))
                       .values(post_call_status="armed", post_call_next_at=expires))
             s.commit()
     except Exception:
         logger.exception("post-call %s: no se pudo armar", conversation_id)
+
+
+def _test_workflows(s: Session, conversation_id: str) -> bool:
+    progress = s.scalar(select(ConversationRow.progress).where(ConversationRow.id == conversation_id))
+    return bool((progress or {}).get("test_workflows"))
+
+
+def arm_text_test(sessions: sessionmaker[Session], conversation_id: str, workflow: Workflow) -> None:
+    """Chat de prueba del panel con `workflows`: `always` se arma al empezar, con vencimiento TEXT_TEST_IDLE.
+    `handoff_accepted` nunca: el chat de prueba no deriva."""
+    post_call = _post_call(workflow)
+    if post_call is None or post_call.when != "always":
+        return
+    with sessions() as s:
+        s.execute(update(ConversationRow)
+                  .where(ConversationRow.id == conversation_id, ConversationRow.post_call_status.is_(None))
+                  .values(post_call_status="armed", post_call_next_at=utcnow() + TEXT_TEST_IDLE))
+        s.commit()
+
+
+def touch_text_test(sessions: sessionmaker[Session], conversation_id: str) -> None:
+    """Un turno del chat de prueba corre el vencimiento. Solo `armed`: no revive un `running` ni un `done`."""
+    with sessions() as s:
+        s.execute(update(ConversationRow)
+                  .where(ConversationRow.id == conversation_id, ConversationRow.post_call_status == "armed")
+                  .values(post_call_next_at=utcnow() + TEXT_TEST_IDLE))
+        s.commit()
 
 
 def arm_text_end(s: Session, conversation_id: str, workflow: Workflow) -> None:

@@ -126,10 +126,15 @@ export function useCloseWhatsApp(conversationId: string) {
 
 // ---- Conversacion por texto (sin llamada) ----
 
+/** `callerPhone` y `workflows` son solo de las pruebas del panel (la API key recibe 403 `panel_test_only`). */
 export function useStartConversation() {
   return useMutation({
-    mutationFn: (agentId: string) =>
-      unwrap(api.POST('/api/v1/conversations', { body: { agent_id: agentId } })),
+    mutationFn: ({ agentId, callerPhone }: { agentId: string; callerPhone?: string }) =>
+      unwrap(
+        api.POST('/api/v1/conversations', {
+          body: { agent_id: agentId, ...(callerPhone ? { caller_phone: callerPhone } : {}), workflows: true },
+        }),
+      ),
   });
 }
 
@@ -142,5 +147,31 @@ export function useSendTurn() {
           body: { message },
         }),
       ),
+  });
+}
+
+// ---- Llamada de prueba por el navegador ----
+
+/** POST /calls sin teléfono (modo prueba) y las credenciales para entrar. Desde el panel de prueba lleva el
+ * número simulado y `workflows`; Inicio no manda ninguno. */
+export async function startBrowserCall(
+  agentId: string,
+  opts: { callerPhone?: string; workflows?: boolean } = {},
+) {
+  const body: CallIn = { agent_id: agentId };
+  if (opts.callerPhone) body.caller_phone = opts.callerPhone;
+  if (opts.workflows) body.workflows = true;
+  const started = await unwrap(api.POST('/api/v1/calls', { body }));
+  const creds = await unwrap(
+    api.POST('/api/v1/calls/{conversation_id}/join', {
+      params: { path: { conversation_id: started.conversation_id } },
+    }),
+  );
+  return { conversationId: started.conversation_id, ...creds };
+}
+
+export async function hangUpCall(conversationId: string) {
+  await api.POST('/api/v1/calls/{conversation_id}/hangup', {
+    params: { path: { conversation_id: conversationId } },
   });
 }

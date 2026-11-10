@@ -355,6 +355,10 @@ class Progress(BaseModel):
     external_errors: int = 0
     # WhatsApp con pre-call: la guia de apertura ya renderizada, que reemplaza a conversation.opening en el prompt.
     opening_guide: str | None = None
+    # Prueba por texto desde el panel: el numero de quien llama, simulado ({{call.phone}} sin llamada). No se marca.
+    caller_phone: str | None = None
+    # Prueba desde el panel que corre las herramientas automaticas del agente (pre-call y post-call).
+    test_workflows: bool = False
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.

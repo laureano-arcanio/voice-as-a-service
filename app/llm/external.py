@@ -151,6 +151,8 @@ class ExternalAgents:
                     # Entrante: llama `phone` a un numero nuestro; saliente: al reves.
                     ctx["from"], ctx["to"] = ((ours, call.phone or "") if call.mode in ("saliente", "celular")
                                               else (call.phone or "", ours))
+                elif state.progress.caller_phone:   # prueba por texto con numero simulado (POST /conversations)
+                    ctx["from"] = state.progress.caller_phone
         with self._lock:
             self._contexts[state.conversation_id] = ctx
             while len(self._contexts) > CONTEXTS_MAX:

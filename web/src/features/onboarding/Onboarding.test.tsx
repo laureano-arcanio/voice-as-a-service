@@ -6,6 +6,21 @@ import { AppLayout } from '@/components/AppLayout';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { HomePage } from './HomePage';
 
+// Sin micrófono ni servidor de voz en jsdom.
+vi.mock('livekit-client', () => ({
+  Room: class {
+    on() {}
+    registerTextStreamHandler() {}
+    async connect() {}
+    async startAudio() {}
+    disconnect() {}
+    localParticipant = { identity: 'u', trackPublications: new Map(), publishTrack: async () => {} };
+  },
+  RoomEvent: {},
+  Track: { Kind: { Audio: 'audio' } },
+  createLocalAudioTrack: async () => ({ stop() {} }),
+}));
+
 const STATUS: Onboarding = {
   has_agents: false,
   industry: null,
@@ -124,5 +139,21 @@ describe('Inicio', () => {
     expect(screen.getByRole('button', { name: 'Hablarle ahora' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Editar' })).toHaveAttribute('href', '/agents/ag-1?tab=conversacion');
     expect(screen.getByText('Te faltan 3')).toBeInTheDocument();
+  });
+
+  it('Hablarle ahora crea la llamada de prueba sin número ni workflows', async () => {
+    const calls = mockApi({
+      'GET /api/v1/onboarding': () => jsonResponse({ ...STATUS, has_agents: true }),
+      'GET /api/v1/agents': () => jsonResponse([AGENT]),
+      'GET /api/v1/calls': () => jsonResponse({ items: [], total: 0 }),
+      'POST /api/v1/calls': () => jsonResponse({ conversation_id: 'cv-1' }, 201),
+      'POST /api/v1/calls/cv-1/join': () => jsonResponse({ livekit_url: 'wss://x', token: 't', room: 'r' }),
+    });
+    renderWithProviders(<HomePage />, { me: CLIENT_USER, path: '/inicio?nuevo=ag-1' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Hablarle ahora' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/calls')).toBe(true));
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/api/v1/calls')?.body).toEqual({
+      agent_id: 'ag-1',
+    });
   });
 });

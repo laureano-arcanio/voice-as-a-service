@@ -61,6 +61,15 @@ def normalize_e164(raw: str) -> str:
     return phone
 
 
+def panel_test(principal: Principal, caller_phone: str | None, workflows: bool) -> str | None:
+    """Numero simulado y herramientas automaticas de una prueba (docs/features/HERRAMIENTAS.md): solo con la
+    sesion del panel, ni API key ni OAuth (el MCP). Devuelve el numero normalizado; vacio = sin numero."""
+    phone = caller_phone.strip() if caller_phone else None
+    if (phone or workflows) and (principal.kind != "user" or principal.oauth):
+        raise Forbidden("Solo para pruebas desde el panel", "panel_test_only")
+    return normalize_e164(phone) if phone else None
+
+
 @dataclass
 class CallRequest:
     agent_id: str
@@ -98,6 +107,11 @@ class CallRequest:
     # campaña) y el motivo en texto libre, que va al prompt (app/conversation/contact.py).
     contact_id: str | None = None
     context: str | None = None
+    # Prueba desde el panel (panel_test): el numero de quien llama, simulado. Va a la llamada y a las
+    # herramientas ({{call.phone}}), nunca a la metadata del worker: no se marca.
+    caller_phone: str | None = None
+    # Prueba desde el panel que corre el pre-call y el post-call del agente (progress.test_workflows).
+    workflows: bool = False
 
 
 @dataclass
@@ -127,6 +141,10 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
         raise NotFound("Agente inexistente")
     if agent.archived_at is not None:
         raise Conflict("El agente está archivado")
+    simulated = panel_test(principal, req.caller_phone, req.workflows)
+    if (simulated or req.workflows) and (req.phone or req.contact_id or req.trial or req.loadtest or req.call_link_id
+                                         or req.campaign_contact_id):
+        raise Invalid("caller_phone y workflows son solo para llamadas de prueba (sin teléfono)")
     vars = req.vars
     if req.contact_id:
         contact = s.get(Contact, req.contact_id)
@@ -164,9 +182,10 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
     try:
         state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=vars,
-                                           phone=phone, context=req.context)
+                                           phone=phone or simulated, context=req.context)
     except KeyError:
         raise NotFound("Agente inexistente") from None
+    state.progress.test_workflows = req.workflows
 
     # Con el lock del cliente tomado (quota.admit) no se pide otra conexion: todo va
     # en `s`. Asi, con muchas llamadas a la vez, no se agota el pool.
@@ -182,8 +201,8 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
             raise QuotaExceeded("Hay demasiadas llamadas por link en curso", "link_global_limit")
     engine.store.add(s, state)
     s.flush()   # la conversacion antes que la llamada (foreign key)
-    s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode, phone=phone,
-                  phone_number_id=caller_id.id if caller_id else None, campaign_contact_id=req.campaign_contact_id,
+    s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode,
+                  phone=phone or simulated, phone_number_id=caller_id.id if caller_id else None, campaign_contact_id=req.campaign_contact_id,
                   call_link_id=req.call_link_id, from_landing=req.from_landing))
     if req.campaign_contact_id:     # el ultimo intento del contacto, en la misma transaccion que su llamada
         s.execute(update(CampaignContact).where(CampaignContact.id == req.campaign_contact_id)

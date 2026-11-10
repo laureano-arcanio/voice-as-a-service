@@ -64,20 +64,3 @@ export function useCallMe() {
     onSuccess: invalidate,
   });
 }
-
-/** Llamada de prueba por el navegador (POST /calls sin teléfono) y las credenciales para entrar. */
-export async function startBrowserCall(agentId: string) {
-  const started = await unwrap(api.POST('/api/v1/calls', { body: { agent_id: agentId } }));
-  const creds = await unwrap(
-    api.POST('/api/v1/calls/{conversation_id}/join', {
-      params: { path: { conversation_id: started.conversation_id } },
-    }),
-  );
-  return { conversationId: started.conversation_id, ...creds };
-}
-
-export async function hangUpCall(conversationId: string) {
-  await api.POST('/api/v1/calls/{conversation_id}/hangup', {
-    params: { path: { conversation_id: conversationId } },
-  });
-}

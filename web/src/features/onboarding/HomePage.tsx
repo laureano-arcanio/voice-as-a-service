@@ -29,6 +29,7 @@ import { OriginBadge, OutcomeBadge } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
+import { VoiceCallModal } from '@/features/agents/VoiceCallModal';
 import { useMe } from '@/features/auth/api';
 import { useCalls } from '@/features/calls/api';
 import { voiceName } from '@/features/voices/names';
@@ -36,7 +37,6 @@ import { formatDateTime, formatDuration } from '@/lib/format';
 import { useOnboarding } from './api';
 import { CallMeModal } from './CallMeModal';
 import { portrait } from './catalog';
-import { VoiceCallModal } from './VoiceCallModal';
 
 type Action = { kind: 'talk' | 'call'; agent: Agent } | null;
 

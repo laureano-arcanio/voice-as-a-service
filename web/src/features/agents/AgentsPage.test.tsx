@@ -110,7 +110,7 @@ describe('AgentsPage', () => {
 
     expect(within(row('Recepción')).getByRole('link', { name: 'Probar' })).toHaveAttribute(
       'href',
-      '/probar?agent=ag-1',
+      '/agents/ag-1?tab=probar',
     );
     expect(screen.getByRole('columnheader', { name: 'Link para llamar' })).toBeInTheDocument();
     expect(within(row('Ventas')).getByRole('link', { name: /llamar\.x\/\s*abc/ })).toHaveAttribute(

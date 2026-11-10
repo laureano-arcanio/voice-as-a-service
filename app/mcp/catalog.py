@@ -443,7 +443,7 @@ _WRITE: tuple[Tool, ...] = (
     Tool("test_agent_start", "agents", "Probar un agente por texto",
          "Empieza una conversación de prueba por texto con un agente (no llama a nadie ni gasta minutos). "
          "Devuelve la apertura; seguí con test_agent_turn.", method="POST", path="/conversations",
-         body="ConversationIn", read_only=True),
+         body="ConversationIn", omit=("caller_phone", "workflows"), read_only=True),
     Tool("test_agent_turn", "agents", "Hablarle al agente de prueba",
          "Manda un mensaje como si fuera el cliente final en una conversación de prueba y devuelve la "
          "respuesta del agente y los datos que tomó.", method="POST",
@@ -573,7 +573,7 @@ _WRITE: tuple[Tool, ...] = (
          "Hace una llamada saliente: el agente llama al teléfono indicado (`phone`, E.164, ej. +5491155551234) o "
          "al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos salientes: "
          "confirmalo con el usuario antes.", method="POST", path="/calls", body="CallIn",
-         features=("outbound_calls",), destructive=True),
+         omit=("caller_phone", "workflows"), features=("outbound_calls",), destructive=True),
     Tool("start_direct_call", "calls", "Llamar con una persona del equipo",
          "Crea una llamada directa: la hace una PERSONA del equipo, no el agente (para que llame el agente, "
          "start_call). Llama al teléfono indicado (`phone`, E.164) o al de un contacto (`contact_id`) con el número "

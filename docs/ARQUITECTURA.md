@@ -347,9 +347,11 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   `sales_discovery` y `berlin_signup` (tests) y `eval_*` (eval del LLM y de herramientas).
   Editarlos no cambia los agentes ya creados.
 - **Probar por texto:** `POST /api/v1/conversations {"agent_id"}` y `POST /conversations/{id}/turns {"message"}`
-  (en la UI, Playground o la pestaña "Probar" del agente); aparecen con origen "API". **Por voz:**
+  (en la UI, la pestaña "Probar" del agente); aparecen con origen "API". **Por voz:**
   `POST /api/v1/calls {"agent_id"}` devuelve el `join_url` de la prueba (`POST /calls/{id}/join` da el token); con
-  `"phone"` marca por la troncal.
+  `"phone"` marca por la troncal. Solo con la sesión del panel (API key u OAuth: 403 `panel_test_only`; el MCP no los
+  ofrece), las dos pruebas aceptan `caller_phone` (número de quien llama simulado, no se marca) y `workflows` (corre el
+  pre-call y el post-call): [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md).
 - **Medir** (los evals informan y terminan en 0):
 
 | Comando | Qué mide |

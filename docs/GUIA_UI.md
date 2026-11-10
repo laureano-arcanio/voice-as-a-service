@@ -9,7 +9,7 @@ Hay dos roles, y cada uno trabaja en su área ([`ARQUITECTURA.md`](ARQUITECTURA.
 - **Cliente:** usuario de un cliente, que solo ve lo suyo. Su panel (`/`) tiene este menú (los grupos se
   despliegan con un click; arranca abierto el de la pantalla actual):
   - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
-  - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos, Playground y Voces.
+  - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos y Voces.
   - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
   - **Tus clientes** y **Tu equipo**, sueltos, después de Canales.
   - **Developers:** API keys y Uso de la API.
@@ -207,17 +207,23 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
   - Si salís del agente con cambios sin guardar, avisa.
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
-- **Probar:** lo mismo que la pantalla **Playground** (abajo), con este agente fijo.
+- **Probar:** hablarle o escribirle, antes de ponerlo a atender.
+  - **Número de quien llama (simulado):** opcional, E.164. Llega a las herramientas como `{{call.phone}}` y
+    precarga los campos de teléfono; no se llama a ese número. Vale para **Hablar** y para el chat. Un número
+    inválido muestra el error y no empieza la prueba.
+  - **Aviso amarillo:** si el agente tiene herramienta automática antes o después de la conversación, avisa que
+    las pruebas la ejecutan de verdad (si registra algo o cobra, lo hace); por texto, la de después corre al terminar
+    o a los 10 minutos sin mensajes.
+  - **Hablar:** el mismo modal de Inicio (llamada de prueba por el navegador, con micrófono y subtítulos),
+    con ese número. Deshabilitado si el agente está archivado.
   - **Conversación por texto:** chateás con el agente sin voz. Los datos aparecen al terminar la
     conversación; las llamadas a herramientas se ven en la traza de cada respuesta (argumentos, estado,
     tiempo y resultado).
-  - **Link para llamar:** lo crea, o lo muestra para copiar o abrir; **Configurar** lleva a la pestaña
-    Link para llamar (nombre, imagen, límites, pausar, regenerar).
+  - El link para llamar tiene su pestaña (**Link para llamar**: nombre, imagen, límites, pausar, regenerar) y no
+    lleva número simulado.
 
-**Agentes > Playground** (`/probar`): elegís el agente en una tarjeta con su
-objetivo (sale de la definición; con más de 6, hay buscador) y abajo lo
-probás igual que en la pestaña Probar. En la lista de Agentes, la columna **Probar** abre esa pantalla con
-el agente elegido, y la columna **Link para llamar** muestra la URL del link con el botón para copiarla, o
+En la lista de Agentes, la columna **Probar** abre esta pestaña del agente (`/probar?agent=<id>` y `/probar`
+redirigen a la pestaña Probar y a la lista), y la columna **Link para llamar** muestra la URL del link con el botón para copiarla, o
 **Crear link** si el agente todavía no tiene.
 
 Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar**:
@@ -338,8 +344,8 @@ Estadísticas del negocio para decidir: cuánto te consultan, cuántas consultas
 alcanza. En la navegación, arriba de todo.
 
 - **Filtros (arriba):** período (últimos 30 días por defecto; los KPIs se comparan con el período anterior),
-  agente, canal (llamadas, WhatsApp o web), línea y **Incluir pruebas** (apagado: las llamadas de prueba y del
-  Playground quedan fuera). En `/admin/reports` se suma el selector de cliente, con **Todos**.
+  agente, canal (llamadas, WhatsApp o web), línea y **Incluir pruebas** (apagado: las llamadas de prueba y los
+  chats de la pestaña Probar quedan fuera). En `/admin/reports` se suma el selector de cliente, con **Todos**.
 - **Pestañas:**
   - **Resumen:** consultas por día (llamadas y WhatsApp apiladas) con cuántas terminaron en una
     transferencia y KPIs (conversaciones, % de conversión y de objetivo con su "6 de 12", % derivadas,
@@ -536,8 +542,8 @@ otro cliente.
    herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
    **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
-4. **Probar:** conversación por texto, llamada de prueba o link para llamar, antes de ponerlo a
-   atender. También desde **Agentes > Playground** en el menú, o con **Probar** en la lista.
+4. **Probar:** **Hablar** (llamada de prueba) o conversación por texto, con un número de quien llama simulado
+   si hace falta, antes de ponerlo a atender. También con **Probar** en la lista.
 5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 6. Para que atienda: elegilo en **Números** o en **WhatsApp**.

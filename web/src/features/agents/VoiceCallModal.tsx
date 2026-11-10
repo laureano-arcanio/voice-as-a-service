@@ -8,8 +8,8 @@ import { errorMessage } from '@/api/errors';
 import type { Agent } from '@/api/types';
 import { voiceName } from '@/features/voices/names';
 import { formatClock } from '@/lib/format';
-import { hangUpCall, startBrowserCall } from './api';
-import { portrait } from './catalog';
+import { hangUpCall, startBrowserCall } from '@/features/calls/api';
+import { portrait } from '@/features/onboarding/catalog';
 
 type Phase = 'connecting' | 'live' | 'ended' | 'failed';
 interface Line {
@@ -20,11 +20,21 @@ interface Line {
 
 const livekit = () => import('livekit-client');
 
+interface Props {
+  agent: Agent;
+  opened: boolean;
+  onClose: () => void;
+  /** Número de quien llama, simulado (E.164): llega a las herramientas como {{call.phone}}; no se marca. */
+  callerPhone?: string;
+  /** Corre el pre-call y el post-call del agente (las pruebas del panel; Inicio no). */
+  workflows?: boolean;
+}
+
 /**
  * Hablar con el agente desde el navegador, sin salir del panel: llamada de prueba (POST /calls sin teléfono,
  * modo prueba) con el micrófono y los subtítulos en vivo. Al terminar, link a la conversación.
  */
-export function VoiceCallModal({ agent, opened, onClose }: { agent: Agent; opened: boolean; onClose: () => void }) {
+export function VoiceCallModal({ agent, opened, onClose, callerPhone, workflows }: Props) {
   const qc = useQueryClient();
   const [phase, setPhase] = useState<Phase>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +65,7 @@ export function VoiceCallModal({ agent, opened, onClose }: { agent: Agent; opene
       const { Room, RoomEvent, Track, createLocalAudioTrack } = await livekit();
       const mic = await createLocalAudioTrack({ echoCancellation: true, noiseSuppression: true });
       if (g !== gen.current) return mic.stop();
-      const call = await startBrowserCall(agent.id);
+      const call = await startBrowserCall(agent.id, { callerPhone, workflows });
       if (g !== gen.current) {
         mic.stop();
         return void hangUpCall(call.conversationId).catch(() => undefined);
@@ -113,7 +123,7 @@ export function VoiceCallModal({ agent, opened, onClose }: { agent: Agent; opene
       setPhase('failed');
       void room.current?.disconnect();
     }
-  }, [agent.id, qc, showLine]);
+  }, [agent.id, callerPhone, workflows, qc, showLine]);
 
   const retry = () => {
     setPhase('connecting');

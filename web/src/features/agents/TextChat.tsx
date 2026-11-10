@@ -29,7 +29,7 @@ interface Session {
 }
 
 /** Conversacion por texto con el agente (sin llamada): POST /conversations y /turns. */
-export function TextChat({ agent }: { agent: Agent }) {
+export function TextChat({ agent, callerPhone }: { agent: Agent; callerPhone?: string }) {
   const start = useStartConversation();
   const turn = useSendTurn();
   const [session, setSession] = useState<Session | null>(null);
@@ -37,12 +37,15 @@ export function TextChat({ agent }: { agent: Agent }) {
   const [pending, setPending] = useState<string | null>(null);
 
   const begin = () =>
-    start.mutate(agent.id, {
-      onSuccess: (r) => {
-        turn.reset();
-        setSession({ id: r.conversation_id, state: r.state });
+    start.mutate(
+      { agentId: agent.id, callerPhone },
+      {
+        onSuccess: (r) => {
+          turn.reset();
+          setSession({ id: r.conversation_id, state: r.state });
+        },
       },
-    });
+    );
 
   const send = () => {
     const msg = text.trim();
@@ -69,7 +72,7 @@ export function TextChat({ agent }: { agent: Agent }) {
         <Stack gap={0}>
           <Title order={4}>Conversación por texto</Title>
           <Text size="xs" c="dimmed">
-            Probá el agente escribiendo, sin llamada ni voz. Queda registrada como conversación de origen API.
+            Probá el agente escribiendo. Queda registrada como conversación de origen API.
           </Text>
         </Stack>
         <Button variant="default" onClick={begin} loading={start.isPending} disabled={agent.archived}>

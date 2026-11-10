@@ -28,7 +28,7 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 
 Filtros comunes (query): `client_id` (solo admin; vacío = todos), `agent_id`, `channel` (`voice` | `whatsapp` |
 `web`), `phone_number_id`, `date_from`/`date_to` (días locales inclusive; por defecto los últimos 30 días), `tz`
-(por defecto `BILLING_TIMEZONE`), `include_tests` (default false: sin `prueba` ni conversaciones por API/Playground;
+(por defecto `BILLING_TIMEZONE`), `include_tests` (default false: sin `prueba` ni conversaciones por API (el chat de la pestaña Probar);
 el `loadtest` nunca entra).
 
 | Ruta | Plan | Devuelve |
