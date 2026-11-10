@@ -321,7 +321,7 @@ así que un mismo servidor sirve las 41 voces de `multi41` sin reiniciar (nombre
 ```bash
 curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json" \
   -d '{"model":"qwen3-tts-ft","voice":"martin","input":"Hola, buen día.","response_format":"wav"}' \
-  http://181.104.113.28:8100/tts/v1/audio/speech -o hola.wav     # o 127.0.0.1:8103/v1 en el host
+  http://192.168.1.98:8100/tts/v1/audio/speech -o hola.wav       # por la LAN; o 127.0.0.1:8103/v1 en el host
 ```
 
 - `GET /v1/audio/voices` lista las voces. También devuelve `default`, que **no hay que usar**

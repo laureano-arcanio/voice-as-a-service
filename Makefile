@@ -5,7 +5,7 @@
 #   inferencia: vllm-llm (Qwen3.5-9B w4a16; alternativa Gemma 4 26B con docker-compose.gemma4-26b.yml)
 #               + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
-#   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
+#   proxy:      nginx en :PROXY_PORT, entrada a la inferencia por la LAN (desarrollo, modo remoto)
 #   asterisk:   puente SIP Anura <-> LiveKit (docs/TELEFONIA_ANURA.md)
 #
 # Primera vez: `make setup`, completar .env y `make up` (la primera carga de
@@ -67,9 +67,9 @@ build: storage ## Build de las imagenes propias (app/agent, stt-parakeet, asteri
 
 # --- Levantar / bajar ----------------------------------------------------
 
-# URL publica del proxy, desde PUBLIC_HOST y PROXY_PORT del .env.
-PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
-	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$${host:-<PUBLIC_HOST>}:$${port:-8100}"
+# URL del proxy por la LAN (primera IP del host y PROXY_PORT del .env); desde afuera da 403 (proxy/nginx.conf).
+PROXY_URL_SH = host=$$(hostname -I | cut -d' ' -f1); \
+	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$$host:$${port:-8100}"
 
 # Una replica de inferencia (STACK_ROLE=replica en .env, docker-compose.replica.yml) corre solo los
 # modelos: levantar ahi app, agent, Asterisk o el tunel duplicaria el servicio del server principal.
@@ -111,10 +111,10 @@ up-stt: ## Solo el STT (stt-parakeet): build y recreate, ~20 s sin transcripcion
 	$(COMPOSE) up -d --no-deps --wait stt-parakeet
 	@$(COMPOSE) logs stt-parakeet 2>&1 | grep -E "prefijo de idioma|listo:" | tail -2
 
-up-nginx: ## Solo el proxy publico (nginx en :PROXY_PORT) e imprime las URLs
-	$(COMPOSE) up -d proxy
-	@$(PUBLIC_URL_SH); \
-		echo "URLs publicas (Authorization: Bearer \$$VLLM_API_KEY):"; \
+up-nginx: ## Solo el proxy de la inferencia (nginx en :PROXY_PORT, solo LAN y rutas de la API): lo recrea para releer proxy/nginx.conf; no corta llamadas (app y agent no pasan por el)
+	$(COMPOSE) up -d --force-recreate --no-deps proxy
+	@$(PROXY_URL_SH); \
+		echo "URLs por la LAN (Authorization: Bearer \$$VLLM_API_KEY):"; \
 		echo "  VLLM_LLM_BASE_URL=$$url/llm/v1"; \
 		echo "  VLLM_STT_BASE_URL=$$url/stt/v1"; \
 		echo "  VLLM_TTS_BASE_URL=$$url/tts/v1"

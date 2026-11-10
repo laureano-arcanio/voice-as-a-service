@@ -43,6 +43,7 @@ Todo se corre en server2, dentro de `voice-as-a-service`.
 | `tools-runner/` | `make up-tools` |
 | `stt/` | `make calls-active && make up-stt` |
 | `deploy/monitoring/` | `make up-monitoring` |
+| `proxy/nginx.conf` | `make up-nginx` (recrea `proxy`, no corta llamadas). Después, desde .99: `/llm/v1/models` da 401 sin clave y `/llm/metrics` 404 en `192.168.1.98:8100` |
 | `deploy/llm-lb/`, `docker-compose.llm-lb.yml` | **confirmar**: `make up-llm-lb` |
 | `asterisk/` | **confirmar**: `make calls-active && make up-pbx` |
 | `docker-compose*.yml`, modelos, reparto de GPU, `livekit/`, `deploy/systemd/`, `deploy/crontab` | **confirmar**: decile al usuario qué servicio se recrea y cuánto corta |

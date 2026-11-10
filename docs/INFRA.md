@@ -64,16 +64,21 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16`, parser de herramientas `qwen3_coder` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base fine-tuneado, 41 voces (`multi41`) | vllm/vllm-omni:v0.28.0 | 127.0.0.1:8103 | 1 |
-| `proxy` | nginx que rutea `/llm`, `/stt` y `/tts` (modo remoto y loadtest) | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
+| `proxy` | nginx (`proxy/nginx.conf`) que rutea `/llm`, `/stt` y `/tts`: entrada del entorno de desarrollo y del modo remoto, solo LAN y rutas de la API | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit y Meta (WhatsApp, TLS 5061) ↔ LiveKit | build (`network_mode: host`) | 5080, 5081, 5061, RTP 10000–10199 | — |
 | `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (`docker-compose.livekit.yml`): rooms, despacho del agente y SIP | livekit-server v1.13.7, sip v1.17.0, redis:7-alpine | 7880, 7881, 7882/udp, 5060, RTP 20000–20199; Redis 127.0.0.1:6380 | — |
 | `tunnel` | Cloudflare Tunnel (`docker-compose.tunnel.yml`, `make up-tunnel`) | cloudflare/cloudflared:2026.9.0 | — | — |
 | `prometheus`, `node-exporter`, `blackbox`, `alertmanager` | Observabilidad (`docker-compose.monitoring.yml`) + colector `atentina-hostmon` (systemd) | prom/* fijadas | 127.0.0.1:9090, :9093 | — |
 
 - La inferencia habla API OpenAI y exige `Authorization: Bearer $VLLM_API_KEY`. Los 810x son para debug local.
-- Modo remoto: `app` + `agent` en otra PC (`make up-agent`) contra la inferencia por el proxy
-  (`http://<host>:8100/{llm,stt,tts}/v1`). Es HTTP plano y la única auth es `VLLM_API_KEY`: el 8100 no
-  se reenvía en el router salvo que se abra temporalmente para un loadtest ([`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 6).
+- Entrada por la LAN (`proxy`): el entorno de desarrollo de .99 ([`DESARROLLO.md`](DESARROLLO.md)) y el modo remoto
+  (`app` + `agent` en otra PC, `make up-agent`) usan `http://192.168.1.98:8100/{llm,stt,tts}/v1`. Deja pasar solo
+  `health`, `v1/models` y el endpoint de cada modelo (`chat/completions`, `audio/transcriptions`, `audio/speech`) y
+  `GET /tts/v1/audio/voices`; el resto da 404, porque la clave de vLLM y del STT solo cubre `/v1/*` (sin la lista, `/metrics`,
+  `/load` o `/tokenize` quedan abiertos) y con clave se llega a crear o borrar voces y a dormir el TTS. Solo acepta loopback y
+  rangos privados (otra IP, 403): un loadtest por la IP pública no pasa. Es HTTP plano con `VLLM_API_KEY`; el 8100 no se
+  reenvía en el router ([`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 6). `make up-nginx` lo recrea (relee el config) sin
+  cortar llamadas: `app` y `agent` no pasan por él.
 
 **Overrides en la raíz** (se suman a `COMPOSE_FILE` o con `-f`):
 

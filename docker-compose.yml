@@ -434,15 +434,15 @@ services:
       retries: 10
       start_period: 300s
 
-  # --- Exposicion publica de la inferencia --------------------------------
-  # Un solo puerto en la IP fija del host (PUBLIC_HOST en .env; el router
-  # redirige PROXY_PORT a este host) y nginx rutea por path a la red de compose,
-  # sacando el prefijo antes de reenviar (proxy/nginx.conf):
-  #   http://$PUBLIC_HOST:$PROXY_PORT/llm/v1   (LLM)
-  #   http://$PUBLIC_HOST:$PROXY_PORT/stt/v1   (STT)
-  #   http://$PUBLIC_HOST:$PROXY_PORT/tts/v1   (TTS)
-  # Lo usa el loadtest desde otra PC. Los puertos 127.0.0.1:810x siguen siendo
-  # solo para debug local. La auth la hace cada servicio con --api-key: el
+  # --- Inferencia por la LAN -----------------------------------------------
+  # Un solo puerto (PROXY_PORT; el router no lo reenvia) y nginx rutea por path
+  # a la red de compose, sacando el prefijo antes de reenviar. Solo rutas de la
+  # API y solo desde rangos privados (proxy/nginx.conf):
+  #   http://<IP de la LAN>:$PROXY_PORT/llm/v1   (LLM)
+  #   http://<IP de la LAN>:$PROXY_PORT/stt/v1   (STT)
+  #   http://<IP de la LAN>:$PROXY_PORT/tts/v1   (TTS)
+  # Lo usan el entorno de desarrollo y el modo remoto. Los puertos 127.0.0.1:810x
+  # siguen siendo solo para debug local. La auth la hace cada servicio con --api-key: el
   # caller manda `Authorization: Bearer ${VLLM_API_KEY}`. Es HTTP plano: la
   # clave viaja sin cifrar. Sin depends_on: nginx resuelve cada servicio en cada
   # request y da 502 solo en el path del que este apagado.

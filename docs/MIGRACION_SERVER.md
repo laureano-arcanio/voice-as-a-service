@@ -357,7 +357,7 @@ y vigente; README, `.env.example` y otros docs remiten acá.
 | UDP 5081 | SIP de Anura: entra por el agujero que abre el REGISTER | no |
 | UDP/TCP 5060, UDP 20000–20199 | `livekit-sip`, tramo local | no |
 | TCP 7880, TCP 8011 | LiveKit y app: salen por el túnel de Cloudflare | no |
-| TCP 8100 | Proxy de inferencia: solo para el modo remoto o el loadtest, abrir temporalmente | no |
+| TCP 8100 | Proxy de inferencia: entrada por la LAN (desarrollo, modo remoto); desde una IP pública da 403 | no |
 | 5432, 6380, 8101–8103 | solo localhost | no |
 
 - **SIP ALG apagado** en el router.

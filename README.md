@@ -77,7 +77,7 @@ Otro admin: `make create-admin EMAIL=...`; API key de un cliente: `make api-key 
 | `make up-agent` | `db` + `migrate` + `app` (`:8011`, UI y API) + `agent`, sin la inferencia |
 | `make up-inference` | `vllm-llm` + `stt-parakeet` + `vllm-tts` (espera a que estén healthy) |
 | `make up-stt` | solo el STT |
-| `make up-nginx` | `proxy` (inferencia por la IP fija, `PROXY_PORT`; en producción no se reenvía en el router) |
+| `make up-nginx` | `proxy` (inferencia por la LAN en `PROXY_PORT`, solo rutas de la API; lo recrea sin cortar llamadas) |
 | `make up-pbx` | `asterisk` (lo recrea para releer `.env` y `asterisk/conf/`) |
 | `make up-tunnel`, `make up-monitoring`, `make crm-up` | túnel de Cloudflare, observabilidad, CRM |
 | `make registros-up` | app de fichas Registros (`apps/registros/`, perfil de compose aparte: `make up` no la levanta; [`docs/features/REGISTROS.md`](docs/features/REGISTROS.md)) |
