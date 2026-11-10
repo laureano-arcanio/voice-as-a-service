@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from sqlalchemy import select
 
 from app.models import CallMode, CallRow, CallStatus, Client, ConversationRow, PhoneNumber, Tier
 from app.services import quota
@@ -183,3 +184,23 @@ def test_usage_reports_call_counts(sessions):
         u = quota.usage(s, c)
         assert (u.calls_hour.used, u.calls_hour.limit) == (1, 20)
         assert u.calls_day.limit is None and u.calls_month.used == 1
+
+
+def test_seconds_round_up_like_anura(sessions):
+    """Los segundos reales se guardan redondeados hacia arriba, como los cuenta Anura: 60,4 s = 61 s = 2 min."""
+    import time
+
+    from app.voice import direct
+
+    assert [quota.elapsed_seconds(x) for x in (0, 0.0, 30, 59.2, 60.0, 60.02, 302.5, -1)] == [0, 0, 30, 60, 60, 61, 303, 0]
+    with sessions() as s:
+        c = _client(s, inbound_minutes=10)
+        _call(s, c, CallMode.entrante, CallStatus.en_curso, started_ago=61)
+        conv = s.scalars(select(CallRow.conversation_id)).one()
+        s.commit()
+    direct._finish_call(sessions, conv, "customer_hangup", time.time() - 60.4)
+    with sessions() as s:
+        call = s.get(CallRow, conv)
+        assert call.duration_seconds == 61
+        start, end = quota.month_bounds()
+        assert quota.used_seconds(s, c.id, CallMode.entrante, start, end) == 2 * 60

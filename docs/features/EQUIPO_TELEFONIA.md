@@ -298,9 +298,10 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   canales. Sin canal: la derivación no se intenta (`handoff.unavailable`), la saliente da `no_channel` y la
   entrante va al respaldo.
 - **Minutos:** el tramo del cliente consume los de su tipo toda la llamada; el de la persona, salientes desde que
-  atiende (`quota.handoff_seconds` suma `handoff_legs`). Ej.: 3 min con la IA y 5 con la persona = 8 entrantes y
-  5 salientes. Sin atender, ocupado, buzón o sin confirmar no se descuentan (Anura sí cobra un minuto si atendió un
-  buzón). Con 0 salientes en el plan no se deriva. `directa` está en `MINUTE_MODES` como `outbound`; en el panel la
+  atiende hasta que se cierra, acepte o no, como los cobra Anura (`quota.handoff_seconds` suma `handoff_legs`; los
+  en curso, desde `answered_at`). Ej.: 3 min con la IA y 5 con la persona = 8 entrantes y 5 salientes. Un tramo
+  atendido que no marca 1 (`not_confirmed`) o en el que se detecta un buzón (`machine`) descuenta su minuto; sin
+  atender u ocupado, nada. Con 0 salientes en el plan no se deriva. `directa` está en `MINUTE_MODES` como `outbound`; en el panel la
   entrante del equipo no gasta salientes ni canal extra.
 - **Buzón con Claro (spike con dos celulares):** sin atender, el buzón atiende a los 33,5 s; con un timbre por
   miembro de 20-25 s se corta antes, sin minuto de Anura. Rechazar (doble toque en iPhone) no da ocupado: Claro lo

@@ -557,6 +557,7 @@ async def entrypoint(ctx: JobContext):
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
+    end = direct.CallEnd()   # hora del corte: lo que tarda finalize (avisos, extraccion) no suma segundos
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
     # Derivacion en curso, su lado de LiveKit y los avisos por WhatsApp, que siguen aunque el cliente corte.
     current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": []}
@@ -594,8 +595,7 @@ async def entrypoint(ctx: JobContext):
             # Cortada desde la API (call_service.hang_up): ese motivo ya quedo puesto y gana.
             call_service.update_call(
                 s, conversation_id, status=CallStatus.finalizada, ended_reason=(call.ended_reason or reason or "")[:128],
-                ended_at=utcnow(),
-                duration_seconds=int(time.time() - started_at) if started_at else 0, latency=latency.summary())
+                ended_at=end.ended_at(), duration_seconds=end.seconds(started_at), latency=latency.summary())
             # Resumen por email al cliente, si el agente lo tiene prendido: lo manda el loop de `app`.
             call_summary.mark_pending(s, call, workflow, connected=started_at is not None)
             # Intento de una campaña de voz: atendio si la llamada llego a conectarse (y si el agente quedo
@@ -626,6 +626,7 @@ async def entrypoint(ctx: JobContext):
         if ending["reason"]:
             return
         ending["reason"] = reason
+        end.mark()
         # El motivo queda en la llamada antes de cerrar la room: al cerrarla, la salida del cliente o "room
         # disconnected" ganan el shutdown y la llamada que cortó el agente quedaba como customer_hangup.
         # finalize respeta un ended_reason ya puesto (igual que el corte desde la API).
@@ -780,12 +781,15 @@ async def entrypoint(ctx: JobContext):
             return   # un usuario del panel de la entrante al equipo (entro tarde y se lo saco): no es el cliente
         if ending["reason"]:
             return   # el agente ya esta cortando: la room se cierra y esta salida no es del cliente
+        end.mark()
         ending["reason"] = "customer_hangup"
         if current["transfer"] is not None:
             asyncio.create_task(ctx.delete_room())   # que no quede la persona sola en la room
         ctx.shutdown(reason="customer_hangup")
 
     ctx.room.on("participant_disconnected", on_participant_left)
+    # Cortada desde la API (call_service.hang_up borra la room sin la salida del cliente) o se cerro la room.
+    ctx.room.on("disconnected", lambda *_: end.mark())
 
     # Campaña de voz: si lo primero que dice quien atiende suena a buzon, el intento queda `voicemail`
     # (se reintenta segun la campaña) y se corta (app/campaigns/voicemail.py).
@@ -822,6 +826,7 @@ async def entrypoint(ctx: JobContext):
         if gone_during_pre_call():
             logger.info("llamada %s: termino durante el pre-call", conversation_id)
             started_at = team_started
+            end.mark()
             if not ending["reason"]:
                 ending["reason"] = "customer_hangup"
                 ctx.shutdown(reason="customer_hangup")

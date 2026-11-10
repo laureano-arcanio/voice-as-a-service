@@ -2,6 +2,7 @@
 app/voice/handoff.py con un telefono falso, la herramienta transfer_call, el prompt y los minutos salientes."""
 import asyncio
 import datetime
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
@@ -218,7 +219,7 @@ def test_person_leg_counts_as_outbound_minutes_and_channels(api, admin, monkeypa
                          created_at=now, answered_at=now, ended_at=now))
         s.commit()
         used = quota.used_seconds(s, c["id"], CallMode.saliente, start, end, now)
-        assert used == 120 + 60                       # 90 s cerrado = 2 min + ~30 s en curso = 1; el contestador no cuenta
+        assert used == 120 + 60                       # 90 s cerrado = 2 min + ~30 s en curso = 1; el contestador de 0 s, 0
         assert quota.used_seconds(s, c["id"], CallMode.entrante, start, end, now) == 60  # la entrante, recien empezada
         # Canales: la entrante en curso + el tramo abierto.
         assert quota.busy_channels(s, now) == 2
@@ -780,3 +781,34 @@ def test_complement_with_summary_outlives_a_transfer_that_ends_first(api, admin,
 
 def test_team_ring_has_no_complement():
     assert transfer.TeamRing(name="Equipo", ring_seconds=20).whatsapp is None
+
+
+def test_person_leg_is_billed_from_answer_rounded_up_like_anura(api, admin):
+    """Como Anura: el tramo se cobra desde que atiende, acepte o no, por los segundos reales redondeados hacia
+    arriba (60,02 s = 2 min). Sin atender, 0. El atendido en curso sin confirmar ya cuenta."""
+    c, conv, areas = setup_call(api, admin)
+    now = utcnow()
+    start, end = quota.month_bounds(now.replace(tzinfo=datetime.UTC))
+    tr = transfer.Transfer(sessions=api.sessions, line=FakeLine({}), conversation_id=conv, client_id=c["id"],
+                           areas=areas, customer=CUSTOMER, caller="+5493513962553")
+    member = SimpleNamespace(id=areas[0]["id"])
+    person = SimpleNamespace(id=None, phone="+5493511111111")
+    sec = lambda x: datetime.timedelta(seconds=x)
+
+    connected = tr._new_leg(member, person)
+    tr._update_leg(connected, answered_at=now - sec(70.02), connected_at=now - sec(60))
+    leg = tr._update_leg(connected, result="connected", ended_at=now - sec(10))
+    assert leg.billed_seconds == 61
+    unconfirmed = tr._new_leg(member, person)
+    tr._update_leg(unconfirmed, answered_at=now - sec(11))
+    assert tr._update_leg(unconfirmed, result="not_confirmed", ended_at=now).billed_seconds == 11
+    missed = tr._new_leg(member, person)
+    assert tr._update_leg(missed, result="no_answer", ended_at=now).billed_seconds == 0
+    with api.sessions() as s:
+        assert quota.handoff_seconds(s, c["id"], start, end, now) == 2 * 60 + 60
+        s.add(HandoffLeg(client_id=c["id"], conversation_id=conv, phone="+5493512222222",
+                         created_at=now, answered_at=now - sec(5)))       # atendio, todavia sin marcar 1
+        s.add(HandoffLeg(client_id=c["id"], conversation_id=conv, phone="+5493512222222", created_at=now))  # sonando
+        s.commit()
+        assert quota.handoff_seconds(s, c["id"], start, end, now) == 2 * 60 + 60 + 60
+        assert quota.handoff_seconds(s, c["id"], start, end, now, running_exact=True) == 2 * 60 + 60 + 5

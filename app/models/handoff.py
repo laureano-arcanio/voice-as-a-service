@@ -118,8 +118,8 @@ class HandoffLeg(IdMixin, Base):
     ended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     # El tramo de la rotacion por WhatsApp: la plantilla enviada a la persona.
     wamid: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
-    # Salientes que se descuentan: desde que atiende, solo si se conecto (plan 4.6). Un contestador que se
-    # corta en la deteccion lo cobra Anura, pero no se le descuenta al cliente.
+    # Salientes que se descuentan: segundos desde que atiende hasta el cierre, redondeados hacia arriba, acepte o
+    # no (sin confirmar, contestador detectado), como los cobra Anura. Sin atender, 0.
     billed_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 

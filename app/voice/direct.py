@@ -35,7 +35,7 @@ from ..conversation.models import Message
 from ..db import utcnow
 from ..models import CallRing, CallRow, CallStatus, Client, PhoneNumber, TeamMember
 from ..services import calls as call_service
-from ..services import campaign_calls, direct_calls, events
+from ..services import campaign_calls, direct_calls, events, quota
 from ..services import handoff as handoff_service
 from . import handoff as transfer
 from .listen import Listener
@@ -98,6 +98,27 @@ class CallLog:
             self.store.save(state)
 
 
+class CallEnd:
+    """Hora del corte, la de la primera senal (salio alguien, se cerro la room, corto el agente): la espera
+    posterior (la ultima frase, la extraccion, los avisos) no suma segundos. En el tope y sin minutos se marca al
+    terminar el aviso de cierre: la linea sigue abierta y Anura cobra ese tiempo. Sin senal (se cayo el worker),
+    la del cierre."""
+
+    def __init__(self) -> None:
+        self.at: float | None = None
+        self.utc = None
+
+    def mark(self) -> None:
+        if self.at is None:
+            self.at, self.utc = time.time(), utcnow()
+
+    def seconds(self, started: float | None) -> int:
+        return quota.elapsed_seconds((self.at or time.time()) - started) if started else 0
+
+    def ended_at(self):
+        return self.utc or utcnow()
+
+
 async def settle(line, log: CallLog, parties: dict[str, tuple[str, str | None, str]], who: str) -> None:
     """Salio `who`: lo ultimo que dijo (la frase que el STT todavia transcribe) entra igual a la conversacion."""
     try:
@@ -112,18 +133,22 @@ async def settle(line, log: CallLog, parties: dict[str, tuple[str, str | None, s
 
 
 async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str]], *, sessions, conversation_id: str,
-               deadline: float, rejoin: str | None = None, away_until: float | None = None) -> str:
+               deadline: float, rejoin: str | None = None, away_until: float | None = None,
+               end: CallEnd | None = None) -> str:
     """Dos personas hablando: transcribe y graba hasta que sale alguna (su motivo, de `parties`: identidad ->
     (role, person, motivo al salir)), se cierra la room, se pasa el tope de duracion o el cliente se queda sin
     minutos (quota_watchdog del worker). Al cortar por tope, avisa con QUOTA_END_MESSAGE.
 
     `rejoin`: el usuario del panel. Si sale, se lo espera PANEL_REJOIN_GRACE_SECONDS a que vuelva a entrar con la
-    misma identidad (recargo la pagina) y recien ahi se corta con su motivo; `away_until`, si ya habia salido."""
+    misma identidad (recargo la pagina) y recien ahi se corta con su motivo; `away_until`, si ya habia salido.
+    `end`: se marca al cortar, antes de la ultima frase."""
+    end = end or CallEnd()
     next_check = time.monotonic() + settings.quota_check_seconds
     while True:
         now = time.monotonic()
         if away_until is not None and now >= away_until:
             logger.info("directa %s: el usuario del panel no volvio a entrar", conversation_id)
+            end.mark()
             return parties[rejoin][2]
         if now >= deadline:
             reason = "max_duration"
@@ -138,6 +163,7 @@ async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str
             logger.info("directa %s: se corta (%s)", conversation_id, reason)
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(line.say(settings.quota_end_message), END_SAY_TIMEOUT)
+            end.mark()
             return reason
         try:
             wake = min(deadline, next_check, away_until if away_until is not None else deadline)
@@ -146,6 +172,7 @@ async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str
             continue
         kind, who = ev[0], ev[1]
         if kind == "closed":
+            end.mark()
             return "room_closed"
         if who not in parties:
             continue
@@ -154,6 +181,7 @@ async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str
             away_until = now + PANEL_REJOIN_GRACE_SECONDS if kind == "left" else None
             continue
         if kind == "left":
+            end.mark()
             await settle(line, log, parties, who)
             return left_reason
         if kind == "text":
@@ -165,14 +193,17 @@ def _update_call(sessions, conversation_id: str, **values) -> None:
         call_service.update_call(s, conversation_id, **values)
 
 
-def _finish_call(sessions, conversation_id: str, reason: str, started: float | None, **values) -> None:
-    """Cierra la llamada como el worker (finalize): un motivo ya puesto (cortada desde la API) gana."""
+def _finish_call(sessions, conversation_id: str, reason: str, started: float | None, end: CallEnd | None = None,
+                 **values) -> None:
+    """Cierra la llamada como el worker (finalize): un motivo ya puesto (cortada desde la API) gana. Los segundos,
+    hasta el corte (`end`), no hasta ahora."""
+    end = end or CallEnd()
     with sessions() as s:
         call = s.get(CallRow, conversation_id)
         if call is None or call.status not in (CallStatus.pendiente, CallStatus.sonando, CallStatus.en_curso):
             return
         call_service.update_call(s, conversation_id, ended_reason=(call.ended_reason or reason or "")[:128],
-                                 ended_at=utcnow(), duration_seconds=int(time.time() - started) if started else 0,
+                                 ended_at=end.ended_at(), duration_seconds=end.seconds(started),
                                  **values)
 
 
@@ -213,6 +244,7 @@ class Outbound:
         self.recording_notice = bool(metadata.get("recording_notice"))
         self.log = CallLog(store, self.conversation_id, line.send)
         self.started: float | None = None
+        self.end = CallEnd()
         self.away_until: float | None = None    # el usuario salio mientras sonaba: hasta cuando se lo espera
         self.done = False
 
@@ -236,7 +268,7 @@ class Outbound:
     def finish(self, reason: str) -> str:
         """Hablaron: finalizada, con minutos desde que atendio el contacto."""
         self.done = True
-        _finish_call(self.sessions, self.conversation_id, reason, self.started, status=CallStatus.finalizada)
+        _finish_call(self.sessions, self.conversation_id, reason, self.started, self.end, status=CallStatus.finalizada)
         self.log.close()
         self._status("ended", result="completed")
         return "completed"
@@ -279,7 +311,7 @@ class Outbound:
                                                   self.user: ("assistant", self.user_name, "person_hangup")},
                             sessions=self.sessions, conversation_id=self.conversation_id,
                             deadline=time.monotonic() + self.max_seconds, rejoin=self.user,
-                            away_until=self.away_until)
+                            away_until=self.away_until, end=self.end)
         return self.finish(reason)
 
     async def _ringing(self) -> tuple[str, str] | None:
@@ -340,6 +372,7 @@ class TeamCall:
         self.transfer: transfer.Transfer | None = None
         self.attempts = 0
         self.reason = ""
+        self.end = CallEnd()
         # El tope de duracion cuenta desde que entro la llamada (en_curso), no desde que atiende alguien.
         self.deadline = time.monotonic() + settings.call_max_duration_seconds
 
@@ -361,9 +394,11 @@ class TeamCall:
             for where in order:
                 ended = await (self._phones() if where == "phone" else self._panel())
                 if ended is not None:
+                    self.end.mark()
                     self.reason = ended
                     return "answered"
         except transfer.CustomerGone:
+            self.end.mark()
             self.reason = "customer_hangup"
             return "customer_hung_up"
         finally:
@@ -497,7 +532,7 @@ class TeamCall:
         ended = await talk(self.line, self.log, {self.customer: ("user", None, "customer_hangup"),
                                                  identity: ("assistant", name, "person_hangup")},
                            sessions=self.sessions, conversation_id=self.conversation_id, deadline=self.deadline,
-                           rejoin=identity)
+                           rejoin=identity, end=self.end)
         if ended != "person_hangup":
             await self.line.remove(identity)
         return ended
@@ -533,6 +568,7 @@ class TeamCall:
         await self.line.say(text)
         self.reason = why
         if fallback == "hangup":
+            self.end.mark()
             return "hangup"
         await self.line.listen(self.customer)
         deadline = time.monotonic() + VOICEMAIL_SECONDS
@@ -544,10 +580,12 @@ class TeamCall:
             if ev[0] == "closed":
                 break
             if ev[0] == "left" and ev[1] == self.customer:
+                self.end.mark()
                 await settle(self.line, self.log, {self.customer: ("user", None, "")}, self.customer)
                 break
             if ev[0] == "text" and ev[1] == self.customer:
                 self.log.add("user", ev[2], pcm=ev[3] if len(ev) > 3 else None)
+        self.end.mark()
         return "voicemail"
 
     def close(self) -> None:
@@ -894,7 +932,7 @@ async def run_inbound_team(ctx, inbound, *, customer: str, caller: str, dialed: 
             return
         finished["done"] = True
         team.close()
-        _finish_call(sessions, conversation_id, team.reason or reason, started, status=CallStatus.finalizada)
+        _finish_call(sessions, conversation_id, team.reason or reason, started, team.end, status=CallStatus.finalizada)
 
     async def on_shutdown():
         close()

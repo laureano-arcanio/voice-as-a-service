@@ -573,3 +573,35 @@ def test_customer_gone_before_an_emergency_changes_nothing(api, consultas, monke
     with api.sessions() as s:
         assert s.scalars(select(HandoffLeg)).all() == []
         assert not list(s.scalars(select(Event).where(Event.type.like("handoff.%"))))
+
+
+# --- duracion -------------------------------------------------------------------------------------
+
+def test_slow_finalize_does_not_add_seconds(api, admin, client, monkeypatch):  # noqa: F811
+    """Los segundos van hasta que corta el cliente: los avisos y la extraccion de finalize (90 s simulados) no suman."""
+    import datetime
+
+    from app.voice import direct
+
+    from .voice_harness import Clock
+
+    add_agent(admin, client)
+    clock = Clock(monkeypatch, worker, direct)
+    real_finish = api.engine.finish
+
+    async def slow_finish(conversation_id):
+        clock.skip(90)
+        return await real_finish(conversation_id)
+
+    monkeypatch.setattr(api.engine, "finish", slow_finish)
+    cut = {}
+
+    async def during(h):
+        cut["at"] = direct.utcnow()
+        h.ctx.room.leave(CUSTOMER)
+
+    h = Harness(api, monkeypatch)
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    call = h.call(inbound_id(api))
+    assert call.status == CallStatus.finalizada and call.duration_seconds <= 1
+    assert call.ended_at < cut["at"] + datetime.timedelta(seconds=30)

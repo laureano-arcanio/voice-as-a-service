@@ -1,6 +1,7 @@
 """Llamadas directas en el worker (app/voice/direct.py y app/voice/listen.py, docs/features/EQUIPO_TELEFONIA.md):
 la logica con lineas falsas, sin LiveKit ni inferencia. La API y el ruteo estan en tests/test_direct_calls.py."""
 import asyncio
+import datetime
 import wave
 from types import SimpleNamespace
 
@@ -787,3 +788,24 @@ def test_listener_flushes_the_last_phrase_when_the_track_ends(monkeypatch):
     asyncio.run(run())
     assert heard == [("contact", "Chau")]
     assert pushed[0] == PCM and set(pushed[1:]) == {bytes(320)} and len(pushed) == 1 + 60
+
+
+def test_outbound_seconds_stop_when_the_call_is_cut(api, admin, monkeypatch, tmp_path):
+    """Los segundos van hasta que corta el contacto: los 90 s simulados de la ultima frase (settle) no suman."""
+    from .voice_harness import Clock
+
+    clock = Clock(monkeypatch, direct)
+    meta, user, _ = outbound(api, admin, monkeypatch, tmp_path)
+    line = FakeOut(dialed=[("joined", direct.CONTACT), ("sip", direct.CONTACT, "active")],
+                   talk=[("left", direct.CONTACT, "")])
+    real_settle = line.settle
+
+    async def slow_settle(identity, timeout):
+        clock.skip(90)
+        await real_settle(identity, timeout)
+
+    line.settle = slow_settle
+    cut = direct.utcnow()
+    assert run_out(api, meta, line) == "completed"
+    call = call_row(api, meta["conversation_id"])
+    assert call.duration_seconds <= 1 and call.ended_at < cut + datetime.timedelta(seconds=30)

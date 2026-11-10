@@ -410,7 +410,10 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   termina con `hangup_by_user`, que `finalize` no pisa.
 - **Fin de tema:** con `end_call` y `motivo=fuera_de_tema` el resultado es "Fuera de tema"
   (`ended_reason=off_topic`) y se corta aunque lo interrumpan.
-- **Al cortar:** `finalize` espera la extracción y guarda duración, fin, latencia y los datos de reportes.
+- **Al cortar:** `finalize` espera la extracción y guarda duración, fin, latencia y los datos de reportes. La duración y
+  el fin son los del primer corte (cuelga el cliente, corta el agente, se cierra la room: `direct.CallEnd`), no los de
+  `finalize`; en el tope y sin minutos, al terminar el aviso de cierre (la línea sigue abierta y Anura cobra ese
+  tiempo); sin corte (se cayó el worker), los del cierre. Las directas, igual.
 
 ### Otros flujos (detalle en su doc)
 
@@ -451,7 +454,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 |---|---|---|
 | Simultáneas | `quota.admit` (todas las modalidades) | Llamadas del cliente `pendiente`, `sonando` o `en_curso` creadas hace menos de `CALL_MAX_DURATION_SECONDS` + 10 min (las más viejas se consideran colgadas). |
 | Llamadas por hora, día y mes | `quota.admit` | Entrantes y salientes por `created_at`, sin las `rechazada`. |
-| Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Cada llamada por minuto iniciado (12 s = 1, 61 s = 2; `call_logs` guarda los segundos reales), también las en curso; prueba y loadtest no consumen. El corte de una llamada mira los segundos reales de las en curso, para que use entero el minuto ya descontado. Las salientes suman las directas y los tramos de derivación (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
+| Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Cada llamada por minuto iniciado, igual que Anura (12 s = 1, 60,02 s = 2; `call_logs` guarda los segundos reales redondeados hacia arriba), también las en curso; prueba y loadtest no consumen. El corte de una llamada mira los segundos reales de las en curso, para que use entero el minuto ya descontado. Las salientes suman las directas y los tramos de derivación desde que la persona atiende, acepte o no (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
 | Canales de Anura | `quota.busy_channels` contra `ANURA_CHANNELS` (10), en la saliente directa y antes de cada derivación | Entrantes, salientes y directas activas más tramos abiertos; sin canal: 429 `no_channel` en la directa, la derivación no se intenta. Las demás llamadas no lo miran. |
 | Números | `phone_numbers.assign`, cambio de tier o de tope | Números asignados; asignar toma el lock del cliente y el del número. |
 | Campañas | `limits.check_campaign_*` | Canal en `campaign_channels`, campañas iniciadas en el mes, contactos por campaña, `concurrency` de voz, seguimiento. Al perder un canal, sus campañas pasan a `paused`. |

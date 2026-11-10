@@ -8,12 +8,13 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
   las atendidas o falladas; no las rechazadas por el tier ni las de prueba o loadtest.
 - Minutos: entrantes y salientes por separado, por mes calendario en
   settings.billing_timezone. Cada llamada se descuenta por minuto iniciado, sin fracciones (12 s = 1 min,
-  61 s = 2 min); call_logs guarda los segundos reales. Una llamada cuenta en el mes en que empezo; la que esta
-  en curso cuenta los minutos iniciados, salvo para cortarla (running_exact: puede usar el minuto ya
-  descontado hasta el final). Las entrantes a un 0800 o 0810 cuentan como cualquier otra. Las de prueba y loadtest no consumen minutos. El tramo a la
-  persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto. La saliente
-  directa (una persona del equipo, sin agente) cuenta como saliente. El Estudio y las pruebas de voz no gastan
-  minutos de llamadas: descuentan de los cupos de inferencia (api_usage.studio_seconds).
+  61 s = 2 min), igual que Anura; call_logs guarda los segundos reales redondeados hacia arriba
+  (elapsed_seconds). Una llamada cuenta en el mes en que empezo; la que esta en curso cuenta los minutos
+  iniciados, salvo para cortarla (running_exact: puede usar el minuto ya descontado hasta el final). Las
+  entrantes a un 0800 o 0810 cuentan como cualquier otra. Las de prueba y loadtest no consumen minutos. El
+  tramo a la persona de una derivacion (handoff_legs) es saliente, desde que atiende, acepte o no (como Anura).
+  La saliente directa (una persona del equipo, sin agente) cuenta como saliente. El Estudio y las pruebas de voz
+  no gastan minutos de llamadas: descuentan de los cupos de inferencia (api_usage.studio_seconds).
 - Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
   derivacion abiertos, contra settings.anura_channels (handoff_check).
 
@@ -124,6 +125,12 @@ def active_link_calls(s: Session, call_link_id: str | None = None, now: datetime
     return s.scalar(select(func.count()).select_from(CallRow).where(*where)) or 0
 
 
+def elapsed_seconds(seconds: float) -> int:
+    """Segundos reales de una llamada o un tramo, redondeados hacia arriba (60,02 s = 61 s = 2 min iniciados),
+    como los cuenta Anura."""
+    return max(math.ceil(seconds), 0)
+
+
 def minutes_started(seconds):
     """Columna SQL de segundos -> minutos iniciados: 0 s = 0, 1 a 60 s = 1, 61 s = 2. Se aplica por llamada."""
     return (seconds + 59) // 60
@@ -158,13 +165,13 @@ def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime
 def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime,
                     now: datetime.datetime, running_exact: bool = False) -> int:
     """Salientes de los tramos a personas (derivaciones) que empezaron en [start, end), cada tramo por minuto
-    iniciado: los cerrados por billed_seconds, los conectados en curso desde que atendieron."""
+    iniciado: los cerrados por billed_seconds, los en curso desde que atendieron (acepten o no)."""
     in_period = (HandoffLeg.client_id == client_id, HandoffLeg.created_at >= start, HandoffLeg.created_at < end)
     done = s.scalar(select(func.coalesce(func.sum(minutes_started(HandoffLeg.billed_seconds) * 60), 0))
                     .where(*in_period, HandoffLeg.ended_at.is_not(None))) or 0
     stale = now - datetime.timedelta(seconds=settings.call_max_duration_seconds + STALE_MARGIN_SECONDS)
     running = s.scalars(select(HandoffLeg.answered_at).where(
-        *in_period, HandoffLeg.ended_at.is_(None), HandoffLeg.connected_at.is_not(None),
+        *in_period, HandoffLeg.ended_at.is_(None), HandoffLeg.answered_at.is_not(None),
         HandoffLeg.created_at >= stale)).all()
     seconds = int if running_exact else _started_seconds
     return int(done) + sum(seconds(max((now - t).total_seconds(), 0)) for t in running if t)

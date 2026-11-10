@@ -280,3 +280,30 @@ def add_agent(admin, client: dict, *, workflows: dict | None = None, opening: st
     number = admin.post(f"{V1}/phone-numbers", json={"client_id": client["id"], "e164": DID, "agent_id": agent["id"]})
     assert number.status_code in (201, 409, 422), number.text
     return agent
+
+
+class Clock:
+    """time y utcnow de los modulos de voz, con `skip(s)`: simula una espera de `s` segundos sin esperarla."""
+
+    def __init__(self, monkeypatch, *modules):
+        import datetime
+
+        from app.db import utcnow
+
+        self.offset = 0.0
+        clock = self
+        real_time = time
+
+        class _Time:
+            def __getattr__(self, name):
+                return getattr(real_time, name)
+
+            def time(self):
+                return real_time.time() + clock.offset
+
+        for module in modules:
+            monkeypatch.setattr(module, "time", _Time())
+            monkeypatch.setattr(module, "utcnow", lambda: utcnow() + datetime.timedelta(seconds=clock.offset))
+
+    def skip(self, seconds: float) -> None:
+        self.offset += seconds

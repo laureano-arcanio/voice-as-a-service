@@ -193,8 +193,8 @@ class Transfer:
                 setattr(leg, k, v)
             if values.get("ended_at") is not None:
                 self._open_leg = None
-                if leg.connected_at and leg.answered_at:
-                    leg.billed_seconds = max(int((leg.ended_at - leg.answered_at).total_seconds()), 0)
+                if leg.answered_at:   # Anura cobra desde que atiende, acepte o no
+                    leg.billed_seconds = quota.elapsed_seconds((leg.ended_at - leg.answered_at).total_seconds())
             s.commit()
             s.refresh(leg)
             s.expunge(leg)

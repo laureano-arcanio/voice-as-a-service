@@ -20,7 +20,7 @@ No confundir con verificar los pagos que reciben los clientes (otra cuenta y otr
 | Números que sobran | Suspendidos `BILLING_NUMBER_HOLD_DAYS` (30): asignados, sin atender; después vuelven al inventario |
 | Cambio de plan (transferencia) | Con el próximo pago (`pending_tier_id`); el admin puede registrar una subida antes |
 | Cambio de plan (tarjeta) | Subida inmediata; el monto nuevo rige desde el próximo débito, sin prorrateo. Bajada con el próximo débito |
-| Conteo de minutos | Cada llamada y cada tramo de derivación, por minuto iniciado, sin fracciones (`quota.minutes_started`) |
+| Conteo de minutos | Cada llamada y cada tramo de derivación, por minuto iniciado sobre los segundos reales redondeados hacia arriba, igual que Anura: 30 s = 1, 60,02 s = 2 (`quota.elapsed_seconds`, `quota.minutes_started`) |
 | Estudio | Texto a voz descuenta de los minutos de síntesis (`api_tts_minutes`) y Transcribir de los de transcripción (`api_stt_minutes`), por segundos reales sumados en el mes; las pruebas de voz, nada ([`ESTUDIO.md`](ESTUDIO.md)) |
 | Entrantes a 0800 / 0810 | Descuentan como cualquier otra llamada, sin multiplicador |
 | Minuto extra | No se vende: la cuota corta al tope. Más minutos para un mes = ajuste de límites del cliente |
