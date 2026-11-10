@@ -174,8 +174,6 @@ Detalle y resto en [`docs/INFRA.md`](docs/INFRA.md).
   recrear los tres. El parser de herramientas de `vllm-llm` tiene que ser el del modelo, o todo agente da 400.
 - **TTS no comparte GPU con el LLM ni con otra réplica.** `--gpu-memory-utilization` es fracción de la memoria total;
   los que comparten GPU no arrancan a la vez (`depends_on` los encadena).
-- **La 3090 de .99 tiene tope de 280 W** (`atentina-gpu-limits.service`): sin tope, un pico apagó ese server. La de
-  server2 va a 350 W por decisión del usuario (`GPU_SIN_TOPE=1`), con el pico bajo carga sin medir.
 - **Redis de LiveKit no persiste**: tras reiniciar el host, `make livekit-sip` (lo hace `make up` y el arranque).
 - **DTMF `*` en Anura corta otra llamada activa de la cuenta**: los códigos para personas van con `#`.
 - **`/api/v1/demo` es la única parte pública sin login**; el dashboard (`app.atentina.com.ar`) se defiende solo

@@ -763,7 +763,7 @@ function HistoryCharts({ window }: { window: SystemWindow }) {
             />
             <HistoryChart
               title="Potencia de cada GPU"
-              description="Máximo de cada punto. El tope es 280 W por GPU."
+              description="Máximo de cada punto."
               lines={linesOf(s.gpu_power, gpu)}
               withDay={withDay}
               unit=" W"

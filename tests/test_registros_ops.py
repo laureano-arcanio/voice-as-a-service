@@ -279,7 +279,7 @@ def test_backup_fetch_imprime_la_restauracion_solo_si_esta_el_archivo(sandbox, t
 
 def _health_env(sandbox: Sandbox, **values: str) -> None:
     sandbox.copy("scripts/ops/healthcheck.sh")
-    sandbox.env_file(DATA_DISK="", GPU_SIN_TOPE="1", **values)
+    sandbox.env_file(DATA_DISK="", **values)
     (sandbox.state / "backup.ok").touch()
 
 

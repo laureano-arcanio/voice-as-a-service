@@ -17,10 +17,10 @@ Hardware: **2 × RTX 3090 a 280 W** (LLM solo en la GPU 0; TTS + STT en la GPU 1
   - HAProxy desde el 2-nov 09:27, pedidos a server2 / a .99: LLM 102 / 46, STT 630 / 637, TTS 760 / 668; `hrsp_5xx` 0 en
     todos. La réplica estuvo caída unas 11,8 h (`chkdown=3`, 42.355 s): server2 atendió solo ese tiempo sin 5xx.
   - Replays PCIe en las dos GPU de server2: 0.
-- **LLM vigente, Gemma 4 26B-A4B** (`docker-compose.gemma4-26b.yml`, 32 secuencias, contexto 16384): **sin
-  medir.** Falta un CAP. Su KV cache es ~5 veces menor que el del Qwen3.5-9B (63.013 tokens para todas las
-  llamadas, según `vllm:cache_config_info`), así que el techo va a ser más bajo que el de CAP-001. No usar los números de abajo como capacidad
-  actual.
+- **LLM vigente, Qwen3.5-9B** (128 secuencias, contexto 32768) en la 3090, con TTS + STT en la 3080 Ti: **sin
+  medir** con este reparto. Falta un CAP; CAP-001 es el mismo LLM con otro reparto. La alternativa Gemma 4 26B-A4B
+  (`docker-compose.gemma4-26b.yml`) tiene un KV cache ~5 veces menor (63.013 tokens para todas las llamadas, según
+  `vllm:cache_config_info`) y tampoco está medida.
 - **Última referencia del hardware actual, [CAP-001](CAP-001-2x3090-pl280-classic/)** (Qwen3.5-9B, `base` y
   `rampa`, sin `fina` ni `sostenida`):
   - ~20 llamadas con p95 ≤ 2,4 s y **~32 con p95 ≤ 3 s** (codo); con ~32 se saturan las dos GPUs.
@@ -59,13 +59,12 @@ La calculadora de costos por server está en [`../../comercial/calculadora-costo
 - **Cuello:** en el codo, el primer recurso saturado (CPU del host ≥ 90 %, GPU ≥ 95 % de uso el 90 % de los
   segundos, cola de vLLM o STT > 100 ms, VRAM o KV cerca del 100 %).
 - Simultáneas y llamadas por minuto se relacionan por Little: simultáneas ≈ llegadas/min × duración media (min).
-- **`hw_id` / `config_id`:** hash de CPU, RAM, placa, GPUs con su slot PCIe y tope de potencia / hash de
+- **`hw_id` / `config_id`:** hash de CPU, RAM, placa, GPUs con su slot PCIe y límite de potencia / hash de
   commit, imágenes y flags, variables de capacidad de `.env`, agente, voz y perfil.
 
 ## Procedimiento
 
-1. **Server**, con los topes de GPU aplicados (`nvidia-smi`; los pone `atentina-gpu-limits.service`) y el TTS
-   caliente, antes de la carga:
+1. **Server**, con el TTS caliente, antes de la carga:
    ```bash
    make capacity-monitor PERFIL=rampa
    ```
@@ -121,7 +120,6 @@ de cada uno.
   `ls -t | head -1` se toma el run equivocado.
 - **Memoria:** `memory.current` del cgroup incluye el caché de archivos (pesos del modelo). El análisis usa
   anon + shmem + kernel y reporta el caché aparte.
-- **Topes de GPU:** sin ellos las 3090 apagaron el server; además cambian el `hw_id`. Confirmarlos antes de medir.
 - **Tras un reinicio,** `atentina-stack.service` levanta el stack y calienta el TTS (~2 min). Si algo de la
   inferencia quedó en `Exited`, `make up-inference`.
 - **Escalones de 2 min (`rampa`)** con llamadas de ~115 s: la concurrencia real no sigue a la objetivo. El número
@@ -137,7 +135,7 @@ de cada uno.
 
 ## Pendientes
 
-- Medir Gemma 4 26B en 2 × 3090: `base`, `rampa`, `fina` y `sostenida` (próximo CAP).
+- Medir el reparto vigente (Qwen3.5-9B en la 3090, TTS + STT en la 3080 Ti): `base`, `rampa`, `fina` y `sostenida` (próximo CAP).
 - Caller reactivo con guiones por campo: hoy usa el corpus de 9 frases de `scripts/loadtest/audio/` con turnos
   sorteados.
 - Cortes del lado del agente (factor de tiempo real por frase), métricas de LiveKit (falta `prometheus_port` en

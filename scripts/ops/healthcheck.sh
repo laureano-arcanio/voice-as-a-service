@@ -31,13 +31,6 @@ code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$1"; }
 registros_url="$(env_get REGISTROS_HEALTH_URL)"
 if [[ -n "$registros_url" && "$(code "$registros_url")" != 200 ]]; then problems+=("Registros sin /health"); fi
 
-# Tope de potencia de las 3090 (sin él, dos 3090 apagaron el server). GPU_SIN_TOPE=1 en .env: este host no lo lleva.
-while IFS=, read -r idx name limit; do
-    [[ "$name" == *3090* && "$(env_get GPU_SIN_TOPE)" != 1 ]] || continue
-    w="${limit%%.*}"; w="${w// /}"
-    (( w <= ${GPU_POWER_W:-280} )) || problems+=("GPU$idx sin tope de potencia (${w} W)")
-done < <(nvidia-smi --query-gpu=index,name,power.limit --format=csv,noheader,nounits 2>/dev/null)
-
 # Disco de datos (DATA_DISK en .env: audios y backups): si no está montado, los audios caen en el disco del sistema.
 disk="$(env_get DATA_DISK)"
 if [[ -n "$disk" ]]; then

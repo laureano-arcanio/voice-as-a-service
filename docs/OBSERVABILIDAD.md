@@ -37,10 +37,9 @@ sin la clave no lo mira.
 - **Uso:** CPU, RAM, cada GPU y su VRAM, disco libre, red.
 - **Saturación,** que dice si algo espera (más útil que el %):
   - presión de CPU, memoria e IO: % del tiempo con tareas esperando; 100 % de CPU con presión 0 está bien;
-  - LLM, TTS y STT: pedidos en curso y en cola; KV cache en uso y total, en tokens, por motor (con Gemma, 63.013 tokens para todas las llamadas desde el arranque del 28-oct-2026: el techo más probable). El total sale de la etiqueta `kv_cache_size_tokens` de `vllm:cache_config_info`; del TTS (talker) solo el %, porque vllm-omni no publica esa métrica; el STT (Parakeet) no tiene KV cache;
+  - LLM, TTS y STT: pedidos en curso y en cola; KV cache en uso y total, en tokens, por motor (el techo más probable). El total sale de la etiqueta `kv_cache_size_tokens` de `vllm:cache_config_info`; del TTS (talker) solo el %, porque vllm-omni no publica esa métrica; el STT (Parakeet) no tiene KV cache;
   - canales de Anura en uso de 10 y p95 por turno.
-- **Potencia y temperatura:** potencia de cada GPU contra su tope (sin tope, dos 3090 apagaron el
-  server el 25-sep-2026), motivo de recorte del reloj (un recorte térmico o por hardware es la señal
+- **Potencia y temperatura:** potencia de cada GPU contra su límite, motivo de recorte del reloj (un recorte térmico o por hardware es la señal
   más temprana de un problema), temperaturas, errores XID. El consumo total es una **estimación**
   (GPUs + paquete de la CPU): no hay UPS ni medidor de pared, y los picos eléctricos de milisegundos
   no los ve ningún muestreo por software.
@@ -83,8 +82,8 @@ ntfy del celular, al tema `ALERT_NTFY_TOPIC` (el mismo de `healthcheck.sh`):
 
 | Gravedad | En ntfy | Repite si sigue | Ejemplos |
 |---|---|---|---|
-| `critical` | "Atentina: crítica", prioridad alta (suena) | cada 1 h | GPU sin tope (> 280 W), recorte térmico o por hardware, GPU > 83 °C, error XID, GPU que desaparece, RAM < 10 %, OOM, disco < 5 %, SMART con fallas, servicio caído o unhealthy, Docker reinició un servicio, sonda que falla, registro SIP caído, IP pública distinta, colector caído |
-| `warning` | "Atentina: aviso", prioridad baja (sin sonido) | cada 4 h | potencia de las GPUs > 520 W sostenida (CAP-001: pico de 559 W), VRAM > 97 % fuera del LLM, KV cache > 90 %, cola en la inferencia, p95 por turno > 3 s, 9 de 10 canales de Anura, presión de CPU o disco > 20 %, swap, disco < 15 % o lleno en < 7 días, NVMe gastado > 80 %, reloj sin NTP, host reiniciado, UDP descartado, métricas sin raspar |
+| `critical` | "Atentina: crítica", prioridad alta (suena) | cada 1 h | recorte térmico o por hardware, GPU > 83 °C, error XID, GPU que desaparece, RAM < 10 %, OOM, disco < 5 %, SMART con fallas, servicio caído o unhealthy, Docker reinició un servicio, sonda que falla, registro SIP caído, IP pública distinta, colector caído |
+| `warning` | "Atentina: aviso", prioridad baja (sin sonido) | cada 4 h | potencia de las GPUs > 600 W sostenida (CAP-001: pico de 559 W con las GPUs a 280 W; sin tope no está medido), VRAM > 97 % fuera del LLM, KV cache > 90 %, cola en la inferencia, p95 por turno > 3 s, 9 de 10 canales de Anura, presión de CPU o disco > 20 %, swap, disco < 15 % o lleno en < 7 días, NVMe gastado > 80 %, reloj sin NTP, host reiniciado, UDP descartado, métricas sin raspar |
 
 Al resolverse llega "Atentina: resuelto". Los umbrales iniciales son los de arriba: al cambiar uno,
 anotar en `rules.yml` el porqué medido y correr `make up-monitoring`.

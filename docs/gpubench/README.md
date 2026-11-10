@@ -24,8 +24,6 @@ Para elegir placa, slots y risers de un server de inferencia (un modelo por GPU,
   por USB fallan a Gen4: forzar Gen3 en ese slot. Después de armar, chequear el enlace y los errores:
   `nvidia-smi -q | grep -iE -A3 "link width|replay"` y `sudo dmesg | grep -iE 'aer|xid'`. Un riser mal enchufado
   (46.804 replays PCIe) bajó la capacidad de ~21 a ~7 llamadas y tiró el TTS.
-- **Potencia:** dos 3090 sin tope apagaron el server por un pico; van a 280 W con relojes topeados (ver
-  [`../INFRA.md`](../INFRA.md)).
 
 ## Cómo correrlo
 

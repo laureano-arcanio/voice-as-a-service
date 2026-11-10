@@ -8,7 +8,6 @@ Las alertas van a ntfy (ALERT_NTFY_TOPIC): critical con prioridad alta (suena) y
 prioridad baja (sin sonido). Sin tema, Alertmanager las descarta (quedan en la pantalla Sistema).
 """
 import json
-import re
 import secrets
 import socket
 import sys
@@ -146,11 +145,7 @@ def main(argv: list[str]) -> int:
     (OUT / "prometheus.yml").write_text(json.dumps(prometheus_config(host, True), indent=2, ensure_ascii=False))
     (OUT / "alertmanager.yml").write_text(json.dumps(alertmanager_config(env.get("ALERT_NTFY_TOPIC", "")),
                                                      indent=2, ensure_ascii=False))
-    # GPU_SIN_TOPE=1: este host no lleva tope (docs/INFRA.md); la alerta GpuSinTope sonaría siempre.
-    rules = (REPO / "deploy/monitoring/rules.yml").read_text()
-    if env.get("GPU_SIN_TOPE") == "1":
-        rules = re.sub(r"^ *- alert: GpuSinTope\n(?:(?! *- alert:).*\n)*", "", rules, flags=re.M)
-    (OUT / "rules.yml").write_text(rules)
+    (OUT / "rules.yml").write_text((REPO / "deploy/monitoring/rules.yml").read_text())
     tok = OUT / "app_token"
     tok.write_text(token)
     tok.chmod(0o644)  # Prometheus corre como nobody; el repo está en el home del usuario

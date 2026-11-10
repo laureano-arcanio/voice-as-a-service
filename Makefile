@@ -2,8 +2,8 @@
 #
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
 #   agente:     db + migrate + app (UI y API :8011) + agent (worker de LiveKit)
-#   inferencia: vllm-llm (Gemma 4 26B por docker-compose.gemma4-26b.yml en COMPOSE_FILE;
-#               sin el override, Qwen3.5-9B w4a16) + stt-parakeet (Parakeet TDT 0.6B v3)
+#   inferencia: vllm-llm (Qwen3.5-9B w4a16; alternativa Gemma 4 26B con docker-compose.gemma4-26b.yml)
+#               + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
 #   asterisk:   puente SIP Anura <-> LiveKit (docs/TELEFONIA_ANURA.md)
@@ -228,7 +228,7 @@ server2-ssh: ## Ejecuta un comando en server2 (192.168.1.98, usuario atentina-op
 replica-host-disable: ## Una vez, en la replica de inferencia: apaga el colector de metricas del host (las metricas viven en el server principal). Pide sudo
 	@grep -qE '^STACK_ROLE=replica' .env || { echo "Solo en la replica (STACK_ROLE=replica)"; exit 1; }
 	sudo systemctl disable --now atentina-hostmon.service
-	@echo "Arranque automatico: $$(systemctl is-enabled atentina-stack) (modelos), $$(systemctl is-enabled atentina-gpu-limits) (topes de GPU), hostmon $$(systemctl is-enabled atentina-hostmon)"
+	@echo "Arranque automatico: $$(systemctl is-enabled atentina-stack) (modelos), hostmon $$(systemctl is-enabled atentina-hostmon)"
 
 server2-discos: ## Abre en el explorador de archivos los discos SATA de server2 (/mnt/sata, por SFTP, solo lectura)
 	@nohup nautilus sftp://server2/mnt/sata/ >/dev/null 2>&1 &

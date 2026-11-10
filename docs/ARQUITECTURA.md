@@ -420,7 +420,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   link ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)).
 - **Campañas** (`/campaigns`, `whatsapp` o `voice`): `app/campaigns/loop.py` en el lifespan delega en el sender
   de WhatsApp y el dialer de voz (cada `CALL_CAMPAIGN_TICK_SECONDS`), que respeta horario, `concurrency`,
-  `rate_per_minute` y `CALL_CAMPAIGN_MAX_CONCURRENT` (8, global y sin medir con Gemma), y cada llamada pasa por
+  `rate_per_minute` y `CALL_CAMPAIGN_MAX_CONCURRENT` (8, global y sin medir), y cada llamada pasa por
   `quota.admit`. Resultado SIP, contestador, reintentos, seguimiento por WhatsApp y webhook firmado en
   [`features/CAMPANAS.md`](features/CAMPANAS.md).
 - **Mensaje de WhatsApp:** Meta → túnel (`wa.atentina.com.ar/wa/webhook` o `/wa/webhook/<clave>`) → `app`; firma

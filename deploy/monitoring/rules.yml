@@ -10,13 +10,6 @@ groups:
         labels: {severity: critical}
         annotations:
           summary: "El colector del host (atentina-hostmon) no corre: sin datos de GPU, contenedores ni SIP"
-      # Sin tope, dos 3090 apagaron el server (25-sep-2026). El tope lo pone atentina-gpu-limits.
-      - alert: GpuSinTope
-        expr: atentina_gpu_power_limit_watts{name=~".*3090.*"} > 280
-        for: 1m
-        labels: {severity: critical}
-        annotations:
-          summary: "GPU {{ $labels.gpu }} sin tope de potencia ({{ $value }} W): sudo systemctl start atentina-gpu-limits"
       - alert: GpuRecortePorTemperaturaOHardware
         expr: max by (gpu, reason) (atentina_gpu_throttle{reason=~"hw_slowdown|hw_thermal|sw_thermal|hw_power_brake"}) == 1
         for: 1m
@@ -47,9 +40,10 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "GPU {{ $labels.gpu }}: enlace PCIe x{{ $value }} con carga, menos que en la semana"
-      # CAP-001: 559 W de pico entre las dos con ~32 llamadas.
+      # Umbral de 600 W por decisión del usuario (10-nov-2026). CAP-001 midió 559 W de pico entre las dos GPUs
+      # con tope de 280 W; sin tope la 3090 va a 350 W y el pico no está medido.
       - alert: PotenciaSostenidaAlta
-        expr: sum(atentina_gpu_power_watts) > 520
+        expr: sum(atentina_gpu_power_watts) > 600
         for: 1m
         labels: {severity: warning}
         annotations:

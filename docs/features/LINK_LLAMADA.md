@@ -73,7 +73,7 @@ todo lo demás ("Este canal no está disponible en este momento.").
   La página tiene su propia CSP (Turnstile y el LiveKit para navegadores) y es la única que permite el micrófono.
 - Un link no es secreto: se trata como un número publicado. La protección es de costo (Turnstile, IP, topes del
   link, del tier y global), no de acceso. Sin `TURNSTILE_SITE_KEY` o `TURNSTILE_SECRET_KEY`, "no disponible".
-- `CALL_LINK_MAX_CONCURRENT` (8) sin medir con Gemma: no subirlo sin un CAP. Se cuenta con el lock del cliente, no
+- `CALL_LINK_MAX_CONCURRENT` (8) sin medir: no subirlo sin un CAP. Se cuenta con el lock del cliente, no
   uno global: entre clientes distintos puede pasarse por una o dos.
 - Si el navegador no entra después del `POST`, la llamada ocupa lugar hasta 60 s.
 - La imagen se recorta al cuadrado, se achica a 512 px y se recodifica con Pillow (PNG con transparencia, si no

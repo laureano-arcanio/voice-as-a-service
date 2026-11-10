@@ -19,16 +19,11 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 | Pieza | server2 (`atentina-region-2`), principal | 192.168.1.99, desarrollo (modelos fuera del reparto) |
 |---|---|---|
 | CPU, RAM, placa | Ryzen 7 5700 (8/16), 30 GB, Gigabyte B550 Eagle WIFI6 (PCIe Gen3) | Ryzen 7 5700X (8/16), 64 GB, ASRock B550M Pro SE |
-| GPU del LLM | RTX 3090 24 GB, índice 0, `01:00.0`, Gen3 x16, 350 W | RTX 3090 24 GB, índice 1, `07:00.0`, Gen4 x16, 280 W; también dibuja el escritorio |
+| GPU del LLM | RTX 3090 24 GB, índice 0, `01:00.0`, Gen3 x16, 350 W | RTX 3090 24 GB, índice 1, `07:00.0`, Gen4 x16, 350 W; también dibuja el escritorio |
 | GPU de TTS + STT | RTX 3080 Ti 12 GB, índice 1, `05:00.0`, slot del chipset **x1** (Gen3), 350 W | RTX 3080 Ti 12 GB, índice 0, `04:00.0`, Gen3 x4, 350 W |
 | Red | LAN `192.168.1.98` (reserva DHCP). IP pública `181.104.113.28`: los reenvíos del router van acá | LAN `192.168.1.99` (reserva DHCP) |
 | Discos | NVMe de 477 GB en `/` (Docker, repo, base); HDD 750 GB en `/mnt/storage-server-region-2` (audios y backups); HDD 1 TB con datos personales, sin montar al arrancar | NVMe de 465 GB en `/` y NVMe de 1,8 TB en `/home` |
 
-- **Topes de GPU:** en .99, en cada arranque: 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz y
-  *persistence mode* (`deploy/gpu-limits.sh`, `atentina-gpu-limits.service`). Sin tope, dos 3090 apagaron ese server por
-  un pico de consumo. server2 va sin tope por decisión del usuario (`GPU_SIN_TOPE=1` en su `.env`: `deploy/install.sh`,
-  `healthcheck.sh` y la alerta `GpuSinTope` lo respetan); su pico bajo carga no está medido. El tope cambia el `hw_id`
-  del test de capacidad.
 - **Enlace x1 de la 3080 Ti de server2:** 0 replays PCIe en la prueba de 5 llamadas (2-nov-2026); falta medirlo con
   carga. Un enlace x1 con errores ya tiró el TTS (CAP-004): vigilar `nvidia-smi -q | grep -i replay`.
 - **RAM de server2:** 13,5 GB usados con todo arriba y 17,6 GB disponibles con 3 llamadas (2-nov-2026); sin medir con carga.
@@ -48,9 +43,9 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 
 ## Servicios
 
-`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.llm-lb.yml`
-en el `.env` de server2: todos los targets de `make` usan el compose principal, LiveKit propio, el LLM Gemma, el reparto de GPU y el balanceador.
-La réplica usa `docker-compose.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml`
+`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gpu-3080ti.yml:docker-compose.llm-lb.yml`
+en el `.env` de server2: todos los targets de `make` usan el compose principal (con el LLM Qwen3.5-9B), LiveKit propio, el reparto de GPU y el balanceador.
+La réplica usa `docker-compose.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml`
 y `STACK_ROLE=replica`: solo levanta los modelos y `make up*` se niega. En server2, `make up` levanta todo y
 termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `make up-inference`, `make up-stt`,
 `make up-nginx`, `make up-pbx`, `make up-tools`, `make up-tunnel`, `make up-monitoring`, `make crm-up`,
@@ -66,7 +61,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `registros` | App de fichas (`apps/registros/`, [`features/REGISTROS.md`](features/REGISTROS.md)): perfil de compose `registros`, sin `.env` de la plataforma, rol y base propios, pool de 7 conexiones | build (`apps/registros/`) | 127.0.0.1:8040 | — |
 | `tools-runner` | Sandbox de las herramientas de código: un proceso Deno por función, solo en la red interna `atentina-tools` | build (`tools-runner/`) | — | — |
 | `tools-egress` | Única salida de `tools-runner`: Smokescreen, niega IPs privadas, loopback y metadata | build | — | — |
-| `vllm-llm` | LLM `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4`, parser de herramientas `gemma4` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
+| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16`, parser de herramientas `qwen3_coder` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base fine-tuneado, 41 voces (`multi41`) | vllm/vllm-omni:v0.28.0 | 127.0.0.1:8103 | 1 |
 | `proxy` | nginx que rutea `/llm`, `/stt` y `/tts` (modo remoto y loadtest) | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
@@ -84,7 +79,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 
 | Archivo | Para qué |
 |---|---|
-| `docker-compose.gemma4-26b.yml` | LLM vigente: Gemma 4 26B-A4B AWQ-INT4 desde `/home/laureano/Models`, flags fijos y muestreo de Gemma para `app`/`agent` |
+| `docker-compose.gemma4-26b.yml` | LLM alternativo: Gemma 4 26B-A4B AWQ-INT4 desde `/home/laureano/Models`, flags fijos, parser `gemma4` y muestreo de Gemma para `app`/`agent` |
 | `docker-compose.livekit.yml` | LiveKit propio (vigente) |
 | `docker-compose.tunnel.yml` | Túnel de Cloudflare (`make up-tunnel`, también lo levanta `deploy/boot.sh`) |
 | `docker-compose.monitoring.yml` | Prometheus, node-exporter, blackbox y Alertmanager (`make up-monitoring`) |
@@ -100,7 +95,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 3090 (`GPU_LLM_ID`: 0 en server2, 1 en .99) | `vllm-llm` (en .99, + escritorio) | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
+| 3090 (`GPU_LLM_ID`: 0 en server2, 1 en .99) | `vllm-llm` (en .99, + escritorio) | 0.90, 128 secuencias, contexto 32768; 11,4 GB de pesos y 9,4 GiB de KV cache, 21,0 GB la placa (EXP-013) |
 | 3080 Ti (`GPU_TTS_ID`: 1 en server2, 0 en .99) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
 
 - **Reparto vigente sin medir con carga.** server2 atiende solo, sin test de capacidad por decisión del usuario
@@ -108,17 +103,14 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
   (~3.700 con 96 llamadas); queda ~1,1 GB libre en la 3080 Ti para el STT bajo carga. Las fracciones del TTS
   van escritas en `docker-compose.gpu-3080ti.yml`; `VLLM_TTS_GPU_MEMORY_UTILIZATION` no rige.
 
-- **El override de Gemma fija sus flags:** `--gpu-memory-utilization=0.90`, `--max-num-seqs=32`,
-  `--max-cudagraph-capture-size=32` y `--max-model-len=16384` van escritos en
-  `docker-compose.gemma4-26b.yml` (reemplaza el `command` entero). `VLLM_LLM_MAX_NUM_SEQS` y
-  `VLLM_LLM_GPU_MEMORY_UTILIZATION` de `.env` no se usan con Gemma (hoy están comentadas). Cambiar la
-  capacidad del LLM es editar el override.
-- Las variables de capacidad que sí rigen: `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`,
+- Capacidad del LLM: `VLLM_LLM_MAX_NUM_SEQS` y `VLLM_LLM_GPU_MEMORY_UTILIZATION`. El override de Gemma
+  fija los suyos (`--gpu-memory-utilization=0.90`, `--max-num-seqs=32`, `--max-cudagraph-capture-size=32`,
+  `--max-model-len=16384`) y con él esas dos variables no rigen.
+- Las del STT y el TTS: `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`,
   `VLLM_TTS_GPU_MEMORY_UTILIZATION` y `VLLM_TTS_MAX_NUM_SEQS` (las dos etapas, por `--stage-overrides`). Se
   aplican con `make up-inference`, parando antes los tres (el LLM nuevo no entra si el TTS viejo sigue arriba).
-- **Capacidad con Gemma: sin medir.** No hay CAP con Gemma; no usar los números del Qwen como capacidad
-  actual. Con el Qwen3.5-9B anterior (CAP-001, con los topes): ~20 llamadas con p95 ≤ 2,4 s y ~32 con
-  p95 ≤ 3 s (codo, saturan las dos GPUs); con 64 también la CPU del host (~0,12 cores por llamada) y el
+- **Capacidad del reparto vigente: sin medir.** CAP-001 midió el Qwen3.5-9B en 2 × 3090 con los topes: ~20
+  llamadas con p95 ≤ 2,4 s y ~32 con p95 ≤ 3 s (codo, saturan las dos GPUs); con 64 también la CPU del host (~0,12 cores por llamada) y el
   servicio colapsa; potencia de las dos GPUs, 559 W de pico.
 - Con sobrecarga (~110 llamadas, CAP-002) el talker del TTS se cae y no se recupera solo: recrear
   `vllm-tts` y calentarlo. Docker lo sigue viendo `running`. Con server2 solo, HAProxy cicla (503 para todos, 500 en
@@ -142,15 +134,20 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 **LLM (`vllm-llm`)**
 - `VLLM_LLM_MODEL` tiene que coincidir entre `vllm-llm` y `app`/`agent` (el override lo fija en los tres):
   al cambiarlo, recrear los tres.
-- `--enable-auto-tool-choice --tool-call-parser=gemma4`: sin el parser del modelo, todo agente da 400
-  (`end_call` va siempre).
+- `--enable-auto-tool-choice --tool-call-parser=qwen3_coder`: sin el parser del modelo, todo agente da 400
+  (`end_call` va siempre). Qwen3.5 escribe las llamadas en el XML de `qwen3_coder` (`<tool_call><function=…>`).
 - `--max-cudagraph-capture-size` igual a las secuencias evita que la VRAM crezca con el tráfico.
   `--limit-mm-per-prompt` en 0: el modelo trae encoders de imagen y video que no se usan.
-- Muestreo de Gemma (1.0 / 0.95 / 64 / 0.0) en `LLM_TEMPERATURE`/`TOP_P`/`TOP_K`/`MIN_P` del override, no en el código.
+- Muestreo del modelo en `LLM_TEMPERATURE`/`TOP_P`/`TOP_K`/`MIN_P`, no en el código: el de Qwen sin pensamiento
+  (0.7 / 0.8 / 20 / 0.0) en `.env`; el generation_config del w4a16 no trae muestreo, así que sin esas variables rige
+  el de vLLM (1.0 / 1.0).
 - `vllm/vllm-openai:latest` no está fijada: un pull trae otra versión que la medida (digest probado en
   [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 5.1).
-- Volver al Qwen3.5-9B: sacar el override de `COMPOSE_FILE`, poner `VLLM_LLM_MODEL=RedHatAI/Qwen3.5-9B-quantized.w4a16`
-  y recrear `vllm-llm`, `app` y `agent`.
+- Pasar a Gemma 4 26B: sumar `docker-compose.gemma4-26b.yml` a `COMPOSE_FILE` después de `docker-compose.yml`, poner
+  `VLLM_LLM_MODEL=cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4`, con los pesos en `~/Models` ([`MIGRACION_SERVER.md`](MIGRACION_SERVER.md),
+  4.4), y recrear `vllm-llm`, `app` y `agent`. El override trae su parser (`--tool-call-parser=gemma4`; con `qwen3_coder`
+  todo agente da 400) y su muestreo (1.0 / 0.95 / 64 / 0.0), que pisa el del `.env`. Volver: sacarlo y restaurar
+  `VLLM_LLM_MODEL=RedHatAI/Qwen3.5-9B-quantized.w4a16`.
 
 **STT (`stt-parakeet`, `stt/server.py`)**
 - Batching dinámico hasta `STT_MAX_BATCH` (8): un pedido solo tarda ~60 ms; con 16 clientes en paralelo
@@ -194,7 +191,6 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 ## Arranque, backup y cron
 
 **Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/`):
-- `atentina-gpu-limits.service`: topes de las GPUs (solo .99).
 - `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min), el
   túnel, `make livekit-sip`, el calentamiento del TTS y, si el `.env` tiene `REGISTROS_HEALTH_URL`, Registros (último paso,
   sin `--wait`: su falla no corta llamadas ni WhatsApp). En la réplica, solo los modelos y el calentamiento.
@@ -210,7 +206,7 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 | Cuándo | Qué |
 |---|---|
 | 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), las de `BACKUP_EXTRA_DBS` (`registros`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
-| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, topes de GPU, certificado SIP (< 14 días), backup completo en 26 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
+| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, certificado SIP (< 14 días), backup completo en 26 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
 | 04:15 | `scripts/ops/sip-cert-renew.sh`: renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso |
 
 - **Copia externa a S3: no activa.** Está implementada (`make backup-key`, `make backup-s3-setup`,
@@ -264,7 +260,7 @@ Hechos del código que atan la plataforma a **un solo `app` y un solo server**:
 
 - **Copia externa del backup:** crear el bucket y la llave (`make backup-key`, `make backup-s3-setup`) y
   guardar la privada fuera del server.
-- **Energía:** UPS senoidal de 1500–2200 VA (≥ 1000 W reales; 2 × 3090 a 280 W + host ~710 W) con
+- **Energía:** UPS senoidal de 1500–2200 VA (≥ 1000 W reales; el pico de las GPUs bajo carga no está medido) con
   apagado ordenado por NUT.
 - **Internet:** segunda conexión; confirmar si la IP fija es plan de empresa y si Anura admite un segundo destino.
 - **Host dedicado:** hoy comparte con Dify, sim-poc, desarrollo y sesiones de agentes; el escritorio usa la GPU 1.
@@ -272,7 +268,5 @@ Hechos del código que atan la plataforma a **un solo `app` y un solo server**:
   proxy, en `0.0.0.0:8100`. Dejar solo localhost, el túnel y la LAN de administración, y SIP solo desde Anura.
 - **CSP estricta:** hoy `CSP_REPORT_ONLY=true`.
 - **Vigilante externo:** `HEALTHCHECKS_PING_URL` vacía.
-- **Capacidad con Gemma:** medir (CAP-NNN) antes de vender un número de llamadas simultáneas.
+- **Capacidad del reparto vigente:** medir (CAP-NNN) antes de vender un número de llamadas simultáneas.
 - **Versiones fijas:** `vllm/vllm-openai` (compose y `stt/Dockerfile`) y el `apk` de Asterisk.
-- **`.env.example` desactualizado:** trae LiveKit Cloud (`LIVEKIT_URL=wss://…livekit.cloud`) y el Qwen
-  (`VLLM_LLM_MODEL=RedHatAI/Qwen3.5-9B…`) como default; producción usa LiveKit propio y Gemma.

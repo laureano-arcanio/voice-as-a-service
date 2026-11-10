@@ -2,7 +2,7 @@
 # balanceador del server principal. Publica los modelos en la LAN (la auth es VLLM_API_KEY, como en el
 # principal) y deja afuera el resto del stack con un perfil: `docker compose up` y deploy/boot.sh levantan
 # solo los modelos. Nunca dos Asterisk, dos cloudflared ni dos agent (MIGRACION_SERVER.md).
-# COMPOSE_FILE: docker-compose.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml
+# COMPOSE_FILE: docker-compose.yml:docker-compose.gpu-3080ti.yml:docker-compose.replica.yml
 # Hace falta en .env: STACK_ROLE=replica (lo mira el Makefile) y REPLICA_BIND_IP.
 x-fuera-de-la-replica: &fuera
   profiles: ["fuera-de-la-replica"]

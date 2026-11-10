@@ -2,7 +2,8 @@
 #   GPU_TTS_ID (3080 Ti 12 GB): vllm-tts + stt-parakeet.
 #   GPU_LLM_ID (3090 24 GB):    vllm-llm (en 192.168.1.99 tambien el escritorio, ~0,45 GB).
 # Por server (el indice sigue el bus PCI): 192.168.1.98 LLM=0 TTS=1; 192.168.1.99 LLM=1 TTS=0.
-# Gemma 26B (17,2 GB de pesos) no entra en 12 GB: el LLM va en la 3090.
+# El LLM va en la 3090: los 24 GB son para el KV cache (Qwen3.5-9B, 11,4 GB de pesos) o para la
+# alternativa Gemma 26B (17,2 GB de pesos, no entra en 12 GB).
 # Los ids salen de GPU_TTS_ID / GPU_LLM_ID (.env): siguen el orden del bus PCI.
 # Se activa sumandolo a COMPOSE_FILE en .env, despues del override del LLM.
 # Capacidad con este reparto: sin medir (docs/capacity/README.md).

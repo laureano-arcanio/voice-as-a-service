@@ -243,10 +243,10 @@ services:
   # bien por debajo de 1.0. Revisar con `nvidia-smi` si se agrega algo.
 
   vllm-llm:
-    # LLM por defecto del compose: Qwen3.5-9B en 4 bits (RedHatAI w4a16). En produccion
-    # corre Gemma 4 26B por el override docker-compose.gemma4-26b.yml (COMPOSE_FILE en .env),
-    # que pisa modelo y flags. Qwen3.5-9B reemplazo al 4B bf16 (EXP-009): 8 de 8 demos con
-    # nombre y contacto contra 4 de 8, y p50 0,90 s contra 1,00 s por turno.
+    # LLM vigente: Qwen3.5-9B en 4 bits (RedHatAI w4a16). Alternativa: Gemma 4 26B con el
+    # override docker-compose.gemma4-26b.yml (COMPOSE_FILE en .env), que pisa modelo y flags.
+    # Qwen3.5-9B reemplazo al 4B bf16 (EXP-009): 8 de 8 demos con nombre y contacto contra
+    # 4 de 8, y p50 0,90 s contra 1,00 s por turno.
     image: vllm/vllm-openai:latest
     restart: unless-stopped
     ipc: host
@@ -263,6 +263,12 @@ services:
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=32768"
       - "--reasoning-parser=qwen3"
+      # Function calling nativo (herramientas del cliente y end_call/transfer_call;
+      # docs/features/HERRAMIENTAS.md): sin estos dos, un pedido con `tools` da 400.
+      # Qwen3.5 escribe las llamadas en XML (<tool_call><function=...>), el formato
+      # de qwen3_coder (chat_template.jinja del modelo).
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser=qwen3_coder"
       # Solo en la GPU 0. Los pesos pesan 11.4GB aunque sean 4 bits (embeddings,
       # lm_head y el encoder de vision quedan en bf16): 0.90 deja 9.4GiB de KV
       # cache (~276k tokens), el doble que con 0.70 compartiendo con el STT

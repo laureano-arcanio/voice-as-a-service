@@ -49,7 +49,7 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
 
 | Rol | Modelo | Servicio |
 | --- | --- | --- |
-| LLM | Gemma 4 26B-A4B en 4 bits (`cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4`, override `docker-compose.gemma4-26b.yml`) | `vllm-llm` |
+| LLM | Qwen3.5-9B en 4 bits (`RedHatAI/Qwen3.5-9B-quantized.w4a16`), con herramientas; alternativa Gemma 4 26B (`docker-compose.gemma4-26b.yml`) | `vllm-llm` |
 | STT | `nvidia/parakeet-tdt-0.6b-v3`, servidor propio con batching (`stt/server.py`) | `stt-parakeet` |
 | TTS | Qwen3-TTS 1.7B con fine-tuning, 41 voces argentinas en un checkpoint (`multi41`, [`tts/finetune/voces.tsv`](tts/finetune/voces.tsv)) | `vllm-tts` |
 
@@ -101,4 +101,4 @@ Tests: `make test` (LLM falso, sin servicios reales).
    `BACKUP_EXTRA_DBS`, opcionales), túnel, correo (Resend), Mercado Pago, backup y monitoreo: tabla completa (de dónde sale cada una y cuál no se puede regenerar, como `WA_TOKEN_KEY`) en
    [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), 3.2.
 
-`.env.example` todavía trae defaults viejos (LiveKit Cloud, Qwen): el `.env` de producción es la referencia.
+El `.env` de producción es la referencia de los valores vigentes.

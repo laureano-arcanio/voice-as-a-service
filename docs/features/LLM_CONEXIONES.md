@@ -107,7 +107,7 @@ La traza de cada turno (`Message.llm`) dice proveedor y modelo; la UI los muestr
   4.7+ y 5.x los rechazan); no se manda `thinking` (algunos modelos no admiten apagarlo); un `refusal` es un error del
   turno (lo toma el respaldo).
 - Sin `generation`, el servidor propio usa `LLM_THINKING`/`LLM_THINKING_BUDGET` y `LLM_TEMPERATURE`/`LLM_TOP_P`/
-  `LLM_TOP_K`/`LLM_MIN_P` (`app/config.py`; los de Gemma, 1.0/0.95/64/0.0, en `docker-compose.gemma4-26b.yml`). Un
+  `LLM_TOP_K`/`LLM_MIN_P` (`app/config.py`; los de Qwen, 0.7/0.8/20/0.0, en `.env`; los de Gemma, 1.0/0.95/64/0.0, en su override). Un
   proveedor externo solo usa lo de `generation`.
 
 ## Flujo: tu propio agente

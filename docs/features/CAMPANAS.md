@@ -181,7 +181,7 @@ de la conversación. MCP: `list_blocked_numbers`, `block_number`, `unblock_numbe
 
 - **Un solo `app`:** el crédito de ritmo (dialer y sender) vive en memoria. Con dos copias, `SKIP LOCKED` evita el
   doble marcado pero el ritmo se duplica.
-- **`CALL_CAMPAIGN_MAX_CONCURRENT` (8) sin medir con Gemma:** deja lugar a entrantes y demo. No subirlo sin un CAP.
+- **`CALL_CAMPAIGN_MAX_CONCURRENT` (8) sin medir:** deja lugar a entrantes y demo. No subirlo sin un CAP.
 - **Registro No Llame** (Ley 26.951): una campaña `comercial` no arranca sin `no_call_registry_checked: true`
   (422 `no_call_confirmation_required`); se guarda en `no_call_confirmed_at` y no se vuelve a pedir al retomar.
   Cambiar `purpose` pide la campaña pausada y borra la confirmación. Rige en los dos canales.
@@ -217,7 +217,7 @@ de la conversación. MCP: `list_blocked_numbers`, `block_number`, `unblock_numbe
 
 - **Códigos SIP reales de Anura:** verificar con números propios qué devuelve Anura (ocupado, no atiende,
   inexistente) y si Asterisk los pasa sin cambiar (`from-livekit`); ajustar `SIP_RESULTS`.
-- **Capacidad:** test con entrantes y salientes de campaña mezcladas, con Gemma, para fijar
+- **Capacidad:** test con entrantes y salientes de campaña mezcladas, con el LLM vigente, para fijar
   `CALL_CAMPAIGN_MAX_CONCURRENT` (`docs/capacity/`).
 - **Contestador:** medir con llamadas reales cuántos buzones atrapa y cuántos humanos confunde.
 - **PostgreSQL bajo carrera:** `SKIP LOCKED` / `FOR UPDATE OF` y el cupo mensual con pedidos concurrentes.

@@ -38,7 +38,7 @@ el usuario `atentina-ops` tiene `sudo` sin contraseña.
 
 - Hostname `atentina-region-2`, Ubuntu Server 26.04 LTS, Ryzen 7 5700, 30 GB de RAM. Hardware y discos en [`docs/INFRA.md`](../../docs/INFRA.md).
 - GPU 0: RTX 3090 (LLM). GPU 1: RTX 3080 Ti en enlace x1 (TTS + STT). Driver 580.178.04. **Sin tope de potencia** por
-  decisión del usuario (`GPU_SIN_TOPE=1`): no instalar `atentina-gpu-limits` ni aplicar `nvidia-smi -pl`.
+  decisión del usuario: no aplicar `nvidia-smi -pl`.
 - Repo en `/home/atentina-ops/voice-as-a-service`, con `.env` completo. Pesos del LLM en `/home/laureano/Models`.
 - Disco de datos en `/mnt/storage-server-region-2`: `audios/` y `backups/`. Cron del usuario `atentina-ops`.
 

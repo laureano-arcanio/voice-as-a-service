@@ -358,16 +358,17 @@ agente de IA que usa el MCP (lo dice su descripción). Catálogo en [`../MCP_HER
 ## Reglas y trampas
 
 - **El LLM propio necesita el parser de herramientas:** `vllm-llm` corre con `--enable-auto-tool-choice
-  --tool-call-parser=gemma4` (`docker-compose.gemma4-26b.yml`). Sin ellos un pedido con `tools` da 400, y como
-  `end_call` va siempre, **todo agente** da 400. Si se cambia de modelo, el parser tiene que ser el suyo.
+  --tool-call-parser=qwen3_coder` (Qwen3.5-9B, `docker-compose.yml`; Gemma usa `gemma4` en su override). Sin ellos un
+  pedido con `tools` da 400, y como `end_call` va siempre, **todo agente** da 400. Si se cambia de modelo, el parser
+  tiene que ser el suyo.
 - Un proveedor BYOK tiene que soportar `tools` (ver [LLM_CONEXIONES.md](LLM_CONEXIONES.md)).
-- Un turno con herramienta son 2 o más pedidos al LLM, con más contexto. Con Gemma el KV cache es de 49.082 tokens
-  para todas las llamadas y la capacidad no está medida.
+- Un turno con herramienta son 2 o más pedidos al LLM, con más contexto. La capacidad del reparto vigente no está
+  medida ([`capacity/`](../capacity/README.md)).
 - Sandbox medido (26-oct-2026): una función simple ~25 ms; bucle infinito cortado en el timeout; 64 MB de heap; sin
   acceso a archivos, variables, subprocesos ni imports remotos; host no declarado bloqueado por Deno; `localtest.me` y
   metadata por DNS, 407 del proxy.
-- `eval-tools` corrido desde el host no ve el muestreo del override de Gemma (`LLM_TEMPERATURE=1.0`, `LLM_TOP_P=0.95`,
-  `LLM_TOP_K=64`, solo en los contenedores): para comparar con producción, pasarlas en el entorno.
+- `eval-tools` corrido desde el host toma el muestreo del `.env`, no el del override de Gemma (`LLM_TEMPERATURE=1.0`,
+  `LLM_TOP_P=0.95`, `LLM_TOP_K=64`, solo en los contenedores): con Gemma, pasarlas en el entorno.
 - Privacidad: los datos de la conversación que use una herramienta salen hacia los endpoints que configura el
   cliente; él es responsable del destino (condiciones `2026-10-28`, "sistemas conectados").
 - Backup: herramientas, secretos y credenciales están en la base (cifrados), ya cubiertos.

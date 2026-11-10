@@ -161,7 +161,7 @@ class Settings(BaseSettings):
     call_link_ip_calls_per_hour: int = 4
     call_link_ip_calls_per_day: int = 10
     # Llamadas por link a la vez entre todos los clientes: deja lugar a las entrantes por telefono.
-    # Sin medir con Gemma (como CALL_CAMPAIGN_MAX_CONCURRENT): no subirlo sin un CAP.
+    # Sin medir (como CALL_CAMPAIGN_MAX_CONCURRENT): no subirlo sin un CAP.
     call_link_max_concurrent: int = 8
 
     # --- Formulario de contacto de la landing (POST /api/v1/demo/contact) ---
@@ -300,7 +300,7 @@ class Settings(BaseSettings):
     # Campañas de voz (app/campaigns/dialer.py, docs/features/CAMPANAS.md).
     call_campaign_tick_seconds: float = 2.0     # cada cuanto el dialer revisa que llamar
     # Llamadas de campaña a la vez entre todos los clientes: deja lugar a las entrantes y la demo. 8 hasta
-    # medir la capacidad con Gemma (fase 5 del plan).
+    # medir la capacidad (docs/capacity/).
     call_campaign_max_concurrent: int = 8
     call_campaign_failure_streak: int = 10      # intentos seguidos fallidos que pausan la campaña (trunk o Anura caidos)
     call_ringing_timeout_seconds: int = 30      # cuanto suena antes de dar la llamada por no atendida

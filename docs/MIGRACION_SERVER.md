@@ -22,7 +22,7 @@ Reglas del corte, que valen en todo el runbook:
 | 4 | Restaurar datos (checkpoint del TTS, base de prueba, certificado) | no |
 | 5 | Levantar por partes y verificar, **sin Asterisk ni túnel** | no |
 | 6–7 | Red, router y servicios externos | durante el corte |
-| 8 | systemd, cron y topes de GPU | no |
+| 8 | systemd y cron | no |
 | 9–10 | Corte, pruebas de punta a punta y vuelta atrás | 15–30 min |
 | 11 | Checklist final | — |
 
@@ -39,8 +39,8 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
 | Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí: `letsencrypt/letsencrypt-*.tar.gz` | restaurar el tar, o regenerar con `make sip-cert` (paso 4.3) |
 | Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, sin persistencia | — | no | se regeneran: `make livekit-sip` (lo corre `make up`) |
-| Pesos del LLM vigente (Gemma 4 26B) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
-| Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
+| Pesos del LLM alternativo (Gemma 4 26B) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | solo para usar Gemma; **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
+| Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB y el LLM Qwen3.5-9B (~12 GB) | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
 | `storage/` (grabaciones por mensaje, aperturas pregeneradas, imágenes de los links para llamar) | `./storage` montado en `app` y `agent` | MB | sí: `storage/storage-*.tar.gz` | `tar -xzf` en la raíz del repo (las aperturas se regeneran solas al guardar el agente) |
 | Crontab del usuario | `crontab -l` | — | versionado en `deploy/crontab` | `make cron-install` (paso 8.2) |
@@ -150,7 +150,7 @@ Con backup: `cp ~/atentina-backups/env/env-<último> ~/voice-as-a-service/.env &
 
 | Variable | Valor actual | Cambia si… |
 |---|---|---|
-| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml` (LiveKit propio y LLM Gemma, vigentes) | no cambia. Si el usuario o la ruta de `~/Models` cambian, ajustar el volumen del override (ruta fija `/home/laureano/Models`) |
+| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.livekit.yml` más los overrides de [`INFRA.md`](INFRA.md) (LiveKit propio vigente; el LLM Qwen3.5-9B viene en el compose principal) | no cambia. Con Gemma, si el usuario o la ruta de `~/Models` cambian, ajustar el volumen de su override (ruta fija `/home/laureano/Models`) |
 | `LIVEKIT_URL` | `ws://192.168.1.99:7880` | cambia la IP de la LAN. **Si el nuevo convive con el viejo en otra IP, poner la del nuevo antes del primer arranque** |
 | `LIVEKIT_LOCAL_NODE_IP` | `192.168.1.99` | cambia la IP de la LAN |
 | `LIVEKIT_NODE_IP`, `PUBLIC_HOST` | `181.104.113.28` | cambia la IP pública |
@@ -165,9 +165,8 @@ Además, si la LAN no es `192.168.1.0/24`: ajustar `permit=` del endpoint `livek
 Al editar, diff enmascarado contra el original antes de levantar nada:
 `diff <(sed -E 's/=(.{4}).*/=\1…/' env-viejo) <(sed -E 's/=(.{4}).*/=\1…/' .env)`.
 
-Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta tabla. Ojo: el
-`.env.example` trae LiveKit Cloud y el Qwen como default; para producción, el bloque de LiveKit propio
-([`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), 3) y el LLM de [`INFRA.md`](INFRA.md).
+Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta tabla; LiveKit propio en
+[`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), 3, y los overrides en [`INFRA.md`](INFRA.md).
 
 | Variable | De dónde sale | En una mudanza |
 |---|---|---|
@@ -258,7 +257,7 @@ Asterisk arranca con "WhatsApp apagado". Alternativa: `sudo rsync -a viejo:~/voi
 
 ### 4.4 Pesos de los modelos
 
-**LLM Gemma (obligatorio).** No está en el volumen de HF: va a `~/Models` y el override lo monta. Descarga
+**LLM Gemma (solo si se usa la alternativa).** No está en el volumen de HF: va a `~/Models` y el override lo monta. Descarga
 con la revisión que sirve el viejo (sale de `.cache/huggingface/` del directorio de pesos):
 
 ```bash
@@ -273,8 +272,7 @@ sha256sum ~/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4/model.safetensors
 Alternativa sin internet: `rsync -a viejo:~/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4 ~/Models/` y el mismo
 `sha256sum`. Que el dueño sea el usuario del repo (el contenedor lo lee como `ro`).
 
-**Volumen de HF (opcional, ahorra la descarga).** En el viejo, Parakeet (y el Qwen, solo si se quiere poder
-volver a él):
+**Volumen de HF (opcional, ahorra la descarga).** En el viejo, Parakeet y el LLM Qwen:
 
 ```bash
 docker run --rm -v voice-as-a-service_hf_cache:/v -v $PWD/scratch:/o alpine \
@@ -299,15 +297,12 @@ make build
 
 Cambiar de versión de vLLM es un cambio de config: se mide con el test de capacidad.
 
-### 5.2 Topes de GPU antes de la inferencia
+### 5.2 Arranque automático antes de la inferencia
 
-`sudo deploy/install.sh` aplica los topes ya (280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz,
-*persistence mode*) y habilita las unidades (ver 8.1 por las precondiciones del arranque).
+`sudo deploy/install.sh` habilita las unidades (ver 8.1 por las precondiciones del arranque).
 **Mientras el viejo siga en servicio, `sudo systemctl disable atentina-stack` enseguida:** si el
 nuevo se reinicia, `deploy/boot.sh` levanta todo, Asterisk y túnel incluidos, y choca con el viejo.
-Los topes (`atentina-gpu-limits`) quedan activos. Se vuelve a habilitar en el corte (sección 9).
-Verificar `nvidia-smi --query-gpu=index,power.limit --format=csv`: 280 W en las dos. **Sin tope, dos
-3090 ya apagaron el server por un pico.**
+Se vuelve a habilitar en el corte (sección 9).
 
 ### 5.3 Inferencia
 
@@ -393,15 +388,15 @@ solo si `ASTERISK_PUBLIC_ADDRESS` está vacío).
 Detalle de cada alta: [`features/LANDING.md`](features/LANDING.md) (Cloudflare, Render, Turnstile, Resend, túnel),
 [`features/WHATSAPP.md`](features/WHATSAPP.md) (Meta, SIP), [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) 4 (Anura).
 
-## 8. systemd, cron y topes de GPU
+## 8. systemd y cron
 
 ### 8.1 systemd
 
 Precondiciones de `sudo deploy/install.sh` (graba en las unidades la ruta y el dueño del repo):
 repo en su ruta final, `.env` completo con `COMPOSE_FILE`, checkpoint en `TTS_FT_CKPT`, imágenes
 construidas (`deploy/boot.sh` no hace build) y usuario en el grupo `docker`. Instala
-`atentina-gpu-limits` (topes en cada arranque) y `atentina-stack` (compose, túnel, trunks SIP y
-calentamiento del TTS en el arranque). Verificar: `systemctl is-enabled atentina-gpu-limits atentina-stack`.
+`atentina-stack` (compose, túnel, trunks SIP y calentamiento del TTS en el arranque).
+Verificar: `systemctl is-enabled atentina-stack`.
 
 ### 8.1.1 Monitoreo ([`OBSERVABILIDAD.md`](OBSERVABILIDAD.md), sección 5)
 
@@ -447,7 +442,7 @@ Pruebas (todas tienen que dar lo esperado antes de dar el corte por bueno):
 
 | # | Prueba | Esperado |
 |---|---|---|
-| 1 | `nvidia-smi --query-gpu=index,power.limit,memory.used --format=csv` | 280 W en las dos; GPU 0 ~21–22,7 GB, GPU 1 ~15,7–16 GB |
+| 1 | `nvidia-smi --query-gpu=index,memory.used --format=csv` | GPU 0 ~21–22,7 GB, GPU 1 ~15,7–16 GB |
 | 2 | `make ps` y `make health` | todo `healthy`/OK |
 | 3 | `make pbx-status` | `anura/sip:...:55090 Registered` |
 | 4 | `docker compose exec asterisk asterisk -rx 'pjsip show transports'` | `transport-anura` udp 5081, `transport-livekit` udp 5080, `transport-whatsapp` tls 5061 |
@@ -495,8 +490,8 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - [ ] `git status` limpio en el viejo y todo pusheado (sección 1)
 - [ ] Host: Ubuntu 24.04, zona horaria, driver 580, Docker + grupo, toolkit, paquetes (2)
 - [ ] Repo en `~/voice-as-a-service`; `.env` revisado con diff enmascarado (3)
-- [ ] Checkpoint y pesos de Gemma con sha256 correcto; base restaurada en la última migración (0041); certificado SIP (4)
-- [ ] Imagen de vLLM por digest; topes de GPU en 280 W; inferencia con smoke test (5)
+- [ ] Checkpoint con sha256 correcto (y los pesos de Gemma, si se usa); base restaurada en la última migración (0041); certificado SIP (4)
+- [ ] Imagen de vLLM por digest; inferencia con smoke test (5)
 - [ ] Router: reserva DHCP, 4 reenvíos, SIP ALG apagado (6)
 - [ ] Viejo: Asterisk y túnel parados, `atentina-stack` deshabilitado (9)
 - [ ] systemd instalado, `atentina-stack` habilitado después del corte y probado con un reinicio; cron con las 3 líneas (8)
@@ -532,7 +527,7 @@ Datos del usuario **(usuario)** y cambios al repo, sin duplicados:
    `sip-cert-renew.sh` y `make db-reset`.
 9. **Host en un script.** `deploy/host-setup.sh` idempotente con la sección 2 (driver, Docker y grupo,
    toolkit, zona horaria, paquetes) y el chequeo de qué índice de GPU dibuja el escritorio.
-10. **Artefactos pesados.** `make fetch-models`: Gemma (revisión fijada) y Parakeet de Hugging Face,
+10. **Artefactos pesados.** `make fetch-models`: Qwen3.5-9B y Parakeet de Hugging Face (Gemma, con su revisión fijada, si se usa),
     checkpoint del TTS de S3 (`make backup-fetch TTS=1`) o del viejo por `rsync`, con el sha256 de 4.1 y 4.4.
 11. **Restauración en un comando.** `make restore DIR=scratch/restore/<STAMP>`: `db` vacío, dump,
     `migrate`, `storage/`, certificado y `livekit-sip`, en el orden de 4.2 (el dump antes del seed).

@@ -83,7 +83,7 @@ make eval-llm-report RUN=scripts/eval/runs/<A> ARGS="--comparar scripts/eval/run
 ## Registro
 
 Todavía no hay ningún `EVAL-NNN`: ningún modelo está validado con el eval. El primero (EVAL-001) es la línea base
-con Gemma 4 26B-A4B (LLM vigente).
+con Qwen3.5-9B (LLM vigente).
 
 Registrar un run: `docs/eval/EVAL-NNN-<slug>/` con `README.md` (modelo, config, comando, tabla del resumen,
 hallazgos con ejemplos), `summary.json` y `report.html` copiados del run; sumar la fila abajo y, si cambia la
@@ -105,6 +105,6 @@ decisión de modelo, `AGENTS.md`.
 
 ## Pendientes
 
-- EVAL-001 con Gemma 4 26B y calibrar el juez contra ~20 conversaciones calificadas a mano.
+- EVAL-001 con Qwen3.5-9B y calibrar el juez contra ~20 conversaciones calificadas a mano.
 - `scripts/eval/run.py` todavía escribe `"engine": "classic"` en `run.json` (lo muestra `analyze.py`).
 - Sin eval de herramientas con el LLM propio todavía (`make eval-tools` con `LLM=local`).
