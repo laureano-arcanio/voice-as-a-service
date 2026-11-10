@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para Empresa La Estrella</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .hero { margin: 5mm 0 3mm; gap: 2mm; }
+  h1 { font-size: 24pt; }
+  .lead { font-size: 10.2pt; max-width: 180mm; margin: 0; }
+  .stats { margin: 2mm 0 2.4mm; }
+  .stat { padding: 2.4mm 3.2mm; } .stat b { font-size: 14pt; white-space: nowrap; } .stat span { font-size: 8pt; line-height: 1.3; display: block; }
+  .vang { font-size: 9.2pt; margin: 0 0 3.6mm; }
+  .sec { margin: 0 0 1.4mm; }
+  .sec .eyebrow { margin-bottom: .8mm; }
+  .intro2 { font-size: 9.3pt; max-width: 180mm; margin-bottom: 2.2mm; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-bottom: 3.6mm; }
+  .box { border-radius: 3.5mm; padding: 2.4mm 4mm 1.4mm; }
+  .box.ours { border: 1.5px solid var(--accent); background: #fff; }
+  .box.theirs { border: 1px solid var(--line2); background: #fbfcfe; }
+  .box h3 { font-size: 10.2pt; margin-bottom: 1.2mm; }
+  .box li { font-size: 8.7pt; margin-bottom: .9mm; line-height: 1.35; }
+  .box q { quotes: "“" "”"; font-style: italic; color: var(--ink); }
+  .box.theirs li::before { background: var(--muted); }
+
+  /* Observabilidad */
+  .obs { border: 1.5px solid var(--accent); border-radius: 4mm; overflow: hidden; background: #fff; }
+  .obs .top { background: var(--ink); color: var(--cta-ink); padding: 2.8mm 5mm 2.6mm; display: grid; grid-template-columns: 1fr auto; gap: 5mm; align-items: center; }
+  .obs .top h2 { color: #fff; font-size: 14pt; margin: 0 0 .8mm; }
+  .obs .top h2 span { color: var(--on-dark); }
+  .obs .top p { color: var(--cta-muted); font-size: 8.9pt; margin: 0; max-width: 120mm; }
+  .obs .vs { font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; text-transform: uppercase; text-align: right; line-height: 1.7; color: var(--cta-muted); white-space: nowrap; }
+  .obs .vs b { color: #fff; font-weight: 500; }
+  .obs .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; padding: 2.6mm 4mm 2mm; background: var(--bg2); }
+  .obs .m { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 1.8mm 2.6mm; }
+  .obs .m b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10.2pt; color: var(--accent); line-height: 1.15; margin-bottom: .5mm; }
+  .obs .m span { font-size: 7.9pt; line-height: 1.3; display: block; }
+  .obs .use { padding: 2mm 5mm 2.4mm; font-size: 8.8pt; border-top: 1px solid var(--line); }
+  .obs .use strong { color: var(--accent2); }
+
+  /* Hoja 2 */
+  .stages { display: grid; grid-template-columns: 1.08fr 1fr; gap: 4mm; margin: 1.6mm 0 3.2mm; }
+  .stage { border: 1px solid var(--line); border-radius: 4mm; padding: 2.6mm 4mm 2mm; background: #fff; }
+  .stage.first { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 60%); }
+  .stage .when { font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-bottom: 1mm; }
+  .stage h3 { font-size: 11.6pt; margin-bottom: 1.4mm; }
+  .stage p { font-size: 8.7pt; margin-bottom: 1.3mm; line-height: 1.36; }
+  .stage li { font-size: 8.6pt; margin-bottom: .8mm; line-height: 1.34; }
+  .stage .out { font-size: 8.4pt; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 1.6mm; margin-top: 1.8mm; }
+  .stage .out strong { color: var(--accent2); }
+  .diagram { margin-top: 0; padding: 2.8mm 5mm 2.4mm; }
+  .diagram svg { margin-top: 1mm; }
+  .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 1.4mm; }
+  .keys div { font-size: 8.6pt; border-left: 2px solid var(--accent); padding-left: 3mm; }
+  .gains { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.4mm; margin: 1.4mm 0 3mm; }
+  .gains div { background: var(--bg2); border-radius: 3mm; padding: 2.2mm 2.8mm; font-size: 8.1pt; line-height: 1.32; }
+  .gains b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 9.8pt; color: var(--ink); line-height: 1.15; margin-bottom: .8mm; }
+  .steps { grid-template-columns: repeat(3, 1fr); margin: 1.4mm 0 0; }
+  .steps .step { padding: 2.4mm 3.2mm; font-size: 8.5pt; }
+  .steps .step::before { font-size: 12pt; margin-bottom: .6mm; }
+  h2.s2 { font-size: 12.5pt; margin: 0 0 1.4mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: quiénes son, la propuesta y las métricas ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · EMPRESA LA ESTRELLA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Atención telefónica centralizada para sus sucursales</div>
+    <h1>Todas las llamadas atendidas, <span class="accent">y por primera vez, medidas.</span></h1>
+    <p class="lead">
+      Un agente con inteligencia artificial y acento argentino atiende las llamadas de todas las sucursales,
+      <strong>las 24 horas</strong>, y pasa a una persona solo cuando hace falta. Y cada llamada queda registrada:
+      <strong>cuántas entran, quién las atiende y de qué hablan sus clientes</strong>.
+    </p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>+90 años</b><span>uniendo Resistencia con el interior del Chaco, como empresa familiar</span></div>
+    <div class="stat"><b>13 corredores</b><span>que llegan a unas 60 localidades del interior chaqueño</span></div>
+    <div class="stat"><b>6 sucursales</b><span>y oficinas donde sus pasajeros compran y despachan</span></div>
+    <div class="stat"><b>3 servicios más</b><span>encomiendas, alquiler de unidades y su tarjeta prepaga</span></div>
+  </div>
+  <p class="vang">La Estrella ya vende pasajes en línea y tiene una tarjeta prepaga con recarga digital. Un sistema como
+    este <strong>la pone a la vanguardia de la atención al pasajero en Argentina</strong>.</p>
+
+  <div class="sec"><div class="eyebrow">La propuesta</div><h2>Un solo agente para todas las líneas, conectado a su información</h2></div>
+  <p class="intro2">El agente consulta horarios, disponibilidad y lo que necesite el pasajero, con la información de La
+    Estrella. <strong>No vende</strong>: informa, y cuando la consulta lo requiere pasa la llamada a la sucursal que
+    corresponde, con el motivo ya resuelto.</p>
+  <div class="split">
+    <div class="box ours">
+      <h3>Lo resuelve el agente</h3>
+      <ul>
+        <li><strong>Horarios y paradas</strong>: <q>¿A qué hora sale el domingo para Villa Ángela?</q></li>
+        <li><strong>Equipaje</strong>: cuántos kilos se llevan y qué no se puede transportar.</li>
+        <li><strong>Condiciones</strong> de devoluciones, menores y sucursales.</li>
+        <li><strong>Encomiendas, alquiler y tarjeta</strong>: dónde despachar, qué unidades hay, cómo recargar.</li>
+      </ul>
+    </div>
+    <div class="box theirs">
+      <h3>Lo pasa a la sucursal que corresponde</h3>
+      <ul>
+        <li><strong>Comprar o devolver un pasaje</strong>, a la boletería del tramo.</li>
+        <li><strong>Enviar o seguir una encomienda</strong>, a quien la despacha.</li>
+        <li><strong>Presupuesto de alquiler</strong>, con los datos del viaje ya tomados.</li>
+        <li><strong>Reclamos</strong>, con tramo, fecha y boleto anotados.</li>
+        <li>Si nadie puede atender, <strong>toma el mensaje</strong> para devolver la llamada.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="obs">
+    <div class="top">
+      <div>
+        <h2>Sus llamadas, <span>a la vista desde el primer día</span></h2>
+        <p>Hoy no hay registro de cuántas llamadas entran a cada sucursal ni de cuántas quedan sin atender. Con
+          Atentina, <strong style="color:#fff">cada llamada queda registrada</strong> en un panel para la empresa.</p>
+      </div>
+      <div class="vs"><b>Hoy</b> · sin datos<br><b>Con Atentina</b> · todo medido</div>
+    </div>
+    <div class="grid">
+      <div class="m"><b>Cuántas entran</b><span>por día, por sucursal y por hora, con los picos de la semana</span></div>
+      <div class="m"><b>Cuántas se pierden</b><span>las que nadie atendió y las que cortaron esperando</span></div>
+      <div class="m"><b>Quién atendió</b><span>el agente o la persona de cada sucursal, y cuánto duró</span></div>
+      <div class="m"><b>De qué hablan</b><span>el motivo de cada llamada: horarios, encomiendas, alquiler, reclamos</span></div>
+      <div class="m"><b>Cada conversación</b><span>con su transcripción completa, para leerla cuando haga falta</span></div>
+      <div class="m"><b>Derivaciones</b><span>cuántas pasan a una persona, a qué sucursal y por qué</span></div>
+      <div class="m"><b>Por sucursal</b><span>cada oficina con su volumen, sus horarios y su atención</span></div>
+      <div class="m"><b>Por horario</b><span>qué se pregunta de noche, los fines de semana y en temporada</span></div>
+    </div>
+    <div class="use"><strong>Para qué sirve:</strong> decidir con datos cuánta gente poner en cada boletería y en qué horario,
+      qué información hay que comunicar mejor y qué servicios piden más los pasajeros.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Empresa La Estrella</span><span>1 / 2</span></div>
+</section>
+
+<!-- ========== HOJA 2: cómo arrancamos, cómo funciona y próximos pasos ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · EMPRESA LA ESTRELLA<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <h2 class="s2" style="margin-top:4.5mm">Cómo arrancamos: en dos etapas</h2>
+  <div class="stages">
+    <div class="stage first">
+      <div class="when">Etapa 1 · en 10 días · de 1 a 2 semanas</div>
+      <h3>Diagnóstico: medir antes de cambiar</h3>
+      <p>Las llamadas pasan primero por nuestro sistema y van <strong>directo a la persona de la sucursal, sin
+        agente</strong>. Para el pasajero nada cambia; cada llamada ya queda registrada.</p>
+      <ul>
+        <li><strong>Escuchamos las conversaciones reales</strong>: de qué hablan sus clientes y cómo lo piden.</li>
+        <li><strong>Configuramos los agentes</strong> a la medida de cómo ya trabajan en cada sucursal.</li>
+      </ul>
+      <div class="out"><strong>Resultado:</strong> la línea de base, con cuántas llamadas entran, cuántas se atienden y cómo.
+        Contra ese registro se mide después cuánto mejora.</div>
+    </div>
+    <div class="stage">
+      <div class="when">Etapa 2 · sucursal por sucursal</div>
+      <h3>Implementación escalonada</h3>
+      <p>El agente empieza a atender en <strong>una sucursal</strong>; cuando funciona bien, sigue en la próxima, hasta
+        las seis.</p>
+      <ul>
+        <li>Cada sucursal arranca con <strong>lo aprendido en la etapa 1</strong> y en las anteriores.</li>
+        <li>Los resultados se <strong>comparan contra la línea de base</strong>: llamadas atendidas, perdidas y derivadas.</li>
+        <li>Las personas de cada sucursal siguen atendiendo lo que necesita una persona.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 16 720 136" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Pasajero -->
+      <rect x="4" y="34" width="130" height="100" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b"><circle cx="69" cy="62" r="10"/><path d="M51 92 a18 15 0 0 1 36 0z"/></g>
+      <text x="69" y="112" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">El pasajero</text>
+      <text x="69" y="126" text-anchor="middle" font-size="10.5" fill="#64748b">llama</text>
+
+      <!-- Sus números -->
+      <path d="M134 84 H172" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <rect x="174" y="34" width="140" height="100" rx="14" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="244" y="58" text-anchor="middle" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">SUS NÚMEROS</text>
+      <text x="244" y="82" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14.5" fill="#0b1220">El fijo de siempre</text>
+      <text x="244" y="100" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14.5" fill="#0b1220">o un 0800</text>
+      <text x="244" y="122" text-anchor="middle" font-size="10.5" fill="#64748b">los mismos de hoy</text>
+
+      <!-- Agente -->
+      <path d="M314 84 H362" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="338" y="76" text-anchor="middle" font-size="10" fill="#2456e6" font-weight="700" stroke="#fff" stroke-width="4" paint-order="stroke">desvío</text>
+      <rect x="364" y="22" width="170" height="124" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.5"/>
+      <text x="449" y="46" text-anchor="middle" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA</text>
+      <text x="449" y="70" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="16" fill="#0b1220">Agente de IA</text>
+      <g font-size="10.5" fill="#33415c" text-anchor="middle">
+        <text x="449" y="90">Responde las 24 horas</text>
+        <text x="449" y="106">Consulta horarios y datos</text>
+        <text x="449" y="122">Registra cada llamada</text>
+      </g>
+
+      <!-- Sucursal -->
+      <path d="M534 84 H582" stroke="#2456e6" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="558" y="64" text-anchor="middle" font-size="9.5" fill="#2456e6" font-weight="700">si hace</text>
+      <text x="558" y="76" text-anchor="middle" font-size="9.5" fill="#2456e6" font-weight="700">falta</text>
+      <rect x="584" y="34" width="132" height="100" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <!-- teléfono de escritorio -->
+      <g fill="none" stroke="#64748b" stroke-width="2">
+        <rect x="634" y="50" width="32" height="24" rx="4"/>
+        <path d="M638 50 v-4 a3 3 0 0 1 3 -3 h18 a3 3 0 0 1 3 3 v4"/>
+      </g>
+      <g fill="#64748b"><circle cx="643" cy="62" r="1.8"/><circle cx="650" cy="62" r="1.8"/><circle cx="657" cy="62" r="1.8"/><circle cx="643" cy="68" r="1.8"/><circle cx="650" cy="68" r="1.8"/><circle cx="657" cy="68" r="1.8"/></g>
+      <text x="650" y="96" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14.5" fill="#0b1220">La sucursal</text>
+      <text x="650" y="112" text-anchor="middle" font-size="10.5" fill="#64748b">atiende una persona</text>
+      <text x="650" y="125" text-anchor="middle" font-size="10.5" fill="#64748b">en su teléfono IP</text>
+    </svg>
+    <div class="keys">
+      <div><strong>Conservan sus números de siempre.</strong> Sus pasajeros llaman como hoy; la llamada se desvía al
+        agente, y se puede sumar un 0800 para toda la red.</div>
+      <div><strong>Un teléfono IP en cada sucursal.</strong> Se instala un teléfono IP que es el que recibe las llamadas que el
+        agente pasa a una persona, con el motivo ya anotado.</div>
+    </div>
+  </div>
+
+  <h2 class="s2" style="margin-top:4mm">Qué espera obtener La Estrella</h2>
+  <div class="gains">
+    <div><b>Atención 24 h</b>Las consultas se responden de noche, los domingos y en los feriados.</div>
+    <div><b>Menos llamadas perdidas</b>El agente atiende varias a la vez, sin dejar el teléfono sonando.</div>
+    <div><b>Boletería libre</b>El personal vende y atiende en persona, sin cortar para repetir horarios.</div>
+    <div><b>Métricas desde el día uno</b>Desde la etapa 1, cada llamada queda registrada y a la vista.</div>
+    <div><b>Decisiones con datos</b>Personal, horarios y servicios definidos con lo que piden los pasajeros.</div>
+  </div>
+
+  <h2 class="s2">Próximos pasos para arrancar en 10 días</h2>
+  <div class="steps">
+    <div class="step"><b>Las 6 sucursales</b>Confirmar cuáles son, quién atiende en cada una y en qué horario.</div>
+    <div class="step"><b>Horarios y disponibilidad</b>Acceso a esa información, o la forma de consultarla, para que el agente diga lo vigente.</div>
+    <div class="step"><b>El desvío de las líneas</b>Coordinar con su compañía telefónica el desvío de cada número a nuestro sistema.</div>
+  </div>
+  <div class="note" style="margin-top:2.6mm;padding:2.4mm 4mm"><strong>A tener en cuenta.</strong> El arranque en 10 días depende
+    de que su compañía telefónica habilite el desvío. El agente responde con la información que nos da La Estrella: un
+    horario se actualiza en un solo lugar y vale para todas las sucursales.</div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Cada llamada atendida,<br><span>cada llamada medida.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

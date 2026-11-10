@@ -34,6 +34,8 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`axiomait-analisis`](../marketing/videos/proyectos/axiomait-analisis/README.md) (Axioma IT, propuesta técnica para un integrador con el formato de su PDF; paula y lucas) y
 [`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas) y
 [`simtecuida-analisis`](../marketing/videos/proyectos/simtecuida-analisis/README.md) (SIM Te Cuida, 59,6 s y todo en blanco: lo que vimos, las oportunidades y la solución, con el diagrama de la home; paula y gonzalo) y
+[`laestrella-propuesta`](../marketing/videos/proyectos/laestrella-propuesta/README.md) (Empresa La Estrella, 84,6 s y todo en
+blanco: el PDF de la propuesta, con las etapas y el diagrama de cómo funciona; paula y gonzalo en partes iguales, como diálogo) y
 [`primeros-pasos`](../marketing/videos/proyectos/primeros-pasos/README.md) (tutorial vertical 9:16 para clientes: crear un agente y
 probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula) y
 [`derivaciones`](../marketing/videos/proyectos/derivaciones/README.md) (tutorial vertical 9:16 para clientes: cómo

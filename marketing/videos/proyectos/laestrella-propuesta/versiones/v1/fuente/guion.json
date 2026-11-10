@@ -1,0 +1,67 @@
+{
+  "nota": "v1: acompaña al PDF laestrella-propuesta v2. paula y gonzalo en partes iguales, alternando como diálogo dentro de cada escena. Ortografía normal; números en palabras; 0800 se dice 'cero ochocientos'; pausas con puntuación. ganancia_db -2.2: sin ajuste la mezcla daba -14,0 LUFS (aplicada a las tomas elegidas, sin regenerarlas).",
+  "musica_segundos": 92,
+  "ganancia_db": -2.2,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "La Estrella: más de noventa años uniendo Resistencia con el interior del Chaco. Trece corredores, seis sucursales, encomiendas, alquiler y tarjeta prepaga."
+    },
+    {
+      "id": "a2",
+      "voz": "gonzalo",
+      "texto": "Un sistema como este los pone a la vanguardia de la atención al pasajero en Argentina."
+    },
+    {
+      "id": "a3",
+      "voz": "paula",
+      "texto": "La propuesta: un agente con inteligencia artificial atiende todas las llamadas de las seis sucursales, las veinticuatro horas."
+    },
+    {
+      "id": "a4",
+      "voz": "gonzalo",
+      "texto": "Consulta horarios y disponibilidad. No vende. Y solo pasa a una persona de la sucursal cuando hace falta, con el motivo ya anotado."
+    },
+    {
+      "id": "a5",
+      "voz": "paula",
+      "texto": "Hoy no tienen ningún dato de sus llamadas."
+    },
+    {
+      "id": "a6",
+      "voz": "gonzalo",
+      "texto": "Con Atentina, ven cuántas entran, cuántas se pierden, quién atendió y de qué hablan. Por sucursal, y por horario."
+    },
+    {
+      "id": "a7",
+      "voz": "paula",
+      "texto": "En diez días arranca la etapa uno. Durante una o dos semanas, las llamadas pasan por nuestro sistema y van directo a la persona, sin agente."
+    },
+    {
+      "id": "a8",
+      "voz": "gonzalo",
+      "texto": "Así medimos la línea de base, y aprendemos de qué hablan sus clientes para configurar el agente."
+    },
+    {
+      "id": "a9",
+      "voz": "paula",
+      "texto": "En la etapa dos, el agente se suma sucursal por sucursal, y comparamos los resultados contra esa línea de base."
+    },
+    {
+      "id": "a10",
+      "voz": "gonzalo",
+      "texto": "Conservan sus números de siempre, fijo o cero ochocientos. El agente atiende, y si hace falta, pasa al teléfono IP que se instala en cada sucursal."
+    },
+    {
+      "id": "a11",
+      "voz": "paula",
+      "texto": "Para arrancar en diez días, confirmamos las sucursales, los horarios y el desvío de las líneas."
+    },
+    {
+      "id": "a12",
+      "voz": "gonzalo",
+      "texto": "Cada llamada atendida, cada llamada medida."
+    }
+  ]
+}
