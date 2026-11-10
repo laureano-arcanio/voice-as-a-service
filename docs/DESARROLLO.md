@@ -34,10 +34,15 @@ se envían: los mails quedan en `make dev-logs S=app`), túnel ni monitoreo. Eso
 prueba no toma el micrófono: abrir un túnel con `ssh -L 8211:127.0.0.1:8211 -L 7880:127.0.0.1:7880 192.168.1.99` y entrar por `http://localhost:8211`.
 
 **Trampas:**
-- Los modelos son los de este host y no reciben tráfico de producción (su réplica está en `disabled` en el balanceador,
-  [`LLM_REPLICAS.md`](features/LLM_REPLICAS.md)). Un cambio de modelo se prueba con su override y el test de capacidad ([`INFRA.md`](INFRA.md)).
-- `.env.dev` no se versiona y no lleva credenciales de producción. Copia del `.env` solo la clave y los nombres de los modelos.
-  Si cambia el modelo del LLM, actualizar `.env.dev.example` y `.env.dev`, o el LLM da 404.
+- **La inferencia es la de producción:** `.env.dev` apunta al proxy de server2 (`http://192.168.1.98:8100/{llm,stt,tts}/v1`,
+  [`INFRA.md`](INFRA.md), "Servicios"). Lo que se prueba en desarrollo compite con las llamadas: nada de cargas, y
+  `make eval-llm`, `mcp-eval` y `stt-eval` fuera de horario. Recrear un modelo en server2 corta también desarrollo (502 en su path).
+- **Un pedido al TTS sin `voice` o con `"default"` tumba el TTS de producción** (todo da 500 hasta reiniciar `vllm-tts` en
+  server2). El código de la plataforma no lo manda; un `curl` o código a medio hacer sí puede: siempre una voz del catálogo.
+  El proxy no lo filtra (riesgo aceptado).
+- Un cambio de modelo se prueba con su override y el test de capacidad ([`INFRA.md`](INFRA.md)).
+- `.env.dev` no se versiona y no lleva credenciales de producción, salvo `VLLM_API_KEY` (la de server2, copiada del `.env` con
+  los nombres de los modelos). Si cambia el modelo del LLM, actualizar `.env.dev.example` y `.env.dev`, o el LLM da 404.
 - `make dev-backend` (SQLite, `:8111`) sigue para mirar la UI rápido, pero lee las `LIVEKIT_*` y demás claves del `.env`.
 
 ## Deploy

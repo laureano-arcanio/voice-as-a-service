@@ -9,6 +9,10 @@ terminan en 0. Los escenarios, personas y agentes `eval_*` no se ajustan para qu
 expectativa se corrige solo si estaba mal escrita, y se anota por qué. Que el código ande lo prueba `make test`
 con LLM falso.
 
+**Contra producción:** desde el host de desarrollo, el LLM y el STT locales son los de server2 por su proxy
+([`../DESARROLLO.md`](../DESARROLLO.md)). `make eval-llm`, `eval-tools` con `local` y `stt-eval` compiten con las
+llamadas: fuera de horario.
+
 ## Targets
 
 | Target | Qué mide | LLM | Código |

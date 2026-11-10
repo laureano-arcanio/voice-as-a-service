@@ -4,8 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ -e .env.dev ]; then echo ".env.dev ya existe"; exit 0; fi
 de_env() { sed -n "s/^$1=//p" .env | tail -1; }
-host=$(de_env REPLICA_BIND_IP)
-host=${host:-$(hostname -I | cut -d' ' -f1)}
+host=$(hostname -I | cut -d' ' -f1)
 umask 077
 awk -v host="$host" -v key="$(de_env VLLM_API_KEY)" -v stt="$(de_env VLLM_STT_MODEL)" -v tts="$(de_env VLLM_TTS_MODEL)" \
     -v voz="$(de_env VLLM_TTS_VOICE)" -v fernet="$(openssl rand -base64 32 | tr '+/' '-_')" '
