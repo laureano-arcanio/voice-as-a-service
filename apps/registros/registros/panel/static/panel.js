@@ -212,6 +212,7 @@ class PersonPage {
     this.version = null;
     this.baseline = {};
     this.repeats = [...this.form.querySelectorAll("[data-repeat]")].map((box) => new Repeat(box, this));
+    this.accordions();
     this.form.addEventListener("submit", (event) => {
       event.preventDefault();
       this.save();
@@ -224,6 +225,23 @@ class PersonPage {
     } else {
       for (const repeat of this.repeats) repeat.setCount(1);
     }
+  }
+
+  // Cada fieldset de primer nivel pasa a ser un acordeón: en una ficha nueva abre el primero; en una
+  // existente, todos cerrados (los cobros, arriba, quedan abiertos).
+  accordions() {
+    const sets = [...this.form.querySelectorAll("fieldset")].filter((set) => !set.parentElement.closest("fieldset"));
+    sets.forEach((set, index) => {
+      const details = document.createElement("details");
+      details.className = "acc";
+      details.open = !this.personId && index === 0;
+      const summary = document.createElement("summary");
+      const legend = set.querySelector(":scope > legend");
+      summary.textContent = legend ? legend.textContent : "Sección";
+      if (legend) legend.hidden = true;
+      set.before(details);
+      details.append(summary, set);
+    });
   }
 
   fill(person) {
@@ -311,6 +329,8 @@ class PersonPage {
     note.className = className;
     note.textContent = message;
     (el.closest("label") || el).after(note);
+    const details = el.closest("details");
+    if (details) details.open = true;
     return el;
   }
 

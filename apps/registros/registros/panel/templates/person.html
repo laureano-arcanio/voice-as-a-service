@@ -9,6 +9,16 @@
   <span class="spacer"></span>
   <button type="button" id="al-dia-toggle" class="ghost"></button>
 </section>
+<details id="charges" class="card acc" open hidden>
+  <summary><h2>Cobros</h2></summary>
+  <p id="charges-empty" class="muted" hidden>Esta ficha todavía no tiene cobros.</p>
+  <div class="table-wrap">
+    <table id="charges-table" hidden>
+      <thead><tr><th>Fecha</th><th>Monto</th><th>Titular</th><th>Teléfono</th><th>Estado</th><th>Detalle</th></tr></thead>
+      <tbody id="charges-rows"></tbody>
+    </table>
+  </div>
+</details>
 <form id="ficha" class="card ficha" novalidate>
 $form
   <div id="form-errors" class="error" role="alert" hidden></div>
@@ -21,13 +31,3 @@ $form
     <button type="button" id="delete" class="danger" hidden>Dar de baja</button>
   </div>
 </form>
-<section id="charges" class="card" hidden>
-  <h2>Cobros</h2>
-  <p id="charges-empty" class="muted" hidden>Esta ficha todavía no tiene cobros.</p>
-  <div class="table-wrap">
-    <table id="charges-table" hidden>
-      <thead><tr><th>Fecha</th><th>Monto</th><th>Titular</th><th>Teléfono</th><th>Estado</th><th>Detalle</th></tr></thead>
-      <tbody id="charges-rows"></tbody>
-    </table>
-  </div>
-</section>

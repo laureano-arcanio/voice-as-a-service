@@ -38,6 +38,9 @@ Migraciones propias en `apps/registros/migrations/` (`0001_inicial`, `0002_admin
 
 Aislamiento por tenant en cada consulta. El panel no tiene formularios de ningún cliente en el código.
 
+En la ficha del panel, debajo de "Al día" van los cobros (abiertos) y cada `fieldset` de primer nivel del formulario es un
+acordeón: en una ficha nueva abre el primero; en una existente, todos cerrados. Un error o aviso de un campo abre su sección.
+
 **Administrador:** los usuarios del tenant `admin` (creados solo con `create-admin`) gestionan los demás tenants desde
 `/admin` (`/admin/api`): datos, formulario, usuarios, claves de API, activar o desactivar y lectura de fichas. Detalle y
 rutas: README de la app.

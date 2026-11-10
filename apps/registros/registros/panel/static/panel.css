@@ -45,6 +45,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .badge.warn { color: var(--yellow); background: var(--yellow-bg); }
 .status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ficha fieldset { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 16px; padding: 12px 16px; }
+details.acc > summary { cursor: pointer; font-weight: 600; padding: 4px 0; list-style-position: inside; }
+details.acc > summary h2 { display: inline; margin: 0; }
+details.acc[open] > summary { margin-bottom: 12px; }
+.ficha details.acc { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 12px; padding: 8px 16px; }
+.ficha details.acc > fieldset { border: 0; padding: 0; margin: 0 0 4px; }
 .ficha legend { font-weight: 600; padding: 0 6px; }
 .ficha label { display: block; margin-bottom: 10px; }
 .ficha label > input:not([type="checkbox"]):not([type="radio"]), .ficha label > select, .ficha label > textarea { display: block; width: 100%; margin-top: 3px; }
