@@ -268,6 +268,10 @@ class TeamRoute:
     number_label: str = ""
     # El numero, para anotar quien atendio en el celular (round robin, phone_numbers.last_member_id).
     number_id: str = ""
+    # Conectar al atender: en los telefonos, sin whisper ni "marca 1" (team_connect_on_answer).
+    connect_on_answer: bool = False
+    # Musica mientras suena (team_hold_music); en falso, silencio.
+    hold_music: bool = True
 
 
 @dataclass
@@ -298,13 +302,23 @@ def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
         members=[TeamPerson(member_id=m.id, name=m.name, phone=m.phone, user_id=m.user_id) for m in people],
         ring_first=number.ring_first, ring_seconds=number.ring_seconds, schedule=number.schedule,
         fallback=number.team_fallback, fallback_message=number.team_fallback_message, agent_id=number.agent_id,
-        number_e164=number.e164, number_label=number.label, number_id=number.id)
+        number_e164=number.e164, number_label=number.label, number_id=number.id,
+        connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music)
 
 
 def dialed_e164(raw: str | None) -> str | None:
     """Numero marcado tal como llega de LiveKit (sip.trunkPhoneNumber) -> E.164."""
     digits = re.sub(r"\D", "", raw or "")
     return f"+{digits}" if digits else None
+
+
+def _own_number(s: Session, client_id: str, caller: str | None) -> bool:
+    """El que llama es un numero del cliente. Por los ultimos 10 digitos: un fijo llega como +54 y se guarda +549."""
+    digits = re.sub(r"\D", "", caller or "")[-10:]
+    if len(digits) < 10:
+        return False
+    return any(re.sub(r"\D", "", e164)[-10:] == digits for e164 in s.scalars(
+        select(PhoneNumber.e164).where(PhoneNumber.client_id == client_id)))
 
 
 def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None,
@@ -349,6 +363,10 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     try:
         if blocked_numbers.is_blocked(s, number.client_id, caller, wa_id):
             raise Forbidden("El número que llama está bloqueado", "blocked_number")
+        if team is not None and not wa_id and _own_number(s, number.client_id, caller):
+            # Bucle: un telefono del equipo (una central) desviado a un numero del cliente. Cada vuelta abriria una
+            # entrante que vuelve a marcar hasta agotar los canales de toda la plataforma.
+            raise Forbidden("La llamada vuelve del mismo número: se corta", "team_loop")
         if number.suspended_at is not None:
             # El plan del cliente bajo y este numero no entra (app/billing/service.py): no atiende.
             raise QuotaExceeded("El número está suspendido: el plan del cliente no lo incluye", "number_suspended")

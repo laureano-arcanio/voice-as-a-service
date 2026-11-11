@@ -387,8 +387,10 @@ class TeamCall:
         if not handoff_service.is_open(self.route.schedule):
             logger.info("directa %s: fuera de horario, respaldo %s", self.conversation_id, self.route.fallback)
             return await self._fallback("after_hours")
-        await self.line.hold(True)
-        self._event("hold.started")
+        music = self.route.hold_music
+        if music:
+            await self.line.hold(True)
+            self._event("hold.started")
         try:
             order = ("phone", "panel") if self.route.ring_first == "phone" else ("panel", "phone")
             for where in order:
@@ -402,8 +404,9 @@ class TeamCall:
             self.reason = "customer_hangup"
             return "customer_hung_up"
         finally:
-            await self.line.hold(False)
-            self._event("hold.ended")
+            if music:
+                await self.line.hold(False)
+                self._event("hold.ended")
             with self.sessions() as s:
                 direct_calls.cancel_rings(s, self.conversation_id)
         return await self._fallback("team_no_answer")
@@ -419,11 +422,13 @@ class TeamCall:
             sessions=self.sessions, line=self.line, conversation_id=self.conversation_id, client_id=self.client_id,
             areas=[], customer=self.customer, caller=self.caller, on_message=self.log.add,
             confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=self._phone_connected,
-            limit=self._limit)
+            limit=self._limit, hold_music=self.route.hold_music)
+        # Conectar al atender: sin whisper ni 1 (Transfer._attempt).
+        whisper = None if self.route.connect_on_answer else TEAM_WHISPER
         try:
             outcome = await tr.run_team(transfer.TeamRing(name=self.route.number_label or "la línea",
                                                           ring_seconds=self.route.ring_seconds),
-                                        people, TEAM_WHISPER,
+                                        people, whisper,
                                         {"linea": self.route.number_label or "la línea", "cliente": self.caller})
         finally:
             self.attempts = tr.attempt

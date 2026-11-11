@@ -10,6 +10,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   Textarea,
   TextInput,
@@ -28,6 +29,9 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUpdateNumber } from './api';
 import {
   type AnsweringDraft,
+  CONNECT_ON_ANSWER_HELP,
+  CONNECT_ON_ANSWER_PANEL_HELP,
+  HOLD_MUSIC_HELP,
   FALLBACK_MESSAGE_DEFAULTS,
   FALLBACK_OPTIONS,
   MESSAGE_MAX,
@@ -48,7 +52,7 @@ function reach(m: TeamMember | undefined) {
         <Text className="mono" c="dimmed" visibleFrom="xs">
           {m.phone}
         </Text>
-        {!m.user_id && <Badge color="gray">Solo en el celular</Badge>}
+        {!m.user_id && <Badge color="gray">Solo en el teléfono</Badge>}
       </>
     );
   if (m.user_id) return <Badge color="gray">Solo en el panel</Badge>;
@@ -145,7 +149,7 @@ export function EditNumberModal({
                   <Radio
                     value="team"
                     label="El equipo"
-                    description="Suena en el celular o en el panel de las personas que elijas. Estas llamadas se graban."
+                    description="Suena en el teléfono o en el panel de las personas que elijas. Estas llamadas se graban."
                     disabled={teamLocked}
                   />
                   <Radio
@@ -172,7 +176,7 @@ export function EditNumberModal({
                 <>
                   <Divider label="Personas" labelPosition="left" mt="xs" />
                   <Text size="xs" c="dimmed">
-                    Suenan en este orden. Solo reciben llamadas las activas, con celular o usuario del panel.
+                    Suenan en este orden. Solo reciben llamadas las activas, con teléfono o usuario del panel.
                   </Text>
                   <MemberPicker
                     members={team.data ?? []}
@@ -219,6 +223,20 @@ export function EditNumberModal({
                           {RING_FIRST_HELP[v.ring_first]}
                         </Text>
                       </Stack>
+                      <Switch
+                        label="Conectar al atender"
+                        description={
+                          v.ring_first === 'panel'
+                            ? `${CONNECT_ON_ANSWER_HELP} ${CONNECT_ON_ANSWER_PANEL_HELP}`
+                            : CONNECT_ON_ANSWER_HELP
+                        }
+                        {...form.getInputProps('team_connect_on_answer', { type: 'checkbox' })}
+                      />
+                      <Switch
+                        label="Música mientras suena"
+                        description={HOLD_MUSIC_HELP}
+                        {...form.getInputProps('team_hold_music', { type: 'checkbox' })}
+                      />
                     </Stack>
                     <NumberInput
                       label="Timbre por persona"

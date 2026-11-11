@@ -226,6 +226,11 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     strategy: Mapped[str] = mapped_column(String(16), default="sequential", server_default="sequential")
     last_member_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
+    # Con team, en los telefonos: conecta apenas atienden, sin mensaje ni tecla para aceptar. Tampoco detecta
+    # contestadores: es para destinos que siempre atienden (una central telefonica).
+    team_connect_on_answer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Con team: musica mientras suena (True, como siempre) o silencio.
+    team_hold_music: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Role(enum.StrEnum):

@@ -257,7 +257,8 @@ async def main() -> int:
 
     outcome, legs, types, live, said, secs = await case(lk, trunk_id, sessions, client_id, areas, "Posventa", "c2")
     ok = outcome.status == "failed" and [r[0] for r in legs] == ["no_answer", "not_confirmed", "not_confirmed"] \
-        and not any(r[2] for r in legs) and "cliente" in live and said[-1].startswith("No pude comunicarte")
+        and not legs[0][2] and all(r[2] for r in legs[1:]) and "cliente" in live \
+        and said[-1].startswith("No pude comunicarte")      # se cobra desde que atiende, acepte o no
     smoke.check("derivacion: no atiende, corta, no marca", ok,
                 f"{outcome.status}/{outcome.result} en {secs} s; tramos {legs}; en la room {sorted(live)}")
 

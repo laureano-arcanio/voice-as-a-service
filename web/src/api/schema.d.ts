@@ -629,8 +629,8 @@ export interface paths {
         /**
          * Update Number
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
-         *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule` y el respaldo
-         *     `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
+         *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
+         *     `team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
         patch: operations["update_number_api_v1_phone_numbers__number_id__patch"];
@@ -8054,6 +8054,10 @@ export interface components {
             team_fallback: "agent" | "voicemail" | "hangup";
             /** Team Fallback Message */
             team_fallback_message: string;
+            /** Team Connect On Answer */
+            team_connect_on_answer: boolean;
+            /** Team Hold Music */
+            team_hold_music: boolean;
             /**
              * Members
              * @description Las personas del número, en orden
@@ -8100,6 +8104,16 @@ export interface components {
             team_fallback?: ("agent" | "voicemail" | "hangup") | null;
             /** Team Fallback Message */
             team_fallback_message?: string | null;
+            /**
+             * Team Connect On Answer
+             * @description Con el equipo, en los teléfonos: conecta apenas atienden, sin mensaje ni tecla; no detecta contestadores
+             */
+            team_connect_on_answer?: boolean | null;
+            /**
+             * Team Hold Music
+             * @description Con el equipo: música mientras suena; false, silencio
+             */
+            team_hold_music?: boolean | null;
         };
         /** PhoneVerifyIn */
         PhoneVerifyIn: {

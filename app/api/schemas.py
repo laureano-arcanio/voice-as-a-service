@@ -472,6 +472,11 @@ class PhoneNumberUpdate(BaseModel):
         default=None, description="Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o "
                                   "mensaje y corta")
     team_fallback_message: str | None = Field(default=None, max_length=500)
+    team_connect_on_answer: bool | None = Field(
+        default=None, description="Con el equipo, en los teléfonos: conecta apenas atienden, sin mensaje ni tecla; "
+                                  "no detecta contestadores")
+    team_hold_music: bool | None = Field(
+        default=None, description="Con el equipo: música mientras suena; false, silencio")
 
 
 class AssignIn(BaseModel):
@@ -503,6 +508,8 @@ class PhoneNumberOut(ORM):
     schedule: "HandoffSchedule | None" = None
     team_fallback: Literal["agent", "voicemail", "hangup"]
     team_fallback_message: str
+    team_connect_on_answer: bool
+    team_hold_music: bool
     members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 
 

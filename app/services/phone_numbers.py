@@ -83,6 +83,7 @@ def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
     number.answer_mode, number.ring_first, number.ring_seconds = "agent", "phone", 20
     number.schedule, number.team_fallback, number.team_fallback_message = None, "voicemail", ""
     number.strategy, number.last_member_id = "sequential", None
+    number.team_connect_on_answer, number.team_hold_music = False, True
 
 
 def release(number: PhoneNumber) -> None:
@@ -136,10 +137,11 @@ def _set_members(s: Session, number: PhoneNumber, ids: list[str]) -> None:
 
 def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), strategy, ring_first,
-    ring_seconds, schedule, team_fallback y team_fallback_message. Valida el resultado entero: con team, al
-    menos una persona; con respaldo agent, un agente en el numero. El agente se cambia antes (set_agent)."""
+    ring_seconds, schedule, team_fallback, team_fallback_message, team_connect_on_answer y team_hold_music.
+    Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el numero.
+    El agente se cambia antes (set_agent)."""
     keys = ("answer_mode", "member_ids", "ring_first", "ring_seconds", "schedule", "team_fallback",
-            "team_fallback_message", "strategy")
+            "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music")
     if not any(k in changes for k in keys):
         if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente
             _check_fallback(number)
@@ -176,6 +178,9 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         if len(text) > FALLBACK_MESSAGE_MAX:
             raise Invalid(f"El mensaje va hasta {FALLBACK_MESSAGE_MAX} caracteres")
         number.team_fallback_message = text
+    for flag in ("team_connect_on_answer", "team_hold_music"):
+        if flag in changes:
+            setattr(number, flag, bool(changes[flag]))
     if "member_ids" in changes:
         _set_members(s, number, list(changes["member_ids"]))
     if number.answer_mode == "team":

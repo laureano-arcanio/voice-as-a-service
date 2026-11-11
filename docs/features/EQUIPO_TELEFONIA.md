@@ -25,6 +25,7 @@ saliente necesita además `outbound_calls`).
 | `call_logs.user_id`, `answered_by` (`agent`/`team`), `opted_out_confirmed` | Quién llamó o atendió; quién atendió la entrante; se llamó a una baja con confirmación | 0039 |
 | `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo (default `agent`, 0045) | 0039 |
 | `phone_numbers.strategy` (`sequential`/`round_robin`, default `sequential`), `last_member_id` (FK `team_members`, SET NULL) | Orden de los celulares del número, como en las áreas: la última que atendió en su celular | 0050 |
+| `phone_numbers.team_connect_on_answer` (bool, default `false`), `team_hold_music` (bool, default `true`) | Con `team`: conectar apenas atiende el teléfono, sin whisper ni tecla ni detección de contestador (para destinos que siempre atienden, como una central); música o silencio mientras suena. Los números existentes siguen con whisper y música | 0051 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
 | `user_presence` | `user_id`, `client_id`, `last_seen`: Disponible en el panel | 0039 |
 | `call_rings` | Timbre por usuario y entrante en el panel: `status` `ringing`/`answered`/`declined`/`cancelled` (único por conversación y usuario) | 0039 |
@@ -58,7 +59,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | `PUT /me/presence` `{available}`, `GET /me/ringing` | Pulso de Disponible; entrantes que le suenan | — |
 | `GET /team/presence` | Quién está Disponible u ocupado | `list_team_presence` |
 | `GET/PUT /clients/{id}/direct-call-settings` `{recording_notice}` | Aviso de grabación en las directas | `get_/update_direct_call_settings` |
-| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message` | `route_phone_number` |
+| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`) | `route_phone_number` |
 | `GET /calls` | Filtros `mode`, `user_id`, `answered_by`, `phone`, `contact_id`; `CallOut` con `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id`; el detalle trae `call.team` (`answered`, `person`, `fallback`) | `list_calls`, `get_call` |
 | `POST /calls/{id}/hangup` | Cortar (también las directas) | `hangup_call` |
 | `GET /reports/transfers` | Panel de derivaciones (Reportes > Transferencias, `advanced_reports`); `/reports/calls` separa agente, directa y equipo, por usuario | `get_report_*` ([REPORTES.md](REPORTES.md)) |
@@ -215,12 +216,20 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 
 1. `services/calls.start_inbound` ve `answer_mode=team` y arma `InboundCall.team` (`TeamRoute`: personas activas
    con celular o usuario, en orden o rotadas, `ring_first`, `ring_seconds`, horario, respaldo). Sin personas, sin
-   el plan o sin las condiciones aceptadas, la llamada va al agente del número, como siempre.
-2. El worker toma la rama directa (sin LLM): aviso de grabación si está prendido, música y hace sonar según
+   el plan o sin las condiciones aceptadas, la llamada va al agente del número, como siempre. Si el que llama es un
+   número del mismo cliente (por los últimos 10 dígitos: un fijo llega como `+54` y se guarda `+549`), queda
+   `rechazada / team_loop` y el worker corta sin atender: es una central desviada de vuelta a la línea, que si no
+   volvería a marcar hasta agotar los canales de toda la plataforma. Nuestro tramo a la central recibe el rechazo y
+   pasa al respaldo. Supone que el desvío presenta nuestro número como el que llama (sin comprobar). No aplica a
+   WhatsApp ni a `answer_mode=agent`.
+2. El worker toma la rama directa (sin LLM): aviso de grabación si está prendido, música (con
+   `team_hold_music=false`, silencio: LiveKit ya atendió, así que el que llama no oye ni timbre) y hace sonar según
    `ring_first`:
-   - `phone`: a cada persona en su celular, en orden (`Transfer.run_team`, sin área ni código de vuelta; tramos en
-     `handoff_legs` con `area_id` nulo y eventos `handoff.*`). Whisper: "Llamada a {{linea}} de {{cliente}}.
-     Marcá 1 para atender." Si nadie atiende, en el panel a los Disponibles.
+   - `phone`: a cada persona en su teléfono (celular o fijo de 10 dígitos; un interno de una central no se puede
+     marcar), en orden (`Transfer.run_team`, sin área ni código de vuelta; tramos en `handoff_legs` con `area_id`
+     nulo y eventos `handoff.*`). Whisper: "Llamada a {{linea}} de {{cliente}}. Marcá 1 para atender." Con
+     `team_connect_on_answer`, sin whisper ni 1: se conecta con la señal SIP de atendido (`handoff.confirmed` con
+     `auto: true`). Si nadie atiende, en el panel a los Disponibles.
    - `panel`: a todos los Disponibles a la vez (`call_rings`, atiende el primero); si nadie atiende o no hay nadie,
      a los celulares en orden.
    - Una persona sin celular suena solo en el panel; una sin usuario, solo en el celular.
@@ -231,7 +240,14 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
    la persona, termina (no hay agente al que volver). Atendida en el celular, queda el `user_id` de la persona si
    tiene usuario y se anota en `phone_numbers.last_member_id` (con cualquier `strategy`; solo si el número sigue
    siendo del cliente y la persona existe; un error al anotar se loguea y la llamada sigue). Atender en el panel
-   no cuenta como la última.
+   no cuenta como la última. La central ve nuestro número de Anura, no el del que llama (Anura exige un número
+   propio como caller ID).
+   - **Conectar al atender** es para destinos que siempre atienden (una central con IVR, que el detector de
+     contestador marcaría `machine`): sin el 1 no hay detección de contestador y el buzón de un celular queda
+     conectado con el que llama. La siguiente persona y el respaldo corren solo si el teléfono no atiende, da
+     ocupado o falla. Minutos como siempre: el tramo cuenta desde que atiende.
+   - Los dígitos que marca el que llama llegan a la persona conectada (LiveKit los pasa entre los participantes
+     SIP; medido en `make e2e-sip`): sirve para el IVR de una central, y un `*` también llega (ver Reglas y trampas).
 4. Nadie atiende (`team_no_answer`) o fuera de horario (`after_hours`): evento `team.fallback` y el respaldo:
    - `agent`: `direct_calls.fallback_to_agent` pasa la conversación al agente del número (`answered_by=agent`) y el
      worker arranca la sesión en la misma room; con el agente archivado, toma el mensaje.
@@ -267,7 +283,7 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
   teclado DTMF (`publishDtmf`), transcripción en vivo, Atender/Rechazar. El panel sale de la room en `pagehide`, no
   con `disconnectOnPageLeave` de LiveKit (cortaba en `beforeunload` cancelado y en `freeze` del celular).
-- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero, timbre, horario y respaldo.
+- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero (**En su teléfono**: sirve un fijo), los switches **Conectar al atender** y **Música mientras suena** (siempre visibles en modo equipo; la fila muestra "· conecta al atender" y "· sin música"), timbre, horario y respaldo.
   **Mi cuenta:** "Avisar que la llamada se graba" para las directas. **Tus clientes:** Llamar (directa) junto a
   Llamar con un agente. Ver [GUIA_UI.md](../GUIA_UI.md).
 
@@ -291,7 +307,8 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 - **DTMF `*` en Anura:** marcar `*9` hace que Anura corte la otra llamada activa de la cuenta (~0,3 s, 4 de 4) y a
   veces el `*` no llega. Los códigos para personas van con `#` o un dígito solo (`#9` y `1` probados); nunca `*`.
-  Un cliente final que marca `*` + dígito durante una derivación podría cortar el tramo de la persona.
+  Un cliente final que marca `*` + dígito durante una derivación o una entrante al equipo podría cortar el tramo de
+  la persona: LiveKit pasa los dígitos de un participante SIP al otro y la plataforma no los puede filtrar.
 - **Canales de Anura: 10** (`ANURA_CHANNELS`). `quota.busy_channels` cuenta las llamadas activas `entrante`,
   `saliente` y `directa` más los tramos de `handoff_legs` abiertos. Una derivada ocupa 2; una saliente directa, 1;
   una entrante al equipo, 2 si atiende en el celular y 1 en el panel. Con ~5 derivaciones a la vez no quedan
@@ -341,13 +358,14 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 - Tests (LLM y teléfono falsos): `tests/test_handoff.py`, `test_handoff_transfer.py`, `test_direct_calls.py`,
   `test_direct_voice.py`, `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
-  `test_voice_wiring.py` y `test_migration_0023/0024/0039.py`, en `make test`. La 0050 (`strategy` del número)
-  solo agrega columnas; `make migrate-test` la sube y la baja.
+  `test_voice_wiring.py` y `test_migration_0023/0024/0039.py`, en `make test`. La 0050 (`strategy` del número) y la 0051
+  (`team_connect_on_answer`, `team_hold_music`) solo agregan columnas, y `test_migration_0051.py` prueba su ida y vuelta; `make migrate-test` la sube y la baja.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y
   corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1) y `direct.py` (saliente contra un eco
-  del Anura falso y entrante al equipo por celular). El timbre en el panel está solo en los tests con LiveKit falso.
+  del Anura falso, entrante al equipo por celular y conectar al atender: una central falsa que lee un dígito y lo
+  devuelve, para ver que llega el 1 del que llama). El timbre en el panel está solo en los tests con LiveKit falso.
 - Desplegar un cambio: `make migrate-test` si hay migración, `make migrate`, `make calls-active && make up-agent`
   (recrea `app` y `agent`; la imagen de `app` compila `web/`).
 - App `telefono.`: `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado), ruta
@@ -359,6 +377,9 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 ## Pendientes
 
+- **Conectar al atender con la central real** (La Estrella): que su desvío presente nuestro número (guarda
+  `team_loop`), si responde con IVR en early media sin atender (daría `handoff.no_answer` y respaldo) y que su IVR
+  reciba los dígitos por Anura.
 - **Llamada real con dos celulares propios**, revisando cada caso en Conversaciones:
   - saliente directa: atiende, no atiende, ocupado, inválido, corta cada lado, recarga y Volver a entrar, cerrar la
     pestaña, sin minutos, sin canales, baja con y sin confirmar, bloqueado, con y sin aviso;

@@ -494,8 +494,8 @@ async def entrypoint(ctx: JobContext):
             ctx.shutdown(reason=e.code)
             return
         except Forbidden as e:
-            # Numero bloqueado por el cliente (blocked_numbers): se corta sin atender.
-            logger.info("entrante a %s de un numero bloqueado: se corta", dialed)
+            # Numero bloqueado por el cliente (blocked_numbers) o bucle del equipo (team_loop): se corta sin atender.
+            logger.info("entrante a %s rechazada (%s): se corta", dialed, e.code)
             await ctx.delete_room()
             ctx.shutdown(reason=e.code)
             return

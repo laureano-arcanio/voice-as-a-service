@@ -10,23 +10,29 @@ export type TeamFallback = 'agent' | 'voicemail' | 'hangup';
 export type Strategy = NonNullable<PhoneNumberUpdate['strategy']>;
 
 export const RING_FIRST_OPTIONS: { value: RingFirst; label: string }[] = [
-  { value: 'phone', label: 'En su celular' },
+  { value: 'phone', label: 'En su teléfono' },
   { value: 'panel', label: 'En el panel' },
 ];
 
 export const RING_FIRST_HELP: Record<RingFirst, string> = {
   phone:
-    'Llama al celular de cada persona, en orden. Si ninguna atiende, suena en el panel a las que estén Disponibles.',
+    'Llama al teléfono de cada persona, en orden. Si ninguna atiende, suena en el panel a las que estén Disponibles.',
   panel:
-    'Suena en el panel a las personas Disponibles, a todas a la vez. Si nadie atiende, llama a sus celulares en orden.',
+    'Suena en el panel a las personas Disponibles, a todas a la vez. Si nadie atiende, llama a sus teléfonos en orden.',
 };
 
-/** Ayuda de En orden / Rotativa en un número: el panel suena a todas a la vez, solo el celular rota. */
+/** Ayuda de En orden / Rotativa en un número: el panel suena a todas a la vez, solo el teléfono rota. */
 export const STRATEGY_HELP: Record<Strategy, string> = {
   sequential: 'Siempre empieza por la primera persona de la lista y sigue en orden.',
   round_robin:
-    'En los celulares, empieza por la siguiente a la última que atendió (marcó 1), para repartirlas. En el panel suena a todas a la vez y no rota.',
+    'En los teléfonos, empieza por la siguiente a la última que atendió (marcó 1), para repartirlas. En el panel suena a todas a la vez y no rota.',
 };
+
+/** ayuda de los switches de la espera: conectar al atender y música (docs/features/EQUIPO_TELEFONIA.md). */
+export const CONNECT_ON_ANSWER_HELP =
+  'Para una central telefónica: la llamada se conecta apenas atienden, sin mensaje ni tecla. No reconoce contestadores.';
+export const CONNECT_ON_ANSWER_PANEL_HELP = 'Vale para los teléfonos; el panel se atiende con un clic.';
+export const HOLD_MUSIC_HELP = 'Apagado, quien llama espera en silencio hasta que atiendan.';
 
 export const FALLBACK_OPTIONS: { value: TeamFallback; label: string }[] = [
   { value: 'agent', label: 'Pasa al agente' },
@@ -51,6 +57,8 @@ export interface AnsweringDraft {
   strategy: Strategy;
   ring_first: RingFirst;
   ring_seconds: number | string;
+  team_connect_on_answer: boolean;
+  team_hold_music: boolean;
   schedule: ScheduleDraft;
   team_fallback: TeamFallback;
   team_fallback_message: string;
@@ -65,6 +73,8 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     strategy: n.strategy,
     ring_first: n.ring_first,
     ring_seconds: n.ring_seconds,
+    team_connect_on_answer: n.team_connect_on_answer,
+    team_hold_music: n.team_hold_music,
     schedule: toDraft(n.schedule),
     team_fallback: n.team_fallback,
     team_fallback_message: n.team_fallback_message,
@@ -88,6 +98,8 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     strategy: v.strategy,
     ring_first: v.ring_first,
     ring_seconds: Number(v.ring_seconds),
+    team_connect_on_answer: v.team_connect_on_answer,
+    team_hold_music: v.team_hold_music,
     schedule: toSchedule(v.schedule),
     team_fallback: v.team_fallback,
     team_fallback_message: v.team_fallback_message.trim(),

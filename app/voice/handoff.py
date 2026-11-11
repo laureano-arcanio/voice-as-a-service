@@ -422,8 +422,9 @@ class Transfer:
             member = s.get(TeamMember, member_id) if member_id else None
             return member.name if member else ""
 
-    async def run_team(self, team: TeamRing, members: list[TeamMember], whisper: str, values: dict) -> Outcome:
+    async def run_team(self, team: TeamRing, members: list[TeamMember], whisper: str | None, values: dict) -> Outcome:
         """Entrante directa: las personas en sus celulares, en orden, con el whisper `whisper` y el 1 para atender.
+        Con whisper None (conectar al atender), se conecta apenas atiende: sin whisper, sin contestador ni 1.
         La musica de espera y lo que pasa si nadie atiende los maneja app/voice/direct.py; al conectar se corta la
         musica. Conectada, termina cuando corta alguno (no hay agente al que volver)."""
         with self.sessions() as s:
@@ -488,6 +489,10 @@ class Transfer:
             return res.result, leg_id, identity
         self._update_leg(leg_id, answered_at=utcnow())
         self._event("handoff.answered", **ids, actor="person")
+        if texts["whisper"] is None:
+            # Conectar al atender (run_team): atendido es la senal SIP; se transcribe desde ya.
+            await self.line.listen(identity)
+            return "confirmed", leg_id, identity
         try:
             result = await self._confirm(identity, texts, values | {"persona": member.name}, summary)
         except CustomerGone:
@@ -563,7 +568,8 @@ class Transfer:
                          texts: dict, values: dict) -> str:
         """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino."""
         ids = {"area_id": area.id, "member_id": member.id}
-        self._event("handoff.confirmed", **ids, actor="person")
+        auto = texts["whisper"] is None     # conectar al atender: nadie marco 1
+        self._event("handoff.confirmed", **ids, actor="person", **({"auto": True} if auto else {}))
         await self.line.connect(identity)
         self._update_leg(leg_id, result="connected", connected_at=utcnow())
         if area.id is not None:

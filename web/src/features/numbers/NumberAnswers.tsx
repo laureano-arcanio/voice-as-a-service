@@ -100,6 +100,8 @@ function TeamSummary({ number: n }: { number: PhoneNumber }) {
       <Text size="xs" c="dimmed">
         Suena primero {first}
         {n.strategy === 'round_robin' ? ' · rotativa' : ''}
+        {n.team_connect_on_answer ? ' · conecta al atender' : ''}
+        {n.team_hold_music ? '' : ' · sin música'}
         {n.schedule ? ' · con horario' : ''}
       </Text>
     </Stack>

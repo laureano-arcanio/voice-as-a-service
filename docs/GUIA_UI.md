@@ -258,19 +258,33 @@ agente**.
    - **El equipo** (planes con llamadas directas; en el Free queda deshabilitado y se explica por qué): atienden
      personas, sin agente, y la llamada se graba. Se configura acá mismo:
      - **Personas:** las de Tu equipo, en el orden en que suenan (**Agregar persona al número**, **Quitar del
-       número**); al menos una. Cada una muestra por dónde le puede sonar: su celular, "Solo en el panel"
-       (tiene usuario del panel pero no celular), "Solo en el celular" o "No le puede sonar".
+       número**); al menos una. Cada una muestra por dónde le puede sonar: su teléfono, "Solo en el panel"
+       (tiene usuario del panel pero no teléfono), "Solo en el teléfono" o "No le puede sonar".
      - **A quién se llama primero:** **En orden** (siempre empieza por la primera persona de la lista) o
-       **Rotativa** (en los celulares empieza por la siguiente a la última que atendió, es decir, marcó 1; el panel
+       **Rotativa** (en los teléfonos empieza por la siguiente a la última que atendió, es decir, marcó 1; el panel
        suena a todas a la vez y no rota). La fila lo muestra como "· rotativa".
-     - **Suena primero:** **En su celular** (llama al celular de cada persona, en orden, y si ninguna atiende suena en
+     - **Suena primero:** **En su teléfono** (llama al teléfono de cada persona, en orden, y si ninguna atiende suena en
        el panel a las que están Disponibles) o **En el panel** (suena a todas las Disponibles a la vez y, si nadie
-       atiende, llama a los celulares en orden).
+       atiende, llama a los teléfonos en orden). Sirve un celular o un fijo; un interno de una central no se puede marcar.
+     - **Conectar al atender** (apagado por defecto): en los teléfonos, la llamada se conecta apenas atienden, sin mensaje
+       ni tecla, y no reconoce contestadores (un buzón o el IVR de una central queda conectado con quien llama). Es para
+       destinos que siempre atienden, como una central. En el panel atender es un clic y no cambia. La fila lo muestra
+       como "· conecta al atender".
+     - **Música mientras suena** (prendido por defecto): apagado, quien llama espera en silencio hasta que atiendan. La
+       fila lo muestra como "· sin música".
      - **Timbre por persona:** de 5 a 60 s (20 por defecto) antes de pasar a la siguiente.
      - **Horario (opcional):** por día, igual que en las áreas de Tu equipo.
      - **Si nadie atiende o es fuera de horario:** **Pasa al agente** (el **Agente de respaldo**, que arranca
        sabiendo que nadie del equipo contestó), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
        mensaje y corta**; en estos dos, el **Mensaje** es opcional (vacío usa el de siempre).
+   - **Pasar todas las llamadas a una central telefónica** (sin whisper ni "marcá 1", grabada y transcripta): el plan
+     con llamadas directas y minutos salientes y las condiciones aceptadas; en Mi cuenta, **Avisar que la llamada se
+     graba** apagado; en Tu equipo, una persona "Central" con el teléfono de la central, sin usuario del panel ni
+     WhatsApp; en el número, **El equipo** con esa persona, **Suena primero En su teléfono**, timbre de 20 a 30 s,
+     **Conectar al atender** prendido, **Música mientras suena** a gusto, sin horario y respaldo **Deja un mensaje y
+     graba lo que dice quien llama** con el mensaje que quieras. Las líneas de la central se desvían a este número;
+     la línea que marcamos no puede desviarse de vuelta (la entrante de ese número se rechaza). Ver
+     [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md).
    - Con el equipo elegido y el cliente sin las condiciones nuevas aceptadas (ver Problemas frecuentes), la
      entrante va al agente del número.
 4. **Liberar:** devuelve el número al inventario, sin cliente ni agente, y sus entrantes dejan de
@@ -460,7 +474,7 @@ está siendo grabada." es opcional (**Cuenta > Números**). Entrando como el cli
 - Una entrante muestra "Llamada entrante", el número o contacto, la línea a la que llaman y un timbre. **Atender**
   te pasa a la llamada; **Rechazar** la saca solo de tu pantalla. Si la atiende otra persona primero, el aviso
   es "La atendió otra persona".
-- Si el número suena primero en el celular, la persona atiende ahí ("marcá 1 para atender") y no hace falta el panel.
+- Si el número suena primero en el teléfono, la persona atiende ahí ("marcá 1 para atender") y no hace falta el panel.
 - En el celular se puede usar el panel como teléfono con la pestaña abierta y la pantalla encendida: con la
   pantalla bloqueada el navegador puede cortar el micrófono. Para recibir llamadas con el celular apagado o la
   app cerrada, cargá el celular de la persona en Tu equipo.
@@ -516,6 +530,7 @@ Motivos de fin frecuentes (`ended_reason`):
 | `off_topic` | El agente cortó porque la llamada no tenía que ver con su objetivo (broma, burla, acoso, número equivocado). Resultado "Fuera de tema". |
 | `hangup_by_user` | La cortó alguien desde el panel (**Cortar llamada**) o la API. |
 | `blocked_number` | Rechazada sin atender: el número que llama está bloqueado. |
+| `team_loop` | Rechazada sin atender: a un número que atiende el equipo llamó otro número del mismo cliente (un teléfono del equipo desviado de vuelta a la línea). |
 | `customer_hangup` | Cortó el destinatario. |
 | `quota_exhausted` | Se acabaron los minutos del mes durante la llamada. |
 | `concurrency_limit` | Rechazada: el cliente estaba al tope de llamadas simultáneas. |
@@ -869,6 +884,6 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | "Falta aceptar las condiciones nuevas" (`terms_pending`) | Las llamadas directas exigen la versión vigente de las condiciones y la política de privacidad, y el cliente todavía no la aceptó. Un usuario del cliente (no el admin en soporte) las acepta en el aviso **Condiciones del servicio** al entrar al panel. Mientras tanto no se llama, no se atiende y no se puede poner un número en el equipo; las entrantes de un número del equipo van a su agente. |
 | "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos salientes. |
 | "No tenés un número para llamar" | El cliente no tiene números asignados: los asigna el admin (Números). |
-| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su celular** primero, suena en el celular y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
+| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su teléfono** primero, suena en el teléfono y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
 | Una entrante del equipo cae al agente, al mensaje o se corta | Nadie atendió o es fuera de horario (`team_no_answer`, `after_hours`): se aplica **Si nadie atiende o es fuera de horario** del número. También si el número está en el equipo pero sin personas activas con celular o usuario del panel. |
 | Se escucha el eco de la propia voz en una llamada del equipo | Usá auriculares. |

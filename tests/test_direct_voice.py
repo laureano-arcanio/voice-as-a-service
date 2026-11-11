@@ -571,6 +571,150 @@ def test_team_phone_connected_is_cut_by_duration_and_minutes(api, admin, monkeyp
     assert asyncio.run(team.run()) == "answered" and team.reason == "quota_exhausted"
 
 
+class WatchedLine(TeamLine):
+    """TeamLine que anota si se busco el contestador (first_words)."""
+
+    async def first_words(self, identity, seconds):
+        self.log.append(("first_words", identity))
+        return await super().first_words(identity, seconds)
+
+
+def team_events(api, cid):
+    with api.sessions() as s:
+        return [(e.type, e.data) for e in s.query(Event).filter(Event.conversation_id == cid,
+                                                                Event.type.not_like("call.%")).order_by(Event.id)]
+
+
+def test_team_connect_on_answer_skips_the_whisper_and_the_1(api, admin, monkeypatch, tmp_path):
+    # Conectar al atender: Juan da ocupado, Pedro atiende y no marca nada (una central): queda conectado sin whisper
+    # ni busqueda de contestador, con lo que habla cada uno grabado y Pedro como el ultimo que atendio.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None),
+                               ("Pedro", "3512222222", None), team_connect_on_answer=True)
+    cid = inbound.conversation_id
+    assert inbound.team.connect_on_answer is True and inbound.team.hold_music is True
+    line = WatchedLine({"+5493511111111": "busy", "+5493512222222": "silent"},
+                       on_listen=[("text", "persona-2", "La Estrella, buenos días", PCM),
+                                  ("text", CUSTOMER, "Hola, quiero un remis", PCM), ("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "customer_hangup"
+    assert not [x for x in line.log if x[0] in ("whisper", "first_words")]
+    assert [x for x in line.log if x[0] in ("hold", "dial", "connect")] == [
+        ("hold", True), ("dial", "+5493511111111"), ("dial", "+5493512222222"), ("hold", False),
+        ("connect", "persona-2"), ("hold", False)]
+    assert [(r, t, p) for r, t, p, _ in messages(api, cid)] == [("assistant", "La Estrella, buenos días", "Pedro"),
+                                                               ("user", "Hola, quiero un remis", None)]
+    with api.sessions() as s:
+        legs = s.query(HandoffLeg).order_by(HandoffLeg.created_at).all()
+        assert [leg.result for leg in legs] == ["busy", "connected"]
+        assert legs[1].answered_at is not None and legs[1].connected_at is not None
+        assert s.get(PhoneNumber, inbound.team.number_id).last_member_id == legs[1].team_member_id
+    confirmed = [d for t, d in team_events(api, cid) if t == "handoff.confirmed"]
+    assert len(confirmed) == 1 and confirmed[0]["auto"] is True
+    assert team_outcome(admin, cid) == {"answered": True, "person": "Pedro", "fallback": None}
+
+
+def test_team_connect_on_answer_connects_a_voicemail_and_falls_back_without_answer(api, admin, monkeypatch,
+                                                                                   tmp_path):
+    # Sin el 1 no hay deteccion de contestador: el buzon de un celular queda conectado (la opcion es para destinos
+    # que siempre atienden). Si no atiende nadie, el respaldo de siempre.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None),
+                               team_connect_on_answer=True)
+    line = WatchedLine({"+5493512222222": "machine"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert not [x for x in line.log if x[0] in ("whisper", "first_words")]
+
+    inbound = next_inbound(api)
+    line = WatchedLine({"+5493512222222": "no_answer"}, on_listen=[("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "voicemail" and team.reason == "team_no_answer"
+    assert ("say", direct.FALLBACK_MESSAGES["voicemail"]) in line.log
+    assert team_outcome(admin, inbound.conversation_id) == {"answered": False, "person": None, "fallback": "voicemail"}
+
+
+def test_team_without_hold_music_is_silent(api, admin, monkeypatch, tmp_path):
+    # Sin musica: la linea nunca recibe hold(True), ni por telefono ni por panel, y el respaldo dice su mensaje igual.
+    c, inbound, users = team_setup(api, admin, monkeypatch, tmp_path, ("Ana", None, "ana"),
+                                   ("Pedro", "3512222222", None), team_hold_music=False)
+    assert inbound.team.hold_music is False
+    line = TeamLine({"+5493512222222": "confirm"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    whisper = ("whisper", "Llamada a la línea de +5493513962553. Marcá 1 para atender.")
+    assert ("hold", True) not in line.log and whisper in line.log
+    assert not [t for t, _ in team_events(api, inbound.conversation_id) if t.startswith("hold.")]
+
+    # Por el panel (Ana Disponible) y despues el respaldo: sin musica en ningun momento.
+    ana, ana_id = users["ana"]
+    ana.put(f"{V1}/me/presence", json={"available": True})
+    inbound = next_inbound(api)
+    cid = inbound.conversation_id
+    line = TeamLine({"+5493512222222": "no_answer"}, on_listen=[("left", f"user-{ana_id}")])
+    team = team_call(api, c, inbound, line)
+
+    async def run():
+        async def ana_answers():
+            while not ana.get(f"{V1}/me/ringing").json():
+                await asyncio.sleep(0.05)
+            await asyncio.to_thread(ana.post, f"{V1}/direct-calls/{cid}/answer")
+            line.events.put_nowait(("joined", f"user-{ana_id}"))
+        helper = asyncio.create_task(ana_answers())
+        result = await team.run()
+        await helper
+        return result
+
+    assert asyncio.run(run()) == "answered" and ("hold", True) not in line.log
+
+    ana.put(f"{V1}/me/presence", json={"available": False})
+    inbound = next_inbound(api)
+    line = TeamLine({"+5493512222222": "no_answer"}, on_listen=[("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "voicemail" and ("hold", True) not in line.log
+    assert ("say", direct.FALLBACK_MESSAGES["voicemail"]) in line.log
+
+
+def test_team_without_music_and_connect_on_answer(api, admin, monkeypatch, tmp_path):
+    # Las dos opciones a la vez: ni musica ni whisper; el pasajero corta mientras suena y el tramo queda cerrado.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None),
+                               team_connect_on_answer=True, team_hold_music=False)
+    line = WatchedLine({"+5493512222222": "silent"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert not [x for x in line.log if x[0] in ("whisper", "first_words") or x == ("hold", True)]
+
+    class GoneWhileRinging(WatchedLine):
+        async def dial(self, identity, phone, ring_seconds):
+            self.log.append(("dial", phone))
+            self.events.put_nowait(("left", CUSTOMER))
+            await asyncio.sleep(5)
+
+    inbound = next_inbound(api)
+    line = GoneWhileRinging({})
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "customer_hung_up"
+    with api.sessions() as s:
+        leg = s.query(HandoffLeg).filter_by(conversation_id=inbound.conversation_id).one()
+        assert leg.result == "failed" and leg.ended_at is not None and leg.answered_at is None
+
+
+def test_team_connect_on_answer_two_calls_at_once(api, admin, monkeypatch, tmp_path):
+    # Dos entrantes a la vez al mismo numero con una sola central: cada una con su tramo conectado.
+    c, first, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Central", "3512222222", None),
+                             team_connect_on_answer=True)
+    second = next_inbound(api)
+    lines = [WatchedLine({"+5493512222222": "silent"}, connected=[("left", "PERSON")]) for _ in range(2)]
+    teams = [team_call(api, c, inbound, line) for inbound, line in zip((first, second), lines)]
+
+    async def both():
+        return await asyncio.gather(*(t.run() for t in teams))
+
+    assert asyncio.run(both()) == ["answered", "answered"]
+    with api.sessions() as s:
+        for inbound in (first, second):
+            leg = s.query(HandoffLeg).filter_by(conversation_id=inbound.conversation_id).one()
+            assert leg.result == "connected" and leg.ended_at is not None
+
+
 def next_inbound(api):
     """Otra entrante al mismo numero (lee la estrategia y la ultima que atendio)."""
     with api.sessions() as s:

@@ -596,7 +596,10 @@ _WRITE: tuple[Tool, ...] = (
          "orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` "
          "de timbre por persona, `schedule` (horario; "
          "null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; "
-         "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`.",
+         "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`. `team_connect_on_answer` (por defecto false): "
+         "en los teléfonos conecta apenas atienden, sin mensaje ni tecla y sin detectar contestadores (para destinos "
+         "que siempre atienden, como una central). `team_hold_music` (por defecto true): música mientras suena; "
+         "false, silencio.",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},
          required=("number_id",), body="PhoneNumberUpdate"),
     Tool("block_number", "calls", "Bloquear un número",

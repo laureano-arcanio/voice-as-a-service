@@ -513,6 +513,37 @@ def test_phone_number_strategy(api, admin):
         assert s.get(PhoneNumber, n["id"]).last_member_id is None
 
 
+def test_phone_number_connect_on_answer_and_music(api, admin):
+    c, n, ana, _ = setup(api, admin)
+    ids = [member(admin, c["id"], name="A", phone="3510000001")["id"]]
+    url = f"{V1}/phone-numbers/{n['id']}"
+    # Un numero recien asignado: con aviso y tecla, y con musica (como siempre).
+    assert n["team_connect_on_answer"] is False and n["team_hold_music"] is True
+    for body in ({"team_connect_on_answer": None}, {"team_hold_music": None}, {"team_hold_music": "quizas"}):
+        assert ana.patch(url, json=body).status_code == 422, body
+    r = ana.patch(url, json={"answer_mode": "team", "member_ids": ids, "team_connect_on_answer": True,
+                             "team_hold_music": False})
+    assert r.status_code == 200, r.text
+    assert r.json()["team_connect_on_answer"] is True and r.json()["team_hold_music"] is False
+    got = ana.get(f"{V1}/phone-numbers").json()[0]
+    assert got["team_connect_on_answer"] is True and got["team_hold_music"] is False
+    with api.sessions() as s:
+        row = s.get(PhoneNumber, n["id"])
+        assert (row.team_connect_on_answer, row.team_hold_music) == (True, False)
+    # Cada uno se apaga y prende solo; el otro no cambia.
+    out = ana.patch(url, json={"team_connect_on_answer": False}).json()
+    assert out["team_connect_on_answer"] is False and out["team_hold_music"] is False
+    out = ana.patch(url, json={"team_hold_music": True}).json()
+    assert out["team_connect_on_answer"] is False and out["team_hold_music"] is True
+    ana.patch(url, json={"team_connect_on_answer": True, "team_hold_music": False})
+    # Otro cliente no lo cambia.
+    other = client_user(api, admin, make_client(admin, slug="otro"), email="otro@otro.com")
+    assert other.patch(url, json={"team_connect_on_answer": False}).status_code == 404
+    # Liberar y volver a asignar: los defaults.
+    out = admin.post(f"{url}/release").json()
+    assert out["team_connect_on_answer"] is False and out["team_hold_music"] is True
+
+
 # ---------- entrantes: equipo o agente ----------
 
 def test_inbound_to_team_agent_or_fallback(api, admin):
@@ -570,6 +601,36 @@ def test_inbound_to_team_keeps_blocked_and_quota(api, admin):
     rejected = admin.get(f"{V1}/calls", params={"status": "rechazada"}).json()["items"]
     assert sorted(r["ended_reason"] for r in rejected) == ["blocked_number", "concurrency_limit"]
     assert {r["answered_by"] for r in rejected} == {"team"}
+
+
+def test_inbound_to_team_from_an_own_number_is_a_loop(api, admin):
+    # Un telefono del equipo (una central) desviado a un numero del cliente: la entrante que vuelve se corta
+    # (rechazada / team_loop) en vez de volver a marcar hasta agotar los canales de la plataforma.
+    from app.services.errors import Forbidden
+
+    c, n, _, ana_id = setup(api, admin, whatsapp=True)
+    agent = make_agent(admin, c)
+    ana = member(admin, c["id"], name="Ana", user_id=ana_id)
+    url = f"{V1}/phone-numbers/{n['id']}"
+    admin.patch(url, json={"answer_mode": "team", "member_ids": [ana["id"]], "agent_id": agent["id"]})
+    # Otro numero del mismo cliente (fijo de 10 digitos: se guarda +549...).
+    own = admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+5493514000000"}).json()
+    other = make_client(admin, slug="otro")
+    admin.post(f"{V1}/phone-numbers", json={"client_id": other["id"], "e164": "+5493515000000"})
+    for caller in (DID, own["e164"], "+543514000000"):      # el fijo puede llegar sin el 9
+        with api.sessions() as s, pytest.raises(Forbidden) as e:
+            call_service.start_inbound(s, api.engine, DID, caller)
+        assert e.value.code == "team_loop"
+    rejected = admin.get(f"{V1}/calls", params={"status": "rechazada"}).json()["items"]
+    assert [r["ended_reason"] for r in rejected] == ["team_loop"] * 3
+    # Un numero de otro cliente, un numero cualquiera o WhatsApp (wa_id): al equipo.
+    for caller, wa_id in (("+5493515000000", None), ("+5493516775617", None), (DID, "5491152630861")):
+        with api.sessions() as s:
+            assert call_service.start_inbound(s, api.engine, DID, caller, wa_id=wa_id).team is not None
+    # answer_mode=agent: el mismo numero va al agente (la guarda es solo del equipo).
+    admin.patch(url, json={"answer_mode": "agent"})
+    with api.sessions() as s:
+        assert call_service.start_inbound(s, api.engine, DID, own["e164"]).team is None
 
 
 def test_tier_direct_calls_flag_and_plan_features(api, admin):

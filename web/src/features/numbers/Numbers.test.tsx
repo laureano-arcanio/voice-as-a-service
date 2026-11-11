@@ -30,6 +30,8 @@ const base = {
   strategy: 'sequential',
   ring_first: 'phone',
   ring_seconds: 20,
+  team_connect_on_answer: false,
+  team_hold_music: true,
   schedule: null,
   team_fallback: 'voicemail',
   team_fallback_message: '',
@@ -180,7 +182,7 @@ describe('números: quién atiende', () => {
     const plain = await screen.findByRole('row', { name: /\+541155550001/ });
     expect(within(plain).getByText('Suena primero en el panel')).toBeInTheDocument();
     const rotating = screen.getByRole('row', { name: /\+541155550007/ });
-    expect(within(rotating).getByText(/Suena primero en su celular · rotativa/)).toBeInTheDocument();
+    expect(within(rotating).getByText(/Suena primero en su teléfono · rotativa/)).toBeInTheDocument();
   });
 
   it('pasa un número sin personas al equipo: personas en orden, panel primero, timbre y respaldo al agente', async () => {
@@ -201,7 +203,7 @@ describe('números: quién atiende', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Luis Gómez', hidden: true }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Subir a Luis Gómez' }));
     expect(within(dialog).getByText('Solo en el panel')).toBeInTheDocument();
-    expect(within(dialog).getByText('Solo en el celular')).toBeInTheDocument();
+    expect(within(dialog).getByText('Solo en el teléfono')).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByText('En el panel'));
     expect(within(dialog).getByText(/Siempre empieza por la primera persona/)).toBeInTheDocument();
@@ -231,10 +233,49 @@ describe('números: quién atiende', () => {
       strategy: 'round_robin',
       ring_first: 'panel',
       ring_seconds: 30,
+      team_connect_on_answer: false,
+      team_hold_music: true,
       schedule: null,
       team_fallback: 'agent',
       team_fallback_message: '',
     });
+  });
+
+  it('los switches de la espera cargan lo guardado, se guardan y la fila los muestra', async () => {
+    const custom = { ...TEAM_NUMBER, team_connect_on_answer: true, team_hold_music: false } as PhoneNumber;
+    const calls = mockApi([TEAM_NUMBER, { ...custom, id: 'n8', e164: '+541155550008' } as PhoneNumber], {
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse(custom),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+
+    const plain = await screen.findByRole('row', { name: /\+541155550001/ });
+    expect(within(plain).queryByText(/conecta al atender/)).not.toBeInTheDocument();
+    expect(within(plain).queryByText(/sin música/)).not.toBeInTheDocument();
+    const marked = screen.getByRole('row', { name: /\+541155550008/ });
+    expect(
+      within(marked).getByText('Suena primero en el panel · conecta al atender · sin música'),
+    ).toBeInTheDocument();
+
+    const dialog = await openEdit('+541155550001');
+    const connect = within(dialog).getByRole('switch', { name: /Conectar al atender/ });
+    const music = within(dialog).getByRole('switch', { name: /Música mientras suena/ });
+    expect(connect).not.toBeChecked();
+    expect(music).toBeChecked();
+    expect(within(dialog).getByText(/Vale para los teléfonos/)).toBeInTheDocument();
+    await userEvent.click(connect);
+    await userEvent.click(music);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
+    expect(patched(calls, 'n1')).toMatchObject({ team_connect_on_answer: true, team_hold_music: false });
+  });
+
+  it('el modal abre con los switches de un número que ya los tiene cambiados', async () => {
+    const custom = { ...TEAM_NUMBER, team_connect_on_answer: true, team_hold_music: false } as PhoneNumber;
+    mockApi([custom]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit('+541155550001');
+    expect(within(dialog).getByRole('switch', { name: /Conectar al atender/ })).toBeChecked();
+    expect(within(dialog).getByRole('switch', { name: /Música mientras suena/ })).not.toBeChecked();
   });
 
   it('horario opcional y mensaje de respaldo', async () => {
@@ -375,6 +416,8 @@ describe('números: formulario y errores', () => {
       strategy: 'sequential',
       ring_first: 'panel',
       ring_seconds: 20,
+      team_connect_on_answer: false,
+      team_hold_music: true,
       schedule: null,
       team_fallback: 'voicemail',
       team_fallback_message: 'hola',

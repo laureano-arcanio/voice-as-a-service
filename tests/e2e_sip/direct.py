@@ -10,6 +10,8 @@ mensajes con su WAV). Casos:
    lados con su WAV y, al salir el usuario, la llamada queda finalizada.
 2. Entrante al equipo por celular: con un "cliente" ya en la room, suenan las personas del numero en orden (la
    primera da ocupado, la segunda atiende y marca 1), quedan conectadas y termina cuando corta la persona.
+3. Entrante al equipo, conectar al atender: una central que atiende y no marca nada queda conectada sin whisper; el
+   pasajero marca 1 (el IVR de la central) y la central lo recibe (lo devuelve por DTMF), y termina cuando corta.
 """
 import asyncio
 import contextlib
@@ -51,6 +53,8 @@ from livekit import api, rtc
 TTS_RATE = 24000
 ECHO = "+5493510000008"           # atiende y devuelve lo que escucha
 CUSTOMER_PHONE = "+5493519999999"  # cualquier otro numero: atiende y habla
+DTMF_CUSTOMER = "+5493519000001"   # atiende, marca 1 y habla
+CENTRAL = "+5493510000009"         # atiende sola, lee un digito y lo devuelve
 
 
 def tone(seconds: float, rate: int, hz: int = 440) -> bytes:
@@ -270,6 +274,62 @@ async def inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members
             await lk.room.delete_room(api.DeleteRoomRequest(room=name))
 
 
+async def connect_on_answer(lk, trunk_id, sessions, client_id, number_id) -> None:
+    conv, name = "d3", "e2e-direct-central"
+    new_call(sessions, client_id, conv, CallMode.entrante, DTMF_CUSTOMER, number_id)
+    with sessions() as s:
+        central = TeamMember(client_id=client_id, name="Central", phone=CENTRAL)
+        s.add(central)
+        s.commit()
+        members = [TeamPerson(member_id=central.id, name="Central", phone=CENTRAL, user_id=None)]
+    store = ConversationStore(sessions)
+    worker = await join(name, "agente")
+    dtmf: list[tuple[str, str]] = []
+    worker.on("sip_dtmf_received", lambda e: dtmf.append((e.participant.identity, e.digit)))
+    result, status, _ = await smoke.dial(lk, trunk_id, name, DTMF_CUSTOMER, "cliente", ring=8)
+    assert result == "answered", (result, status)
+    deadline = time.monotonic() + 5
+    while not any(p.identity == "cliente" and p.track_publications for p in worker.remote_participants.values()):
+        if time.monotonic() > deadline:
+            raise RuntimeError("el cliente no publico su pista")
+        await asyncio.sleep(0.1)
+    line = direct.TeamRoom(SimpleNamespace(room=worker, api=lk), fake_voice(), customer="cliente", trunk_id=trunk_id,
+                           caller_id=smoke.FROM_NUMBER, voice_name="e2e")
+    whispers: list[str] = []
+    real_whisper = line.whisper
+
+    async def whisper(identity, text):
+        whispers.append(text)
+        await real_whisper(identity, text)
+    line.whisper = whisper
+    route = TeamRoute(members=members, ring_first="phone", ring_seconds=6, schedule=None, fallback="hangup",
+                      fallback_message="", agent_id=None, number_e164=smoke.FROM_NUMBER, number_label="Remises",
+                      connect_on_answer=True)
+    team = direct.TeamCall(sessions=sessions, store=store, line=line, conversation_id=conv, client_id=client_id,
+                           route=route, customer="cliente", caller=DTMF_CUSTOMER, confirm_seconds=4)
+    t = time.monotonic()
+    try:
+        await line.start()
+        outcome = await asyncio.wait_for(team.run(), 60)
+        await asyncio.sleep(1)
+        with sessions() as s:
+            legs = [(leg.result, leg.answered_at is not None, leg.billed_seconds > 0)
+                    for leg in s.scalars(select(HandoffLeg).where(HandoffLeg.conversation_id == conv))]
+        persons = {(m.role, m.person) for m in store.get(conv).messages if m.recording}
+        from_central = [d for who, d in dtmf if who.startswith(transfer.PERSON_PREFIX)]
+        ok = outcome == "answered" and team.reason == "person_hangup" and legs == [("connected", True, True)] and \
+            not whispers and ("assistant", "Central") in persons and ("cliente", "1") in dtmf and \
+            from_central == ["1"]
+        smoke.check("directa entrante, conectar al atender: sin whisper, el 1 del pasajero llega a la central", ok,
+                    f"{outcome}/{team.reason} en {time.monotonic() - t:.1f} s; tramos {legs}; whisper {whispers}; "
+                    f"DTMF {dtmf}; mensajes con WAV {sorted(persons, key=str)}")
+    finally:
+        await line.aclose()
+        await worker.disconnect()
+        with contextlib.suppress(api.TwirpError):
+            await lk.room.delete_room(api.DeleteRoomRequest(room=name))
+
+
 async def main() -> int:
     # Los WAV, fuera del codigo montado (solo lectura).
     settings.call_recordings_dir = Path("/tmp/e2e-direct/recordings")
@@ -283,6 +343,7 @@ async def main() -> int:
     sessions, client_id, user_id, number_id, members = setup_db()
     await outbound(lk, trunk_id, sessions, client_id, user_id, number_id)
     await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members)
+    await connect_on_answer(lk, trunk_id, sessions, client_id, number_id)
     await lk.aclose()
 
     failed = [n for n, ok, _ in smoke.RESULTS if not ok]

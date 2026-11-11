@@ -355,6 +355,8 @@ const phoneNumberFields = [
   { field: "schedule", text: "Horario de atención, con el mismo formato que las áreas (tz, week y closed). null: siempre" },
   { field: "team_fallback", text: "Si nadie atiende o es fuera de horario: voicemail (un mensaje y graba lo que dice quien llama), hangup (un mensaje y corta) o agent (sigue el agente del número, que sabe que nadie del equipo atendió)" },
   { field: "team_fallback_message", text: "El mensaje que escucha quien llama en voicemail y hangup (hasta 500 caracteres)" },
+  { field: "team_connect_on_answer", text: "false (por defecto): quien atiende en su teléfono oye quién llama y marca 1. true: la llamada se conecta apenas el teléfono atiende, sin mensaje ni tecla y sin detectar contestadores. Es para destinos que siempre atienden, como una central telefónica; si es un celular, su buzón queda conectado con quien llama. No cambia el panel" },
+  { field: "team_hold_music", text: "true (por defecto): quien llama oye música mientras suena. false: silencio" },
 ];
 
 const directEndpoints = [

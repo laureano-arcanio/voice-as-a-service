@@ -47,6 +47,7 @@ export const REJECT_REASON: Record<string, string> = {
   client_inactive: 'Cliente inactivo',
   number_suspended: 'Número suspendido',
   blocked_number: 'Número bloqueado',
+  team_loop: 'Bucle de desvío',
 };
 
 export const ALERT_KIND: Record<string, { label: string; color: string }> = {

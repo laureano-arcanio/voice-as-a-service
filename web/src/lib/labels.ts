@@ -70,6 +70,7 @@ export const CALL_END_REASON: Record<string, string> = {
   max_duration: 'Duración máxima',
   quota_exhausted: 'Sin minutos',
   blocked_number: 'Número bloqueado',
+  team_loop: 'Bucle de desvío',
   external_error: 'Error del agente externo',
   external_agent_not_in_plan: 'Agente externo fuera del plan',
   worker_error: 'Error del sistema',
