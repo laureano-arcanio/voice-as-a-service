@@ -468,9 +468,13 @@ class PhoneNumberUpdate(BaseModel):
                                   "Disponibles, a la vez); si nadie atiende, en el otro")
     ring_seconds: int | None = Field(default=None, ge=5, le=60, description="Timbre por persona")
     schedule: "HandoffSchedule | None" = Field(default=None, description="Horario; null = siempre")
-    team_fallback: Literal["agent", "voicemail", "hangup"] | None = Field(
-        default=None, description="Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o "
+    team_fallback: Literal["agent", "member", "voicemail", "hangup"] | None = Field(
+        default=None, description="Si nadie atiende o fuera de horario: el agente del número, una persona "
+                                  "(team_fallback_member_id; si no atiende, mensaje y graba), mensaje y graba, o "
                                   "mensaje y corta")
+    team_fallback_member_id: str | None = Field(
+        default=None, description="Con team_fallback member: la persona del equipo (con celular, que no sea del "
+                                  "número) a la que se llama una vez")
     team_fallback_message: str | None = Field(default=None, max_length=500)
     team_connect_on_answer: bool | None = Field(
         default=None, description="Con el equipo, en los teléfonos: conecta apenas atienden, sin mensaje ni tecla; "
@@ -506,7 +510,8 @@ class PhoneNumberOut(ORM):
     ring_first: Literal["phone", "panel"]
     ring_seconds: int
     schedule: "HandoffSchedule | None" = None
-    team_fallback: Literal["agent", "voicemail", "hangup"]
+    team_fallback: Literal["agent", "member", "voicemail", "hangup"]
+    team_fallback_member_id: str | None = None
     team_fallback_message: str
     team_connect_on_answer: bool
     team_hold_music: bool
@@ -1330,9 +1335,9 @@ class FieldValue(BaseModel):
 class TeamOutcome(BaseModel):
     answered: bool | None = Field(description="Si atendió alguien del equipo; null mientras suena")
     person: str | None = Field(default=None, description="Quien atendió en su celular (en el panel, user_name)")
-    fallback: Literal["agent", "voicemail", "hangup"] | None = Field(
-        default=None, description="Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un "
-                                  "aviso); null si no se sabe (llamadas de antes)")
+    fallback: Literal["agent", "member", "voicemail", "hangup"] | None = Field(
+        default=None, description="Nadie atendió: el respaldo (pasó al agente, llamando a la persona de respaldo, "
+                                  "tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)")
 
 
 class CallInfo(BaseModel):
@@ -2461,16 +2466,16 @@ class HandoffWhatsapp(BaseModel):
     wait_seconds: int = Field(default=120, ge=30, le=3600, description="Espera por persona en la rotación")
 
 
-class HandoffAreaIn(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-    description: str = Field(default="", max_length=1000, description="Qué atiende: lo lee el agente para elegir el área")
-    active: bool = True
-    member_ids: list[str] = Field(default_factory=list, description="Personas del equipo, en el orden en que se las llama")
 NO_ANSWER_MEMBER = (
     "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. "
     "Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje")
 
 
+class HandoffAreaIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=1000, description="Qué atiende: lo lee el agente para elegir el área")
+    active: bool = True
+    member_ids: list[str] = Field(default_factory=list, description="Personas del equipo, en el orden en que se las llama")
     strategy: Literal["sequential", "round_robin"] = "sequential"
     ring_seconds: int = Field(default=20, ge=5, le=60, description="Timbre por persona (el buzón de Claro atiende a los ~33 s)")
     schedule: HandoffSchedule | None = None
@@ -2481,12 +2486,12 @@ NO_ANSWER_MEMBER = (
     messages: dict[str, str] = Field(default_factory=dict, description="Textos que cambian los de /handoff-areas/defaults")
     after_hours_area_id: str | None = Field(default=None, description="Área a la que pasa fuera de horario")
     no_answer_area_id: str | None = Field(default=None, description="Área a la que pasa si nadie acepta o no se puede llamar")
+    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     delivery: Literal["call", "whatsapp"] = Field(
         default="call", description="call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación")
     whatsapp: HandoffWhatsapp | None = None
 
 
-    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
 class HandoffAreaPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     description: str | None = Field(default=None, max_length=1000)
@@ -2501,12 +2506,12 @@ class HandoffAreaPatch(BaseModel):
     messages: dict[str, str] | None = None
     after_hours_area_id: str | None = None
     no_answer_area_id: str | None = None
+    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     delivery: Literal["call", "whatsapp"] | None = None
     whatsapp: HandoffWhatsapp | None = None
 
 
 class HandoffAreaOut(ORM):
-    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     id: str
     client_id: str
     name: str
@@ -2524,12 +2529,12 @@ class HandoffAreaOut(ORM):
     messages: dict[str, str] = Field(description="Solo los que cambian el default")
     after_hours_area_id: str | None
     no_answer_area_id: str | None
+    no_answer_member_id: str | None = Field(description=NO_ANSWER_MEMBER)
     delivery: str
     whatsapp: HandoffWhatsapp | None
     created_at: UTCDateTime
 
 
-    no_answer_member_id: str | None = Field(description=NO_ANSWER_MEMBER)
 class HoldMusicOut(BaseModel):
     """Temas de musica de espera para workflow.handoff.hold_music.track."""
     tracks: list[str]

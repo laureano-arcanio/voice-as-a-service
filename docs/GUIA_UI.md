@@ -279,7 +279,9 @@ agente**.
      - **Timbre por persona:** de 5 a 60 s (20 por defecto) antes de pasar a la siguiente.
      - **Horario (opcional):** por día, igual que en las áreas de Tu equipo.
      - **Si nadie atiende o es fuera de horario:** **Pasa al agente** (el **Agente de respaldo**, que arranca
-       sabiendo que nadie del equipo contestó), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
+       sabiendo que nadie del equipo contestó), **Llama a una persona** (la **Persona**, con teléfono, activa y que no
+       esté en el número: se la llama una vez a su teléfono, con la tecla, la música y el conectar al atender del
+       número; si no atiende, deja un mensaje y graba), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
        mensaje y corta**; en estos dos, el **Mensaje** es opcional (vacío usa el de siempre).
    - **Pasar todas las llamadas a una central telefónica** (sin whisper ni "marcá 1", grabada y transcripta): el plan
      con llamadas directas y minutos salientes y las condiciones aceptadas; en Mi cuenta, **Avisar que la llamada se

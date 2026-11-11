@@ -353,8 +353,8 @@ class Outbound:
 class TeamCall:
     """Una entrante a un numero que atiende el equipo (route: calls.TeamRoute). La linea es la de la derivacion
     (transfer.Line, con los eventos "joined" y "closed"). to_agent() pasa la conversacion al agente del numero (el
-    respaldo agent) y dice si se pudo. run() devuelve answered, agent, voicemail, hangup o customer_hung_up; reason,
-    el motivo con que termina la llamada."""
+    respaldo agent) y dice si se pudo. run() devuelve answered (tambien si atiende la persona del respaldo member),
+    agent, voicemail, hangup o customer_hung_up; reason, el motivo con que termina la llamada."""
 
     def __init__(self, *, sessions, store, line, conversation_id: str, client_id: str, route, customer: str,
                  caller: str = "", notice: bool = False, to_agent=None, confirm_seconds: int | None = None):
@@ -418,10 +418,15 @@ class TeamCall:
                   for p in self.route.members if p.phone]
         if not people:
             return None
+        return await self._ring(people, self._phone_connected, "celulares")
+
+    async def _ring(self, people: list, on_connected, what: str) -> str | None:
+        """Llama a esos celulares en orden (Transfer.run_team: whisper, el 1 y un tramo por persona). Conectada,
+        devuelve el motivo del corte; si nadie atiende, None."""
         tr = self.transfer = transfer.Transfer(
             sessions=self.sessions, line=self.line, conversation_id=self.conversation_id, client_id=self.client_id,
             areas=[], customer=self.customer, caller=self.caller, on_message=self.log.add,
-            confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=self._phone_connected,
+            confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=on_connected,
             limit=self._limit, hold_music=self.route.hold_music)
         # Conectar al atender: sin whisper ni 1 (Transfer._attempt).
         whisper = None if self.route.connect_on_answer else TEAM_WHISPER
@@ -433,7 +438,7 @@ class TeamCall:
         finally:
             self.attempts = tr.attempt
             self.transfer = None
-        logger.info("directa %s: celulares %s (%s)", self.conversation_id, outcome.status,
+        logger.info("directa %s: %s %s (%s)", self.conversation_id, what, outcome.status,
                     outcome.ended or outcome.result)
         if outcome.status != "connected":
             return None
@@ -455,6 +460,11 @@ class TeamCall:
         if member.user_id:
             _update_call(self.sessions, self.conversation_id, user_id=member.user_id)
         self._mark_last(member.id)
+
+    def _backup_connected(self, member) -> None:
+        """Atendio la persona de "si nadie atiende": a su nombre si tiene usuario, sin tocar el round robin."""
+        if member.user_id:
+            _update_call(self.sessions, self.conversation_id, user_id=member.user_id)
 
     def _mark_last(self, member_id: str) -> None:
         # Solo si el numero sigue siendo del cliente de la llamada (pudo reasignarse) y la persona existe. Un error
@@ -566,6 +576,11 @@ class TeamCall:
                 self._event("team.fallback", fallback="agent", reason=why)
                 return "agent"
             fallback = "voicemail"      # el agente del numero no esta (archivado): se toma el mensaje
+        if fallback == "member":
+            result = await self._backup(why)
+            if result is not None:
+                return result
+            fallback = "voicemail"      # no atendio, o inactiva o sin celular: se toma el mensaje
         self._event("team.fallback", fallback=fallback, reason=why)
         text = (self.route.fallback_message or "").strip() or FALLBACK_MESSAGES[fallback]
         await self.line.resume()
@@ -592,6 +607,35 @@ class TeamCall:
                 self.log.add("user", ev[2], pcm=ev[3] if len(ev) > 3 else None)
         self.end.mark()
         return "voicemail"
+
+    async def _backup(self, why: str) -> str | None:
+        """La persona de "si nadie atiende" (route.fallback_member), una vez en su telefono, como los del numero
+        (musica y conectar al atender segun el numero). answered o customer_hung_up; None si no atendio o no se la
+        puede llamar."""
+        person = self.route.fallback_member
+        if person is None or not person.phone:
+            logger.info("directa %s: la persona de respaldo no esta activa o no tiene telefono", self.conversation_id)
+            return None
+        self._event("team.fallback", fallback="member", reason=why)
+        music = self.route.hold_music
+        if music:
+            await self.line.hold(True)
+            self._event("hold.started")
+        result = "answered"
+        try:
+            ended = await self._ring([SimpleNamespace(id=person.member_id, name=person.name, phone=person.phone,
+                                                      user_id=person.user_id)], self._backup_connected, "respaldo")
+        except transfer.CustomerGone:
+            ended, result = "customer_hangup", "customer_hung_up"
+        finally:
+            if music:
+                await self.line.hold(False)
+                self._event("hold.ended")
+        if ended is None:
+            return None
+        self.end.mark()
+        self.reason = ended
+        return result
 
     def close(self) -> None:
         if self.transfer is not None:

@@ -12,7 +12,6 @@ import {
   Stack,
   Switch,
   Text,
-  Textarea,
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -23,6 +22,7 @@ import { useFeatureLock } from '@/features/billing/features';
 import { useTeam } from '@/features/team/api';
 import { STRATEGY_OPTIONS } from '@/features/team/labels';
 import { MemberPicker } from '@/features/team/MemberPicker';
+import { type NoAnswerDestination, NoAnswerField } from '@/features/team/NoAnswerField';
 import { ScheduleFields } from '@/features/team/ScheduleFields';
 import { scheduleError } from '@/features/team/schedule';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -32,8 +32,8 @@ import {
   CONNECT_ON_ANSWER_HELP,
   CONNECT_ON_ANSWER_PANEL_HELP,
   HOLD_MUSIC_HELP,
+  FALLBACK_LABELS,
   FALLBACK_MESSAGE_DEFAULTS,
-  FALLBACK_OPTIONS,
   MESSAGE_MAX,
   RING_FIRST_HELP,
   RING_FIRST_OPTIONS,
@@ -89,6 +89,8 @@ export function EditNumberModal({
         teamMode(all) && all.team_fallback === 'agent' && !v
           ? 'Elegí el agente que atiende si nadie del equipo lo hace'
           : null,
+      team_fallback_member_id: (v, all) =>
+        teamMode(all) && all.team_fallback === 'member' && !v ? 'Elegí la persona a la que se llama' : null,
       team_fallback_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
     },
   });
@@ -117,8 +119,59 @@ export function EditNumberModal({
       },
     );
 
-  const messageDefault =
-    v.team_fallback === 'hangup' ? FALLBACK_MESSAGE_DEFAULTS.hangup : FALLBACK_MESSAGE_DEFAULTS.voicemail;
+  // A quién se puede llamar si nadie atiende: con teléfono, activas y fuera del número (la guardada se conserva).
+  const personOptions = (team.data ?? [])
+    .filter(
+      (m) => m.id === v.team_fallback_member_id || (m.phone && m.active && !v.member_ids.includes(m.id)),
+    )
+    .map((m) => ({ value: m.id, label: m.phone ? `${m.name} · ${m.phone}` : m.name }));
+  const message = (kind: 'voicemail' | 'hangup'): NoAnswerDestination['detail'] => ({
+    type: 'text',
+    label: 'Mensaje',
+    description: 'Lo dice antes de cortar o de grabar. Vacío usa el de siempre.',
+    placeholder: FALLBACK_MESSAGE_DEFAULTS[kind],
+    value: v.team_fallback_message,
+    onChange: (text) => form.setFieldValue('team_fallback_message', text),
+    maxLength: MESSAGE_MAX,
+    error: form.errors.team_fallback_message,
+  });
+  const fallbackDestinations: NoAnswerDestination[] = [
+    {
+      value: 'agent',
+      label: FALLBACK_LABELS.agent,
+      detail: {
+        type: 'select',
+        label: 'Agente de respaldo',
+        description: 'Atiende con su apertura, sabiendo que nadie del equipo contestó.',
+        placeholder: 'Elegí un agente',
+        options: agentOptions,
+        value: v.agent_id || null,
+        onChange: (id) => form.setFieldValue('agent_id', id ?? ''),
+        error: form.errors.agent_id,
+      },
+    },
+    {
+      value: 'member',
+      label: FALLBACK_LABELS.member,
+      clear: () => form.setFieldValue('team_fallback_member_id', null),
+      detail: {
+        type: 'select',
+        label: 'Persona',
+        description: 'Se la llama una vez a su teléfono, como a las personas del número. Si no atiende, toma el mensaje.',
+        placeholder: 'Elegí una persona',
+        options: personOptions,
+        value: v.team_fallback_member_id,
+        onChange: (id) => {
+          form.setFieldValue('team_fallback_member_id', id);
+          form.clearFieldError('team_fallback_member_id');
+        },
+        nothingFound: 'No hay personas con teléfono fuera del número',
+        error: form.errors.team_fallback_member_id,
+      },
+    },
+    { value: 'voicemail', label: FALLBACK_LABELS.voicemail, detail: message('voicemail') },
+    { value: 'hangup', label: FALLBACK_LABELS.hangup, detail: message('hangup') },
+  ];
 
   return (
     <Modal opened onClose={onClose} title={`Editar ${number.e164}`} size="lg">
@@ -261,39 +314,14 @@ export function EditNumberModal({
                   />
 
                   <Divider label="Si nadie atiende o es fuera de horario" labelPosition="left" mt="xs" />
-                  <Select
-                    aria-label="Si nadie atiende"
-                    data={FALLBACK_OPTIONS}
-                    allowDeselect={false}
+                  <NoAnswerField
                     value={v.team_fallback}
                     onChange={(f) => {
-                      if (f === 'agent' || f === 'voicemail' || f === 'hangup')
+                      if (f === 'agent' || f === 'member' || f === 'voicemail' || f === 'hangup')
                         form.setFieldValue('team_fallback', f);
                     }}
+                    destinations={fallbackDestinations}
                   />
-                  {v.team_fallback === 'agent' ? (
-                    <Select
-                      label="Agente de respaldo"
-                      description="Atiende con su apertura, sabiendo que nadie del equipo contestó."
-                      placeholder="Elegí un agente"
-                      data={agentOptions}
-                      clearable
-                      searchable
-                      value={v.agent_id || null}
-                      onChange={(id) => form.setFieldValue('agent_id', id ?? '')}
-                      error={form.errors.agent_id}
-                    />
-                  ) : (
-                    <Textarea
-                      label="Mensaje"
-                      description="Lo dice antes de cortar o de grabar. Vacío usa el de siempre."
-                      placeholder={messageDefault}
-                      autosize
-                      minRows={2}
-                      maxLength={MESSAGE_MAX}
-                      {...form.getInputProps('team_fallback_message')}
-                    />
-                  )}
                 </>
               )}
             </>

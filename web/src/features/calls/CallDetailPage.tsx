@@ -65,6 +65,7 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 /** Respaldo de una entrante al equipo que nadie atendió (`call.team.fallback`). */
 const TEAM_FALLBACK: Record<string, string> = {
   agent: 'Pasó al agente',
+  member: 'Llamando a la persona de «Si nadie atiende»',
   voicemail: 'Tomó un mensaje',
   hangup: 'Cortó con un aviso',
 };

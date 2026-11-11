@@ -1720,7 +1720,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona\n`team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -10017,7 +10017,7 @@
      "handoff"
     ],
     "summary": "Create Area",
-    "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área\npasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`).",
+    "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área\npasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`).",
     "operationId": "create_area_api_v1_handoff_areas_post",
     "security": [
      {
@@ -10127,7 +10127,7 @@
      "handoff"
     ],
     "summary": "Update Area",
-    "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;\n`after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas.",
+    "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;\n`after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la\npersona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes.",
     "operationId": "update_area_api_v1_handoff_areas__area_id__patch",
     "security": [
      {
@@ -21680,6 +21680,18 @@
       "title": "No Answer Area Id",
       "description": "Área a la que pasa si nadie acepta o no se puede llamar"
      },
+     "no_answer_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "No Answer Member Id",
+      "description": "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje"
+     },
      "delivery": {
       "type": "string",
       "enum": [
@@ -21805,6 +21817,18 @@
       ],
       "title": "No Answer Area Id"
      },
+     "no_answer_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "No Answer Member Id",
+      "description": "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje"
+     },
      "delivery": {
       "type": "string",
       "title": "Delivery"
@@ -21844,6 +21868,7 @@
      "messages",
      "after_hours_area_id",
      "no_answer_area_id",
+     "no_answer_member_id",
      "delivery",
      "whatsapp",
      "created_at"
@@ -22014,6 +22039,18 @@
        }
       ],
       "title": "No Answer Area Id"
+     },
+     "no_answer_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "No Answer Member Id",
+      "description": "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje"
      },
      "delivery": {
       "anyOf": [
@@ -24799,10 +24836,22 @@
       "type": "string",
       "enum": [
        "agent",
+       "member",
        "voicemail",
        "hangup"
       ],
       "title": "Team Fallback"
+     },
+     "team_fallback_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Fallback Member Id"
      },
      "team_fallback_message": {
       "type": "string",
@@ -24965,6 +25014,7 @@
         "type": "string",
         "enum": [
          "agent",
+         "member",
          "voicemail",
          "hangup"
         ]
@@ -24974,7 +25024,19 @@
        }
       ],
       "title": "Team Fallback",
-      "description": "Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o mensaje y corta"
+      "description": "Si nadie atiende o fuera de horario: el agente del número, una persona (team_fallback_member_id; si no atiende, mensaje y graba), mensaje y graba, o mensaje y corta"
+     },
+     "team_fallback_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Fallback Member Id",
+      "description": "Con team_fallback member: la persona del equipo (con celular, que no sea del número) a la que se llama una vez"
      },
      "team_fallback_message": {
       "anyOf": [
@@ -30323,6 +30385,7 @@
         "type": "string",
         "enum": [
          "agent",
+         "member",
          "voicemail",
          "hangup"
         ]
@@ -30332,7 +30395,7 @@
        }
       ],
       "title": "Fallback",
-      "description": "Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)"
+      "description": "Nadie atendió: el respaldo (pasó al agente, llamando a la persona de respaldo, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)"
      }
     },
     "type": "object",

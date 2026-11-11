@@ -14,7 +14,13 @@ export function numberErrorTitle(e: unknown): string | undefined {
 
 /** Campo del formulario "Atiende" al que corresponde un error del PATCH (el resto, a una notificación). */
 export type AnsweringField =
-  'answer_mode' | 'member_ids' | 'agent_id' | 'ring_seconds' | 'schedule' | 'team_fallback_message';
+  | 'answer_mode'
+  | 'member_ids'
+  | 'agent_id'
+  | 'ring_seconds'
+  | 'schedule'
+  | 'team_fallback_member_id'
+  | 'team_fallback_message';
 
 export function answeringErrorField(e: unknown): AnsweringField | undefined {
   if (!(e instanceof ApiError)) return undefined;
@@ -24,6 +30,8 @@ export function answeringErrorField(e: unknown): AnsweringField | undefined {
       return 'member_ids';
     case 'agent_required':
       return 'agent_id';
+    case 'invalid_fallback_member':
+      return 'team_fallback_member_id';
     case 'direct_calls_not_in_plan':
     case 'terms_pending':
       return 'answer_mode';

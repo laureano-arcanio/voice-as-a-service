@@ -237,6 +237,7 @@ describe('números: quién atiende', () => {
       team_hold_music: true,
       schedule: null,
       team_fallback: 'agent',
+      team_fallback_member_id: null,
       team_fallback_message: '',
     });
   });
@@ -276,6 +277,39 @@ describe('números: quién atiende', () => {
     const dialog = await openEdit('+541155550001');
     expect(within(dialog).getByRole('switch', { name: /Conectar al atender/ })).toBeChecked();
     expect(within(dialog).getByRole('switch', { name: /Música mientras suena/ })).not.toBeChecked();
+  });
+
+  it('si nadie atiende, una persona fuera del número y con teléfono', async () => {
+    const onlyLuis = {
+      ...TEAM_NUMBER,
+      id: 'n8',
+      e164: '+541155550008',
+      members: [{ id: 'm2', name: 'Luis Gómez', phone: null, user_id: 'u-2' }],
+    } as PhoneNumber;
+    const calls = mockApi([onlyLuis], {
+      'PATCH /api/v1/phone-numbers/n8': () => jsonResponse(onlyLuis),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit('+541155550008');
+    await userEvent.click(within(dialog).getByRole('textbox', { name: 'Si nadie atiende' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Llama a una persona', hidden: true }));
+    expect(within(dialog).queryByLabelText('Mensaje')).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    expect(await within(dialog).findByText('Elegí la persona a la que se llama')).toBeInTheDocument();
+    expect(patched(calls, 'n8')).toBeUndefined();
+    // Solo Ana: Luis está en el número y no tiene teléfono.
+    await userEvent.click(within(dialog).getByRole('textbox', { name: /Persona/ }));
+    expect(screen.queryByRole('option', { name: /^Luis Gómez ·/, hidden: true })).not.toBeInTheDocument();
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Ana Pérez · +5493515551234', hidden: true }),
+    );
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n8')).toBeDefined());
+    expect(patched(calls, 'n8')).toMatchObject({
+      member_ids: ['m2'],
+      team_fallback: 'member',
+      team_fallback_member_id: 'm1',
+    });
   });
 
   it('horario opcional y mensaje de respaldo', async () => {
@@ -420,6 +454,7 @@ describe('números: formulario y errores', () => {
       team_hold_music: true,
       schedule: null,
       team_fallback: 'voicemail',
+      team_fallback_member_id: null,
       team_fallback_message: 'hola',
     });
     expect(toAnsweringBody({ ...draft, answer_mode: 'agent', agent_id: 'ag2' })).toEqual({
@@ -434,6 +469,7 @@ describe('números: formulario y errores', () => {
     expect(answeringErrorField(err(422, 'x', 'members_required'))).toBe('member_ids');
     expect(answeringErrorField(err(422, 'x', 'invalid_members'))).toBe('member_ids');
     expect(answeringErrorField(err(422, 'x', 'agent_required'))).toBe('agent_id');
+    expect(answeringErrorField(err(422, 'x', 'invalid_fallback_member'))).toBe('team_fallback_member_id');
     expect(answeringErrorField(err(429, 'x', 'direct_calls_not_in_plan'))).toBe('answer_mode');
     expect(answeringErrorField(err(403, 'x', 'terms_pending'))).toBe('answer_mode');
     expect(answeringErrorField(err(422, 'El timbre por persona va de 5 a 60 segundos'))).toBe('ring_seconds');

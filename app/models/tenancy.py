@@ -218,8 +218,11 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     ring_first: Mapped[str] = mapped_column(String(8), default="phone", server_default="phone")
     ring_seconds: Mapped[int] = mapped_column(Integer, default=20, server_default="20")
     schedule: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
-    # Si nadie atiende o fuera de horario: agent (el agente del numero), voicemail (mensaje y graba) o hangup.
+    # Si nadie atiende o fuera de horario: agent (el agente del numero), member (team_fallback_member_id, una vez
+    # en su celular; si no atiende, buzon), voicemail (mensaje y graba) o hangup.
     team_fallback: Mapped[str] = mapped_column(String(16), default="voicemail", server_default="voicemail")
+    team_fallback_member_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
     team_fallback_message: Mapped[str] = mapped_column(Text, default="", server_default="")
     # Con team, el orden de los celulares (como handoff_areas): sequential, siempre desde la primera; round_robin,
     # desde la siguiente a la ultima que atendio en su celular (last_member_id; el panel no cuenta).

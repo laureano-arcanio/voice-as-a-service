@@ -17,7 +17,7 @@ from .limits import check_direct_calls, effective_limits
 
 ANSWER_MODES = ("team", "agent")
 RING_FIRST = ("phone", "panel")
-TEAM_FALLBACKS = ("agent", "voicemail", "hangup")
+TEAM_FALLBACKS = ("agent", "member", "voicemail", "hangup")
 FALLBACK_MESSAGE_MAX = 500
 
 
@@ -82,6 +82,7 @@ def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
         s.execute(delete(PhoneNumberMember).where(PhoneNumberMember.phone_number_id == number.id))
     number.answer_mode, number.ring_first, number.ring_seconds = "agent", "phone", 20
     number.schedule, number.team_fallback, number.team_fallback_message = None, "voicemail", ""
+    number.team_fallback_member_id = None
     number.strategy, number.last_member_id = "sequential", None
     number.team_connect_on_answer, number.team_hold_music = False, True
 
@@ -137,18 +138,19 @@ def _set_members(s: Session, number: PhoneNumber, ids: list[str]) -> None:
 
 def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), strategy, ring_first,
-    ring_seconds, schedule, team_fallback, team_fallback_message, team_connect_on_answer y team_hold_music.
-    Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el numero.
-    El agente se cambia antes (set_agent)."""
+    ring_seconds, schedule, team_fallback, team_fallback_member_id, team_fallback_message, team_connect_on_answer
+    y team_hold_music. Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el
+    numero; con member, la persona. El agente se cambia antes (set_agent)."""
     keys = ("answer_mode", "member_ids", "ring_first", "ring_seconds", "schedule", "team_fallback",
-            "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music")
+            "team_fallback_member_id", "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music")
     if not any(k in changes for k in keys):
         if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente
             _check_fallback(number)
         return
     if number.client_id is None:
         raise Invalid("Asigná el número a un cliente antes de elegir quién atiende", "number_unassigned")
-    nulls = sorted(k for k in keys if k in changes and changes[k] is None and k != "schedule")
+    nulls = sorted(k for k in keys if k in changes and changes[k] is None
+                   and k not in ("schedule", "team_fallback_member_id"))
     if nulls:
         raise Invalid(f"No pueden ir vacíos: {', '.join(nulls)}")
     if "answer_mode" in changes:
@@ -171,8 +173,20 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         number.schedule = validate_schedule(changes["schedule"])
     if "team_fallback" in changes:
         if changes["team_fallback"] not in TEAM_FALLBACKS:
-            raise Invalid("team_fallback: agent, voicemail o hangup")
+            raise Invalid("team_fallback: agent, member, voicemail o hangup")
         number.team_fallback = changes["team_fallback"]
+        if number.team_fallback != "member" and "team_fallback_member_id" not in changes:
+            number.team_fallback_member_id = None    # otro respaldo: la persona deja de serlo
+    if "team_fallback_member_id" in changes:
+        member_id = changes["team_fallback_member_id"] or None
+        if member_id and member_id != number.team_fallback_member_id:
+            # Antes de asignar: una persona inexistente romperia la FK en el proximo autoflush (500, no 422).
+            member = s.get(TeamMember, member_id)
+            if member is None or member.client_id != number.client_id:
+                raise _fallback_member_error("La persona no existe o es de otro cliente")
+            if not member.active:
+                raise _fallback_member_error(f"{member.name} está inactiva: activala o elegí otra persona")
+        number.team_fallback_member_id = member_id
     if "team_fallback_message" in changes:
         text = changes["team_fallback_message"].strip()
         if len(text) > FALLBACK_MESSAGE_MAX:
@@ -189,11 +203,35 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     if number.answer_mode == "team" and not member_ids(s, number.id):
         raise Invalid("Para que atienda el equipo, elegí al menos una persona", "members_required")
     _check_fallback(number)
+    _check_fallback_member(s, number)
 
 
 def _check_fallback(number: PhoneNumber) -> None:
     if number.answer_mode == "team" and number.team_fallback == "agent" and number.agent_id is None:
         raise Invalid("Para pasar al agente si nadie atiende, elegí el agente del número", "agent_required")
+
+
+def _fallback_member_error(message: str) -> Invalid:
+    return Invalid(message, "invalid_fallback_member", [{"path": "team_fallback_member_id", "message": message}])
+
+
+def _check_fallback_member(s: Session, number: PhoneNumber) -> None:
+    """Estado final del respaldo member: hay persona si y solo si el respaldo es member; es del cliente del numero,
+    tiene telefono (se la llama por telefono) y no es una de las personas del numero."""
+    member_id = number.team_fallback_member_id
+    if number.team_fallback != "member":
+        if member_id:
+            raise _fallback_member_error("team_fallback_member_id va solo con team_fallback member")
+        return
+    if not member_id:
+        raise _fallback_member_error("Para llamar a una persona si nadie atiende, elegí la persona")
+    member = s.get(TeamMember, member_id)
+    if member is None or member.client_id != number.client_id:
+        raise _fallback_member_error("La persona no existe o es de otro cliente")
+    if not member.phone:
+        raise _fallback_member_error(f"{member.name} no tiene teléfono")
+    if member_id in member_ids(s, number.id):
+        raise _fallback_member_error(f"{member.name} ya es una de las personas del número: sacala de una de las dos")
 
 
 def check_tier_fits(s: Session, client: Client, tier: Tier) -> None:

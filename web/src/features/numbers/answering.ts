@@ -6,7 +6,7 @@ import { type ScheduleDraft, toDraft, toSchedule } from '@/features/team/schedul
 
 export type AnswerMode = 'team' | 'agent';
 export type RingFirst = 'phone' | 'panel';
-export type TeamFallback = 'agent' | 'voicemail' | 'hangup';
+export type TeamFallback = 'agent' | 'member' | 'voicemail' | 'hangup';
 export type Strategy = NonNullable<PhoneNumberUpdate['strategy']>;
 
 export const RING_FIRST_OPTIONS: { value: RingFirst; label: string }[] = [
@@ -34,11 +34,12 @@ export const CONNECT_ON_ANSWER_HELP =
 export const CONNECT_ON_ANSWER_PANEL_HELP = 'Vale para los teléfonos; el panel se atiende con un clic.';
 export const HOLD_MUSIC_HELP = 'Apagado, quien llama espera en silencio hasta que atiendan.';
 
-export const FALLBACK_OPTIONS: { value: TeamFallback; label: string }[] = [
-  { value: 'agent', label: 'Pasa al agente' },
-  { value: 'voicemail', label: 'Deja un mensaje y graba lo que dice quien llama' },
-  { value: 'hangup', label: 'Dice el mensaje y corta' },
-];
+export const FALLBACK_LABELS: Record<TeamFallback, string> = {
+  agent: 'Pasa al agente',
+  member: 'Llama a una persona',
+  voicemail: 'Deja un mensaje y graba lo que dice quien llama',
+  hangup: 'Dice el mensaje y corta',
+};
 
 /** El mensaje que dice el número si no se escribe uno (el del worker). */
 export const FALLBACK_MESSAGE_DEFAULTS: Record<'voicemail' | 'hangup', string> = {
@@ -61,6 +62,8 @@ export interface AnsweringDraft {
   team_hold_music: boolean;
   schedule: ScheduleDraft;
   team_fallback: TeamFallback;
+  /** Con team_fallback member: la persona, fuera del número, con teléfono. */
+  team_fallback_member_id: string | null;
   team_fallback_message: string;
 }
 
@@ -77,6 +80,7 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     team_hold_music: n.team_hold_music,
     schedule: toDraft(n.schedule),
     team_fallback: n.team_fallback,
+    team_fallback_member_id: n.team_fallback_member_id ?? null,
     team_fallback_message: n.team_fallback_message,
   };
 }
@@ -102,6 +106,7 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     team_hold_music: v.team_hold_music,
     schedule: toSchedule(v.schedule),
     team_fallback: v.team_fallback,
+    team_fallback_member_id: v.team_fallback === 'member' ? v.team_fallback_member_id : null,
     team_fallback_message: v.team_fallback_message.trim(),
   };
 }

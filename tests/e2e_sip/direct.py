@@ -12,6 +12,8 @@ mensajes con su WAV). Casos:
    primera da ocupado, la segunda atiende y marca 1), quedan conectadas y termina cuando corta la persona.
 3. Entrante al equipo, conectar al atender: una central que atiende y no marca nada queda conectada sin whisper; el
    pasajero marca 1 (el IVR de la central) y la central lo recibe (lo devuelve por DTMF), y termina cuando corta.
+4. Entrante al equipo, "si nadie atiende" una persona (team_fallback member): la unica del numero no atiende, se
+   llama a la persona de respaldo, que marca 1, y termina cuando corta.
 """
 import asyncio
 import contextlib
@@ -137,7 +139,8 @@ def setup_db():
         s.add_all([user, number])
         s.flush()
         members = []
-        for name, phone in (("Ocupado", "+5493510000002"), ("Pedro", "+5493510000001")):
+        for name, phone in (("Ocupado", "+5493510000002"), ("Pedro", "+5493510000001"),
+                            ("Nadie", "+5493510000003")):
             m = TeamMember(client_id=client.id, name=name, phone=phone)
             s.add(m)
             s.flush()
@@ -229,8 +232,9 @@ async def outbound(lk, trunk_id, sessions, client_id, user_id, number_id) -> Non
             await lk.room.delete_room(api.DeleteRoomRequest(room=name))
 
 
-async def inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members) -> None:
-    conv, name = "d2", "e2e-direct-team"
+async def inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members, backup=None) -> None:
+    """Caso 2 (members: ocupado y Pedro) o, con backup, el 4: la persona del numero no atiende y atiende backup."""
+    conv, name = ("d4", "e2e-direct-backup") if backup else ("d2", "e2e-direct-team")
     new_call(sessions, client_id, conv, CallMode.entrante, CUSTOMER_PHONE, number_id)
     store = ConversationStore(sessions)
     worker = await join(name, "agente")
@@ -243,7 +247,8 @@ async def inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members
         await asyncio.sleep(0.1)
     line = direct.TeamRoom(SimpleNamespace(room=worker, api=lk), fake_voice(), customer="cliente", trunk_id=trunk_id,
                            caller_id=smoke.FROM_NUMBER, voice_name="e2e")
-    route = TeamRoute(members=members, ring_first="phone", ring_seconds=6, schedule=None, fallback="hangup",
+    route = TeamRoute(members=members, ring_first="phone", ring_seconds=6, schedule=None,
+                      fallback="member" if backup else "hangup", fallback_member=backup,
                       fallback_message="", agent_id=None, number_e164=smoke.FROM_NUMBER, number_label="Ventas")
     team = direct.TeamCall(sessions=sessions, store=store, line=line, conversation_id=conv, client_id=client_id,
                            route=route, customer="cliente", caller=CUSTOMER_PHONE, confirm_seconds=4)
@@ -260,11 +265,13 @@ async def inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members
         persons = {(m.role, m.person) for m in msgs if m.recording}
         live = {p.identity for p in (await lk.room.list_participants(
             api.ListParticipantsRequest(room=name))).participants}
+        first = ("no_answer", None) if backup else ("busy", 486)
         ok = outcome == "answered" and team.reason == "person_hangup" and \
-            [r[:2] for r in legs] == [("busy", 486), ("connected", None)] and legs[1][2] and \
+            [r[:2] for r in legs] == [first, ("connected", None)] and legs[1][2] and \
             ("assistant", "Pedro") in persons and "cliente" in live and \
             not any(x.startswith(transfer.PERSON_PREFIX) for x in live)
-        smoke.check("directa entrante al equipo: ocupado, atiende y marca 1, corta la persona", ok,
+        smoke.check("directa entrante al equipo: nadie atiende, la persona de respaldo marca 1" if backup else
+                    "directa entrante al equipo: ocupado, atiende y marca 1, corta la persona", ok,
                     f"{outcome}/{team.reason} en {time.monotonic() - t:.1f} s; tramos {legs}; "
                     f"mensajes con WAV {sorted(persons, key=str)}; en la room {sorted(live)}")
     finally:
@@ -342,8 +349,9 @@ async def main() -> int:
     await asyncio.sleep(3)
     sessions, client_id, user_id, number_id, members = setup_db()
     await outbound(lk, trunk_id, sessions, client_id, user_id, number_id)
-    await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members)
+    await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members[:2])
     await connect_on_answer(lk, trunk_id, sessions, client_id, number_id)
+    await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members[2:], backup=members[1])
     await lk.aclose()
 
     failed = [n for n, ok, _ in smoke.RESULTS if not ok]

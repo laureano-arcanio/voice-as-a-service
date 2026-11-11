@@ -290,7 +290,7 @@ const eventTypes = [
   { type: "handoff.relay_failed · handoff.ignored", text: "Por WhatsApp de texto: el reenvío al operador se cortó, o se pidió otra derivación con una en curso" },
   { type: "workflow.pre_call · workflow.post_call", text: "Las herramientas de antes y después de la conversación: ok, status, ms y slug, nunca la respuesta" },
   { type: "hold.started · hold.ended", text: "Empieza y termina la música de espera" },
-  { type: "team.fallback", text: "Entrante al equipo que nadie atendió: data trae el respaldo (agent, voicemail o hangup) y el motivo (team_no_answer o after_hours)" },
+  { type: "team.fallback", text: "Entrante al equipo que nadie atendió: data trae el respaldo (agent, member, voicemail o hangup) y el motivo (team_no_answer o after_hours). Con member, si la persona no atiende, sigue otro con voicemail" },
 ];
 
 const directCall = `curl ${API}/direct-calls \\
@@ -353,7 +353,8 @@ const phoneNumberFields = [
   { field: "ring_first", text: "phone (por defecto): suena primero en el celular de cada una, en orden, y después en el panel de las que estén Disponibles. panel: primero en el panel de las Disponibles, a todas a la vez, y después en los celulares" },
   { field: "ring_seconds", text: "Cuánto suena por persona, de 5 a 60 segundos (20 por defecto)" },
   { field: "schedule", text: "Horario de atención, con el mismo formato que las áreas (tz, week y closed). null: siempre" },
-  { field: "team_fallback", text: "Si nadie atiende o es fuera de horario: voicemail (un mensaje y graba lo que dice quien llama), hangup (un mensaje y corta) o agent (sigue el agente del número, que sabe que nadie del equipo atendió)" },
+  { field: "team_fallback", text: "Si nadie atiende o es fuera de horario: voicemail (un mensaje y graba lo que dice quien llama), hangup (un mensaje y corta), agent (sigue el agente del número, que sabe que nadie del equipo atendió) o member (se llama una vez al teléfono de team_fallback_member_id, con el mismo team_connect_on_answer y team_hold_music; si no atiende, voicemail)" },
+  { field: "team_fallback_member_id", text: "Con member: una persona de GET /team activa, con teléfono y que no esté en member_ids (422 invalid_fallback_member si no). Otro team_fallback sin este campo la quita; si borrás a la persona, el número queda en voicemail" },
   { field: "team_fallback_message", text: "El mensaje que escucha quien llama en voicemail y hangup (hasta 500 caracteres)" },
   { field: "team_connect_on_answer", text: "false (por defecto): quien atiende en su teléfono oye quién llama y marca 1. true: la llamada se conecta apenas el teléfono atiende, sin mensaje ni tecla y sin detectar contestadores. Es para destinos que siempre atienden, como una central telefónica; si es un celular, su buzón queda conectado con quien llama. No cambia el panel" },
   { field: "team_hold_music", text: "true (por defecto): quien llama oye música mientras suena. false: silencio" },
@@ -380,7 +381,7 @@ const directDetail = [
   { field: "answered_by", text: "Entrantes: agent o team. Si nadie del equipo atendió y el respaldo es el agente, queda agent" },
   { field: "opted_out_confirmed", text: "Se llamó a un contacto que había pedido no recibir llamadas, con confirmación" },
   { field: "contact_id, contact_name", text: "El contacto de tu agenda con ese teléfono, si hay (también en el listado)" },
-  { field: "team", text: "Entrante al equipo: answered (si atendió alguien; null mientras suena), person (quién atendió en su celular) y fallback (si nadie atendió: agent, voicemail o hangup)" },
+  { field: "team", text: "Entrante al equipo: answered (si atendió alguien; null mientras suena), person (quién atendió en su celular) y fallback (si nadie atendió: agent, voicemail o hangup; member mientras le suena a la persona de respaldo)" },
 ];
 
 const report = `curl ${API}/campaigns/<id>/report.csv -H "Authorization: Bearer $ATENTINA_KEY" -o reporte.csv`;

@@ -17,13 +17,14 @@ saliente necesita además `outbound_calls`).
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
 | `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o usuario | 0023, 0042, 0048 |
-| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048 |
+| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048, 0052 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
 | `tiers.max_team_members` | Tope de personas (`NULL` sin tope, `0` no incluido) | 0023 |
 | `handoff_legs` | Un tramo por intento a una persona: `area_id` (nulo en las entrantes al equipo), `team_member_id`, `phone`, `result` (también `whatsapp_sent` e `interrupted` en la rotación por WhatsApp), `sip_status`, `created_at`/`answered_at`/`connected_at`/`ended_at`, `billed_seconds`, `wamid` (la plantilla enviada; único) | 0024, 0048 |
 | `call_logs.user_id`, `answered_by` (`agent`/`team`), `opted_out_confirmed` | Quién llamó o atendió; quién atendió la entrante; se llamó a una baja con confirmación | 0039 |
-| `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo (default `agent`, 0045) | 0039 |
+| `phone_numbers.answer_mode` (`team`/`agent`), `ring_first` (`phone`/`panel`), `ring_seconds` (5-60, 20), `schedule`, `team_fallback` (`agent`/`member`/`voicemail`/`hangup`), `team_fallback_message` | Quién atiende el número y cómo (default `agent`, 0045) | 0039 |
+| `phone_numbers.team_fallback_member_id` (FK `team_members`, SET NULL) | Con `team_fallback=member`, la persona a la que se llama si nadie atiende o fuera de horario: del cliente, con teléfono, activa al elegirla y fuera del número | 0053 |
 | `phone_numbers.strategy` (`sequential`/`round_robin`, default `sequential`), `last_member_id` (FK `team_members`, SET NULL) | Orden de los celulares del número, como en las áreas: la última que atendió en su celular | 0050 |
 | `phone_numbers.team_connect_on_answer` (bool, default `false`), `team_hold_music` (bool, default `true`) | Con `team`: conectar apenas atiende el teléfono, sin whisper ni tecla ni detección de contestador (para destinos que siempre atienden, como una central); música o silencio mientras suena. Los números existentes siguen con whisper y música | 0051 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
@@ -49,7 +50,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | Ruta | Qué hace | MCP |
 |---|---|---|
 | `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo, con `whatsapp_notify` | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` |
-| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en `null` quitan la ruta o las plantillas. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
+| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en `null` quitan la ruta, la persona o las plantillas. «Si nadie atiende» es un área o una persona: los dos juntos, una persona de otro cliente o sin teléfono, o que además esté en `member_ids`, dan 422 con `errors[{path: "no_answer_member_id", message}]`; borrar a la persona la limpia. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
 | `GET /handoff-areas/defaults` | Mensajes por defecto, sus variables, y qué mensajes salen antes de aceptar (`pre_accept_messages`) con las únicas variables que admiten (`pre_accept_variables`: `area`, `persona`, `horario`) | `get_handoff_area_defaults` |
 | `GET /hold-music` | Temas de espera (`default` y los `.ogg`) | `list_hold_music` |
 | `GET /events` | Eventos por `conversation_id`, `type` (exacto o prefijo `handoff.`), `since`/`until`, cursor `after_id` | `list_events` |
@@ -59,7 +60,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | `PUT /me/presence` `{available}`, `GET /me/ringing` | Pulso de Disponible; entrantes que le suenan | — |
 | `GET /team/presence` | Quién está Disponible u ocupado | `list_team_presence` |
 | `GET/PUT /clients/{id}/direct-call-settings` `{recording_notice}` | Aviso de grabación en las directas | `get_/update_direct_call_settings` |
-| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`) | `route_phone_number` |
+| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_member_id`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`). Otro `team_fallback` sin mandar la persona la limpia; borrar a la persona deja el número en `voicemail`; liberarlo, también | `route_phone_number` |
 | `GET /calls` | Filtros `mode`, `user_id`, `answered_by`, `phone`, `contact_id`; `CallOut` con `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id`; el detalle trae `call.team` (`answered`, `person`, `fallback`) | `list_calls`, `get_call` |
 | `POST /calls/{id}/hangup` | Cortar (también las directas) | `hangup_call` |
 | `GET /reports/transfers` | Panel de derivaciones (Reportes > Transferencias, `advanced_reports`); `/reports/calls` separa agente, directa y equipo, por usuario | `get_report_*` ([REPORTES.md](REPORTES.md)) |
@@ -78,6 +79,7 @@ Errores de las directas (`app/services/direct_calls.py`, `limits.py`, `legal_gat
 | 429 `no_channel` y los de cuota (`outbound_minutes`, ...) | Sin canal de Anura libre o sin minutos |
 | 403 `not_your_call`; 409 `call_not_active`, `already_answered`, `not_ringing` | `join` de otro usuario o llamada terminada; `answer` tarde o ya rechazada |
 | 422 `members_required`, `agent_required` | Número en `team` sin personas; respaldo `agent` sin agente en el número |
+| 422 `invalid_fallback_member` | Respaldo `member` sin persona, o persona con otro respaldo; de otro cliente, sin teléfono o que está en `member_ids` (estado final); inactiva, solo al elegirla o cambiarla. Con `errors[{path: "team_fallback_member_id", message}]` |
 
 ## Flujo
 
@@ -112,7 +114,11 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
 7. Termina con: el código de vuelta del área (`return_digits`, `2`) → el agente vuelve con `resume`; la persona
    corta → `resume` o `goodbye` y corta, según `on_person_hangup`; el cliente corta → se borra la room; sin
    minutos salientes.
-8. Si nadie atiende: `busy` si el último intento dio ocupado, si no `no_answer`. El texto queda en la conversación
+8. Si nadie de los miembros acepta y el área tiene persona de «Si nadie atiende» (`no_answer_member_id`), se la llama
+   una vez como un miembro más (timbre, whisper y el 1 del área; `handoff.dialing` con `no_answer: true`), en lugar
+   de pasar a otra área. Un área sin miembros llamables pero con esa persona la llama. Si es de otro cliente, está
+   inactiva, sin teléfono o es miembro del área, no se la llama. No entra en el round robin (`last_member_id`).
+   Si no acepta o no hay persona: `busy` si el último intento dio ocupado, si no `no_answer`. El texto queda en la conversación
    y el modelo toma el mensaje en el turno siguiente (regla de la plantilla, no del código).
    Ese aviso de vuelta se puede interrumpir: sin eso LiveKit descarta lo que la persona dice encima
    (`discard_audio_if_uninterruptible`) y un pedido hecho durante el aviso se perdía. "Te paso con…" no se interrumpe.
@@ -121,6 +127,34 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
 No derivan: loadtest, campañas (metadata `handoff` en `services/calls.py`), la respuesta por WhatsApp a una campaña,
 agentes sin áreas (por WhatsApp de texto, sin áreas con plantilla) y la demo de la landing salvo con `DEMO_HANDOFF=true`.
 El WhatsApp de texto deriva por su cuenta ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)).
+
+**Progreso en pantalla** (tema de datos `handoff_status`). El worker publica un snapshot JSON completo solo al cliente
+(`destination_identities`) en cada cambio: uno perdido lo corrige el siguiente. Solo si la metadata trae
+`handoff_progress` (`services/calls.prepare_call`): `"names"` en la prueba del panel, `"anonymous"` en el link
+para llamar (sin nombres); nunca por teléfono, celular, campañas, loadtest ni en la demo de la landing (también es
+`prueba`, por eso lo decide `prepare_call` y no el modo). La entrante al equipo (`run_team`) no publica.
+
+```
+{v: 1, id, state: running|connected|failed|notified, result, area, elapsed, phase, phase_elapsed,
+ pre: [[fase, s]], reroutes: [{at, from, to, reason}],
+ legs: [{n, of, area, person, no_answer, result, phases: [[fase, s]], total}], total}
+```
+
+- `id`: número de derivación en la llamada (otra derivación empieza de cero). Segundos con un decimal, medidos con
+  el reloj del worker (`monotonic`): `elapsed` y `phase_elapsed` son al enviar y el navegador les suma su reloj
+  desde que recibe. `total` es `null` mientras `running`.
+- Fases: `preparing` (desde que se crea el `Transfer`: área, horario, cuota), `announcing` ("Te paso con…", solo si
+  el modelo no habló), `notifying` (esperando el WhatsApp de un área de aviso) en `pre`; por intento, `dialing`,
+  `ringing` (desde que la persona entra a la room, que es cuando suena; sin esa entrada, todo es `dialing`),
+  `summary` (esperando el resumen), `whisper` y `waiting_digit`. `pre` y `phases` llevan las cerradas; la en curso
+  es `phase`, del intento con `result: null` o de `pre` si no hay; entre intentos, `null`.
+- `legs`: `n` de `of` es el lugar en su área (`of` cuenta a la persona de «Si nadie atiende», que va última);
+  `person` es el nombre o `null` en anónimo; `no_answer` es `true` solo en el intento de esa persona;
+  `result` del intento: `confirmed`, `no_answer`, `busy`, `failed`, `machine`, `not_confirmed`.
+- Final, una vez: `connected` (`result: confirmed`, al marcar 1), `notified`, o `failed` con el motivo (el del
+  último intento, `after_hours`, `no_members`, `outbound_minutes`, ..., `customer_hung_up` o `error`), antes del
+  mensaje de vuelta. Nunca lleva teléfonos ni ids.
+- Una falla al publicar se loguea y la derivación sigue (`direct.DataSender`, sin esperar).
 
 Mensajes por área (`DEFAULT_MESSAGES` en `app/services/handoff.py`; variables `{{area}}`, `{{persona}}`,
 `{{cliente}}`, `{{resumen}}`, `{{horario}}`, `{{nombre}}` y las que traiga la herramienta de «Antes de la conversación»
@@ -154,7 +188,8 @@ texto).
 
 - **Rutas:** `Transfer.run` es un bucle sobre las áreas con un conjunto de visitadas. Fuera de horario sigue por
   `after_hours_area_id`; si nadie acepta, no hay personas, no hay canal o faltan minutos salientes, por
-  `no_answer_area_id`. La música sigue entre pases y el mensaje (`no_answer`, `after_hours`) sale solo al final. Un ciclo
+  `no_answer_area_id`, o, si el área tiene persona de «Si nadie atiende», se la llama solo cuando nadie acepta o no hay
+  miembros (sin canal o sin minutos no se llama a nadie; fuera de horario sigue `after_hours_area_id`). La música sigue entre pases y el mensaje (`no_answer`, `after_hours`) sale solo al final. Un ciclo
   se corta al volver a un área ya visitada, y una ruta a un área inactiva o de otro cliente se ignora. Cada pase emite
   `handoff.rerouted`, no `handoff.unavailable`; sin rutas, todo queda como antes. El modelo ve un área cerrada que
   redirige como "atiende ahora". Un rango de horario no cruza la medianoche: para cubrir la noche, el área diurna pasa
@@ -251,6 +286,11 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 4. Nadie atiende (`team_no_answer`) o fuera de horario (`after_hours`): evento `team.fallback` y el respaldo:
    - `agent`: `direct_calls.fallback_to_agent` pasa la conversación al agente del número (`answered_by=agent`) y el
      worker arranca la sesión en la misma room; con el agente archivado, toma el mensaje.
+   - `member`: evento `team.fallback` con `fallback=member` y una vez al teléfono de `team_fallback_member_id`
+     (`TeamRoute.fallback_member`, solo si está activa y con teléfono), como los teléfonos del número: whisper y 1,
+     o conectar al atender si está prendido, y música según `team_hold_music` (`Transfer.run_team`, un tramo más con
+     `area_id` nulo, cuota y canal como los demás). Si atiende, termina como una atendida en el teléfono, sin anotar
+     `last_member_id`; si no, o no se la puede llamar, `voicemail`.
    - `voicemail` (default): mensaje (el del número o "Ahora no podemos atenderte. Dejá tu mensaje y te llamamos.")
      y graba hasta 120 s con transcripción.
    - `hangup`: mensaje y corta.
@@ -273,7 +313,8 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 - **Tu equipo** (`web/src/features/team/`): personas y áreas con horario, orden, mensajes, tecla de vuelta y qué
   hacer si la persona corta; punto verde de presencia. La persona tiene el interruptor **Recibe WhatsApp** (necesita
   teléfono). El área elige **Cómo se avisa** (**Se llama** o **Solo aviso por WhatsApp**), **Fuera de horario, pasa a**,
-  **Si nadie acepta, pasa a** y su WhatsApp: el número que envía, la plantilla (de rotación con botón de respuesta
+  **Si nadie atiende** (el agente toma el mensaje, **Otra área** o **Una persona**: con teléfono, activa y fuera del área; si se
+  la suma al área se limpia; en un área de aviso no se ofrece la persona) y su WhatsApp: el número que envía, la plantilla (de rotación con botón de respuesta
   rápida, de la llamada o del aviso, sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
   de «Antes de la conversación»; si no llega, va «-») y la espera por persona. En un área de aviso no se validan ni se
   envían como inválidos el timbre, la tecla ni los mensajes ocultos: se conserva lo guardado. La ayuda de los cuatro
@@ -283,7 +324,9 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
   teclado DTMF (`publishDtmf`), transcripción en vivo, Atender/Rechazar. El panel sale de la room en `pagehide`, no
   con `disconnectOnPageLeave` de LiveKit (cortaba en `beforeunload` cancelado y en `freeze` del celular).
-- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero (**En su teléfono**: sirve un fijo), los switches **Conectar al atender** y **Música mientras suena** (siempre visibles en modo equipo; la fila muestra "· conecta al atender" y "· sin música"), timbre, horario y respaldo.
+- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero (**En su teléfono**: sirve un fijo), los switches **Conectar al atender** y **Música mientras suena** (siempre visibles en modo equipo; la fila muestra "· conecta al atender" y "· sin música"), timbre, horario y
+  **Si nadie atiende** (`NoAnswerField`, el mismo control del área): pasa al agente, **Llama a una persona** (con teléfono, activa y
+  fuera del número), deja un mensaje y graba, o dice el mensaje y corta.
   **Mi cuenta:** "Avisar que la llamada se graba" para las directas. **Tus clientes:** Llamar (directa) junto a
   Llamar con un agente. Ver [GUIA_UI.md](../GUIA_UI.md).
 
@@ -318,7 +361,7 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   atiende hasta que se cierra, acepte o no, como los cobra Anura (`quota.handoff_seconds` suma `handoff_legs`; los
   en curso, desde `answered_at`). Ej.: 3 min con la IA y 5 con la persona = 8 entrantes y 5 salientes. Un tramo
   atendido que no marca 1 (`not_confirmed`) o en el que se detecta un buzón (`machine`) descuenta su minuto; sin
-  atender u ocupado, nada. Con 0 salientes en el plan no se deriva. `directa` está en `MINUTE_MODES` como `outbound`; en el panel la
+  atender u ocupado, nada. El de la persona de «Si nadie atiende» se cobra igual. Con 0 salientes en el plan no se deriva. `directa` está en `MINUTE_MODES` como `outbound`; en el panel la
   entrante del equipo no gasta salientes ni canal extra.
 - **Buzón con Claro (spike con dos celulares):** sin atender, el buzón atiende a los 33,5 s; con un timbre por
   miembro de 20-25 s se corta antes, sin minuto de Anura. Rechazar (doble toque en iPhone) no da ocupado: Claro lo
@@ -358,14 +401,15 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 - Tests (LLM y teléfono falsos): `tests/test_handoff.py`, `test_handoff_transfer.py`, `test_direct_calls.py`,
   `test_direct_voice.py`, `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
-  `test_voice_wiring.py` y `test_migration_0023/0024/0039.py`, en `make test`. La 0050 (`strategy` del número) y la 0051
-  (`team_connect_on_answer`, `team_hold_music`) solo agregan columnas, y `test_migration_0051.py` prueba su ida y vuelta; `make migrate-test` la sube y la baja.
+  `test_voice_wiring.py` y `test_migration_0023/0024/0039/0053.py`, en `make test`. La 0050 (`strategy` del número), la 0051
+  (`team_connect_on_answer`, `team_hold_music`) y la 0052 (`no_answer_member_id` del área) solo agregan columnas, y `test_migration_0051.py` prueba su ida y vuelta; `make migrate-test` las sube y las baja.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y
-  corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1) y `direct.py` (saliente contra un eco
-  del Anura falso, entrante al equipo por celular y conectar al atender: una central falsa que lee un dígito y lo
-  devuelve, para ver que llega el 1 del que llama). El timbre en el panel está solo en los tests con LiveKit falso.
+  corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1; el progreso: `ringing` antes de atender; la persona de «Si nadie atiende» después de dos que no atienden: marca 1 y conecta, o corta y vuelve el agente) y `direct.py` (saliente contra un eco
+  del Anura falso, entrante al equipo por celular, conectar al atender: una central falsa que lee un dígito y lo
+  devuelve, para ver que llega el 1 del que llama; y, con `team_fallback=member`, la del número que no atiende y la
+  persona de respaldo que marca 1). El timbre en el panel está solo en los tests con LiveKit falso.
 - Desplegar un cambio: `make migrate-test` si hay migración, `make migrate`, `make calls-active && make up-agent`
   (recrea `app` y `agent`; la imagen de `app` compila `web/`).
 - App `telefono.`: `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado), ruta
@@ -374,6 +418,11 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - Volver atrás la 0039: tiene `downgrade` (probado en `tests/test_migration_0039.py`): `make migrate-down REV=0038`,
   con la imagen que todavía tiene la 0039 y antes de volver el código.
 - Rutas, avisos y rotación por WhatsApp (0048 y 0049, con `downgrade`): vuelta atrás en [WHATSAPP.md](WHATSAPP.md#desplegar-y-probar).
+- La 0052 (`handoff_areas.no_answer_member_id`) y la 0053 (`phone_numbers.team_fallback_member_id`) van con `make migrate`
+  antes del código. Volver atrás la persona del número: **primero** `make migrate-down REV=0052`, con la imagen que todavía
+  tiene la 0053 (su `downgrade` pasa `team_fallback='member'` a `voicemail`; el código anterior no conoce `member`:
+  `PhoneNumberOut` no valida y el worker da `KeyError`), y después revert y deploy. Las dos personas (área y número):
+  `make migrate-down REV=0051`, igual, antes de volver el código.
 
 ## Pendientes
 
@@ -383,7 +432,7 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - **Llamada real con dos celulares propios**, revisando cada caso en Conversaciones:
   - saliente directa: atiende, no atiende, ocupado, inválido, corta cada lado, recarga y Volver a entrar, cerrar la
     pestaña, sin minutos, sin canales, baja con y sin confirmar, bloqueado, con y sin aviso;
-  - entrante al equipo: celular (marcando 1), no atiende, fuera de horario, los tres respaldos, `phone` y `panel`
+  - entrante al equipo: celular (marcando 1), no atiende, fuera de horario, los cuatro respaldos, `phone` y `panel`
     primero con el paso al otro, dos usuarios Disponibles (el segundo ve 409), rechazar, nadie Disponible, el
     WhatsApp del mismo DID y un cliente sin las condiciones aceptadas (va al agente);
   - por API y MCP con `join_url` (el usuario y otro, 403); Free (429) y admin en soporte (403);

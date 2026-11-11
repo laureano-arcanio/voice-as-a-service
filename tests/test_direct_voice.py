@@ -495,6 +495,81 @@ def test_team_nobody_answers_voicemail_records(api, admin, monkeypatch, tmp_path
     assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "voicemail"}
 
 
+def backup_person(api, admin, c, inbound, **number):
+    """Luis, fuera del numero, como «si nadie atiende» (team_fallback member); otra entrante que ya lo lee."""
+    luis = member(admin, c["id"], name="Luis", phone="3513333333")
+    r = admin.patch(f"{V1}/phone-numbers/{inbound.team.number_id}",
+                    json={"team_fallback": "member", "team_fallback_member_id": luis["id"], **number})
+    assert r.status_code == 200, r.text
+    return luis, next_inbound(api)
+
+
+def test_team_nobody_answers_the_backup_person_answers(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    luis, inbound = backup_person(api, admin, c, inbound, strategy="round_robin")
+    cid = inbound.conversation_id
+    line = TeamLine({JUAN: "no_answer", LUIS: "confirm"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert dialed(line) == [JUAN, LUIS]
+    # Con la misma musica de espera y el mismo whisper que los celulares del numero.
+    assert [x for x in line.log if x[0] == "hold"] == [("hold", True), ("hold", False), ("hold", True),
+                                                       ("hold", False), ("hold", False)]
+    assert all(x[1].startswith("Llamada a la línea") for x in line.log if x[0] == "whisper")
+    # No entra en la rotacion del numero.
+    assert last_member(api, inbound.team.number_id) is None
+    with api.sessions() as s:
+        assert [(leg.result, leg.area_id) for leg in s.query(HandoffLeg).filter_by(conversation_id=cid)
+                .order_by(HandoffLeg.phone)] == [("no_answer", None), ("connected", None)]
+        fallbacks = [e.data["fallback"] for e in s.query(Event).filter_by(conversation_id=cid, type="team.fallback")]
+    assert fallbacks == ["member"]
+    assert team_outcome(admin, cid) == {"answered": True, "person": "Luis", "fallback": None}
+
+
+def test_team_backup_person_does_not_answer_voicemail(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    luis, inbound = backup_person(api, admin, c, inbound, team_fallback_message="Dejanos tu mensaje.")
+    cid = inbound.conversation_id
+    line = TeamLine({JUAN: "no_answer", LUIS: "busy"}, on_listen=[("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "voicemail" and team.reason == "team_no_answer"
+    assert dialed(line) == [JUAN, LUIS] and ("say", "Dejanos tu mensaje.") in line.log
+    with api.sessions() as s:
+        fallbacks = [e.data["fallback"] for e in s.query(Event).filter_by(conversation_id=cid, type="team.fallback")
+                     .order_by(Event.id)]
+    assert fallbacks == ["member", "voicemail"]
+    assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "voicemail"}
+
+    # Inactiva: no se la llama, buzon directo.
+    admin.patch(f"{V1}/team/{luis['id']}", json={"active": False})
+    inbound = next_inbound(api)
+    assert inbound.team.fallback_member is None
+    line = TeamLine({JUAN: "no_answer"}, on_listen=[("left", CUSTOMER)])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "voicemail"
+    assert dialed(line) == [JUAN]
+
+
+def test_team_after_hours_calls_the_backup_person(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    luis, inbound = backup_person(api, admin, c, inbound, schedule={"week": {}})
+    line = TeamLine({LUIS: "confirm"}, connected=[("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "customer_hangup"
+    assert dialed(line) == [LUIS]
+    with api.sessions() as s:
+        events = [(e.type, (e.data or {}).get("reason")) for e in s.query(Event).filter_by(
+            conversation_id=inbound.conversation_id, type="team.fallback")]
+    assert events == [("team.fallback", "after_hours")]
+
+    # El que llama corta mientras le suena a Luis: termina como customer_hung_up, sin buzon.
+    inbound = next_inbound(api)
+    line = TeamLine({LUIS: "silent"})
+    line.events.put_nowait(("left", CUSTOMER))
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "customer_hung_up" and team.reason == "customer_hangup"
+    assert not [x for x in line.log if x[0] == "say"]
+
+
 def test_team_panel_answer_right_before_the_rings_go_off(api, admin, monkeypatch, tmp_path):
     # Pedro atiende justo cuando vence el timbre (despues del ultimo sondeo): el worker lo ve al apagar los timbres
     # y lo espera, en vez de pasar al respaldo con la llamada ya a su nombre.
@@ -695,6 +770,19 @@ def test_team_without_music_and_connect_on_answer(api, admin, monkeypatch, tmp_p
     with api.sessions() as s:
         leg = s.query(HandoffLeg).filter_by(conversation_id=inbound.conversation_id).one()
         assert leg.result == "failed" and leg.ended_at is not None and leg.answered_at is None
+
+
+def test_team_backup_person_follows_connect_on_answer_and_music(api, admin, monkeypatch, tmp_path):
+    # La persona de «si nadie atiende» suena como los telefonos del numero: con conectar al atender y sin musica,
+    # atiende y queda conectada sin whisper ni 1, y nunca suena la musica.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    luis, inbound = backup_person(api, admin, c, inbound, team_connect_on_answer=True, team_hold_music=False)
+    line = WatchedLine({JUAN: "no_answer", LUIS: "silent"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert dialed(line) == [JUAN, LUIS]
+    assert not [x for x in line.log if x[0] in ("whisper", "first_words") or x == ("hold", True)]
+    assert team_outcome(admin, inbound.conversation_id) == {"answered": True, "person": "Luis", "fallback": None}
 
 
 def test_team_connect_on_answer_two_calls_at_once(api, admin, monkeypatch, tmp_path):

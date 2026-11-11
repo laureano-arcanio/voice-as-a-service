@@ -596,6 +596,8 @@ _WRITE: tuple[Tool, ...] = (
          "orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` "
          "de timbre por persona, `schedule` (horario; "
          "null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; "
+         "`member`: una vez al teléfono de la persona `team_fallback_member_id`, del equipo, con teléfono y que no "
+         "esté en `member_ids`, y si no atiende, mensaje y graba; "
          "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`. `team_connect_on_answer` (por defecto false): "
          "en los teléfonos conecta apenas atienden, sin mensaje ni tecla y sin detectar contestadores (para destinos "
          "que siempre atienden, como una central). `team_hold_music` (por defecto true): música mientras suena; "

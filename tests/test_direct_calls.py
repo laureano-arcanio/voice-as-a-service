@@ -544,6 +544,75 @@ def test_phone_number_connect_on_answer_and_music(api, admin):
     assert out["team_connect_on_answer"] is False and out["team_hold_music"] is True
 
 
+def test_phone_number_fallback_member(api, admin):
+    # «Si nadie atiende» = una persona: del cliente, con telefono, fuera del numero; member va con persona y al reves.
+    c, n, ana, ana_id = setup(api, admin)
+    juan = member(admin, c["id"], phone="3516775617")
+    luis = member(admin, c["id"], name="Luis", phone="3512222222")
+    panel = member(admin, c["id"], name="Ana", user_id=ana_id)
+    theirs = member(admin, make_client(admin, slug="otro")["id"], phone="3511111111")
+    url = f"{V1}/phone-numbers/{n['id']}"
+    team = {"answer_mode": "team", "member_ids": [juan["id"]]}
+    bad = [({**team, "team_fallback": "member"}, "elegí la persona"),
+           ({**team, "team_fallback": "member", "team_fallback_member_id": theirs["id"]}, "otro cliente"),
+           ({**team, "team_fallback": "member", "team_fallback_member_id": "nadie"}, "otro cliente"),
+           ({**team, "team_fallback": "member", "team_fallback_member_id": panel["id"]}, "teléfono"),
+           ({**team, "team_fallback": "member", "team_fallback_member_id": juan["id"]}, "personas del número"),
+           ({**team, "team_fallback": "voicemail", "team_fallback_member_id": luis["id"]}, "solo con"),
+           # Un id con formato valido que no existe: 422, no la FK rota en el autoflush (500).
+           ({**team, "team_fallback": "member", "team_fallback_member_id": "00000000-0000-4000-8000-000000000000"},
+            "otro cliente")]
+    for body, text in bad:
+        r = ana.patch(url, json=body)
+        assert r.status_code == 422 and r.json()["code"] == "invalid_fallback_member", (body, r.text)
+        assert text in r.json()["detail"], r.text
+        assert r.json()["errors"][0]["path"] == "team_fallback_member_id"
+    r = ana.patch(url, json={**team, "team_fallback": "member", "team_fallback_member_id": luis["id"]})
+    assert r.status_code == 200, r.text
+    assert (r.json()["team_fallback"], r.json()["team_fallback_member_id"]) == ("member", luis["id"])
+    # Sumar a Luis al numero con el respaldo en el: 422 (estado final, despues de member_ids).
+    r = ana.patch(url, json={"member_ids": [juan["id"], luis["id"]]})
+    assert r.status_code == 422 and r.json()["code"] == "invalid_fallback_member"
+    with api.sessions() as s:
+        route = call_service.start_inbound(s, api.engine, DID, "+5493516775617").team
+        assert (route.fallback, route.fallback_member.member_id, route.fallback_member.phone) == (
+            "member", luis["id"], "+5493512222222")
+    # Inactiva: el ruteo va sin persona (el worker toma el mensaje) y guardar de nuevo sin cambiarla no falla; elegir
+    # otra inactiva, si.
+    admin.patch(f"{V1}/team/{luis['id']}", json={"active": False})
+    with api.sessions() as s:
+        assert call_service.start_inbound(s, api.engine, DID, "+5493516775617").team.fallback_member is None
+    r = ana.patch(url, json={**team, "team_fallback": "member", "team_fallback_member_id": luis["id"]})
+    assert r.status_code == 200, r.text
+    off = member(admin, c["id"], name="Pepe", phone="3519999999", active=False)
+    r = ana.patch(url, json={"team_fallback": "member", "team_fallback_member_id": off["id"]})
+    assert r.status_code == 422 and r.json()["code"] == "invalid_fallback_member" and "inactiva" in r.json()["detail"]
+    admin.patch(f"{V1}/team/{luis['id']}", json={"active": True})
+    # Otro cliente no lo cambia (404) ni asigna a su persona en un numero propio.
+    other_c = make_client(admin, slug="otro2", direct_calls=True)
+    other = accept_terms(client_user(api, admin, other_c, email="otro@otro.com"))
+    assert other.patch(url, json={"team_fallback": "voicemail"}).status_code == 404
+    n2 = admin.post(f"{V1}/phone-numbers", json={"client_id": other_c["id"], "e164": "+541152630862"}).json()
+    mine = member(admin, other_c["id"], name="Pepe", phone="3513333333")
+    r = other.patch(f"{V1}/phone-numbers/{n2['id']}", json={"answer_mode": "team", "member_ids": [mine["id"]],
+                                                            "team_fallback": "member",
+                                                            "team_fallback_member_id": luis["id"]})
+    assert r.status_code == 422 and r.json()["code"] == "invalid_fallback_member"
+    # Otro respaldo sin mandar la persona: deja de serlo.
+    r = ana.patch(url, json={"team_fallback": "hangup"})
+    assert r.status_code == 200 and r.json()["team_fallback_member_id"] is None, r.text
+    # Borrar a la persona del respaldo deja el numero en voicemail (a mano: SQLite no aplica la FK).
+    ana.patch(url, json={"team_fallback": "member", "team_fallback_member_id": luis["id"]})
+    assert admin.delete(f"{V1}/team/{luis['id']}").status_code == 204
+    out = ana.get(f"{V1}/phone-numbers").json()[0]
+    assert (out["team_fallback"], out["team_fallback_member_id"]) == ("voicemail", None)
+    # Liberar el numero lo vuelve al default.
+    member2 = member(admin, c["id"], name="Luis 2", phone="3514444444")
+    ana.patch(url, json={"team_fallback": "member", "team_fallback_member_id": member2["id"]})
+    out = admin.post(f"{url}/release").json()
+    assert (out["team_fallback"], out["team_fallback_member_id"]) == ("voicemail", None)
+
+
 # ---------- entrantes: equipo o agente ----------
 
 def test_inbound_to_team_agent_or_fallback(api, admin):

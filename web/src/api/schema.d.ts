@@ -630,7 +630,8 @@ export interface paths {
          * Update Number
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
          *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
-         *     `team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
+         *     `team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
+         *     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
         patch: operations["update_number_api_v1_phone_numbers__number_id__patch"];
@@ -2957,7 +2958,7 @@ export interface paths {
         /**
          * Create Area
          * @description Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área
-         *     pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`).
+         *     pasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`).
          */
         post: operations["create_area_api_v1_handoff_areas_post"];
         delete?: never;
@@ -2984,7 +2985,8 @@ export interface paths {
         /**
          * Update Area
          * @description Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;
-         *     `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas.
+         *     `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la
+         *     persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes.
          */
         patch: operations["update_area_api_v1_handoff_areas__area_id__patch"];
         trace?: never;
@@ -6828,6 +6830,11 @@ export interface components {
              */
             no_answer_area_id?: string | null;
             /**
+             * No Answer Member Id
+             * @description Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje
+             */
+            no_answer_member_id?: string | null;
+            /**
              * Delivery
              * @description call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación
              * @default call
@@ -6879,6 +6886,11 @@ export interface components {
             after_hours_area_id: string | null;
             /** No Answer Area Id */
             no_answer_area_id: string | null;
+            /**
+             * No Answer Member Id
+             * @description Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje
+             */
+            no_answer_member_id: string | null;
             /** Delivery */
             delivery: string;
             whatsapp: components["schemas"]["HandoffWhatsapp"] | null;
@@ -6917,6 +6929,11 @@ export interface components {
             after_hours_area_id?: string | null;
             /** No Answer Area Id */
             no_answer_area_id?: string | null;
+            /**
+             * No Answer Member Id
+             * @description Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje
+             */
+            no_answer_member_id?: string | null;
             /** Delivery */
             delivery?: ("call" | "whatsapp") | null;
             whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
@@ -8051,7 +8068,9 @@ export interface components {
              * Team Fallback
              * @enum {string}
              */
-            team_fallback: "agent" | "voicemail" | "hangup";
+            team_fallback: "agent" | "member" | "voicemail" | "hangup";
+            /** Team Fallback Member Id */
+            team_fallback_member_id?: string | null;
             /** Team Fallback Message */
             team_fallback_message: string;
             /** Team Connect On Answer */
@@ -8099,9 +8118,14 @@ export interface components {
             schedule?: components["schemas"]["HandoffSchedule"] | null;
             /**
              * Team Fallback
-             * @description Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o mensaje y corta
+             * @description Si nadie atiende o fuera de horario: el agente del número, una persona (team_fallback_member_id; si no atiende, mensaje y graba), mensaje y graba, o mensaje y corta
              */
-            team_fallback?: ("agent" | "voicemail" | "hangup") | null;
+            team_fallback?: ("agent" | "member" | "voicemail" | "hangup") | null;
+            /**
+             * Team Fallback Member Id
+             * @description Con team_fallback member: la persona del equipo (con celular, que no sea del número) a la que se llama una vez
+             */
+            team_fallback_member_id?: string | null;
             /** Team Fallback Message */
             team_fallback_message?: string | null;
             /**
@@ -9982,9 +10006,9 @@ export interface components {
             person?: string | null;
             /**
              * Fallback
-             * @description Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)
+             * @description Nadie atendió: el respaldo (pasó al agente, llamando a la persona de respaldo, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)
              */
-            fallback?: ("agent" | "voicemail" | "hangup") | null;
+            fallback?: ("agent" | "member" | "voicemail" | "hangup") | null;
         };
         /** TeamPresenceOut */
         TeamPresenceOut: {

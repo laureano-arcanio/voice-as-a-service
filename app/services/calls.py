@@ -262,7 +262,8 @@ class TeamPerson:
 class TeamRoute:
     """Entrante al equipo (answer_mode=team, docs/features/EQUIPO_TELEFONIA.md): a quien hacer sonar, en orden,
     donde primero (phone/panel), timbre, horario y que hacer si nadie atiende o esta fuera de horario
-    (fallback: agent, voicemail o hangup; agent_id es el agente del numero, para el respaldo)."""
+    (fallback: agent, member, voicemail o hangup; agent_id es el agente del numero y fallback_member la persona, si
+    esta activa y con celular, para el respaldo)."""
     members: list[TeamPerson]
     ring_first: str
     ring_seconds: int
@@ -278,6 +279,7 @@ class TeamRoute:
     connect_on_answer: bool = False
     # Musica mientras suena (team_hold_music); en falso, silencio.
     hold_music: bool = True
+    fallback_member: TeamPerson | None = None
 
 
 @dataclass
@@ -304,12 +306,18 @@ def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
     if number.strategy == "round_robin":
         # Ordena solo los celulares (el panel suena a todos a la vez): la ultima anotada siempre tiene celular.
         people = rotate(people, number.last_member_id)
+    backup = s.get(TeamMember, number.team_fallback_member_id) \
+        if number.team_fallback == "member" and number.team_fallback_member_id else None
+    if backup is not None and not (backup.active and backup.phone and backup.client_id == number.client_id):
+        backup = None   # inactiva o sin celular: el worker toma el mensaje
     return TeamRoute(
         members=[TeamPerson(member_id=m.id, name=m.name, phone=m.phone, user_id=m.user_id) for m in people],
         ring_first=number.ring_first, ring_seconds=number.ring_seconds, schedule=number.schedule,
         fallback=number.team_fallback, fallback_message=number.team_fallback_message, agent_id=number.agent_id,
         number_e164=number.e164, number_label=number.label, number_id=number.id,
-        connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music)
+        connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music,
+        fallback_member=TeamPerson(member_id=backup.id, name=backup.name, phone=backup.phone, user_id=backup.user_id)
+        if backup else None)
 
 
 def dialed_e164(raw: str | None) -> str | None:

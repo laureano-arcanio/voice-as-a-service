@@ -162,16 +162,25 @@ def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
 
 
 def delete_member(s: Session, member: TeamMember) -> None:
-    # Sale de sus areas y sus numeros (a mano: SQLite no aplica las FK) y de su lugar en el round robin de areas y
-    # numeros; los eventos quedan sin team_member_id.
+    # Sale de sus areas y sus numeros (a mano: SQLite no aplica las FK), de su lugar en el round robin de areas y
+    # numeros y de "si nadie atiende"; los eventos quedan sin team_member_id.
     for row in s.scalars(select(HandoffAreaMember).where(HandoffAreaMember.member_id == member.id)):
         s.delete(row)
     for row in s.scalars(select(PhoneNumberMember).where(PhoneNumberMember.member_id == member.id)):
         s.delete(row)
-    for area in s.scalars(select(HandoffArea).where(HandoffArea.last_member_id == member.id)):
-        area.last_member_id = None
-    for number in s.scalars(select(PhoneNumber).where(PhoneNumber.last_member_id == member.id)):
-        number.last_member_id = None
+    for area in s.scalars(select(HandoffArea).where(
+            or_(HandoffArea.last_member_id == member.id, HandoffArea.no_answer_member_id == member.id))):
+        if area.last_member_id == member.id:
+            area.last_member_id = None
+        if area.no_answer_member_id == member.id:
+            area.no_answer_member_id = None
+    for number in s.scalars(select(PhoneNumber).where(
+            or_(PhoneNumber.last_member_id == member.id, PhoneNumber.team_fallback_member_id == member.id))):
+        if number.last_member_id == member.id:
+            number.last_member_id = None
+        if number.team_fallback_member_id == member.id:
+            # Sin la persona, el respaldo vuelve al default (member sin persona no vale).
+            number.team_fallback_member_id, number.team_fallback = None, "voicemail"
     s.delete(member)
     s.flush()
 
@@ -382,15 +391,6 @@ def _route_target(s: Session, area: HandoffArea, key: str, target_id: str | None
     return target.id
 
 
-def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
-    if "name" in changes:
-        name = (changes["name"] or "").strip()
-        if not name:
-            raise Invalid("El área necesita un nombre")
-        area.name = name
-    if "description" in changes:
-        area.description = (changes["description"] or "").strip()
-    if "active" in changes:
 def _no_answer_error(message: str) -> Invalid:
     return Invalid(message, details=[{"path": "no_answer_member_id", "message": message}])
 
@@ -421,6 +421,15 @@ def _check_no_answer(s: Session, area: HandoffArea) -> None:
         raise _no_answer_error("La persona de «si nadie atiende» ya está en el área: sacala de una de las dos")
 
 
+def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
+    if "name" in changes:
+        name = (changes["name"] or "").strip()
+        if not name:
+            raise Invalid("El área necesita un nombre")
+        area.name = name
+    if "description" in changes:
+        area.description = (changes["description"] or "").strip()
+    if "active" in changes:
         area.active = bool(changes["active"])
     if "strategy" in changes:
         if changes["strategy"] not in STRATEGIES:
@@ -449,6 +458,8 @@ def _check_no_answer(s: Session, area: HandoffArea) -> None:
     for key in ("after_hours_area_id", "no_answer_area_id"):
         if key in changes:
             setattr(area, key, _route_target(s, area, key, changes[key]))
+    if "no_answer_member_id" in changes:
+        area.no_answer_member_id = _no_answer_member(s, area, changes["no_answer_member_id"])
     if "delivery" in changes:
         if changes["delivery"] not in DELIVERIES:
             raise Invalid(f"Envío desconocido (son {', '.join(DELIVERIES)})")
@@ -458,8 +469,6 @@ def _check_no_answer(s: Session, area: HandoffArea) -> None:
         area.whatsapp = validate_whatsapp(s, area.client_id, changes.get("whatsapp", area.whatsapp), area.delivery)
 
 
-    if "no_answer_member_id" in changes:
-        area.no_answer_member_id = _no_answer_member(s, area, changes["no_answer_member_id"])
 def _check_name(s: Session, area: HandoffArea) -> None:
     other = s.scalar(select(HandoffArea.id).where(
         HandoffArea.client_id == area.client_id, func.lower(HandoffArea.name) == area.name.lower(),
@@ -478,6 +487,7 @@ def create_area(s: Session, client_id: str, *, member_ids: list[str] | None = No
     s.flush()
     _set_members(s, area, member_ids or [])
     s.flush()
+    _check_no_answer(s, area)
     return area
 
 
@@ -487,9 +497,9 @@ def update_area(s: Session, area: HandoffArea, *, member_ids: list[str] | None =
     _apply(s, area, changes)
     _check_name(s, area)
     if member_ids is not None:
-    _check_no_answer(s, area)
         _set_members(s, area, member_ids)
     s.flush()
+    _check_no_answer(s, area)
     return area
 
 
@@ -499,7 +509,6 @@ def agents_using(s: Session, area: HandoffArea) -> list[str]:
     return [a.name for a in rows
             if any(t.get("area_id") == area.id for t in ((a.definition or {}).get("handoff") or {}).get("areas") or [])]
 
-    _check_no_answer(s, area)
 
 def delete_area(s: Session, area: HandoffArea) -> None:
     """No se borra un area que usa un agente: su definicion quedaria con un area inexistente y no se podria
