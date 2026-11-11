@@ -71,6 +71,9 @@ class HandoffArea(IdMixin, TimestampMixin, Base):
         String(36), ForeignKey("handoff_areas.id", ondelete="SET NULL"), nullable=True)
     no_answer_area_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("handoff_areas.id", ondelete="SET NULL"), nullable=True)
+    # Persona a la que se llama si nadie del area acepta (no entra en la rotacion). Excluyente con no_answer_area_id.
+    no_answer_member_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
     # call: se llama a la persona. whatsapp: solo aviso por plantilla, a una persona, sin aceptacion.
     delivery: Mapped[str] = mapped_column(String(16), default="call", server_default="call")
     # {"account_id", "template": {"name", "language", "params"}, "call_template": {...}, "wait_seconds"}

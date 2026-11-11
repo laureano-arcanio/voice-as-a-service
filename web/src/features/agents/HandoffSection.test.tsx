@@ -28,6 +28,7 @@ const VENTAS: HandoffArea = {
   messages: {},
   after_hours_area_id: null,
   no_answer_area_id: null,
+  no_answer_member_id: null,
   delivery: 'call',
   whatsapp: null,
   created_at: '2026-10-20T12:00:00Z',

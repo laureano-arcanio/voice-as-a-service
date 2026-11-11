@@ -192,7 +192,7 @@ incluido.
 | `contacts` | `phone` (E.164) único por cliente, `name`, `email`, `notes`, `source`, `archived_at`. **No se borran, se archivan**; `max_contacts` cuenta los activos. | [`CAMPANAS.md`](features/CAMPANAS.md) |
 | `contact_optouts` | Bajas por `(client_id, phone, channel)` (`whatsapp`, `voice`, `all`) y `source`; siguen aunque el contacto se archive. | ídem |
 | `campaigns`, `campaign_contacts`, `campaign_callbacks` | Campaña por `channel` (`whatsapp` o `voice`, CHECK por canal) con `status`, horario, programación, `purpose`, webhook (`callback_url`, secreto cifrado); cada contacto con `vars`, `status`, `result`, intentos y seguimiento; cola del webhook. | ídem |
-| `team_members`, `handoff_areas`, `handoff_area_members` | Personas (`phone`, `user_id`, `whatsapp_notify`), áreas con estrategia, timbre, horario, respaldo, `return_digits`, mensajes, rutas (`after_hours_area_id`, `no_answer_area_id`), `delivery` (`call`/`whatsapp`) y `whatsapp` (cuenta y plantillas); miembros en orden. | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
+| `team_members`, `handoff_areas`, `handoff_area_members` | Personas (`phone`, `user_id`, `whatsapp_notify`), áreas con estrategia, timbre, horario, respaldo, `return_digits`, mensajes, rutas (`after_hours_area_id`, `no_answer_area_id`) o persona de «si nadie atiende» (`no_answer_member_id`), `delivery` (`call`/`whatsapp`) y `whatsapp` (cuenta y plantillas); miembros en orden. | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
 | `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result` (con la rotación por WhatsApp, también `whatsapp_sent` e `interrupted`), `sip_status`, tiempos, `billed_seconds` (minutos salientes) y `wamid` (la plantilla enviada). | ídem |
 | `user_presence`, `call_rings` | Disponible en el panel (pulso, TTL 60 s); timbre de una entrante al equipo por usuario (el primero que atiende se queda). | ídem |
 | `events` | Línea de tiempo (`call.*`, `handoff.*`, `hold.*`, `team.*`, `workflow.*`), `id` incremental para leer con cursor. Por WhatsApp de texto, los `handoff.*` llevan `channel: whatsapp`; `handoff.ignored` (una segunda derivación con otra viva) trae `area`, `live_area`, `live_status` y `other_conversation`. | ídem |
@@ -437,7 +437,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   derivación ya reservada ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
 - **Derivación a una persona** (`transfer_call`): transferencia atendida en la misma room, con música, whisper,
   confirmación con `1`, modo escucha y vuelta a la IA con el código del área; cada intento es un `handoff_legs`
-  y gasta minutos salientes y canales de Anura. Un área puede pasar a otra (fuera de horario o si nadie acepta) o solo
+  y gasta minutos salientes y canales de Anura. Un área puede pasar a otra (fuera de horario o si nadie acepta), a una persona (si nadie acepta) o solo
   avisar por WhatsApp. Por WhatsApp de texto: rotación por plantillas con botón, entrega de los datos al operador que
   toca y reenvío de 24 h de lo que escribe la persona; el estado vive en `wa_threads` y lo mueve el `handoff_loop`
   ([`features/WHATSAPP.md`](features/WHATSAPP.md#derivación-a-personas-del-equipo)).

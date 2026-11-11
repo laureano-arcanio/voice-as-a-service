@@ -33,6 +33,7 @@ import {
   STRATEGY_OPTIONS,
 } from './labels';
 import { MemberPicker } from './MemberPicker';
+import { NoAnswerField, type NoAnswerDestination } from './NoAnswerField';
 import { ScheduleFields } from './ScheduleFields';
 import { type ScheduleDraft, scheduleError, toDraft, toSchedule } from './schedule';
 import { fromWhatsappDraft, toWhatsappDraft, type WhatsappDraft, whatsappError } from './whatsappDraft';
@@ -50,8 +51,15 @@ interface AreaValues {
   messages: Record<string, string>;
   delivery: 'call' | 'whatsapp';
   after_hours_area_id: string | null;
+  /** Adónde va si nadie acepta: el agente, otra área o una persona. */
+  no_answer_kind: 'agent' | 'area' | 'member';
   no_answer_area_id: string | null;
+  no_answer_member_id: string | null;
   whatsapp: WhatsappDraft;
+}
+
+function noAnswerKind(area: AreaRow | null): AreaValues['no_answer_kind'] {
+  return area?.no_answer_member_id ? 'member' : area?.no_answer_area_id ? 'area' : 'agent';
 }
 
 /** Los mensajes que se ven según cómo entrega el área, si rota por WhatsApp de texto y qué hace al cortar la persona. */
@@ -108,7 +116,9 @@ export function AreaModal({
       messages: { ...(area?.messages ?? {}) },
       delivery: area?.delivery === 'whatsapp' ? 'whatsapp' : 'call',
       after_hours_area_id: area?.after_hours_area_id ?? null,
+      no_answer_kind: noAnswerKind(area),
       no_answer_area_id: area?.no_answer_area_id ?? null,
+      no_answer_member_id: area?.no_answer_member_id ?? null,
       whatsapp: toWhatsappDraft(area?.whatsapp),
     },
     // Solo se valida lo que se ve: según cómo se avisa, el timbre, la tecla y varios mensajes no están en pantalla.
@@ -117,6 +127,10 @@ export function AreaModal({
       ring_seconds: (v, values) => (values.delivery === 'whatsapp' ? null : ringSecondsError(v)),
       return_digits: (v, values) => (values.delivery === 'whatsapp' ? null : returnDigitsError(v.trim())),
       schedule: (v) => scheduleError(v),
+      no_answer_area_id: (v, values) =>
+        values.no_answer_kind === 'area' && !v ? 'Elegí el área o cambiá el destino' : null,
+      no_answer_member_id: (v, values) =>
+        values.no_answer_kind === 'member' && !v ? 'Elegí la persona o cambiá el destino' : null,
       whatsapp: (v, values) => whatsappError(v, values.delivery),
       messages: Object.fromEntries(
         preAcceptKeys.map((key) => [
@@ -131,7 +145,12 @@ export function AreaModal({
   });
 
   const v = form.values;
-  const setMembers = (ids: string[]) => form.setFieldValue('member_ids', ids);
+  // La persona de «si nadie atiende» no puede estar también en el área: si se la suma, se limpia.
+  const setMembers = (ids: string[]) => {
+    form.setFieldValue('member_ids', ids);
+    const away = form.getValues().no_answer_member_id;
+    if (away && ids.includes(away)) form.setFieldValue('no_answer_member_id', null);
+  };
 
   const setMessage = (key: string, text: string) => {
     form.setFieldValue('messages', { ...form.getValues().messages, [key]: text });
@@ -180,7 +199,8 @@ export function AreaModal({
           messages,
           delivery: values.delivery,
           after_hours_area_id: values.after_hours_area_id,
-          no_answer_area_id: values.no_answer_area_id,
+          no_answer_area_id: values.no_answer_kind === 'area' ? values.no_answer_area_id : null,
+          no_answer_member_id: values.no_answer_kind === 'member' ? values.no_answer_member_id : null,
           whatsapp: fromWhatsappDraft(values.whatsapp, values.delivery),
         },
       },
@@ -226,6 +246,56 @@ export function AreaModal({
   const routeOptions = areas
     .filter((a) => a.id !== area?.id && (!area || a.client_id === area.client_id))
     .map((a) => ({ value: a.id, label: a.name }));
+  // A quién se puede llamar si nadie acepta: con teléfono, activas y fuera del área (la guardada se conserva).
+  const personOptions = members
+    .filter(
+      (m) =>
+        m.id === v.no_answer_member_id ||
+        (m.phone && m.active && !v.member_ids.includes(m.id)),
+    )
+    .map((m) => ({ value: m.id, label: m.phone ? `${m.name} · ${m.phone}` : m.name }));
+  // Un área de aviso no llama a nadie: la persona solo se ofrece si ya estaba guardada, para no perderla.
+  const noAnswerDestinations: NoAnswerDestination[] = [
+    {
+      value: 'agent',
+      label: 'El agente toma el mensaje',
+    },
+    {
+      value: 'area',
+      label: 'Otra área',
+      clear: () => form.setFieldValue('no_answer_area_id', null),
+      detail: {
+        type: 'select',
+        label: 'Área',
+        placeholder: 'Elegí un área',
+        options: routeOptions,
+        value: v.no_answer_area_id,
+        onChange: (id) => form.setFieldValue('no_answer_area_id', id),
+        nothingFound: 'No hay otras áreas',
+        error: form.errors.no_answer_area_id,
+      },
+    },
+    ...(!notice || v.no_answer_kind === 'member'
+      ? [
+          {
+            value: 'member',
+            label: 'Una persona',
+            clear: () => form.setFieldValue('no_answer_member_id', null),
+            detail: {
+              type: 'select' as const,
+              label: 'Persona',
+              description: 'Se la llama una vez, con el timbre y la tecla del área. No entra en la rotación.',
+              placeholder: 'Elegí una persona',
+              options: personOptions,
+              value: v.no_answer_member_id,
+              onChange: (id: string | null) => form.setFieldValue('no_answer_member_id', id),
+              nothingFound: 'No hay personas con teléfono fuera del área',
+              error: form.errors.no_answer_member_id,
+            },
+          },
+        ]
+      : []),
+  ];
   const whatsappOn = !!v.whatsapp.accountId;
   const helpFor = (f: { key: string; help: string }) =>
     preAcceptKeys.includes(f.key) && preAcceptVars.length
@@ -346,7 +416,7 @@ export function AreaModal({
 
           <Divider label="Si no se puede" labelPosition="left" mt="xs" />
           <Text size="xs" c="dimmed">
-            En vez de tomar el mensaje, el agente puede pasar a otra área.
+            En vez de tomar el mensaje, el agente puede pasar a otra área o, si nadie acepta, a una persona.
           </Text>
           <Group align="flex-start" grow>
             <Select
@@ -359,15 +429,13 @@ export function AreaModal({
               nothingFoundMessage="No hay otras áreas"
               {...form.getInputProps('after_hours_area_id')}
             />
-            <Select
-              label="Si nadie acepta, pasa a"
-              description="Si nadie atiende, no hay personas o no se puede llamar. Vacío: toma el mensaje."
-              placeholder="Ninguna"
-              data={routeOptions}
-              clearable
-              searchable
-              nothingFoundMessage="No hay otras áreas"
-              {...form.getInputProps('no_answer_area_id')}
+            <NoAnswerField
+              description="Si nadie acepta, no hay personas o no se puede llamar."
+              value={v.no_answer_kind}
+              onChange={(k) => {
+                if (k === 'agent' || k === 'area' || k === 'member') form.setFieldValue('no_answer_kind', k);
+              }}
+              destinations={noAnswerDestinations}
             />
           </Group>
 

@@ -731,7 +731,9 @@ agente se elige en su definición, **Derivación a personas**.
      les avisa además por texto) o **Solo aviso por WhatsApp** (una plantilla a una sola persona, la primera con «Recibe
      WhatsApp», sin esperar que acepte; el agente le dice a la persona que ya avisó). El timbre y la tecla de vuelta no se
      ven en un área de aviso.
-   - **Fuera de horario, pasa a** y **Si nadie acepta, pasa a:** otra área del cliente (vacío: el agente dice el mensaje).
+   - **Fuera de horario, pasa a:** otra área del cliente (vacío: el agente dice el mensaje).
+   - **Si nadie atiende:** **El agente toma el mensaje** (por defecto), **Otra área** o **Una persona** (con teléfono, activa y
+     fuera del área; no entra en la rotación). Un solo destino: para más pasos, encadená áreas.
    - **WhatsApp:** el número que envía (de **WhatsApp**) y sus plantillas aprobadas: la de rotación (con botón de
      respuesta rápida, para aceptar tocándolo; por WhatsApp de texto), la de la llamada (sin botón) o la del aviso (sin
      botón). Para cada `{{n}}` de la plantilla se elige una variable (`area`, `persona`, `resumen`, `horario`, `cliente`

@@ -43,6 +43,7 @@ const VENTAS: HandoffArea = {
   messages: { transfer: 'Ya te paso con Ventas.' },
   after_hours_area_id: null,
   no_answer_area_id: null,
+  no_answer_member_id: null,
   delivery: 'call',
   whatsapp: null,
   created_at: '2026-10-20T12:00:00Z',
@@ -383,6 +384,7 @@ describe('equipo: áreas', () => {
       delivery: 'call',
       after_hours_area_id: null,
       no_answer_area_id: null,
+      no_answer_member_id: null,
       whatsapp: null,
     });
   });
@@ -563,15 +565,83 @@ describe('equipo: áreas con rutas y WhatsApp', () => {
     const list = screen.getByRole('listbox', { name: /Fuera de horario, pasa a/, hidden: true });
     expect(within(list).queryByRole('option', { name: 'Ventas', hidden: true })).not.toBeInTheDocument();
     await choose(dialog, /Fuera de horario, pasa a/, 'Posventa');
-    await choose(dialog, /Si nadie acepta, pasa a/, 'Posventa');
+    await choose(dialog, 'Si nadie atiende', 'Otra área');
+    await choose(dialog, 'Área', 'Posventa');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toBeDefined());
     expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toMatchObject({
       after_hours_area_id: 'a2',
       no_answer_area_id: 'a2',
+      no_answer_member_id: null,
       delivery: 'call',
       whatsapp: null,
     });
+  });
+
+  it('si nadie atiende: una persona con teléfono y fuera del área; cambiar de destino limpia el otro', async () => {
+    const calls = mockApi({
+      'GET /api/v1/team': () => jsonResponse([ANA, LUIS, { ...ANA, id: 'm3', name: 'Marta Sosa', phone: '+5493515550000' }]),
+      'PATCH /api/v1/handoff-areas/a1': () => jsonResponse(VENTAS),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    // Por defecto vuelve el agente y no pide nada más.
+    expect(within(dialog).getByRole('textbox', { name: 'Si nadie atiende' })).toHaveValue(
+      'El agente toma el mensaje',
+    );
+    expect(within(dialog).queryByRole('textbox', { name: 'Persona' })).not.toBeInTheDocument();
+    await choose(dialog, 'Si nadie atiende', 'Una persona');
+    // Ana ya está en el área; Luis está inactiva y sin teléfono.
+    const list = screen.getByRole('listbox', { name: 'Persona', hidden: true });
+    expect(within(list).queryByRole('option', { name: /Ana/, hidden: true })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('option', { name: /Luis/, hidden: true })).not.toBeInTheDocument();
+    await choose(dialog, 'Persona', /Marta Sosa/);
+    // Sin elegir otra cosa, se manda la persona y ninguna área.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toMatchObject({
+      no_answer_member_id: 'm3',
+      no_answer_area_id: null,
+    });
+  });
+
+  it('cambiar de «una persona» a «otra área» no manda la persona', async () => {
+    const withPerson = { ...POSVENTA, no_answer_member_id: 'm1' };
+    const calls = mockApi({
+      'GET /api/v1/handoff-areas': () => jsonResponse([VENTAS, withPerson]),
+      'PATCH /api/v1/handoff-areas/a2': () => jsonResponse(withPerson),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Posventa' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Posventa' });
+    expect(within(dialog).getByRole('textbox', { name: 'Persona' })).toHaveValue('Ana Pérez · +5493515551234');
+    await choose(dialog, 'Si nadie atiende', 'Otra área');
+    expect(within(dialog).queryByRole('textbox', { name: 'Persona' })).not.toBeInTheDocument();
+    await choose(dialog, 'Área', 'Ventas');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a2')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a2')).toMatchObject({
+      no_answer_area_id: 'a1',
+      no_answer_member_id: null,
+    });
+  });
+
+  it('si la persona de «si nadie atiende» se suma al área, se limpia y hay que elegir otra', async () => {
+    const withPerson = { ...POSVENTA, no_answer_member_id: 'm1' };
+    const calls = mockApi({
+      'GET /api/v1/handoff-areas': () => jsonResponse([VENTAS, withPerson]),
+      'PATCH /api/v1/handoff-areas/a2': () => jsonResponse(withPerson),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Posventa' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Posventa' });
+    expect(within(dialog).getByRole('textbox', { name: 'Persona' })).toHaveValue('Ana Pérez · +5493515551234');
+    await choose(dialog, 'Agregar persona al área', /Ana/);
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Persona' })).toHaveValue(''));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    expect(await within(dialog).findByText(/Elegí la persona/)).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
   });
 
   it('un área de aviso por WhatsApp pide número y plantilla, y manda las variables en orden', async () => {

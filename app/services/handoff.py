@@ -391,6 +391,36 @@ def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
     if "description" in changes:
         area.description = (changes["description"] or "").strip()
     if "active" in changes:
+def _no_answer_error(message: str) -> Invalid:
+    return Invalid(message, details=[{"path": "no_answer_member_id", "message": message}])
+
+
+def _no_answer_member(s: Session, area: HandoffArea, member_id: str | None) -> str | None:
+    """La persona de «si nadie atiende»: del cliente, activa y con teléfono (se le llama por teléfono)."""
+    if not member_id:
+        return None
+    member = s.get(TeamMember, member_id)
+    if member is None or member.client_id != area.client_id:
+        raise _no_answer_error("La persona no existe o es de otro cliente")
+    if not member.phone:
+        raise _no_answer_error("La persona no tiene teléfono")
+    # Una ya guardada que se volvió inactiva no impide guardar el área; asignarla o cambiarla, sí.
+    if not member.active and member.id != area.no_answer_member_id:
+        raise _no_answer_error("La persona está inactiva: activala o elegí otra")
+    return member.id
+
+
+def _check_no_answer(s: Session, area: HandoffArea) -> None:
+    """Estado final: «si nadie atiende» es un área o una persona (no las dos), y la persona no está en el área."""
+    if not area.no_answer_member_id:
+        return
+    if area.no_answer_area_id:
+        raise _no_answer_error("«Si nadie atiende» es un área o una persona, no las dos: no_answer_area_id y "
+                               "no_answer_member_id no pueden ir juntos")
+    if area.no_answer_member_id in area_member_ids(s, area.id):
+        raise _no_answer_error("La persona de «si nadie atiende» ya está en el área: sacala de una de las dos")
+
+
         area.active = bool(changes["active"])
     if "strategy" in changes:
         if changes["strategy"] not in STRATEGIES:
@@ -428,6 +458,8 @@ def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
         area.whatsapp = validate_whatsapp(s, area.client_id, changes.get("whatsapp", area.whatsapp), area.delivery)
 
 
+    if "no_answer_member_id" in changes:
+        area.no_answer_member_id = _no_answer_member(s, area, changes["no_answer_member_id"])
 def _check_name(s: Session, area: HandoffArea) -> None:
     other = s.scalar(select(HandoffArea.id).where(
         HandoffArea.client_id == area.client_id, func.lower(HandoffArea.name) == area.name.lower(),
@@ -451,10 +483,11 @@ def create_area(s: Session, client_id: str, *, member_ids: list[str] | None = No
 
 def update_area(s: Session, area: HandoffArea, *, member_ids: list[str] | None = None, **changes) -> HandoffArea:
     _no_nulls(changes, {"schedule", "messages", "description", "after_hours_area_id", "no_answer_area_id",
-                        "whatsapp"})
+                        "no_answer_member_id", "whatsapp"})
     _apply(s, area, changes)
     _check_name(s, area)
     if member_ids is not None:
+    _check_no_answer(s, area)
         _set_members(s, area, member_ids)
     s.flush()
     return area
@@ -466,6 +499,7 @@ def agents_using(s: Session, area: HandoffArea) -> list[str]:
     return [a.name for a in rows
             if any(t.get("area_id") == area.id for t in ((a.definition or {}).get("handoff") or {}).get("areas") or [])]
 
+    _check_no_answer(s, area)
 
 def delete_area(s: Session, area: HandoffArea) -> None:
     """No se borra un area que usa un agente: su definicion quedaria con un area inexistente y no se podria

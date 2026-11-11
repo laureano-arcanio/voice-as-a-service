@@ -254,6 +254,83 @@ def test_area_routes_stay_in_the_client(api, admin):
     assert admin.delete(f"{V1}/handoff-areas/{guardia['id']}").status_code == 204
 
 
+def test_no_answer_member(api, admin):
+    """«Si nadie atiende» con una persona: se guarda, se lee, es excluyente con el área y con los miembros."""
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    a, b = member(admin, c["id"], phone="3511111111"), member(admin, c["id"], name="Ana", phone="3512222222")
+    user_id = admin.post(f"{V1}/users", json={"email": "d@acme.com", "password": "cliente-password-1",
+                                             "role": "client", "client_id": c["id"]}).json()["id"]
+    sin_tel = member(admin, c["id"], name="Sin", user_id=user_id)   # solo softphone web: sin teléfono
+    theirs = member(admin, other["id"], phone="3513333333")
+    guardia = new_area(admin, c["id"], "Guardia")
+    assert guardia["no_answer_member_id"] is None
+
+    # Crear con persona, que no es del area.
+    area = new_area(admin, c["id"], "Ventas", member_ids=[a["id"]], no_answer_member_id=b["id"])
+    assert area["no_answer_member_id"] == b["id"]
+    assert admin.get(f"{V1}/handoff-areas/{area['id']}").json()["no_answer_member_id"] == b["id"]
+    url = f"{V1}/handoff-areas/{area['id']}"
+
+    # Cada 422 nombra el campo en errors[path].
+    bad = [{"no_answer_member_id": theirs["id"]}, {"no_answer_member_id": "no-existe"},
+           {"no_answer_member_id": sin_tel["id"]},
+           {"no_answer_area_id": guardia["id"]},                       # las dos a la vez (estado final)
+           {"member_ids": [a["id"], b["id"]]}]                         # la persona pasa a ser miembro
+    for patch in bad:
+        r = admin.patch(url, json=patch)
+        assert r.status_code == 422, patch
+        assert [e["path"] for e in r.json()["errors"]] == ["no_answer_member_id"], r.text
+    assert admin.get(url).json()["no_answer_member_id"] == b["id"]      # ningun rechazo la cambió
+
+    # Crear con las dos, o con un miembro, tambien se rechaza.
+    for body in ({"no_answer_member_id": b["id"], "no_answer_area_id": guardia["id"]},
+                 {"no_answer_member_id": b["id"], "member_ids": [b["id"]]}):
+        r = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]}, json={"name": "X", **body})
+        assert r.status_code == 422, body
+    assert admin.get(f"{V1}/handoff-areas", params={"client_id": c["id"]}).json().__len__() == 2
+
+    # Cambiar de destino en un solo PATCH: la persona sale, entra el area.
+    r = admin.patch(url, json={"no_answer_member_id": None, "no_answer_area_id": guardia["id"]})
+    assert r.status_code == 200, r.text
+    assert (r.json()["no_answer_member_id"], r.json()["no_answer_area_id"]) == (None, guardia["id"])
+    r = admin.patch(url, json={"no_answer_area_id": None, "no_answer_member_id": a["id"]})
+    assert r.status_code == 422                                          # a es miembro
+    r = admin.patch(url, json={"no_answer_area_id": None, "no_answer_member_id": b["id"]})
+    assert r.status_code == 200 and r.json()["no_answer_member_id"] == b["id"]
+    # null la quita; editar otra cosa no la toca.
+    assert admin.patch(url, json={"description": "x"}).json()["no_answer_member_id"] == b["id"]
+    assert admin.patch(url, json={"no_answer_member_id": None}).json()["no_answer_member_id"] is None
+
+    # Una persona inactiva no se asigna ni se cambia por ella; una ya guardada que se inactiva no frena el guardado.
+    off = member(admin, c["id"], name="Off", phone="3515555555", active=False)
+    r = admin.patch(url, json={"no_answer_member_id": off["id"]})
+    assert r.status_code == 422 and [e["path"] for e in r.json()["errors"]] == ["no_answer_member_id"]
+    admin.patch(url, json={"no_answer_member_id": b["id"]})
+    admin.patch(f"{V1}/team/{b['id']}", json={"active": False})
+    r = admin.patch(url, json={"no_answer_member_id": b["id"], "description": "x"})
+    assert r.status_code == 200 and r.json()["no_answer_member_id"] == b["id"]
+    admin.patch(f"{V1}/team/{b['id']}", json={"active": True})
+
+    # Borrar a la persona la limpia del area (SQLite no aplica la FK).
+    admin.patch(url, json={"no_answer_member_id": b["id"]})
+    assert admin.delete(f"{V1}/team/{b['id']}").status_code == 204
+    assert admin.get(url).json()["no_answer_member_id"] is None
+
+
+def test_no_answer_member_other_client(api, admin):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    theirs = member(admin, other["id"], phone="3513333333")
+    user = client_user(api, admin, c)
+    mine = new_area(user, None, "Mia")
+    r = user.patch(f"{V1}/handoff-areas/{mine['id']}", json={"no_answer_member_id": theirs["id"]})
+    assert r.status_code == 422 and r.json()["errors"][0]["path"] == "no_answer_member_id"
+    r = user.post(f"{V1}/handoff-areas", json={"name": "Otra", "no_answer_member_id": theirs["id"]})
+    assert r.status_code == 422
+    # Y el de otro cliente no ve ni edita el area ajena.
+    assert user.patch(f"{V1}/handoff-areas/{new_area(admin, other['id'], 'Ajena')['id']}",
+                      json={"no_answer_member_id": None}).status_code == 404
+
+
 def test_client_user_cannot_route_to_another_client(api, admin):
     c, other = make_client(admin), make_client(admin, slug="otro")
     theirs = new_area(admin, other["id"], "Ajena")
@@ -596,3 +673,27 @@ def test_0048_upgrade_downgrade(tmp_path):
     assert "wamid" not in {c["name"] for c in inspector.get_columns("handoff_legs")}
     assert "delivery" not in {c["name"] for c in inspector.get_columns("handoff_areas")}
     _run(engine, command.upgrade, "0048")
+
+
+# ---------- migracion 0052 ----------
+
+def test_0052_upgrade_downgrade(tmp_path):
+    engine = sa.create_engine(f"sqlite:///{tmp_path}/mig.db")
+    _run(engine, command.upgrade, "0051")
+    assert "no_answer_member_id" not in {c["name"] for c in sa.inspect(engine).get_columns("handoff_areas")}
+    with engine.begin() as conn:
+        conn.execute(sa.text("INSERT INTO clients (id, name, slug, tier_id, active, created_at, updated_at) "
+                             "VALUES ('c1', 'C', 'c1', 'pyme', 1, '2026-11-11', '2026-11-11')"))
+        conn.execute(sa.text("INSERT INTO handoff_areas (id, client_id, name, created_at, updated_at) "
+                             "VALUES ('a1', 'c1', 'Ventas', '2026-11-11', '2026-11-11')"))
+    _run(engine, command.upgrade, "0052")
+    inspector = sa.inspect(engine)
+    columns = {c["name"]: c for c in inspector.get_columns("handoff_areas")}
+    assert columns["no_answer_member_id"]["nullable"]
+    assert any(fk["constrained_columns"] == ["no_answer_member_id"] and fk["referred_table"] == "team_members"
+               for fk in inspector.get_foreign_keys("handoff_areas"))
+    with engine.begin() as conn:   # lo existente queda igual, con la columna nula
+        assert conn.execute(sa.text("SELECT no_answer_member_id FROM handoff_areas WHERE id = 'a1'")).scalar() is None
+    _run(engine, command.downgrade, "0051")
+    assert "no_answer_member_id" not in {c["name"] for c in sa.inspect(engine).get_columns("handoff_areas")}
+    _run(engine, command.upgrade, "0052")

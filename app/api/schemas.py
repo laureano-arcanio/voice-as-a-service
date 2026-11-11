@@ -2466,6 +2466,11 @@ class HandoffAreaIn(BaseModel):
     description: str = Field(default="", max_length=1000, description="Qué atiende: lo lee el agente para elegir el área")
     active: bool = True
     member_ids: list[str] = Field(default_factory=list, description="Personas del equipo, en el orden en que se las llama")
+NO_ANSWER_MEMBER = (
+    "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. "
+    "Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje")
+
+
     strategy: Literal["sequential", "round_robin"] = "sequential"
     ring_seconds: int = Field(default=20, ge=5, le=60, description="Timbre por persona (el buzón de Claro atiende a los ~33 s)")
     schedule: HandoffSchedule | None = None
@@ -2481,6 +2486,7 @@ class HandoffAreaIn(BaseModel):
     whatsapp: HandoffWhatsapp | None = None
 
 
+    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
 class HandoffAreaPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     description: str | None = Field(default=None, max_length=1000)
@@ -2500,6 +2506,7 @@ class HandoffAreaPatch(BaseModel):
 
 
 class HandoffAreaOut(ORM):
+    no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     id: str
     client_id: str
     name: str
@@ -2522,6 +2529,7 @@ class HandoffAreaOut(ORM):
     created_at: UTCDateTime
 
 
+    no_answer_member_id: str | None = Field(description=NO_ANSWER_MEMBER)
 class HoldMusicOut(BaseModel):
     """Temas de musica de espera para workflow.handoff.hold_music.track."""
     tracks: list[str]

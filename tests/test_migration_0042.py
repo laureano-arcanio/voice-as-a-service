@@ -42,13 +42,13 @@ def test_0042_upgrade_downgrade_upgrade(tmp_path):
     _run(engine, command.upgrade, "0042")
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    # La 0048 agrega el aviso por WhatsApp, el ruteo entre areas y la rotacion en el hilo.
-    later = ("whatsapp_notify", "after_hours_area_id", "no_answer_area_id", "'delivery'", "fk_handoff_areas",
+    # La 0048 agrega el aviso por WhatsApp, el ruteo entre areas y la rotacion en el hilo (no_answer_member_id, la 0052).
+    later = ("whatsapp_notify", "after_hours_area_id", "no_answer_area_id", "no_answer_member_id", "'delivery'", "fk_handoff_areas",
              "Column('whatsapp', JSON()", "ix_wa_threads_handoff", "handoff_status",
              "handoff_area_id", "handoff_leg_id", "handoff_started_at", "handoff_closed_at", "handoff_deadline",
              "handoff_voice_note", "handoff_delivery_tries", "fk_wa_threads_handoff",
              "handoff_retakes",     # este, de la 0049
-             "'phone_numbers'", "fk_phone_numbers_last_member")     # y estos, de la 0050 (la 0051 agrega columnas a la misma tabla)
+             "'phone_numbers'", "fk_phone_numbers_last_member")     # y estos, de la 0050 (la 0051 y la 0053 agregan columnas a la misma tabla)
     assert [d for d in diff if any(t in repr(d) for t in TABLES) and not any(c in repr(d) for c in later)] == []
     assert "whatsapp" not in _cols(engine, "team_members")
     assert "wa_reply_minutes" not in _cols(engine, "handoff_areas")

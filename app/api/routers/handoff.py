@@ -102,7 +102,7 @@ def list_areas(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 @router.post("/handoff-areas", response_model=HandoffAreaOut, status_code=201)
 def create_area(body: HandoffAreaIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
     """Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área
-    pasa fuera de horario o si nadie acepta, y si solo avisa por WhatsApp (`delivery`)."""
+    pasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`)."""
     data = body.model_dump(mode="json")
     area = handoff.create_area(db, _client(db, p, client_id).id, **data)
     db.commit()
@@ -117,7 +117,8 @@ def get_area(area_id: str, p: CurrentPrincipal, db: DB):
 @router.patch("/handoff-areas/{area_id}", response_model=HandoffAreaOut)
 def update_area(area_id: str, body: HandoffAreaPatch, p: CurrentPrincipal, db: DB):
     """Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista;
-    `after_hours_area_id`, `no_answer_area_id` y `whatsapp` en null quitan la ruta o las plantillas."""
+    `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la
+    persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes."""
     area = handoff.get_area(db, scoped_client_id(p, None), area_id)
     handoff.update_area(db, area, **body.model_dump(mode="json", exclude_unset=True))
     db.commit()

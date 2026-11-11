@@ -25,7 +25,7 @@ export const MESSAGE_FIELDS: MessageField[] = [
   },
   {
     key: 'no_answer',
-    label: 'Si nadie atiende',
+    label: 'Mensaje si nadie atiende',
     help: 'También si atiende un contestador, o si no hay línea o minutos libres. En un área de aviso, si no se pudo avisar a nadie.',
     group: 'call+notice',
   },
