@@ -604,7 +604,10 @@ _WRITE: tuple[Tool, ...] = (
          "false, silencio. "
          "`team_retry_seconds` (0 a 300, de a 15; por defecto 0): si nadie atiende, segundos durante los que se vuelve a llamar, "
          "con un aviso y música; 0, no reintenta. `team_retry_interval_seconds` (15 a 120, por defecto 30): espera entre un "
-         "intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre).",
+         "intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre). "
+         "`record_full_call` (por defecto false), con equipo o agente: graba el audio entero de las llamadas por "
+         "teléfono del número (lo que dice quien llama y lo que oye); no incluye el link para llamar, la prueba "
+         "del panel ni WhatsApp.",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},
          required=("number_id",), body="PhoneNumberUpdate"),
     Tool("block_number", "calls", "Bloquear un número",

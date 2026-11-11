@@ -630,7 +630,7 @@ export interface paths {
          * Update Number
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
          *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
-         *     `team_hold_music`, los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
+         *     `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
          *     `team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
          *     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
@@ -1030,6 +1030,27 @@ export interface paths {
          *     los ids inexistentes se ignoran. Solo admin; 409 si alguna llamada esta en curso.
          */
         post: operations["bulk_delete_calls_api_v1_calls_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calls/{conversation_id}/recording": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Full Recording
+         * @description La grabacion completa de la llamada (opcion "Grabar la llamada completa" del numero): Ogg/Opus estereo,
+         *     canal izquierdo quien esta en el telefono y derecho lo que oye. 404 si no hay.
+         */
+        get: operations["get_full_recording_api_v1_calls__conversation_id__recording_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4812,6 +4833,11 @@ export interface components {
              * @default []
              */
             recordings?: number[];
+            /**
+             * Full Recording
+             * @default false
+             */
+            full_recording?: boolean;
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
         };
@@ -7642,6 +7668,8 @@ export interface components {
             handoff_leg?: string | null;
             /** Person */
             person?: string | null;
+            /** Dtmf */
+            dtmf?: string | null;
         };
         /** MeterOut */
         MeterOut: {
@@ -8084,6 +8112,8 @@ export interface components {
             team_retry_interval_seconds: number;
             /** Team Retry Message */
             team_retry_message: string;
+            /** Record Full Call */
+            record_full_call: boolean;
             /**
              * Members
              * @description Las personas del número, en orden
@@ -8160,6 +8190,11 @@ export interface components {
              * @description Aviso al empezar a reintentar; vacío, el de siempre
              */
             team_retry_message?: string | null;
+            /**
+             * Record Full Call
+             * @description Graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp
+             */
+            record_full_call?: boolean | null;
         };
         /** PhoneVerifyIn */
         PhoneVerifyIn: {
@@ -13649,6 +13684,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallBulkDeleteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_full_recording_api_v1_calls__conversation_id__recording_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

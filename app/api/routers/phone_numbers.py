@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ...mail import notify
 from ...models import Agent, Client, PhoneNumber
+from ...services import line_spool
 from ...services import phone_numbers as service
 from ...services.livekit import sync_trunk_numbers
 from ...services.errors import Conflict, NotFound
@@ -104,6 +105,7 @@ def assign_number(number_id: str, body: AssignIn, p: AdminPrincipal, db: DB, bac
     was_there = n.client_id == body.client_id
     service.assign(db, n, body.client_id)
     db.commit()
+    line_spool.sync_number(n)
     if not was_there:   # asignar de nuevo al mismo cliente no cambia nada: sin mail
         background.add_task(notify.deliver, notify.number_assigned_mails(db, n))
     return _out(db, n)
@@ -115,6 +117,7 @@ def release_number(number_id: str, p: AdminPrincipal, db: DB):
     n = _get(db, p, number_id)
     service.release(n)
     db.commit()
+    line_spool.sync_number(n)
     return _out(db, n)
 
 
@@ -122,7 +125,7 @@ def release_number(number_id: str, p: AdminPrincipal, db: DB):
 def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, db: DB):
     """Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
-    `team_hold_music`, los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
+    `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
     `team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending)."""
@@ -134,6 +137,7 @@ def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, 
     if data.get("label") is not None:
         n.label = data["label"]
     db.commit()
+    line_spool.sync_number(n)
     return _out(db, n)
 
 
@@ -146,4 +150,5 @@ def delete_number(number_id: str, p: AdminPrincipal, db: DB, background: Backgro
     e164 = n.e164
     db.delete(n)
     db.commit()
+    line_spool.drop(e164)   # libre: sin marcador
     background.add_task(sync_trunk_numbers, remove=[e164])

@@ -1720,7 +1720,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music`, los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y\n`team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona\n`team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y\n`team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona\n`team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -3414,6 +3414,52 @@
       "HTTPBearer": []
      }
     ]
+   }
+  },
+  "/api/v1/calls/{conversation_id}/recording": {
+   "get": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Get Full Recording",
+    "description": "La grabacion completa de la llamada (opcion \"Grabar la llamada completa\" del numero): Ogg/Opus estereo,\ncanal izquierdo quien esta en el telefono y derecho lo que oye. 404 si no hay.",
+    "operationId": "get_full_recording_api_v1_calls__conversation_id__recording_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/api/v1/calls/{conversation_id}/recordings/{n}": {
@@ -16552,6 +16598,11 @@
       "title": "Recordings",
       "default": []
      },
+     "full_recording": {
+      "type": "boolean",
+      "title": "Full Recording",
+      "default": false
+     },
      "call": {
       "anyOf": [
        {
@@ -23757,6 +23808,17 @@
        }
       ],
       "title": "Person"
+     },
+     "dtmf": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dtmf"
      }
     },
     "type": "object",
@@ -24877,6 +24939,10 @@
       "type": "string",
       "title": "Team Retry Message"
      },
+     "record_full_call": {
+      "type": "boolean",
+      "title": "Record Full Call"
+     },
      "members": {
       "items": {
        "$ref": "#/components/schemas/PhoneNumberMemberOut"
@@ -24906,7 +24972,8 @@
      "team_hold_music",
      "team_retry_seconds",
      "team_retry_interval_seconds",
-     "team_retry_message"
+     "team_retry_message",
+     "record_full_call"
     ],
     "title": "PhoneNumberOut"
    },
@@ -25129,6 +25196,18 @@
       ],
       "title": "Team Retry Message",
       "description": "Aviso al empezar a reintentar; vacío, el de siempre"
+     },
+     "record_full_call": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Record Full Call",
+      "description": "Graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp"
      }
     },
     "type": "object",

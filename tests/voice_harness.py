@@ -85,6 +85,7 @@ class FakeCtx:
         self.sip_error = sip_error
         self.callbacks: list = []
         self.reason = ""
+        self.sip_requests: list = []
         self.api = SimpleNamespace(sip=SimpleNamespace(create_sip_participant=self._dial))
 
     async def connect(self):
@@ -93,6 +94,7 @@ class FakeCtx:
 
     async def _dial(self, request):
         self.log.append("create_sip_participant")
+        self.sip_requests.append(request)
         if self.sip_error is not None:
             raise self.sip_error
         self.room.join("customer")
@@ -206,8 +208,8 @@ def team_to_agent(monkeypatch, api, spoken: str = "Te estoy comunicando, aguard√
     """El numero lo atiende el equipo: nadie atiende y pasa al agente, con el to_agent real del worker."""
     real = call_service.start_inbound
 
-    def start_inbound(s, engine, dialed, caller, wa_id=None):
-        inbound = real(s, engine, dialed, caller, wa_id=wa_id)
+    def start_inbound(s, engine, dialed, caller, wa_id=None, line_id=None):
+        inbound = real(s, engine, dialed, caller, wa_id=wa_id, line_id=line_id)
         inbound.team = SimpleNamespace(agent_id=api.engine.store.get(inbound.conversation_id).agent_id)
         return inbound
 

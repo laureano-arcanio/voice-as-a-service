@@ -37,16 +37,19 @@ const RING = {
 function Harness() {
   const c = useDirectCall();
   return (
-    <button
-      onClick={() =>
-        void c.call(
-          { contactId: 'k1', phone: '+5493515551234', name: 'Ana Pérez', fromLabel: '+541155550000' },
-          'n1',
-        )
-      }
-    >
-      llamar a Ana
-    </button>
+    <>
+      <button
+        onClick={() =>
+          void c.call(
+            { contactId: 'k1', phone: '+5493515551234', name: 'Ana Pérez', fromLabel: '+541155550000' },
+            'n1',
+          )
+        }
+      >
+        llamar a Ana
+      </button>
+      <output data-testid="lines" data-lines={c.transcript.map((l) => `${l.who}: ${l.text}`).join(' | ')} />
+    </>
   );
 }
 
@@ -114,6 +117,21 @@ describe('CallProvider', () => {
     expect(vi.mocked(playRingback).mock.calls.length).toBe(tones);
     act(() => room.data('transcript', { role: 'user', text: 'Hola, ¿quién habla?' }));
     expect(await screen.findByText(/Hola, ¿quién habla\?/)).toBeInTheDocument();
+    // Teclas: una línea por grupo, que se reemplaza con cada dígito; otro grupo, otra línea.
+    act(() => room.data('transcript', { role: 'user', text: 'Marcó 1', dtmf: '1', extend: false }));
+    act(() => room.data('transcript', { role: 'user', text: 'Marcó 12', dtmf: '12', extend: true }));
+    act(() =>
+      room.data('transcript', {
+        role: 'assistant',
+        person: 'Lau',
+        text: 'Marcó 3',
+        dtmf: '3',
+        extend: false,
+      }),
+    );
+    expect(screen.getByTestId('lines').dataset.lines).toBe(
+      'Ana Pérez: Hola, ¿quién habla? | Ana Pérez: Marcó 12 | Lau: Marcó 3',
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Teclado' }));
     // jsdom no mide la barra: el desplegable queda con display none (hideDetached), por eso `hidden`.

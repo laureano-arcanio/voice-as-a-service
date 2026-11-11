@@ -14,6 +14,7 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     inference,
+    llm,
 )
 from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
 from livekit.plugins import openai, silero
@@ -36,7 +37,7 @@ from ..services import calls as call_service
 from ..services import campaign_calls, direct_calls, quota
 from ..services import handoff as handoff_service
 from ..services.errors import Forbidden, NotFound, QuotaExceeded
-from . import direct
+from . import direct, dtmf
 from . import handoff as transfer
 from .latency import TurnLatencyTracker
 from .speech_text import speech_stream
@@ -132,6 +133,7 @@ class WorkflowAgent(Agent):
         self._rec_customer_resampler = _MonoResampler()
         self._rec_agent_resampler = _MonoResampler()
         self._rec_pending: tuple[bytes, list[tuple[int, bool]], bytes] | None = None  # (cliente, marcas, agente) sin confirmar
+        self.pending_dtmf: dict[str, str] = {}  # id del mensaje "Marcó …" de reply_keys -> sus digitos
 
     def stt_node(self, audio, model_settings):
         if self.record_dir is None:
@@ -320,8 +322,12 @@ class WorkflowAgent(Agent):
             await self.settle_last_reply()
             user_items = [item for item in chat_ctx.items
                           if getattr(item, "role", None) == "user" and item.text_content and item.id not in self.consumed]
+            # Un turno que son solo teclas (reply_keys) queda marcado; con una frase en el mismo turno, va unido y sin
+            # marca, como dos frases seguidas.
+            keys = self.pending_dtmf.pop(user_items[0].id, None) if len(user_items) == 1 else None
             result = await self.engine.process_turn(
-                self.conversation_id, " ".join(item.text_content for item in user_items), on_message=on_message)
+                self.conversation_id, " ".join(item.text_content for item in user_items), on_message=on_message,
+                dtmf=keys)
             self.last_reply = speech
             self.last_user_ids = {item.id for item in user_items}
             self.consumed |= self.last_user_ids
@@ -357,6 +363,13 @@ class WorkflowAgent(Agent):
             logger.info("turn retracted %s (reply interrupted after %.2fs)", self.conversation_id, played)
         elif pending is not None:
             self._commit_turn(*pending)
+
+    def reply_keys(self, digits: str) -> None:
+        """Teclas de quien llama como turno del usuario (app/voice/dtmf.py): entra por llm_node como una frase dicha.
+        No corta lo que esta sonando: generate_reply se encola detras."""
+        message = llm.ChatMessage(role="user", content=[dtmf.text(digits)])
+        self.pending_dtmf[message.id] = digits
+        self.session.generate_reply(user_input=message)
 
     def on_reply_done(self, speech) -> None:
         for item in speech.chat_items:
@@ -431,6 +444,12 @@ def build_session(voice: str, conversation_id: str | None = None) -> AgentSessio
     )
 
 
+def full_call_headers(metadata: dict, conversation_id: str) -> dict[str, str]:
+    """Header para que Asterisk grabe la saliente completa (extensions.conf, line-record), si el numero de origen
+    la tiene (metadata de calls.prepare_call). Solo en la pierna del cliente o contacto, nunca en las del equipo."""
+    return {"X-Atentina-Rec": conversation_id} if metadata.get("record_full_call") else {}
+
+
 async def outbound_trunk_id(lkapi: api.LiveKitAPI) -> str:
     """ID del trunk SIP saliente: LIVEKIT_SIP_TRUNK_ID o, si esta vacio, el que se llama
     LIVEKIT_SIP_OUTBOUND_TRUNK_NAME (el de `make livekit-sip`). Con LiveKit propio el ID
@@ -486,8 +505,10 @@ async def entrypoint(ctx: JobContext):
             with sessions() as s:
                 # En una llamada de WhatsApp, el inbound trunk mapea el header
                 # X-WA-Meta-Wacid a este atributo (scripts/livekit_sip_setup.py).
+                # atentina.line: el canal de Asterisk (header X-Atentina-Line), el nombre de la grabacion completa.
                 inbound = call_service.start_inbound(s, engine, dialed, caller.attributes.get("sip.phoneNumber"),
-                                                     wa_id=caller.attributes.get("wa.wacid"))
+                                                     wa_id=caller.attributes.get("wa.wacid"),
+                                                     line_id=caller.attributes.get("atentina.line"))
         except NotFound as e:
             logger.error("entrante a %s sin atender: %s", dialed, e.message)
             await ctx.delete_room()
@@ -565,6 +586,8 @@ async def entrypoint(ctx: JobContext):
     # panel con nombres, link sin nombres); nunca por telefono ni en la demo (docs/features/EQUIPO_TELEFONIA.md).
     progress_mode = metadata.get("handoff_progress")
     progress_data = direct.DataSender(ctx.room) if progress_mode in ("names", "anonymous") else None
+    # Teclas que marca quien llama (app/voice/dtmf.py), un agrupador por llamada.
+    keys = dtmf.KeyLog(sessions=sessions, store=engine.store, conversation_id=conversation_id)
 
     async def wait_notices() -> None:
         """Hasta NOTICE_WAIT_SECONDS, tambien por los que aparezcan mientras tanto. Es de mejor esfuerzo."""
@@ -577,6 +600,7 @@ async def entrypoint(ctx: JobContext):
             await asyncio.wait(pending, timeout=left)
 
     async def finalize(reason: str = ""):
+        agent_keys.close()
         for task in watchdogs:
             task.cancel()
         if (tr := current["transfer"]) is not None:
@@ -731,6 +755,7 @@ async def entrypoint(ctx: JobContext):
                 spawn_notice=spawn_notice).notify_only(area_name))
             return
         session.input.set_audio_enabled(False)   # el agente no le contesta al cliente mientras espera
+        agent_keys.close()     # un grupo a medio marcar no llega al agente: desde aca las teclas son de la linea
         tr = None
         try:
             if current["line"] is None:
@@ -749,6 +774,8 @@ async def entrypoint(ctx: JobContext):
                 first_attempt=current["attempts"], get_vars=tool_vars, spawn_notice=spawn_notice,
                 on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow),
                 on_progress=on_progress, progress_names=progress_mode == "names", progress_id=current["handoffs"])
+            # Las teclas de quien llama durante la derivacion, con el tramo si esta hablando con la persona.
+            line.on_dtmf = lambda digit: keys.press(digit, leg=tr.leg)
             await line.start()
             outcome = await tr.run(area_name, announced=announced)
             logger.info("llamada %s: derivacion a %r %s (%s)", conversation_id, area_name, outcome.status,
@@ -771,6 +798,9 @@ async def entrypoint(ctx: JobContext):
             except Exception:
                 logger.exception("llamada %s: no se pudo volver de la derivacion", conversation_id)
         finally:
+            # La RoomLine sigue registrada despues de derivar: fuera de la derivacion sus teclas no se guardan.
+            if current["line"] is not None:
+                current["line"].on_dtmf = None
             session.input.set_audio_enabled(True)
             if tr is not None:
                 current["attempts"] = tr.attempt
@@ -781,6 +811,12 @@ async def entrypoint(ctx: JobContext):
     agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir,
                           on_handoff=(lambda area, announced: asyncio.create_task(run_transfer(area, announced)))
                           if areas else None)
+    # Teclas de quien llama al agente (app/voice/dtmf.py): un turno del usuario por grupo. Mudo durante la derivacion
+    # (las guarda la linea, keys) y al cortar. La entrante al equipo termina antes de que arranque la sesion.
+    agent_keys = dtmf.AgentKeys(
+        customer=customer_identity, on_digit=lambda digit: dtmf.record(sessions, state.client_id, conversation_id, digit),
+        on_group=agent.reply_keys,
+        active=lambda: current["transfer"] is None and not ending["reason"] and bool(state.client_id))
 
     def on_participant_left(p) -> None:
         if p.identity.startswith(transfer.PERSON_PREFIX):
@@ -841,6 +877,7 @@ async def entrypoint(ctx: JobContext):
             return
 
     await session.start(agent=agent, room=ctx.room)
+    ctx.room.on("sip_dtmf_received", agent_keys.on_dtmf)
 
     # La room queda en la llamada: con ella se corta desde la API (call_service.hang_up).
     if team_started is None:
@@ -861,6 +898,7 @@ async def entrypoint(ctx: JobContext):
                     wait_until_answered=True,
                     ringing_timeout=Duration(seconds=settings.call_ringing_timeout_seconds),
                     max_call_duration=Duration(seconds=max_duration),
+                    headers=full_call_headers(metadata, conversation_id),
                 )
             )
         except Exception as e:

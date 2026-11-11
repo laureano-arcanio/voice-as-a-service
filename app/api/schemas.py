@@ -488,6 +488,10 @@ class PhoneNumberUpdate(BaseModel):
         default=None, ge=15, le=120, description="Espera entre un intento y el siguiente")
     team_retry_message: str | None = Field(
         default=None, max_length=500, description="Aviso al empezar a reintentar; vacío, el de siempre")
+    record_full_call: bool | None = Field(
+        default=None, description="Graba el audio entero de las llamadas por teléfono del número (lo que dice quien "
+                                  "llama y lo que oye), con el equipo o con el agente. No incluye el link para "
+                                  "llamar, la prueba del panel ni WhatsApp")
 
 
 class AssignIn(BaseModel):
@@ -525,6 +529,7 @@ class PhoneNumberOut(ORM):
     team_retry_seconds: int
     team_retry_interval_seconds: int
     team_retry_message: str
+    record_full_call: bool
     members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 
 
@@ -1411,6 +1416,8 @@ class MessageOut(BaseModel):
     # Llamada derivada: lo hablado con la persona del equipo lleva el tramo; lo que dijo ella, su nombre.
     handoff_leg: str | None = None
     person: str | None = None
+    # Teclas (DTMF) que marco esa parte, tal cual: el texto es "Marcó <dtmf>" (docs/features/EQUIPO_TELEFONIA.md).
+    dtmf: str | None = None
 
 
 class WhatsAppInfo(BaseModel):
@@ -1441,6 +1448,8 @@ class CallDetail(BaseModel):
     context: str | None = None
     # Numero de cada WAV grabado (agent.record_audio), uno por mensaje, si los hay.
     recordings: list[int] = []
+    # Grabacion completa de la llamada (opcion del numero, Asterisk): GET /calls/{id}/recording.
+    full_recording: bool = False
     call: CallInfo | None
     whatsapp: WhatsAppInfo | None = None
 

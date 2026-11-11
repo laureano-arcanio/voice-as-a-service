@@ -52,6 +52,29 @@ nacional, LiveKit E.164) y controla quién usa la troncal.
    agente lo manda como `sip_number` y Asterisk lo pone en `P-Asserted-Identity` como `0` + 10 dígitos
    (Anura lo toma de ahí). Tiene que ser un número de la cuenta de Anura; sin uno válido sale con `ANURA_DID`.
 
+**Grabación completa** (`line-record` en `extensions.conf`): `MixMonitor` sobre el canal de Anura, antes
+del puente con LiveKit, así queda el audio de la troncal aunque falle el worker. Estéreo crudo (`D` +
+`.sln`: 8 kHz, 16 bits con signo little-endian, intercalado, sin encabezado): canal 1 lo que dice la
+persona del teléfono, canal 2 lo que oye (agente, música, equipo). Sin encabezado, un Asterisk que se
+cae a mitad deja el archivo legible hasta ese punto, en `rec/`.
+
+| | Entrante | Saliente |
+|---|---|---|
+| Graba si | existe `numbers/+54<DID>` | el INVITE de LiveKit trae `X-Atentina-Rec: <id de la conversación>` (solo hex, 32 caracteres sin guiones; si no, no graba) |
+| Archivo | `in-<UNIQUEID>.sln` (`UNIQUEID` del canal de Anura, `<epoch>.<n>`) | `out-<id en 32 hex>.sln` |
+| Vínculo | header `X-Atentina-Line: <UNIQUEID>` hacia LiveKit, siempre (`line-predial`): atributo `atentina.line` del participante | el nombre |
+
+Spool: `${RECORDINGS_DIR}/line-spool`, en `/var/spool/atentina` dentro del contenedor. Graba en `rec/` y al
+cerrar el canal lo mueve a `done/` (comando de `MixMonitor`). Una entrante que nadie atiende o una
+saliente sin respuesta dejan un archivo de 0 bytes en `done/`. `entrypoint.sh` crea `rec/`, `done/` y
+`numbers/` con dueño `asterisk`, grupo `SPOOL_GID` (el `GID` de la imagen de `app`) y `2770`: la app
+escribe los marcadores y lee y borra los archivos. Los marcadores los escribe `app` según `phone_numbers.record_full_call`
+(`app/services/line_spool.py`, [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md#grabación-completa)); el header de
+las salientes lo manda el worker si el número de origen tiene la opción; sin marcador ni header no se graba. `app` toma
+`done/`, lo convierte y lo deja en la conversación (`app/services/line_recordings.py`). Las llamadas de WhatsApp no pasan por `line-record`. Con la grabación, el puente deja
+de ser RTP nativo y el audio y el DTMF pasan por el core; `make e2e-sip` comprueba que el DTMF sigue
+pasando en los dos sentidos.
+
 **Números nuevos:** se cargan en la UI (Números > Cargar números), se asignan a un cliente y se rutean.
 La API los agrega al inbound trunk en caliente (`app/services/livekit.py`), sin reiniciar nada. Si falla
 (queda en el log de `app`), `make livekit-sip`.
@@ -97,7 +120,7 @@ toca los que tienen estos nombres:
 
 | Objeto | Nombre | Qué hace |
 |---|---|---|
-| Inbound trunk | `anura-asterisk-inbound` | Acepta `+54<ANURA_DID>` y los números de `phone_numbers`, con usuario `livekit` y la clave. Mapea el header `X-WA-Meta-Wacid` al atributo `wa.wacid` (ruteo por contacto de WhatsApp) |
+| Inbound trunk | `anura-asterisk-inbound` | Acepta `+54<ANURA_DID>` y los números de `phone_numbers`, con usuario `livekit` y la clave. Mapea los headers `X-WA-Meta-Wacid` al atributo `wa.wacid` (ruteo por contacto de WhatsApp) y `X-Atentina-Line` a `atentina.line` (grabación completa) |
 | Dispatch rule | `anura-asterisk-dispatch` | Una room `anura-*` por llamada y despacho del agente |
 | Outbound trunk | `anura-asterisk-outbound` | Salientes a `127.0.0.1:5080/udp` |
 
@@ -174,8 +197,8 @@ Si cambia la IP pública: con `ASTERISK_PUBLIC_ADDRESS` vacío, `make up-pbx` la
 
 Cambios en `asterisk/conf/`: `make restart S=asterisk` (`entrypoint.sh` vuelve a renderizar, sin rebuild);
 si cambió `.env`, `make up-pbx` (`docker compose restart` no relee `.env`). Las dos cortan llamadas en
-curso: antes, `make calls-active`. Prueba aislada de la señalización, la transferencia y las llamadas
-directas, sin puertos del host ni llamadas reales: `make e2e-sip`.
+curso: antes, `make calls-active`. Prueba aislada de la señalización, la grabación completa, la
+transferencia y las llamadas directas, sin puertos del host ni llamadas reales: `make e2e-sip`.
 
 ## 6. Si algo falla
 
@@ -220,11 +243,11 @@ internet, que no pasan del 401.
 | Archivo | Qué tiene |
 |---|---|
 | `asterisk/Dockerfile` | Alpine 3.24 + Asterisk 22 (LTS) y asterisk-srtp; el `apk add` no fija versión (probado con 22.9.0-r0) |
-| `asterisk/entrypoint.sh` | Valida `.env`, detecta la IP pública y renderiza `asterisk/conf/*.conf` en `/etc/asterisk` |
+| `asterisk/entrypoint.sh` | Valida `.env`, detecta la IP pública, renderiza `asterisk/conf/*.conf` en `/etc/asterisk` y prepara el spool de la grabación completa |
 | `asterisk/conf/pjsip.conf` | Transportes, registro y endpoint de Anura, endpoint de LiveKit |
 | `asterisk/conf/whatsapp/pjsip_whatsapp.conf` | Transporte TLS y endpoint de Meta; se incluye solo con `WA_SIP_PASSWORD` y certificado |
 | `asterisk/letsencrypt/` | Certificado de `sip.atentina.com.ar` (`make sip-cert`, renovado por cron; no versionado) |
-| `asterisk/conf/extensions.conf` | Ruteo entrante y saliente, formatos de número, `whatsapp-predial` |
+| `asterisk/conf/extensions.conf` | Ruteo entrante y saliente, formatos de número, `whatsapp-predial`, grabación completa (`line-record`, `line-predial`) |
 | `asterisk/conf/rtp.conf` | Rango RTP 10000–10199 (tiene que coincidir con el reenvío del router) |
 | `asterisk/conf/modules.conf` | Lista mínima de módulos |
 | `scripts/livekit_sip_setup.py` | Trunks y dispatch rule (`make livekit-sip`) |

@@ -121,8 +121,9 @@ class FakeOut:
         self.log.append(("wait_for", identity, timeout))
         return self.joins
 
-    async def dial(self, identity, phone, caller_id, ring_seconds, max_seconds):
+    async def dial(self, identity, phone, caller_id, ring_seconds, max_seconds, headers):
         self.log.append(("dial", identity, phone, caller_id))
+        self.headers = headers
         for ev in self.dialed:
             self.events.put_nowait(ev)
         return transfer.DialResult(self.dial_result, 503 if self.dial_result == "failed" else None)
@@ -170,6 +171,23 @@ def outbound(api, admin, monkeypatch, tmp_path, **meta):
 def run_out(api, metadata, line):
     out = direct.Outbound(sessions=api.sessions, store=api.engine.store, line=line, metadata=metadata)
     return asyncio.run(out.run())
+
+
+def test_outbound_full_call_header_only_with_the_option(api, admin, monkeypatch, tmp_path):
+    """Grabacion completa: X-Atentina-Rec en la pierna del contacto solo si el numero de origen la tiene."""
+    meta, _, new = outbound(api, admin, monkeypatch, tmp_path)
+    assert meta["record_full_call"] is False
+    line = FakeOut(dial="busy")
+    run_out(api, meta, line)
+    assert line.headers == {}
+    with api.sessions() as s:
+        s.query(PhoneNumber).update({"record_full_call": True})
+        s.commit()
+    meta = new()
+    assert meta["record_full_call"] is True
+    line = FakeOut(dial="busy")
+    run_out(api, meta, line)
+    assert line.headers == {"X-Atentina-Rec": meta["conversation_id"]}
 
 
 def test_outbound_answers_talks_and_contact_hangs_up(api, admin, monkeypatch, tmp_path):

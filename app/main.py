@@ -69,6 +69,8 @@ from .conversation.workflows import post_call_loop
 from .mail.call_summary import call_summary_loop
 from .mcp import server as mcp_server
 from .services.demo import allowed_origins
+from .services.line_recordings import line_recordings_loop
+from .services.line_spool import line_spool_loop
 from .services.studio import studio_loop
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.service import handoff_loop, sweep_loop
@@ -95,6 +97,10 @@ async def lifespan(app: FastAPI):
     post_calls = asyncio.create_task(post_call_loop())
     # Rotacion por WhatsApp de texto: tramos vencidos y entregas por retomar (app/whatsapp/handoffs.py).
     wa_handoffs = asyncio.create_task(handoff_loop())
+    # Marcadores de la grabacion completa de las entrantes, como dice la base (app/services/line_spool.py).
+    line_spool = asyncio.create_task(line_spool_loop())
+    # Grabaciones completas terminadas: a Ogg/Opus en la conversacion (app/services/line_recordings.py).
+    line_recordings = asyncio.create_task(line_recordings_loop())
     yield
     sweep.cancel()
     sending.cancel()
@@ -104,6 +110,8 @@ async def lifespan(app: FastAPI):
     studio_jobs.cancel()
     post_calls.cancel()
     wa_handoffs.cancel()
+    line_spool.cancel()
+    line_recordings.cancel()
 
 
 def create_app() -> FastAPI:

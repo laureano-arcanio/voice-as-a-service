@@ -279,6 +279,7 @@ const eventsOut = `[
 
 const eventTypes = [
   { type: "call.ringing · call.answered · call.ended", text: "La llamada suena, la atienden y termina (call.ended trae el estado final y el motivo)" },
+  { type: "call.dtmf", text: "Una tecla marcada por quien llama en una entrante al equipo o una derivación, o por cualquiera de los dos en una saliente directa: data trae digit, tal cual (y person si la marcó el usuario del panel). En la conversación, los dígitos seguidos quedan en un mensaje \"Marcó 123\" con dtmf" },
   { type: "handoff.requested", text: "El agente decidió pasar la llamada a un área" },
   { type: "handoff.dialing · answered · confirmed", text: "Se llama a una persona, atiende y marca 1 para tomar la llamada" },
   { type: "handoff.no_answer · busy · failed · machine · not_confirmed", text: "Ese intento no salió: no atendió, ocupado, falla, contestador o no marcó 1" },
@@ -359,6 +360,7 @@ const phoneNumberFields = [
   { field: "team_fallback_message", text: "El mensaje que escucha quien llama en voicemail y hangup (hasta 500 caracteres)" },
   { field: "team_connect_on_answer", text: "false (por defecto): quien atiende en su teléfono oye quién llama y marca 1. true: la llamada se conecta apenas el teléfono atiende, sin mensaje ni tecla y sin detectar contestadores. Es para destinos que siempre atienden, como una central telefónica; si es un celular, su buzón queda conectado con quien llama. No cambia el panel" },
   { field: "team_hold_music", text: "true (por defecto): quien llama oye música mientras suena. false: silencio" },
+  { field: "record_full_call", text: "false (por defecto). true: se graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp. Al liberar el número vuelve a false" },
   { field: "team_retry_seconds", text: "0 (por defecto): sin reintentos. De 15 a 300, de a 15: si nadie atiende (ocupado o sin atender), quien llama oye un aviso y música y se vuelve a llamar al equipo durante esos segundos; si nadie atiende, sigue el team_fallback. No reintenta fuera de horario" },
   { field: "team_retry_interval_seconds", text: "Espera entre un intento y el siguiente, de 15 a 120 segundos (30 por defecto)" },
   { field: "team_retry_message", text: "El aviso que oye quien llama al empezar a reintentar (hasta 500 caracteres). Vacío: un aviso por defecto" },

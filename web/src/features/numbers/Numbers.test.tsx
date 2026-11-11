@@ -35,6 +35,7 @@ const base = {
   team_retry_seconds: 0,
   team_retry_interval_seconds: 30,
   team_retry_message: '',
+  record_full_call: false,
   schedule: null,
   team_fallback: 'voicemail',
   team_fallback_message: '',
@@ -232,6 +233,7 @@ describe('números: quién atiende', () => {
       label: 'Soporte',
       answer_mode: 'team',
       agent_id: 'ag1',
+      record_full_call: false,
       member_ids: ['m2', 'm1'],
       strategy: 'round_robin',
       ring_first: 'panel',
@@ -274,6 +276,46 @@ describe('números: quién atiende', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
     expect(patched(calls, 'n1')).toMatchObject({ team_connect_on_answer: true, team_hold_music: false });
+  });
+
+  it('grabar la llamada completa: el switch carga lo guardado, se manda con el agente y con el equipo, y la fila lo dice', async () => {
+    const recording = { ...AGENT_NUMBER, record_full_call: true } as PhoneNumber;
+    const calls = mockApi([TEAM_NUMBER, { ...recording, id: 'n9', e164: '+541155550009' } as PhoneNumber], {
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse({ ...TEAM_NUMBER, record_full_call: true }),
+      'PATCH /api/v1/phone-numbers/n9': () => jsonResponse(recording),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+
+    expect(
+      within(await screen.findByRole('row', { name: /\+541155550001/ })).queryByText('Graba la llamada completa'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /\+541155550009/ })).getByText('Graba la llamada completa'),
+    ).toBeInTheDocument();
+
+    // Con el equipo: arranca apagado, avisa que es solo por teléfono y se guarda con el resto.
+    const team = await openEdit('+541155550001');
+    const toggle = within(team).getByRole('switch', { name: /Grabar la llamada completa/ });
+    expect(toggle).not.toBeChecked();
+    expect(within(team).getByText(/Solo llamadas por teléfono/)).toBeInTheDocument();
+    await userEvent.click(toggle);
+    await userEvent.click(within(team).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
+    expect(patched(calls, 'n1')).toMatchObject({ answer_mode: 'team', record_full_call: true });
+  });
+
+  it('grabar la llamada completa: con el agente se apaga y se manda solo con el modo y el agente', async () => {
+    const recording = { ...AGENT_NUMBER, record_full_call: true } as PhoneNumber;
+    const calls = mockApi([recording], { 'PATCH /api/v1/phone-numbers/n4': () => jsonResponse(AGENT_NUMBER) });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit(recording.e164);
+    const toggle = within(dialog).getByRole('switch', { name: /Grabar la llamada completa/ });
+    expect(toggle).toBeChecked();
+    await userEvent.click(toggle);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n4')).toBeDefined());
+    expect(patched(calls, 'n4')).toMatchObject({ answer_mode: 'agent', record_full_call: false });
+    expect(patched(calls, 'n4')).not.toHaveProperty('member_ids');
   });
 
   it('reintentos: elegir duración, intervalo y aviso se guarda y la fila lo dice', async () => {
@@ -447,7 +489,12 @@ describe('números: quién atiende', () => {
     expect(within(dialog).queryByText('Suena primero')).not.toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(patched(calls, 'n3')).toBeDefined());
-    expect(patched(calls, 'n3')).toEqual({ label: 'Cobranzas', answer_mode: 'agent', agent_id: 'ag1' });
+    expect(patched(calls, 'n3')).toEqual({
+      label: 'Cobranzas',
+      answer_mode: 'agent',
+      agent_id: 'ag1',
+      record_full_call: false,
+    });
   });
 
   it('el toggle de la fila pasa del agente al equipo si ya tiene personas, y vuelve', async () => {
@@ -544,6 +591,7 @@ describe('números: formulario y errores', () => {
       label: 'Ventas',
       answer_mode: 'team',
       agent_id: null,
+      record_full_call: false,
       member_ids: ['m1', 'm2'],
       strategy: 'sequential',
       ring_first: 'panel',
@@ -562,6 +610,7 @@ describe('números: formulario y errores', () => {
       label: 'Ventas',
       answer_mode: 'agent',
       agent_id: 'ag2',
+      record_full_call: false,
     });
   });
 

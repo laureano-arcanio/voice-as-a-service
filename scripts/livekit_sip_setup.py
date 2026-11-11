@@ -47,6 +47,11 @@ DISPATCH_NAME = "anura-asterisk-dispatch"
 # LiveKit se identifica por el usuario del digest (identify_by=auth_username),
 # y ese usuario tiene que ser igual al nombre del endpoint.
 SIP_USERNAME = "livekit"
+# Headers del INVITE de Asterisk que el trunk entrante pasa a atributos del participante (sin el
+# header, el atributo no aparece). X-WA-Meta-Wacid: WhatsApp del que llama en una llamada de WhatsApp
+# (whatsapp-predial); el agente rutea por contacto (app/services/wa_routing.py). X-Atentina-Line: UNIQUEID
+# del canal de Anura (line-predial), el nombre de la grabacion completa en el spool de Asterisk.
+INBOUND_HEADERS_TO_ATTRIBUTES = {"X-WA-Meta-Wacid": "wa.wacid", "X-Atentina-Line": "atentina.line"}
 # LiveKit no tiene region en Argentina: "br" hace que las salientes salgan de
 # Sao Paulo, la mas cercana a Asterisk/Anura (sin esto puede salir de EE.UU.).
 DESTINATION_COUNTRY = "br"
@@ -132,10 +137,7 @@ async def main() -> None:
             numbers=numbers,
             auth_username=SIP_USERNAME,
             auth_password=password,
-            # WhatsApp del que llama en una llamada de WhatsApp (lo agrega el predial de
-            # Asterisk): el agente lo lee como wa.wacid y rutea por contacto
-            # (app/services/wa_routing.py). Sin el header, el atributo no aparece.
-            headers_to_attributes={"X-WA-Meta-Wacid": "wa.wacid"},
+            headers_to_attributes=INBOUND_HEADERS_TO_ATTRIBUTES,
         )
         inbound, inbound_action = await upsert(
             INBOUND_NAME,

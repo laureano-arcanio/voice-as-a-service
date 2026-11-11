@@ -215,6 +215,20 @@ describe('detalle de una llamada directa', () => {
     expect(screen.queryByText('Interesado')).not.toBeInTheDocument();
   });
 
+  it('grabación completa: reproductor y descarga arriba de la transcripción, solo si hay', async () => {
+    const { unmount } = renderDetail({ ...DETAIL, full_recording: true });
+    const player = await screen.findByLabelText('Llamada completa');
+    expect(player.tagName).toBe('AUDIO');
+    expect(player).toHaveAttribute('src', '/api/v1/calls/cv-2/recording');
+    const download = screen.getByRole('link', { name: 'Descargar' });
+    expect(download).toHaveAttribute('href', '/api/v1/calls/cv-2/recording');
+    expect(download).toHaveAttribute('download');
+    unmount();
+    renderDetail(DETAIL);
+    expect(await screen.findByText('Llamó')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Llamada completa')).not.toBeInTheDocument();
+  });
+
   it('entrante que atendió el equipo: "Atendió" y "Quien llamó"', async () => {
     renderDetail({
       ...DETAIL,

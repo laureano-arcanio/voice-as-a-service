@@ -14,6 +14,8 @@ from ..models import CallStatus, Event
 TYPES = frozenset({
     # Llamada (services/calls.update_call, al cambiar de estado).
     "call.ringing", "call.answered", "call.ended",
+    # Una tecla que marco quien llama (o el usuario del panel en la saliente directa): digit (app/voice/dtmf.py).
+    "call.dtmf",
     # Derivacion de una llamada (fase 2): uno por intento con cada miembro del area.
     "handoff.requested", "handoff.dialing", "handoff.answered", "handoff.confirmed",
     "handoff.no_answer", "handoff.busy", "handoff.failed", "handoff.machine", "handoff.not_confirmed",

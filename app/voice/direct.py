@@ -38,6 +38,7 @@ from ..models import CallRing, CallRow, CallStatus, Client, PhoneNumber, TeamMem
 from ..services import calls as call_service
 from ..services import campaign_calls, direct_calls, events, quota
 from ..services import handoff as handoff_service
+from . import dtmf
 from . import handoff as transfer
 from .listen import Listener
 from .speech_text import to_speech
@@ -220,10 +221,11 @@ class OutboundLine(Protocol):
     events: ("joined", identidad), ("left", identidad, motivo SIP: busy, no_answer, failed o ""),
     ("sip", identidad, sip.callStatus), ("text", identidad, texto, pcm16k), ("closed", "")."""
     events: asyncio.Queue
+    on_dtmf: object            # on_dtmf(identidad, digito): una tecla de cualquiera de los dos (lo fija Outbound)
 
     async def wait_for(self, identity: str, timeout: float) -> bool: ...
-    async def dial(self, identity: str, phone: str, caller_id: str, ring_seconds: int,
-                   max_seconds: int) -> transfer.DialResult: ...   # "dialing": marcando, sin esperar
+    async def dial(self, identity: str, phone: str, caller_id: str, ring_seconds: int, max_seconds: int,
+                   headers: dict[str, str]) -> transfer.DialResult: ...   # "dialing": marcando, sin esperar
     def send(self, topic: str, data: dict) -> None: ...            # datos al panel (publish_data)
     async def notice(self) -> None: ...                            # aviso de grabacion, a los dos
     async def say(self, text: str) -> None: ...
@@ -247,7 +249,12 @@ class Outbound:
         self.max_seconds = int(metadata.get("max_duration_seconds") or settings.call_max_duration_seconds)
         self.join_timeout = metadata.get("join_timeout_seconds") or direct_calls.JOIN_TIMEOUT_PANEL
         self.recording_notice = bool(metadata.get("recording_notice"))
+        self.record_full_call = bool(metadata.get("record_full_call"))
         self.log = CallLog(store, self.conversation_id, line.send)
+        # Teclas del contacto y del usuario del panel (app/voice/dtmf.py), con el rol de su voz.
+        self.keys = dtmf.KeyLog(sessions=sessions, store=store, conversation_id=self.conversation_id,
+                                send=line.send)
+        line.on_dtmf = self._on_dtmf
         self.started: float | None = None
         self.end = CallEnd()
         self.away_until: float | None = None    # el usuario salio mientras sonaba: hasta cuando se lo espera
@@ -255,6 +262,12 @@ class Outbound:
 
     def _status(self, state: str, **extra) -> None:
         self.line.send("call_status", {"state": state, **extra})
+
+    def _on_dtmf(self, identity: str, digit: str) -> None:
+        if identity == CONTACT:
+            self.keys.press(digit)
+        elif identity == self.user:
+            self.keys.press(digit, role="assistant", person=self.user_name)
 
     def _fail(self, result: str, reason: str, error: str = "", sip_status: int | None = None) -> str:
         """No llego a hablar: fallida, con el motivo (no_answer, busy, sip_call_failed, user_not_joined...). Si la
@@ -293,7 +306,9 @@ class Outbound:
             logger.info("directa %s: el usuario no entro en %s s", self.conversation_id, self.join_timeout)
             return self._fail("failed", "user_not_joined", f"El usuario no entró a la llamada ({self.join_timeout} s)")
         self._status("dialing")
-        res = await self.line.dial(CONTACT, self.phone, self.from_number, RING_SECONDS, self.max_seconds)
+        # Grabacion completa en Asterisk, solo en la pierna del contacto (header X-Atentina-Rec).
+        headers = {"X-Atentina-Rec": self.conversation_id} if self.record_full_call else {}
+        res = await self.line.dial(CONTACT, self.phone, self.from_number, RING_SECONDS, self.max_seconds, headers)
         if res.result != "dialing":
             logger.info("directa %s: no se pudo marcar (%s, SIP %s)", self.conversation_id, res.result, res.sip_status)
             return self._fail(res.result, "sip_call_failed" if res.result == "failed" else res.result, res.error,
@@ -374,6 +389,8 @@ class TeamCall:
         self.to_agent = to_agent
         self.confirm_seconds = confirm_seconds
         self.log = CallLog(store, conversation_id, line.send)     # transcript al panel del que atiende
+        # Teclas de quien llama en todas las fases (RoomLine.on_dtmf), con el tramo si habla con un celular.
+        self.keys = dtmf.KeyLog(sessions=sessions, store=store, conversation_id=conversation_id, send=line.send)
         self.transfer: transfer.Transfer | None = None
         self.attempts = 0
         self.reason = ""
@@ -391,7 +408,11 @@ class TeamCall:
             events.record(s, self.client_id, type, conversation_id=self.conversation_id, **data)
             s.commit()
 
+    def _on_dtmf(self, digit: str) -> None:
+        self.keys.press(digit, leg=self.transfer.leg if self.transfer is not None else None)
+
     async def run(self) -> str:
+        self.line.on_dtmf = self._on_dtmf
         if self.notice:
             await self.line.say(RECORDING_NOTICE)
         if not handoff_service.is_open(self.route.schedule):
@@ -648,6 +669,7 @@ class TeamCall:
         fallback = self.route.fallback
         if fallback == "agent":
             if self.to_agent is not None and self.to_agent():
+                self.line.on_dtmf = None    # sigue el agente: sus teclas no son de esta linea
                 self.reason = why
                 self._event("team.fallback", fallback="agent", reason=why, **self._retried())
                 return "agent"
@@ -717,6 +739,7 @@ class TeamCall:
         return result
 
     def close(self) -> None:
+        self.line.on_dtmf = None
         if self.transfer is not None:
             self.transfer.close()
         self.log.close()
@@ -857,9 +880,11 @@ class OutboundRoom:
                                  lambda who, text, pcm: self.events.put_nowait(("text", who, text, pcm)))
         self.data = DataSender(self.room)
         self.send = self.data.send
+        self.on_dtmf = None
 
     async def start(self) -> None:
         room = self.room
+        room.on("sip_dtmf_received", self._on_dtmf)
         room.on("participant_connected", self._on_joined)
         room.on("participant_disconnected", lambda p: self.events.put_nowait(("left", p.identity, _left_reason(p))))
         room.on("participant_attributes_changed", self._on_attributes)
@@ -870,6 +895,11 @@ class OutboundRoom:
                 if pub.track is not None and pub.kind == rtc.TrackKind.KIND_AUDIO:
                     self.listener.capture(pub.track, p.identity)
         await self.voice.publish(room)
+
+    def _on_dtmf(self, ev) -> None:
+        # El contacto por SIP; el usuario del panel, con publishDtmf (llega igual, como sip_dtmf_received).
+        if ev.participant is not None and self.on_dtmf is not None:
+            self.on_dtmf(ev.participant.identity, ev.digit)
 
     def _on_joined(self, p) -> None:
         self.events.put_nowait(("joined", p.identity))
@@ -893,13 +923,14 @@ class OutboundRoom:
             await asyncio.sleep(0.2)
         return True
 
-    async def dial(self, identity: str, phone: str, caller_id: str, ring_seconds: int,
-                   max_seconds: int) -> transfer.DialResult:
+    async def dial(self, identity: str, phone: str, caller_id: str, ring_seconds: int, max_seconds: int,
+                   headers: dict[str, str]) -> transfer.DialResult:
         try:
             await self.ctx.api.sip.create_sip_participant(api.CreateSIPParticipantRequest(
                 room_name=self.room.name, sip_trunk_id=self.trunk_id, sip_call_to=phone, sip_number=caller_id,
                 participant_identity=identity, participant_name="Contacto", wait_until_answered=False,
-                ringing_timeout=Duration(seconds=ring_seconds), max_call_duration=Duration(seconds=max_seconds)))
+                ringing_timeout=Duration(seconds=ring_seconds), max_call_duration=Duration(seconds=max_seconds),
+                headers=headers))
         except Exception as e:  # noqa: BLE001 - cualquier falla al marcar es un resultado
             result, status = campaign_calls.classify_error(e)
             return transfer.DialResult(result if result in ("no_answer", "busy") else "failed", status, str(e))

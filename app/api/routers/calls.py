@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 from ...config import settings
+from ...conversation.recordings import full_recording_path
 from ...models import Contact
 from ...services import calls as service
 from ...services import phones
@@ -132,6 +133,19 @@ def bulk_delete_calls(body: CallBulkDeleteIn, _: AdminPrincipal, db: DB):
     """Borra varias conversaciones (las seleccionadas en la UI). Devuelve cuantas habia;
     los ids inexistentes se ignoran. Solo admin; 409 si alguna llamada esta en curso."""
     return CallBulkDeleteOut(deleted=service.delete_conversations(db, body.ids))
+
+
+@router.get("/calls/{conversation_id}/recording")
+def get_full_recording(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Definitions):
+    """La grabacion completa de la llamada (opcion "Grabar la llamada completa" del numero): Ogg/Opus estereo,
+    canal izquierdo quien esta en el telefono y derecho lo que oye. 404 si no hay."""
+    detail = Reports(db, definitions).detail(conversation_id)
+    if detail is None or not p.can_access(detail["client_id"]):
+        raise NotFound("Conversación inexistente")
+    path = full_recording_path(conversation_id)
+    if not path.is_file():
+        raise NotFound("Grabación inexistente")
+    return FileResponse(path, media_type="audio/ogg", filename=f"llamada-{conversation_id}.ogg")
 
 
 @router.get("/calls/{conversation_id}/recordings/{n}")

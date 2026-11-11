@@ -34,6 +34,10 @@ export const CONNECT_ON_ANSWER_HELP =
 export const CONNECT_ON_ANSWER_PANEL_HELP = 'Vale para los teléfonos; el panel se atiende con un clic.';
 export const HOLD_MUSIC_HELP = 'Apagado, quien llama espera en silencio hasta que atiendan.';
 
+/** Grabar la llamada completa (Asterisk, docs/features/EQUIPO_TELEFONIA.md): vale para las dos formas de atender. */
+export const RECORD_FULL_CALL_HELP =
+  'Guarda el audio entero de la llamada, de quien llama y de quien atiende, como respaldo. Solo llamadas por teléfono: no incluye el link para llamar, la prueba del panel ni WhatsApp.';
+
 export const FALLBACK_LABELS: Record<TeamFallback, string> = {
   agent: 'Pasa al agente',
   member: 'Llama a una persona',
@@ -101,6 +105,7 @@ export interface AnsweringDraft {
   ring_seconds: number | string;
   team_connect_on_answer: boolean;
   team_hold_music: boolean;
+  record_full_call: boolean;
   /** 0 = no reintenta. */
   team_retry_seconds: number;
   team_retry_interval_seconds: number;
@@ -123,6 +128,7 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     ring_seconds: n.ring_seconds,
     team_connect_on_answer: n.team_connect_on_answer,
     team_hold_music: n.team_hold_music,
+    record_full_call: n.record_full_call,
     team_retry_seconds: n.team_retry_seconds,
     team_retry_interval_seconds: n.team_retry_interval_seconds,
     team_retry_message: n.team_retry_message,
@@ -134,7 +140,7 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
 }
 
 /**
- * El PATCH de un número asignado. Con el agente, solo manda el modo y el agente (lo del equipo queda como
+ * El PATCH de un número asignado. Con el agente, solo manda el modo, el agente y la grabación (lo del equipo queda como
  * está); con el equipo, todo lo del equipo y el agente, que es el de respaldo.
  */
 export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
@@ -142,6 +148,7 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     label: v.label.trim(),
     answer_mode: v.answer_mode,
     agent_id: v.agent_id || null,
+    record_full_call: v.record_full_call,
   };
   if (v.answer_mode === 'agent') return base;
   return {

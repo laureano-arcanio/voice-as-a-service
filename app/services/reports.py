@@ -14,6 +14,7 @@ from ..agents.definitions import DefinitionSource
 from ..agents.templates import load_reference
 from ..config import settings
 from ..conversation.models import ConversationState, Progress, Workflow
+from ..conversation.recordings import full_recording_path
 from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, is_required, outcome_for
 from ..models import (
     ACTIVE_CALL_STATUSES,
@@ -257,6 +258,8 @@ class Reports:
             "messages": conv.messages,
             "context": progress.context,
             "recordings": recordings,
+            # Grabacion completa (Asterisk, app/services/line_recordings.py): GET /calls/{id}/recording.
+            "full_recording": full_recording_path(conv.id).is_file(),
             "call": None if call is None else {
                 "mode": call.mode, "phone": call.phone, "status": call.status,
                 "client_number": number.e164 if number else None,

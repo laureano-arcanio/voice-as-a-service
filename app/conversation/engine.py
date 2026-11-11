@@ -197,13 +197,15 @@ class ConversationEngine:
 
     async def process_turn(self, conversation_id: str, user_message: str,
                            on_message: Callable[[str], None] | None = None, *,
-                           media: TurnMedia | None = None, actor: str | None = None
+                           media: TurnMedia | None = None, actor: str | None = None, dtmf: str | None = None
                            ) -> tuple[ConversationState, AgentTurn]:
         """on_message recibe assistant_message a medida que lo genera el LLM
         (agente de voz). Devuelve sin esperar la extraccion de este turno.
         media: si el mensaje vino por audio y si la respuesta sale como nota de
         voz (WhatsApp); cambia el prompt del turno y no se guarda.
-        actor: quien escribe (wa:<wa_id>): el numero de {{call.from}} en las herramientas."""
+        actor: quien escribe (wa:<wa_id>): el numero de {{call.from}} en las herramientas.
+        dtmf: el turno son teclas que marco quien llama (user_message "Marcó <dtmf>", app/voice/dtmf.py): queda en
+        Message.dtmf del mensaje del usuario."""
         media = media or TurnMedia()
         await self.wait_extraction(conversation_id, EXTRACTION_WAIT)
         state = self.store.get(conversation_id)
@@ -212,7 +214,7 @@ class ConversationEngine:
         state.media = media
         workflow = self.workflow(state)
         if workflow.external is not None:
-            return await self._external_turn(workflow, state, user_message, media, on_message, actor)
+            return await self._external_turn(workflow, state, user_message, media, on_message, actor, dtmf)
         # Turno del usuario (1 = su primer mensaje): elige la etapa de workflow.llm.
         llm = self.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in state.messages), state.client_id)
 
@@ -238,7 +240,7 @@ class ConversationEngine:
         state.progress.undo = undo
         if turn_tools:
             state.progress.tool_vars = turn_tools.ctx.vars
-        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
+        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=result.assistant_message, llm=trace,
                                    handoff=result.handoff)]
         self.store.save(state)
@@ -250,8 +252,8 @@ class ConversationEngine:
         return state, result
 
     async def _external_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
-                             media: TurnMedia, on_message: Callable[[str], None] | None, actor: str | None
-                             ) -> tuple[ConversationState, AgentTurn]:
+                             media: TurnMedia, on_message: Callable[[str], None] | None, actor: str | None,
+                             dtmf: str | None = None) -> tuple[ConversationState, AgentTurn]:
         """Motor external (app/llm/external.py): contesta el endpoint del cliente, sin extraccion. Si falla
         sin haber hablado, el agente dice error_message; con max_errors seguidos (o sin el plan), corta o deriva
         segun on_errors."""
@@ -290,7 +292,7 @@ class ConversationEngine:
         if turn.status == "completed" and turn.end_reason is None:
             ids = [o.id for o in workflow.completion.outcomes]
             state.progress.outcome = outcome if outcome in ids else ids[-1]
-        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
+        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=turn.assistant_message, llm=[trace],
                                    handoff=turn.handoff)]
         self.store.save(state)

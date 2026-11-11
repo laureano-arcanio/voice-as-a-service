@@ -491,7 +491,13 @@ services:
       WA_SIP_PORT: ${WA_SIP_PORT:-5061}
       WA_SIP_USER: ${WA_SIP_USER:-5493517002592}
       WA_SIP_PASSWORD: ${WA_SIP_PASSWORD:-}
+      # Grupo del spool de la grabacion completa: el GID de la imagen de app (que lee y borra).
+      SPOOL_GID: ${GID:-1000}
     volumes:
+      # Spool de la grabacion completa (MixMonitor, extensions.conf line-record): rec/ mientras graba,
+      # done/ al cortar, numbers/<e164> marcadores que escribe la app. Bajo RECORDINGS_DIR: el
+      # mismo disco que los audios.
+      - ${RECORDINGS_DIR:-./storage/recordings}/line-spool:/var/spool/atentina
       # Templates: entrypoint.sh los renderiza a /etc/asterisk al arrancar, asi
       # que un cambio en asterisk/conf/ se aplica con `make up-pbx`, sin rebuild.
       - ./asterisk/conf:/etc/asterisk/templates:ro

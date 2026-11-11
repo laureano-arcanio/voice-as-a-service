@@ -17,6 +17,7 @@ import {
 import {
   IconArrowLeft,
   IconBan,
+  IconDownload,
   IconLogin2,
   IconMessageOff,
   IconPhoneOff,
@@ -43,7 +44,13 @@ import { useAreaPath } from '@/features/support/paths';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { callPerson, endReasonLabel, isPersonCall } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { isCallLive, useCallDetail, useCloseWhatsApp, useHangUp } from './api';
+import {
+  fullRecordingUrl,
+  isCallLive,
+  useCallDetail,
+  useCloseWhatsApp,
+  useHangUp,
+} from './api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { useFreshFields } from './useFreshFields';
@@ -323,6 +330,7 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
           onChange={(e) => setShowLlm(e.currentTarget.checked)}
         />
       </Group>
+      {c.full_recording && <FullRecording id={c.id} />}
       <ChatView
         messages={c.messages}
         showLlm={showLlm}
@@ -331,6 +339,34 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
         {...personLabels(c)}
       />
     </Card>
+  );
+}
+
+/** Grabacion completa (opcion "Grabar la llamada completa" del numero), arriba de la transcripcion. */
+function FullRecording({ id }: { id: string }) {
+  const url = fullRecordingUrl(id);
+  return (
+    <Stack gap={4} mb="md" className="full-recording">
+      <Group justify="space-between" gap="sm">
+        <Text size="sm" fw={600}>
+          Llamada completa
+        </Text>
+        <Button
+          component="a"
+          href={url}
+          download
+          size="compact-sm"
+          variant="subtle"
+          leftSection={<IconDownload size={14} />}
+        >
+          Descargar
+        </Button>
+      </Group>
+      <audio controls preload="metadata" src={url} aria-label="Llamada completa" />
+      <Text size="xs" c="dimmed">
+        Estéreo: a la izquierda quien está en el teléfono, a la derecha lo que escuchó.
+      </Text>
+    </Stack>
   );
 }
 

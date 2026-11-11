@@ -17,9 +17,12 @@ export interface CallStatusData {
   result?: 'completed' | 'no_answer' | 'busy' | 'failed';
 }
 
-/** Una frase transcripta, tema `transcript`: el contacto es `user`; el usuario o la persona, `assistant`. */
+/** Una frase transcripta, tema `transcript`: el contacto es `user`; el usuario o la persona, `assistant`. Las teclas
+ * marcadas traen `dtmf` (los dígitos del grupo); con `extend`, el grupo sigue y reemplaza la línea anterior. */
 export interface TranscriptData {
   role: 'user' | 'assistant';
   person?: string | null;
   text: string;
+  dtmf?: string | null;
+  extend?: boolean;
 }

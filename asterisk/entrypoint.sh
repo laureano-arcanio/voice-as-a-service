@@ -86,5 +86,16 @@ fi
 chown root:asterisk "$wa_out"
 chmod 640 "$wa_out"
 
+# Spool de la grabacion completa (extensions.conf, line-record), montado desde
+# ${RECORDINGS_DIR}/line-spool. Asterisk (uid asterisk) escribe rec/ y mueve a done/; la app
+# (SPOOL_GID, el GID con que se construye su imagen) escribe numbers/ y lee y borra rec/ y done/.
+# setgid: lo nuevo queda con el grupo de la app.
+spool=/var/spool/atentina
+if [ -d "$spool" ]; then
+	mkdir -p "$spool/rec" "$spool/done" "$spool/numbers"
+	chown asterisk:"${SPOOL_GID:-1000}" "$spool" "$spool/rec" "$spool/done" "$spool/numbers"
+	chmod 2770 "$spool" "$spool/rec" "$spool/done" "$spool/numbers"
+fi
+
 echo "Asterisk: SIP udp/${ASTERISK_SIP_PORT} (LiveKit) y udp/${ASTERISK_ANURA_SIP_PORT} (Anura), ${wa_msg}, RTP ${ASTERISK_RTP_START}-${ASTERISK_RTP_END}, publico ${ASTERISK_PUBLIC_ADDRESS}"
 exec asterisk -f -U asterisk -G asterisk

@@ -41,7 +41,7 @@ from ..models import (
     User,
     UserPresence,
 )
-from . import blocked_numbers, calls, legal_gate, livekit, phones, quota
+from . import blocked_numbers, calls, legal_gate, line_spool, livekit, phones, quota
 from . import limits as limits_service
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -183,6 +183,8 @@ def prepare_direct_call(s: Session, p: Principal, req: DirectCallRequest) -> tup
                 "max_duration_seconds": max_duration,
                 "join_timeout_seconds": JOIN_TIMEOUT_API if by_api else JOIN_TIMEOUT_PANEL,
                 "recording_notice": bool(client.direct_recording_notice),
+                # Grabacion completa en Asterisk (header X-Atentina-Rec en la pierna del contacto).
+                "record_full_call": line_spool.wanted(number),
                 # Sin voz propia del cliente: el worker usa VLLM_TTS_VOICE para el aviso.
                 "voice": None}
     started = DirectCallStarted(conversation_id=state.conversation_id, room=room, status=CallStatus.pendiente,

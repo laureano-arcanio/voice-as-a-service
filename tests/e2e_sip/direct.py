@@ -7,11 +7,13 @@ mensajes con su WAV). Casos:
 
 1. Saliente: el usuario del panel ("user-u1") entra y publica un tono; el worker marca al Anura falso (un eco),
    el contacto atiende, el usuario escucha su tono de vuelta (audio en los dos sentidos), hay mensajes de los dos
-   lados con su WAV y, al salir el usuario, la llamada queda finalizada.
+   lados con su WAV, las teclas del usuario (publish_dtmf, como el teclado del panel) quedan como "Marcó 12" (y las
+   que devuelve el eco, como del contacto) y, al salir el usuario, la llamada queda finalizada.
 2. Entrante al equipo por celular: con un "cliente" ya en la room, suenan las personas del numero en orden (la
    primera da ocupado, la segunda atiende y marca 1), quedan conectadas y termina cuando corta la persona.
 3. Entrante al equipo, conectar al atender: una central que atiende y no marca nada queda conectada sin whisper; el
-   pasajero marca 1 (el IVR de la central) y la central lo recibe (lo devuelve por DTMF), y termina cuando corta.
+   pasajero marca 1 (el IVR de la central) y la central lo recibe (lo devuelve por DTMF), el 1 queda en la
+   conversacion ("Marcó 1" con el tramo, evento call.dtmf) y termina cuando corta.
 4. Entrante al equipo, "si nadie atiende" una persona (team_fallback member): la unica del numero no atiende, se
    llama a la persona de respaldo, que marca 1, y termina cuando corta.
 5. Entrante al equipo con reintentos (team_retry_*): la unica del numero da ocupado; aviso, musica y se la vuelve a
@@ -209,6 +211,8 @@ async def outbound(lk, trunk_id, sessions, client_id, user_id, number_id) -> Non
             await asyncio.sleep(0.2)
         await asyncio.sleep(2)           # el aviso de grabacion (1 s de tono) a los dos
         heard.clear()                    # desde aca, lo que vuelve del contacto es el tono del usuario (eco)
+        for code, digit in ((1, "1"), (2, "2")):     # el teclado del panel (publishDtmf)
+            await user.local_participant.publish_dtmf(code=code, digit=digit)
         await asyncio.sleep(4)
         await mic.stop()
         await user.disconnect()          # corta el usuario
@@ -219,13 +223,17 @@ async def outbound(lk, trunk_id, sessions, client_id, user_id, number_id) -> Non
             status, reason, started = call.status, call.ended_reason, call.started_at
         msgs = store.get(conv).messages
         roles = sorted({(m.role, m.person) for m in msgs if m.recording}, key=str)
+        keys = [(m.role, m.person, m.text) for m in msgs if m.dtmf]
+        # El eco del Anura falso devuelve tambien los digitos: el contacto "marca" 1 y 2 (entre frases del eco).
+        echoed = "".join(m.dtmf for m in msgs if m.dtmf and m.role == "user")
         live = {p.identity for p in (await lk.room.list_participants(
             api.ListParticipantsRequest(room=name))).participants}
         ok = result == "completed" and status == CallStatus.finalizada and reason == "person_hangup" and started \
             and roles == [("assistant", "Ana"), ("user", None)] and heard.get("contact", 0) > 500 \
-            and states[:2] == ["joining", "dialing"] and "active" in states
-        smoke.check("directa saliente: atiende, audio de ida y vuelta, corta el usuario", ok,
-                    f"{result}/{status}/{reason} en {time.monotonic() - t:.1f} s; estados {states}; "
+            and states[:2] == ["joining", "dialing"] and "active" in states \
+            and keys[0] == ("assistant", "Ana", "Marcó 12") and echoed == "12"
+        smoke.check("directa saliente: atiende, audio de ida y vuelta, teclas del panel, corta el usuario", ok,
+                    f"{result}/{status}/{reason} en {time.monotonic() - t:.1f} s; estados {states}; teclas {keys}; "
                     f"mensajes con WAV {roles} ({len(msgs)}); audio del contacto {heard.get('contact', 0)}; "
                     f"en la room {sorted(live)}")
     finally:
@@ -325,14 +333,20 @@ async def connect_on_answer(lk, trunk_id, sessions, client_id, number_id) -> Non
         with sessions() as s:
             legs = [(leg.result, leg.answered_at is not None, leg.billed_seconds > 0)
                     for leg in s.scalars(select(HandoffLeg).where(HandoffLeg.conversation_id == conv))]
-        persons = {(m.role, m.person) for m in store.get(conv).messages if m.recording}
+        msgs = store.get(conv).messages
+        persons = {(m.role, m.person) for m in msgs if m.recording}
         from_central = [d for who, d in dtmf if who.startswith(transfer.PERSON_PREFIX)]
+        keys = [(m.role, m.text, bool(m.handoff_leg)) for m in msgs if m.dtmf]
+        with sessions() as s:
+            key_events = [e.data["digit"] for e in s.scalars(select(Event).where(Event.conversation_id == conv,
+                                                                                 Event.type == "call.dtmf"))]
         ok = outcome == "answered" and team.reason == "person_hangup" and legs == [("connected", True, True)] and \
             not whispers and ("assistant", "Central") in persons and ("cliente", "1") in dtmf and \
-            from_central == ["1"]
-        smoke.check("directa entrante, conectar al atender: sin whisper, el 1 del pasajero llega a la central", ok,
+            from_central == ["1"] and keys == [("user", "Marcó 1", True)] and key_events == ["1"]
+        smoke.check("directa entrante, conectar al atender: sin whisper, el 1 del pasajero llega a la central y queda "
+                    "en la conversacion", ok,
                     f"{outcome}/{team.reason} en {time.monotonic() - t:.1f} s; tramos {legs}; whisper {whispers}; "
-                    f"DTMF {dtmf}; mensajes con WAV {sorted(persons, key=str)}")
+                    f"DTMF {dtmf}; teclas {keys} {key_events}; mensajes con WAV {sorted(persons, key=str)}")
     finally:
         await line.aclose()
         await worker.disconnect()

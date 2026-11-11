@@ -23,8 +23,17 @@ from ..config import settings
 RECORDING_SAMPLE_RATE = 16000
 
 
+# Grabacion completa de la llamada (Asterisk, app/services/line_recordings.py), en el mismo directorio: no es .wav,
+# asi no se cuenta entre los audios por mensaje.
+FULL_RECORDING_NAME = "llamada.ogg"
+
+
 def recording_dir(conversation_id: str) -> Path:
     return settings.call_recordings_dir / conversation_id
+
+
+def full_recording_path(conversation_id: str) -> Path:
+    return recording_dir(conversation_id) / FULL_RECORDING_NAME
 
 
 def write_wav(path: Path, pcm: bytes) -> None:

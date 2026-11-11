@@ -48,6 +48,11 @@ export function recordingUrl(conversationId: string, n: number): string {
   return `/api/v1/calls/${conversationId}/recordings/${n}`;
 }
 
+/** Grabacion completa de la llamada (opcion del numero): Ogg/Opus estereo. */
+export function fullRecordingUrl(conversationId: string): string {
+  return `/api/v1/calls/${conversationId}/recording`;
+}
+
 export function isCallLive(c: CallDetail | undefined): boolean {
   if (!c || c.whatsapp?.closed_at) return false;
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';

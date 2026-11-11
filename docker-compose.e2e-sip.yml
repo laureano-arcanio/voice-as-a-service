@@ -8,7 +8,7 @@
 # falso, una IP de las redes de Anura que reconoce el identify de pjsip.conf) y 200.13.42.20 (la
 # dirección "pública" de nuestro Asterisk).
 #
-# Uso: `make e2e-sip` (levanta, corre tests/e2e_sip/smoke.py, transfer.py y direct.py y baja todo).
+# Uso: `make e2e-sip` (levanta, corre tests/e2e_sip/smoke.py, recording.py, transfer.py y direct.py y baja todo).
 name: atentina-e2e-sip
 
 networks:
@@ -71,6 +71,7 @@ services:
       ASTERISK_PUBLIC_ADDRESS: 200.13.42.20
     volumes:
       - ./asterisk/conf:/etc/asterisk/templates:ro
+      - spool:/var/spool/atentina
     depends_on: [net]
 
   fake-anura:
@@ -84,6 +85,7 @@ services:
       - ./tests/e2e_sip/fake-anura/pjsip.conf:/etc/asterisk/pjsip.conf:ro
       - ./tests/e2e_sip/fake-anura/rtp.conf:/etc/asterisk/rtp.conf:ro
       - ./tests/e2e_sip/fake-anura/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./tests/e2e_sip/fake-anura/manager.conf:/etc/asterisk/manager.conf:ro
       - ./tests/e2e_sip/audio:/sounds/e2e:ro
     depends_on: [net]
 
@@ -100,6 +102,26 @@ services:
     volumes:
       - ./tests/e2e_sip:/e2e:ro
     command: ["python", "smoke.py"]
+    depends_on: [livekit-sip, asterisk, fake-anura]
+    profiles: [run]
+
+  # La grabacion completa (tests/e2e_sip/recording.py): entrantes originadas por el Anura falso y salientes
+  # con X-Atentina-Rec; lee el spool de nuestro Asterisk y el mapeo de headers de scripts/livekit_sip_setup.py.
+  runner-recording:
+    build:
+      context: ./tests/e2e_sip
+      dockerfile: runner.Dockerfile
+    network_mode: service:net
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: e2ekey
+      LIVEKIT_API_SECRET: e2e-secret-de-prueba-con-32-caracteres
+      LIVEKIT_SIP_PASSWORD: e2e-livekit-pass
+    volumes:
+      - ./tests/e2e_sip:/e2e:ro
+      - ./scripts:/scripts:ro
+      - spool:/spool
+    command: ["python", "recording.py"]
     depends_on: [livekit-sip, asterisk, fake-anura]
     profiles: [run]
 
@@ -141,3 +163,7 @@ services:
     command: ["python", "/e2e/direct.py"]
     depends_on: [livekit-sip, asterisk, fake-anura]
     profiles: [run]
+
+volumes:
+  # Spool de la grabacion completa de nuestro Asterisk (en produccion, ${RECORDINGS_DIR}/line-spool).
+  spool:

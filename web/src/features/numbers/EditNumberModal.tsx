@@ -36,6 +36,7 @@ import {
   FALLBACK_LABELS,
   FALLBACK_MESSAGE_DEFAULTS,
   MESSAGE_MAX,
+  RECORD_FULL_CALL_HELP,
   RETRY_HELP,
   RETRY_INTERVAL_DEFAULT,
   RETRY_INTERVAL_HELP,
@@ -385,6 +386,12 @@ export function EditNumberModal({
                   />
                 </>
               )}
+              <Divider label="Grabación" labelPosition="left" mt="xs" />
+              <Switch
+                label="Grabar la llamada completa"
+                description={RECORD_FULL_CALL_HELP}
+                {...form.getInputProps('record_full_call', { type: 'checkbox' })}
+              />
             </>
           )}
 

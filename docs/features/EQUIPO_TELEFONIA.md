@@ -28,6 +28,7 @@ saliente necesita además `outbound_calls`).
 | `phone_numbers.strategy` (`sequential`/`round_robin`, default `sequential`), `last_member_id` (FK `team_members`, SET NULL) | Orden de los celulares del número, como en las áreas: la última que atendió en su celular | 0050 |
 | `phone_numbers.team_connect_on_answer` (bool, default `false`), `team_hold_music` (bool, default `true`) | Con `team`: conectar apenas atiende el teléfono, sin whisper ni tecla ni detección de contestador (para destinos que siempre atienden, como una central); música o silencio mientras suena. Los números existentes siguen con whisper y música | 0051 |
 | `phone_numbers.team_retry_seconds` (int, default `0`), `team_retry_interval_seconds` (int, default `30`), `team_retry_message` (texto, default vacío) | Con `team`: etapa de reintentos antes del respaldo. Si nadie atiende, se vuelve a llamar cada `team_retry_interval_seconds` durante `team_retry_seconds` (0, sin reintentos; 15 a 300, de a 15), con aviso y música; vacío, el aviso por defecto. Los números existentes no reintentan | 0054 |
+| `phone_numbers.record_full_call` (bool, default `false`) | Graba la llamada entera por teléfono, con el equipo o con el agente ([Grabación completa](#grabación-completa)). Asignar o liberar el número la apaga | 0055 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
 | `user_presence` | `user_id`, `client_id`, `last_seen`: Disponible en el panel | 0039 |
 | `call_rings` | Timbre por usuario y entrante en el panel: `status` `ringing`/`answered`/`declined`/`cancelled` (único por conversación y usuario) | 0039 |
@@ -61,7 +62,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | `PUT /me/presence` `{available}`, `GET /me/ringing` | Pulso de Disponible; entrantes que le suenan | — |
 | `GET /team/presence` | Quién está Disponible u ocupado | `list_team_presence` |
 | `GET/PUT /clients/{id}/direct-call-settings` `{recording_notice}` | Aviso de grabación en las directas | `get_/update_direct_call_settings` |
-| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_member_id`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`). `team_retry_seconds` (0 a 300, de a 15), `team_retry_interval_seconds` (15 a 120) y `team_retry_message` (hasta 500; se recorta): no nulos, 422 fuera de rango; liberar el número los vuelve a `0`, `30` y vacío. Otro `team_fallback` sin mandar la persona la limpia; borrar a la persona deja el número en `voicemail`; liberarlo, también | `route_phone_number` |
+| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_member_id`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`). `team_retry_seconds` (0 a 300, de a 15), `team_retry_interval_seconds` (15 a 120) y `team_retry_message` (hasta 500; se recorta): no nulos, 422 fuera de rango; liberar el número los vuelve a `0`, `30` y vacío. `record_full_call` (bool no nulo; aparte del modo, vale con `agent` y con `team`). Otro `team_fallback` sin mandar la persona la limpia; borrar a la persona deja el número en `voicemail`; liberarlo, también | `route_phone_number` |
 | `GET /calls` | Filtros `mode`, `user_id`, `answered_by`, `phone`, `contact_id`; `CallOut` con `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id`; el detalle trae `call.team` (`answered`, `person`, `fallback`) | `list_calls`, `get_call` |
 | `POST /calls/{id}/hangup` | Cortar (también las directas) | `hangup_call` |
 | `GET /reports/transfers` | Panel de derivaciones (Reportes > Transferencias, `advanced_reports`); `/reports/calls` separa agente, directa y equipo, por usuario | `get_report_*` ([REPORTES.md](REPORTES.md)) |
@@ -311,6 +312,70 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 6. Las llamadas de WhatsApp al mismo DID siguen el mismo ruteo; una regla de `wa_routes` que elige agente manda.
    La entrante usa `VLLM_TTS_VOICE` (no hay voz por cliente).
 
+### Teclas marcadas
+
+Código: `app/voice/dtmf.py` (`Keys` agrupa, `KeyLog` guarda, `AgentKeys` las lleva al agente). Las teclas de quien llama quedan en la conversación
+en su lugar, como un mensaje `role=user` con texto `Marcó 123` y `Message.dtmf="123"`; exportes, MCP (`get_call`),
+el resumen de la derivación y el correo leen el texto sin cambios.
+
+- **Dónde:** entrante al equipo en todas sus fases (música, timbre, hablando en el panel o el celular, buzón:
+  `RoomLine.on_dtmf`, solo para la identidad de quien llama), derivación del agente (el worker fija `on_dtmf` al
+  crear el `Transfer` y lo limpia al terminar, porque la `RoomLine` sigue registrada) y saliente directa
+  (`OutboundRoom`: el contacto como `user`, el usuario del panel como `assistant` con `person`; el teclado del panel
+  usa `publishDtmf`, que llega como `sip_dtmf_received`, y también al contacto). Las teclas de la persona del equipo (el 1, la tecla de vuelta) no se guardan.
+- **Con el agente** (fuera de una derivación): el grupo es un turno del usuario.
+  El worker escucha `sip_dtmf_received` de quien llama desde que arranca la sesión; el grupo se cierra 3 s después
+  del último dígito y entra por `session.generate_reply(user_input="Marcó 123")` → `llm_node` → `process_turn(…,
+  dtmf="123")`, como una frase dicha: el LLM (o el agente externo) recibe `Marcó 123` como mensaje `user`. No corta lo
+  que está diciendo el agente: la respuesta se encola detrás. Mudo durante la derivación (las guarda la línea) y al
+  cortar (un grupo abierto se descarta); la entrante al equipo termina antes de que arranque la sesión. Si en el
+  mismo turno entra también una frase dicha, va unida ("Quiero la opción Marcó 2") y sin `dtmf`; lo mismo si quien
+  llama habla encima de la respuesta a las teclas y el turno se deshace. Sin reglas de prompt: qué hacer con las
+  teclas lo dice la definición del agente.
+- **Grupo:** los dígitos de la misma parte con menos de 3 s entre uno y otro (`GROUP_PAUSE_SECONDS`) extienden el
+  mismo mensaje, que conserva la hora del primero; una frase en el medio o la pausa abren otro. Conectado con una
+  persona, el mensaje lleva el `handoff_leg` del tramo (`Transfer.leg`).
+- **Evento `call.dtmf`** por dígito (`data.digit`; actor `customer`, o `person` con `data.person` en la saliente).
+- **Panel:** cada dígito va por el tema `transcript` con `dtmf` (los dígitos del grupo) y `extend` (reemplaza la
+  línea anterior). En Conversaciones, un renglón chico centrado ("Quien llamó marcó 123"), no una burbuja.
+
+### Grabación completa
+
+Opción por número (`record_full_call`, switch **Grabar la llamada completa** en Números): Asterisk graba el audio
+entero de la llamada por teléfono (Anura), de quien llama y de quien atiende, como respaldo de los audios por frase
+(dialplan, spool y formato: [`TELEFONIA_ANURA.md`](../TELEFONIA_ANURA.md), 1). Afuera: link para llamar, prueba del
+panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y `direct_recording_notice`.
+
+- **Marcador:** Asterisk graba una entrante si existe `${RECORDINGS_DIR}/line-spool/numbers/<e164>` (en `app`,
+  `/app/storage/recordings/line-spool/numbers/`). `app/services/line_spool.py` lo deja como dice la base: existe si el
+  número tiene cliente, no está suspendido y tiene `record_full_call`. Se escribe o borra tras el commit de
+  `PATCH`, asignar, liberar y borrar el número (si el spool no se puede escribir, lo registra y no falla el pedido) y
+  `line_spool_loop` (lifespan de `app`) reconcilia todo al arrancar y cada `LINE_SPOOL_TICK_SECONDS` (60): crea los que
+  faltan (spool perdido o restaurado), borra los que no corresponden (suspensión o reasignación del facturador, un
+  cambio de `e164`) y solo toca archivos con forma de número (`+` y dígitos).
+- **Trampa:** hasta un minuto de desfase si el marcador se pierde o si el facturador suspende el número; apagar o
+  prender por la API actúa al instante en la siguiente llamada.
+- **Saliente:** `prepare_call` y `prepare_direct_call` ponen `record_full_call` en la metadata si el número de origen
+  la tiene; el worker manda `X-Atentina-Rec: <conversation_id>` en `CreateSIPParticipantRequest` (agente, campañas,
+  prueba al celular y la pierna del contacto en la directa), nunca en las piernas de personas del equipo.
+- **Vínculo:** en la entrante el worker guarda el atributo `atentina.line` en `call_logs.line_id` (`start_inbound`); la
+  saliente se reconoce por el nombre (`out-<id sin guiones>.sln`).
+- **Conversión** (`app/services/line_recordings.py`, `line_recordings_loop` en el lifespan de `app`, cada
+  `LINE_RECORDINGS_TICK_SECONDS`, 10): de a un archivo y en un hilo, toma `done/` (y lo de `rec/` sin escribirse hace
+  más de `CALL_MAX_DURATION_SECONDS` + 10 min: Asterisk se cayó a mitad, el audio sirve), busca la llamada, vuelve a
+  mirar la opción del número (apagada, número liberado o de otro cliente: borra) y convierte con PyAV a Ogg/Opus
+  24 kbps estéreo en `<RECORDINGS_DIR>/<conversation_id>/llamada.ogg` (escribe `.part` y renombra); después borra el
+  original. Se borran también los de 0 bytes (no atendió) y los que siguen sin llamada a los 120 s. Medido con
+  audio de `make e2e-sip`: 0,18–0,20 MB por minuto; espacio y capacidad en
+  [`capacity/ESPACIO_GRABACIONES.md`](../capacity/ESPACIO_GRABACIONES.md).
+- **Acceso:** `CallDetail.full_recording` y `GET /calls/{id}/recording` (`audio/ogg`, descarga con
+  `llamada-<id>.ogg`), con el mismo chequeo que los audios por frase: otro cliente 404, el admin lo ve. En el detalle
+  de la conversación, reproductor y **Descargar** arriba de la transcripción. Se borra con la conversación (mismo
+  directorio); sin backup, como los audios por frase.
+- **Trampa:** si se borra la conversación mientras se convierte, el `.ogg` se borra al terminar; el detalle de la
+  llamada solo cuenta `*.wav` como audios por frase, por eso el completo no es `.wav`.
+- **No comprobado:** Safari con Ogg/Opus (Chrome sí); si no reproduce, el mismo Opus en WebM.
+
 ### Presencia y timbre en el panel
 
 - **Disponible:** switch en la barra de llamada. Pulso cada ~20 s (`PUT /me/presence`); sin pulso por
@@ -338,7 +403,7 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
   teclado DTMF (`publishDtmf`), transcripción en vivo, Atender/Rechazar. El panel sale de la room en `pagehide`, no
   con `disconnectOnPageLeave` de LiveKit (cortaba en `beforeunload` cancelado y en `freeze` del celular).
-- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero (**En su teléfono**: sirve un fijo), los switches **Conectar al atender** y **Música mientras suena** (siempre visibles en modo equipo; la fila muestra "· conecta al atender" y "· sin música"), timbre, horario,
+- **Números:** "Atiende: el agente / el equipo" con personas, **En orden** o **Rotativa**, dónde suena primero (**En su teléfono**: sirve un fijo), los switches **Conectar al atender** y **Música mientras suena** (siempre visibles en modo equipo; la fila muestra "· conecta al atender" y "· sin música"), timbre, horario, el switch **Grabar la llamada completa** (con el agente o el equipo; la fila dice "Graba la llamada completa"),
   **Volver a intentar** (0, 1, 2, 3 o 5 min; con valor, **Cada** 15 s, 30 s o 1 min y **Aviso de espera**; la fila agrega
   "· reintenta 3 min cada 30 s"; un valor de la API fuera de las opciones se agrega a la lista) y
   **Si nadie atiende** (`NoAnswerField`, el mismo control del área): pasa al agente, **Llama a una persona** (con teléfono, activa y
@@ -368,6 +433,8 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   veces el `*` no llega. Los códigos para personas van con `#` o un dígito solo (`#9` y `1` probados); nunca `*`.
   Un cliente final que marca `*` + dígito durante una derivación o una entrante al equipo podría cortar el tramo de
   la persona: LiveKit pasa los dígitos de un participante SIP al otro y la plataforma no los puede filtrar.
+- **Teclas en claro:** los dígitos se guardan tal cual en la conversación y en `call.dtmf`. Si la llamada pasa por
+  un IVR que pide un PIN, un documento o una tarjeta, queda guardado y lo ve quien ve la conversación.
 - **Canales de Anura: 10** (`ANURA_CHANNELS`). `quota.busy_channels` cuenta las llamadas activas `entrante`,
   `saliente` y `directa` más los tramos de `handoff_legs` abiertos. Una derivada ocupa 2; una saliente directa, 1;
   una entrante al equipo, 2 si atiende en el celular y 1 en el panel. Con ~5 derivaciones a la vez no quedan
@@ -421,14 +488,15 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 - Tests (LLM y teléfono falsos): `tests/test_handoff.py`, `test_handoff_transfer.py`, `test_direct_calls.py`,
   `test_direct_voice.py`, `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
-  `test_voice_wiring.py` y `test_migration_0023/0024/0039/0053.py`, en `make test`. La 0050 (`strategy` del número), la 0051
-  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) y la 0054 (reintentos) solo agregan columnas, y `test_migration_0051.py` y `test_migration_0054.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
+  `test_voice_wiring.py`, `test_dtmf.py`, `test_dtmf_agent.py`, `test_line_spool.py`, `test_line_recordings.py` y `test_migration_0023/0024/0039/0053.py`, en `make test`. La 0050 (`strategy` del número), la 0051
+  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) la 0054 (reintentos) y la 0055 (`record_full_call`) y la 0056 (`call_logs.line_id`, con índice) solo agregan columnas, y `test_migration_0051.py`, `test_migration_0054.py`, `test_migration_0055.py` y `test_migration_0056.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y
-  corta, dos tramos aislados), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1; el progreso: `ringing` antes de atender; la persona de «Si nadie atiende» después de dos que no atienden: marca 1 y conecta, o corta y vuelve el agente) y `direct.py` (saliente contra un eco
-  del Anura falso, entrante al equipo por celular, conectar al atender: una central falsa que lee un dígito y lo
-  devuelve, para ver que llega el 1 del que llama; y, con `team_fallback=member`, la del número que no atiende y la
+  corta, dos tramos aislados), `recording.py` (grabación completa de Asterisk: entrante con y sin marcador, saliente con
+  `X-Atentina-Rec` válido e inválido, los dos canales y el DTMF a través del canal grabado; [`TELEFONIA_ANURA.md`](../TELEFONIA_ANURA.md), 1), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1; el progreso: `ringing` antes de atender; la persona de «Si nadie atiende» después de dos que no atienden: marca 1 y conecta, o corta y vuelve el agente) y `direct.py` (saliente contra un eco
+  del Anura falso, con las teclas del panel en la conversación; entrante al equipo por celular, conectar al atender: una
+  central falsa que lee un dígito y lo devuelve, para ver que llega el 1 del que llama y queda como "Marcó 1" en el tramo; y, con `team_fallback=member`, la del número que no atiende y la
   persona de respaldo que marca 1; con reintentos, un destino ocupado que da 486 en cada intento, el aviso y el
   respaldo «corta»). El timbre en el panel está solo en los tests con LiveKit falso.
 - Desplegar un cambio: `make migrate-test` si hay migración, `make migrate`, `make calls-active && make up-agent`
@@ -439,6 +507,10 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - Volver atrás la 0039: tiene `downgrade` (probado en `tests/test_migration_0039.py`): `make migrate-down REV=0038`,
   con la imagen que todavía tiene la 0039 y antes de volver el código.
 - Rutas, avisos y rotación por WhatsApp (0048 y 0049, con `downgrade`): vuelta atrás en [WHATSAPP.md](WHATSAPP.md#desplegar-y-probar).
+- Grabación completa, en orden: `make migrate` (0055 y 0056, antes del código); `asterisk` (módulos, dialplan y
+  volumen del spool: `make calls-active && make up-pbx`, corta todo) y `make livekit-sip` (header `X-Atentina-Line` del
+  trunk entrante); `app` y `agent` (`make calls-active && make up-agent`). Sin marcadores ni header no graba nada:
+  Asterisk puede ir antes. `app` arranca escribiendo los marcadores de lo que ya esté prendido (nada, al principio).
 - La 0052 (`handoff_areas.no_answer_member_id`) y la 0053 (`phone_numbers.team_fallback_member_id`) van con `make migrate`
   antes del código. Volver atrás la persona del número: **primero** `make migrate-down REV=0052`, con la imagen que todavía
   tiene la 0053 (su `downgrade` pasa `team_fallback='member'` a `voicemail`; el código anterior no conoce `member`:

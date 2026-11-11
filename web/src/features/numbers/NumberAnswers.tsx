@@ -67,6 +67,11 @@ export function NumberAnswers({ number: n }: { number: PhoneNumber }) {
         ]}
       />
       {n.answer_mode === 'agent' ? <NumberAgentSelect number={n} /> : <TeamSummary number={n} />}
+      {n.record_full_call && (
+        <Text size="xs" c="dimmed">
+          Graba la llamada completa
+        </Text>
+      )}
       {choosingTeam && (
         <EditNumberModal key={n.id} number={n} startInTeam onClose={() => setChoosingTeam(false)} />
       )}

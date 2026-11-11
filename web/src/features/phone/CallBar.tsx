@@ -160,7 +160,7 @@ function TranscriptButton() {
           {transcript.length ? (
             <Stack gap={6}>
               {transcript.map((l) => (
-                <Text key={l.id} size="sm">
+                <Text key={l.id} size="sm" c={l.dtmf ? 'dimmed' : undefined}>
                   <Text span inherit fw={600} c={l.mine ? 'blue' : undefined}>
                     {l.who}:
                   </Text>{' '}

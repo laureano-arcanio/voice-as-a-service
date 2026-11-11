@@ -28,7 +28,7 @@ def test_0023_upgrade_downgrade_upgrade(tmp_path):
     later = ("whatsapp_notify", "after_hours_area_id", "no_answer_area_id", "no_answer_member_id", "'delivery'", "fk_handoff_areas",
              "handoff_area_id", "fk_wa_threads_handoff")
     diff = [d for d in diff if not any(c in repr(d) for c in later)]
-    # La 0050, la 0051, la 0053 y la 0054 agregan columnas a phone_numbers (last_member_id y team_fallback_member_id ->
+    # La 0050, la 0051, la 0053, la 0054 y la 0055 agregan columnas a phone_numbers (last_member_id y team_fallback_member_id ->
     # team_members, opciones del equipo).
     diff = [d for d in diff if "phone_numbers" not in repr(d)]
     assert [d for d in diff if any(t in repr(d) for t in TABLES) or "max_team_members" in repr(d)] == []

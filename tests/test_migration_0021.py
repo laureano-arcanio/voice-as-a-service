@@ -18,7 +18,8 @@ def test_0021_upgrade_downgrade_upgrade(tmp_path):
     assert "room" in {c["name"] for c in inspector.get_columns("call_logs")}
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    later = ("'from_landing'", "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id")     # 0039, 0046
+    later = ("'from_landing'", "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id",
+             "'line_id'", "ix_call_logs_line_id")     # 0039, 0046, 0056
     assert [d for d in diff if ("blocked_numbers" in repr(d) or "call_logs" in repr(d))
             and not any(c in repr(d) for c in later)] == []
 

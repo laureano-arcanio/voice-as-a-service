@@ -24,6 +24,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -183,6 +184,8 @@ class Transfer:
         self._legs: list[dict] = []
         self._leg: dict | None = None        # el intento en curso
         self._area = ""
+        # Tramo conectado en curso (handoff_legs.id): las teclas de quien llama van con el (app/voice/dtmf.py).
+        self.leg: str | None = None
         self._state, self._result, self._total = "running", None, None
         self._abort = "error"
 
@@ -719,6 +722,7 @@ class Transfer:
         ids = {"area_id": area.id, "member_id": member.id}
         auto = texts["whisper"] is None     # conectar al atender: nadie marco 1
         self._event("handoff.confirmed", **ids, actor="person", **({"auto": True} if auto else {}))
+        self.leg = leg_id
         await self.line.connect(identity)
         self._update_leg(leg_id, result="connected", connected_at=utcnow())
         if area.id is not None and rotate:
@@ -758,6 +762,7 @@ class Transfer:
                     self.on_message("assistant" if person else "user", ev[2], person=person, leg=leg_id,
                                     pcm=ev[3] if len(ev) > 3 else None)
         finally:
+            self.leg = None
             if ended != "person_hung_up":
                 await self.line.remove(identity)
             leg = self._update_leg(leg_id, ended_at=utcnow())
@@ -887,12 +892,17 @@ class RoomLine:
         self._agent_tracks: list[str] = []
         self._handlers: list[tuple[str, object]] = []
         self._started = False
+        # on_dtmf(digito): las teclas de quien llama, en cualquier fase (espera, timbre, hablando, buzon), para la
+        # conversacion (app/voice/dtmf.py). Desde el callback y no desde la cola, que la leen varios bucles.
+        self.on_dtmf: Callable[[str], None] | None = None
 
     # -- eventos de la room --
 
     def _on_dtmf(self, ev) -> None:
         if ev.participant is not None:
             self.events.put_nowait(("dtmf", ev.participant.identity, ev.digit))
+            if ev.participant.identity == self.customer and self.on_dtmf is not None:
+                self.on_dtmf(ev.digit)
 
     def _on_left(self, p) -> None:
         self.events.put_nowait(("left", p.identity))

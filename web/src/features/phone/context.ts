@@ -33,6 +33,8 @@ export interface TranscriptLine {
   /** Lo dijo el usuario del panel (o la persona del equipo). */
   mine: boolean;
   text: string;
+  /** Teclas marcadas ("Marcó 123"), no una frase. */
+  dtmf?: boolean;
 }
 
 export interface JoinOutcome {

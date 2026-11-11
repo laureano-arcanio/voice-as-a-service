@@ -210,14 +210,16 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (!t.text?.trim()) return;
     const other = targetRef.current?.name || targetRef.current?.phone || 'Contacto';
     const mine = t.role === 'assistant';
-    lineId.current += 1;
-    const line: TranscriptLine = {
-      id: lineId.current,
-      mine,
-      who: mine ? t.person || 'Vos' : other,
-      text: t.text.trim(),
-    };
-    setTranscript((prev) => [...prev, line].slice(-MAX_LINES));
+    const who = mine ? t.person || 'Vos' : other;
+    const dtmf = !!t.dtmf;
+    setTranscript((prev) => {
+      const last = prev.at(-1);
+      // Otra tecla del mismo grupo: reemplaza la línea ("Marcó 12" -> "Marcó 123").
+      if (dtmf && t.extend && last?.dtmf && last.who === who)
+        return [...prev.slice(0, -1), { ...last, text: t.text.trim() }];
+      lineId.current += 1;
+      return [...prev, { id: lineId.current, mine, who, text: t.text.trim(), dtmf }].slice(-MAX_LINES);
+    });
   }, []);
 
   /** Entra a la room con el token, publica el micrófono y reproduce lo que llega. */

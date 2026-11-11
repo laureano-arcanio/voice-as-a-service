@@ -303,6 +303,10 @@ agente**.
      [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md).
    - Con el equipo elegido y el cliente sin las condiciones nuevas aceptadas (ver Problemas frecuentes), la
      entrante va al agente del número.
+   - **Grabar la llamada completa** (al final del editor, con el agente o el equipo; apagado por defecto): guarda el
+     audio entero de las llamadas por teléfono del número, de quien llama y de quien atiende, como respaldo. No incluye
+     el link para llamar, la prueba del panel ni WhatsApp. La fila dice "Graba la llamada completa"; liberar el número
+     la apaga. El audio aparece en el detalle de la conversación (ver Conversaciones) unos segundos después de cortar.
 4. **Liberar:** devuelve el número al inventario, sin cliente ni agente, y sus entrantes dejan de
    atenderse. **Borrar:** solo los libres.
 
@@ -427,6 +431,9 @@ alcanza. En la navegación, arriba de todo.
   llamada) y el detalle lo repite en **Fin de llamada** ("Cortó el destinatario"): salen del mismo `ended_reason`.
 - En todas las tablas de llamadas (Teléfono del equipo, Llamadas del agente, ficha del contacto, contactos de una
   campaña) un click en la fila abre la conversación.
+- **Llamada completa** (número con **Grabar la llamada completa**): arriba de la transcripción, un reproductor con el
+  audio entero y **Descargar** (Ogg/Opus). Estéreo: a la izquierda quien está en el teléfono, a la derecha lo que
+  escuchó (agente, música, equipo).
 - **Llamadas del equipo** (planes con llamadas directas): el origen **Directa** es la que hace una persona desde
   Teléfono, y **Entrante del equipo** la que atendió una persona en un número del equipo. Sin agente, la columna
   del agente dice "Llamó: Ana" o "Atendió: Ana" (o "Atendió: nadie"), y no tienen datos obtenidos ni resultado.
@@ -476,7 +483,7 @@ está siendo grabada." es opcional (**Cuenta > Números**). Entrando como el cli
 - Estados: Conectando micrófono, Conectando, Llamando, Sonando, En curso (con el tiempo) y, al terminar,
   Terminada (también "no atendió", "ocupado", "falló" o "cortada"), con **Ver la conversación**.
 - **Silenciar** / **Activar micrófono**, **Teclado** (para menús tipo "marque 1") y **Transcripción** (las frases
-  en vivo, del contacto y tuyas). Si el navegador frena el audio, aparece **Activar el audio**.
+  en vivo, del contacto y tuyas, y las teclas: "Marcó 123"). Si el navegador frena el audio, aparece **Activar el audio**.
 - **Cortar** termina la llamada. Al cerrar o recargar la pestaña el navegador avisa; si se recarga igual, la
   barra dice "Tenés una llamada en curso" con **Volver a entrar** (en esa pestaña).
 - Al terminar una llamada a un número que no está en la agenda, **Guardar como contacto**.
@@ -515,6 +522,9 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
   prendido, cada mensaje trae el reproductor de su WAV. En una llamada derivada, el tramo con la persona del
   equipo empieza con el separador "Llamada con <persona>", y lo que dijo ella va del lado del agente, en una
   burbuja blanca con borde y su nombre ("Ana Pérez (equipo)").
+- **Teclas marcadas:** en llamadas del agente, del equipo y en derivaciones, las teclas que marca quien llama (y, en una saliente
+  directa, las del teclado del panel) van en su lugar como un renglón chico centrado: "Quien llamó marcó 123",
+  "Ana Pérez marcó 2". Dígitos seguidos (menos de 3 s entre uno y otro) quedan en el mismo renglón.
 - **Latencia por turno:** E2E, EOU, STT, endpointing, LLM, TTS y audio, con promedios y máximos.
 - En el panel del cliente (también entrando como él), las dos cosas son **Detalle técnico**: el interruptor del
   chat y, al final, una tarjeta plegada con la latencia. En `/admin/calls/<id>` se ven a la vista, con el cliente

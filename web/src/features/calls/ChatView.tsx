@@ -1,5 +1,5 @@
 import { Badge, Group, Text } from '@mantine/core';
-import { IconHeadset, IconMicrophone } from '@tabler/icons-react';
+import { IconDialpad, IconHeadset, IconMicrophone } from '@tabler/icons-react';
 import { Fragment, useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/QueryState';
 import { prettyJson } from '@/lib/format';
@@ -248,7 +248,8 @@ const legEnd = (messages: ChatMessage[], i: number) =>
   !!messages[i - 1]?.handoff_leg && !messages[i]?.handoff_leg;
 
 /** Burbujas agente / interesado; baja sola al llegar mensajes nuevos. Lo que habló una persona del equipo
- * (llamada derivada) va con su nombre, y cada tramo con ella arranca con un separador. */
+ * (llamada derivada) va con su nombre, y cada tramo con ella arranca con un separador. Las teclas marcadas
+ * (`dtmf`) van como un renglón chico centrado, no como burbuja. */
 export function ChatView({
   messages,
   showLlm = false,
@@ -296,29 +297,37 @@ export function ChatView({
                 Vuelve {agentLabel}
               </div>
             )}
-            <div
-              className={`bubble ${m.role === 'assistant' ? (person ? 'agent team' : 'agent') : 'client'}`}
-            >
-              <span className="who label">
-                {person ? `${m.person} (equipo)` : m.role === 'assistant' ? agentLabel : userLabel}
-              </span>
-              {m.voice_note && (
-                <span className="voice-note">
-                  <IconMicrophone size={12} aria-hidden />
-                  {m.role === 'assistant' ? 'Enviada como nota de voz' : 'Transcripción de nota de voz'}
+            {m.dtmf ? (
+              <div className="chat-dtmf label">
+                <IconDialpad size={14} aria-hidden />
+                {person ? m.person : m.role === 'assistant' ? agentLabel : userLabel} marcó{' '}
+                <span className="mono">{m.dtmf}</span>
+              </div>
+            ) : (
+              <div
+                className={`bubble ${m.role === 'assistant' ? (person ? 'agent team' : 'agent') : 'client'}`}
+              >
+                <span className="who label">
+                  {person ? `${m.person} (equipo)` : m.role === 'assistant' ? agentLabel : userLabel}
                 </span>
-              )}
-              {m.text}
-              {conversationId && m.recording != null && (
-                <audio
-                  controls
-                  preload="none"
-                  className="bubble-recording"
-                  src={recordingUrl(conversationId, m.recording)}
-                />
-              )}
-              {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
-            </div>
+                {m.voice_note && (
+                  <span className="voice-note">
+                    <IconMicrophone size={12} aria-hidden />
+                    {m.role === 'assistant' ? 'Enviada como nota de voz' : 'Transcripción de nota de voz'}
+                  </span>
+                )}
+                {m.text}
+                {conversationId && m.recording != null && (
+                  <audio
+                    controls
+                    preload="none"
+                    className="bubble-recording"
+                    src={recordingUrl(conversationId, m.recording)}
+                  />
+                )}
+                {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
+              </div>
+            )}
           </Fragment>
         );
       })}

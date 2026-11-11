@@ -40,6 +40,8 @@ Hardware: **2 × RTX 3090 a 280 W** (LLM solo en la GPU 0; TTS + STT en la GPU 1
 - CAP-004: un riser x1 bien conectado rinde como x4; con el enlace con errores (46.804 replays PCIe) dio ~7
   llamadas y el TTS se cayó.
 
+Espacio de las grabaciones (MB por minuto por formato, ocupación y cuánto dura el disco): [`ESPACIO_GRABACIONES.md`](ESPACIO_GRABACIONES.md).
+
 La calculadora de costos por server está en [`../../comercial/calculadora-costos.html`](../../comercial/calculadora-costos.html).
 
 ## Definiciones

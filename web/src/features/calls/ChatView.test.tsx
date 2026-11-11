@@ -53,3 +53,21 @@ describe('ChatView: traza de herramientas', () => {
     expect(screen.getByText(/area: "ventas"/)).toBeInTheDocument();
   });
 });
+
+describe('ChatView: teclas marcadas', () => {
+  it('el mensaje con dtmf es un renglón chico con quién marcó, no una burbuja', () => {
+    const messages = [
+      { role: 'user', text: 'Hola', handoff_leg: null },
+      { role: 'user', text: 'Marcó 123', dtmf: '123' },
+      { role: 'assistant', text: 'Hola, soy Juan', person: 'Juan', handoff_leg: 'leg-1' },
+      { role: 'user', text: 'Marcó 2', dtmf: '2', handoff_leg: 'leg-1' },
+      { role: 'assistant', text: 'Marcó 9', dtmf: '9', person: 'Juan', handoff_leg: 'leg-1' },
+    ] as ChatMessage[];
+    const { container } = renderWithProviders(<ChatView messages={messages} userLabel="Quien llamó" />);
+    const rows = [...container.querySelectorAll('.chat-dtmf')].map((el) => el.textContent);
+    expect(rows).toEqual(['Quien llamó marcó 123', 'Quien llamó marcó 2', 'Juan marcó 9']);
+    expect(container.querySelectorAll('.bubble')).toHaveLength(2);
+    // Las teclas dentro del tramo no lo cortan: un solo separador "Llamada con Juan".
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+  });
+});

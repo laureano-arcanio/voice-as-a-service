@@ -36,6 +36,7 @@ from . import (
     events,
     legal_gate,
     limits,
+    line_spool,
     livekit,
     quota,
     voices,
@@ -218,7 +219,9 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
                 "call_link_id": req.call_link_id, "trial": req.trial,
                 # Derivacion a personas (app/voice/handoff.py): no en el loadtest ni las campañas, y en la demo de
                 # la landing solo con DEMO_HANDOFF (docs/features/EQUIPO_TELEFONIA.md).
-                "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id)}
+                "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id),
+                # Grabacion completa en Asterisk (header X-Atentina-Rec): si el numero de origen la tiene.
+                "record_full_call": bool(caller_id and line_spool.wanted(caller_id))}
     # Progreso de la derivacion en pantalla (tema handoff_status): con nombres en la prueba del panel, sin nombres
     # en el link publico. Nunca en la demo de la landing (tambien es prueba, por eso lo decide esto y no el modo).
     progress = ("names" if mode == CallMode.prueba and not req.from_landing and not req.campaign_contact_id
@@ -343,12 +346,13 @@ def _own_number(s: Session, client_id: str, caller: str | None) -> bool:
 
 
 def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None,
-                  wa_id: str | None = None) -> InboundCall:
+                  wa_id: str | None = None, line_id: str | None = None) -> InboundCall:
     """Rutea la entrante por el numero marcado y la admite con los limites del cliente. Con
     answer_mode=team va al equipo (conversacion sin agente, `team` con el ruteo); con agent, o un numero
     del equipo sin personas, sin la funcion en el plan o con las condiciones vigentes sin aceptar, al agente
     del numero. En una llamada de WhatsApp (wa_id del llamante), manda
-    la regla de ruteo por contacto de la cuenta, si hay (tambien sobre el equipo). Si el tier no la deja,
+    la regla de ruteo por contacto de la cuenta, si hay (tambien sobre el equipo). line_id: el canal de Asterisk,
+    para vincular la grabacion completa (app/services/line_recordings.py). Si el tier no la deja,
     queda registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
     llama esta bloqueado por el cliente, igual pero con Forbidden (el worker corta sin atender)."""
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
@@ -380,7 +384,8 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
         except KeyError:
             raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
-                   phone=caller, phone_number_id=number.id, answered_by="team" if team else "agent")
+                   phone=caller, phone_number_id=number.id, answered_by="team" if team else "agent",
+                   line_id=(line_id or None) and line_id[:64])
     try:
         if blocked_numbers.is_blocked(s, number.client_id, caller, wa_id):
             raise Forbidden("El número que llama está bloqueado", "blocked_number")

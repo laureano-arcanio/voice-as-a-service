@@ -113,6 +113,21 @@ def test_pre_call_runs_once_before_everything(api, agent, client, mode, monkeypa
     assert ("registered", True, True) in h.log
 
 
+def test_inbound_keeps_the_asterisk_line_for_the_full_recording(api, agent, client, monkeypatch):
+    h = Harness(api, monkeypatch)
+    asyncio.run(h.run({}, attributes={**inbound_attributes(), "atentina.line": "1731342342.7"}))
+    assert h.call(inbound_id(api)).line_id == "1731342342.7"
+
+
+@pytest.mark.parametrize("record", [True, False])
+def test_outbound_asks_asterisk_for_the_full_recording(api, agent, client, monkeypatch, record):
+    conversation_id = seed_call(api, agent["id"], client["id"], CallMode.saliente, PHONE)
+    h = Harness(api, monkeypatch)
+    asyncio.run(h.run({"conversation_id": conversation_id, "phone": PHONE, "record_full_call": record}))
+    (request,) = h.ctx.sip_requests
+    assert dict(request.headers) == ({"X-Atentina-Rec": conversation_id} if record else {})
+
+
 def test_loadtest_does_not_run_pre_call(api, agent, client, monkeypatch):
     conversation_id = seed_call(api, agent["id"], client["id"], CallMode.loadtest)
     h = Harness(api, monkeypatch)
@@ -283,6 +298,39 @@ def test_connected_operator_arms_handoff_accepted(api, agent, monkeypatch):
     assert seen["status"] == "armed"
     conv = row(api, inbound_id(api))
     assert conv.post_call_status == "pending" and conv.post_call_next_at is not None
+
+
+def test_caller_keys_during_the_transfer_only(api, agent, monkeypatch):
+    """Las teclas de quien llama quedan en la conversacion mientras hay derivacion, con el tramo si esta conectado;
+    la RoomLine sigue registrada despues, sin guardarlas (las del agente son de otra parte)."""
+    h = Harness(api, monkeypatch, script=OPERATORS, connected=[("dtmf", "PERSON", "2")])
+    base = worker.transfer.RoomLine
+
+    class KeyLine(base):
+        async def dial(self, identity, phone, ring_seconds):
+            self.on_dtmf("1")
+            return await super().dial(identity, phone, ring_seconds)
+
+        async def connect(self, identity):
+            self.on_dtmf("5")
+            await super().connect(identity)
+
+    monkeypatch.setattr(worker.transfer, "RoomLine", KeyLine)
+    seen: dict = {}
+
+    async def during(h):
+        await h.session.agent.on_handoff("Ventas", False)
+        seen["after"] = h.line.on_dtmf
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert seen["after"] is None
+    conv = inbound_id(api)
+    keys = [m for m in api.engine.store.get(conv).messages if m.dtmf]
+    with api.sessions() as s:
+        leg = s.scalars(select(HandoffLeg.id).where(HandoffLeg.result == "connected")).one()
+        digits = [e.data["digit"] for e in s.scalars(select(Event).where(Event.type == "call.dtmf"))]
+    assert [(m.role, m.text, m.handoff_leg) for m in keys] == [("user", "Marcó 1", None), ("user", "Marcó 5", leg)]
+    assert digits == ["1", "5"]
 
 
 def test_operator_not_connected_does_not_arm(api, agent, monkeypatch):

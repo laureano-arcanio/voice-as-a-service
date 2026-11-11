@@ -240,6 +240,9 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     team_retry_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     team_retry_interval_seconds: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
     team_retry_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Graba la llamada entera por telefono (Asterisk MixMonitor): el marcador del spool lo escribe la app
+    # (services/line_spool.py). Se apaga al asignar o liberar el numero.
+    record_full_call: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class Role(enum.StrEnum):

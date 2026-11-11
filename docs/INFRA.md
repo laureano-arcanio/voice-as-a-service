@@ -65,7 +65,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base fine-tuneado, 41 voces (`multi41`) | vllm/vllm-omni:v0.28.0 | 127.0.0.1:8103 | 1 |
 | `proxy` | nginx (`proxy/nginx.conf`) que rutea `/llm`, `/stt` y `/tts`: entrada del entorno de desarrollo y del modo remoto, solo LAN y rutas de la API | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
-| `asterisk` | Puente SIP Anura ↔ LiveKit y Meta (WhatsApp, TLS 5061) ↔ LiveKit | build (`network_mode: host`) | 5080, 5081, 5061, RTP 10000–10199 | — |
+| `asterisk` | Puente SIP Anura ↔ LiveKit y Meta (WhatsApp, TLS 5061) ↔ LiveKit; grabación completa en `${RECORDINGS_DIR}/line-spool` | build (`network_mode: host`) | 5080, 5081, 5061, RTP 10000–10199 | — |
 | `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (`docker-compose.livekit.yml`): rooms, despacho del agente y SIP | livekit-server v1.13.7, sip v1.17.0, redis:7-alpine | 7880, 7881, 7882/udp, 5060, RTP 20000–20199; Redis 127.0.0.1:6380 | — |
 | `tunnel` | Cloudflare Tunnel (`docker-compose.tunnel.yml`, `make up-tunnel`) | cloudflare/cloudflared:2026.9.0 | — | — |
 | `prometheus`, `node-exporter`, `blackbox`, `alertmanager` | Observabilidad (`docker-compose.monitoring.yml`) + colector `atentina-hostmon` (systemd) | prom/* fijadas | 127.0.0.1:9090, :9093 | — |
@@ -94,7 +94,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `docker-compose.llm-lb.yml` | Balanceador de LLM, STT y TTS (server2) |
 | `docker-compose.replica.yml` | Host réplica: publica los modelos en la LAN y deja el resto fuera con un perfil |
 | `docker-compose.gpu-5060.yml` | Reparto con una 5060 Ti 8 GB para el TTS (CAP-002, CAP-004); no vigente |
-| `docker-compose.e2e-sip.yml` | Prueba SIP aislada (`make e2e-sip`): LiveKit, Asterisk y un Anura falso, sin puertos del host |
+| `docker-compose.e2e-sip.yml` | Prueba SIP aislada (`make e2e-sip`): LiveKit, Asterisk (con su spool de grabación) y un Anura falso, sin puertos del host |
 
 ## Reparto de GPU y capacidad
 
@@ -191,6 +191,12 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 - Llamadas de WhatsApp: Meta → `sip.atentina.com.ar:5061` (TLS) → Asterisk → LiveKit, SRTP (SDES) y PCMA
   sin transcodificar. Certificado de Let's Encrypt (`make sip-cert`), renovado por cron. Ver
   [`features/WHATSAPP.md`](features/WHATSAPP.md).
+- Grabación completa: `MixMonitor` de Asterisk en el spool `${RECORDINGS_DIR}/line-spool` (módulos
+  `app_mixmonitor`, `format_sln`, `func_env`; contrato en [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), 1); `app` lo
+  convierte a `<RECORDINGS_DIR>/<conversation_id>/llamada.ogg`, en el disco de datos (espacio:
+  [`capacity/ESPACIO_GRABACIONES.md`](capacity/ESPACIO_GRABACIONES.md)). Un
+  cambio en `modules.conf`, `entrypoint.sh` o el volumen pide recrear `asterisk` (`make up-pbx`), que corta
+  todas las llamadas.
 - Antes de recrear algo que corta llamadas (`agent`, `asterisk`, `stt-parakeet`): `make calls-active`.
 
 ## Arranque, backup y cron
@@ -203,7 +209,7 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 - `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`), solo server2.
 - El monitoreo, el CRM y Registros vuelven por `restart: unless-stopped`.
 - **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
-  (`RECORDINGS_DIR`) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
+  (`RECORDINGS_DIR`, con el spool `line-spool/` de Asterisk) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
   event loop del worker. Sin montar, el backup falla a propósito y el chequeo avisa.
 
 **Cron del usuario, solo en server2** (`deploy/crontab`, `make cron-install`; logs en `~/atentina-ops/`):

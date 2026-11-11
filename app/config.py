@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     # Grabaciones por mensaje (record_audio en la definicion; app/conversation/recordings.py):
     # storage/ montado en `agent` y en `app` (WhatsApp), no versionado (.gitignore).
     call_recordings_dir: Path = Field(default=BASE_DIR / "storage" / "recordings")
+    # Spool de la grabacion completa (Asterisk MixMonitor): marcadores numbers/<e164> que escribe la app
+    # (app/services/line_spool.py), bajo call_recordings_dir/line-spool; cada cuanto los reconcilia con la base.
+    line_spool_tick_seconds: float = 60
+    # Cada cuanto la app toma las grabaciones terminadas del spool (app/services/line_recordings.py).
+    line_recordings_tick_seconds: float = 10
     # Aperturas pregeneradas (conversation.opening_audio; app/conversation/opening_audio.py).
     opening_audio_dir: Path = Field(default=BASE_DIR / "storage" / "openings")
     # Imagenes de los links para llamar (app/services/call_links.py): las sirve `app`; en el backup.
