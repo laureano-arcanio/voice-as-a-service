@@ -6,7 +6,7 @@ import { useFeatureLock } from '@/features/billing/features';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUpdateNumber } from './api';
 import { NumberAgentSelect } from './AgentSelect';
-import { numberMembers, RING_FIRST_OPTIONS, teamWithoutPeople, type AnswerMode } from './answering';
+import { numberMembers, RING_FIRST_OPTIONS, retrySummary, teamWithoutPeople, type AnswerMode } from './answering';
 import { EditNumberModal } from './EditNumberModal';
 import { numberErrorTitle } from './errors';
 
@@ -102,6 +102,7 @@ function TeamSummary({ number: n }: { number: PhoneNumber }) {
         {n.strategy === 'round_robin' ? ' · rotativa' : ''}
         {n.team_connect_on_answer ? ' · conecta al atender' : ''}
         {n.team_hold_music ? '' : ' · sin música'}
+        {retrySummary(n)}
         {n.schedule ? ' · con horario' : ''}
       </Text>
     </Stack>

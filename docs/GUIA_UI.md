@@ -276,9 +276,16 @@ agente**.
        como "· conecta al atender".
      - **Música mientras suena** (prendido por defecto): apagado, quien llama espera en silencio hasta que atiendan. La
        fila lo muestra como "· sin música".
-     - **Timbre por persona:** de 5 a 60 s (20 por defecto) antes de pasar a la siguiente.
+     - **Timbre por persona:** de 5 a 60 s (20 por defecto) antes de pasar a la siguiente. Con reintentos y sin
+       **Conectar al atender**, ojo con pasar de ~33 s: el buzón de un celular atiende y cuenta como llamada saliente.
      - **Horario (opcional):** por día, igual que en las áreas de Tu equipo.
-     - **Si nadie atiende o es fuera de horario:** **Pasa al agente** (el **Agente de respaldo**, que arranca
+     - **Volver a intentar** (en **Si nadie atiende**; **No, pasar al respaldo** por defecto): **Durante 1, 2, 3 o 5
+       minutos**. Si da ocupado o no atiende (todo lo que no conecta), le avisa a quien llama, lo deja en espera y vuelve
+       a llamar a todas las personas, en orden. Aparecen **Cada** (la espera con música entre intentos: 15 s, 30 s por
+       defecto, o 1 minuto) y el **Aviso de espera** (se dice una vez; vacío usa el de siempre, 500 caracteres). La
+       espera gasta minutos entrantes y ocupa una línea de la cuenta. Al terminar, o fuera de horario, se aplica el
+       respaldo de abajo. La fila lo muestra como "· reintenta 3 min cada 30 s".
+     - **Si nadie atiende o es fuera de horario** (con reintentos, **Si sigue sin atender, o fuera de horario**): **Pasa al agente** (el **Agente de respaldo**, que arranca
        sabiendo que nadie del equipo contestó), **Llama a una persona** (la **Persona**, con teléfono, activa y que no
        esté en el número: se la llama una vez a su teléfono, con la tecla, la música y el conectar al atender del
        número; si no atiende, deja un mensaje y graba), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
@@ -288,7 +295,10 @@ agente**.
      graba** apagado; en Tu equipo, una persona "Central" con el teléfono de la central, sin usuario del panel ni
      WhatsApp; en el número, **El equipo** con esa persona, **Suena primero En su teléfono**, timbre de 20 a 30 s,
      **Conectar al atender** prendido, **Música mientras suena** a gusto, sin horario y respaldo **Deja un mensaje y
-     graba lo que dice quien llama** con el mensaje que quieras. Las líneas de la central se desvían a este número;
+     graba lo que dice quien llama** con el mensaje que quieras. Si la central da ocupado o no atiende y querés que
+     espere: **Timbre por persona** 60 s, **Volver a intentar** "Durante 3 minutos" **Cada** "30 s", **Aviso de espera**
+     "En este momento no podemos atenderle. Por favor, espere en línea." y respaldo **Dice el mensaje y corta** con
+     "No lo hemos podido conectar. Por favor, vuelva a intentar más tarde." Las líneas de la central se desvían a este número;
      la línea que marcamos no puede desviarse de vuelta (la entrante de ese número se rechaza). Ver
      [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md).
    - Con el equipo elegido y el cliente sin las condiciones nuevas aceptadas (ver Problemas frecuentes), la

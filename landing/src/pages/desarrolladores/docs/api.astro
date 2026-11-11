@@ -290,7 +290,8 @@ const eventTypes = [
   { type: "handoff.relay_failed · handoff.ignored", text: "Por WhatsApp de texto: el reenvío al operador se cortó, o se pidió otra derivación con una en curso" },
   { type: "workflow.pre_call · workflow.post_call", text: "Las herramientas de antes y después de la conversación: ok, status, ms y slug, nunca la respuesta" },
   { type: "hold.started · hold.ended", text: "Empieza y termina la música de espera" },
-  { type: "team.fallback", text: "Entrante al equipo que nadie atendió: data trae el respaldo (agent, member, voicemail o hangup) y el motivo (team_no_answer o after_hours). Con member, si la persona no atiende, sigue otro con voicemail" },
+  { type: "team.retry", text: "Entrante al equipo que nadie atendió la primera vez, con reintentos: se avisó al que llama y empiezan; data trae seconds (team_retry_seconds)" },
+  { type: "team.fallback", text: "Entrante al equipo que nadie atendió: data trae el respaldo (agent, member, voicemail o hangup), el motivo (team_no_answer o after_hours) y, si hubo reintentos, cuántos (retries). Con member, si la persona no atiende, sigue otro con voicemail" },
 ];
 
 const directCall = `curl ${API}/direct-calls \\
@@ -358,6 +359,9 @@ const phoneNumberFields = [
   { field: "team_fallback_message", text: "El mensaje que escucha quien llama en voicemail y hangup (hasta 500 caracteres)" },
   { field: "team_connect_on_answer", text: "false (por defecto): quien atiende en su teléfono oye quién llama y marca 1. true: la llamada se conecta apenas el teléfono atiende, sin mensaje ni tecla y sin detectar contestadores. Es para destinos que siempre atienden, como una central telefónica; si es un celular, su buzón queda conectado con quien llama. No cambia el panel" },
   { field: "team_hold_music", text: "true (por defecto): quien llama oye música mientras suena. false: silencio" },
+  { field: "team_retry_seconds", text: "0 (por defecto): sin reintentos. De 15 a 300, de a 15: si nadie atiende (ocupado o sin atender), quien llama oye un aviso y música y se vuelve a llamar al equipo durante esos segundos; si nadie atiende, sigue el team_fallback. No reintenta fuera de horario" },
+  { field: "team_retry_interval_seconds", text: "Espera entre un intento y el siguiente, de 15 a 120 segundos (30 por defecto)" },
+  { field: "team_retry_message", text: "El aviso que oye quien llama al empezar a reintentar (hasta 500 caracteres). Vacío: un aviso por defecto" },
 ];
 
 const directEndpoints = [

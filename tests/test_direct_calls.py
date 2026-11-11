@@ -544,6 +544,42 @@ def test_phone_number_connect_on_answer_and_music(api, admin):
     assert out["team_connect_on_answer"] is False and out["team_hold_music"] is True
 
 
+def test_phone_number_team_retry(api, admin):
+    c, n, ana, _ = setup(api, admin)
+    ids = [member(admin, c["id"], name="A", phone="3510000001")["id"]]
+    url = f"{V1}/phone-numbers/{n['id']}"
+    # Un numero recien asignado (y uno existente): sin reintentos, intervalo 30, aviso por defecto.
+    assert (n["team_retry_seconds"], n["team_retry_interval_seconds"], n["team_retry_message"]) == (0, 30, "")
+    bad = [{"team_retry_seconds": 40}, {"team_retry_seconds": 330}, {"team_retry_seconds": -15},
+           {"team_retry_seconds": None}, {"team_retry_interval_seconds": 10}, {"team_retry_interval_seconds": 130},
+           {"team_retry_interval_seconds": None}, {"team_retry_message": None}, {"team_retry_message": "x" * 501}]
+    for body in bad:
+        assert ana.patch(url, json=body).status_code == 422, body
+    r = ana.patch(url, json={"answer_mode": "team", "member_ids": ids, "team_retry_seconds": 180,
+                             "team_retry_interval_seconds": 60, "team_retry_message": "  Espere en línea, usted.  "})
+    assert r.status_code == 200, r.text
+    want = (180, 60, "Espere en línea, usted.")
+    out = r.json()
+    assert (out["team_retry_seconds"], out["team_retry_interval_seconds"], out["team_retry_message"]) == want
+    got = ana.get(f"{V1}/phone-numbers").json()[0]
+    assert (got["team_retry_seconds"], got["team_retry_interval_seconds"], got["team_retry_message"]) == want
+    with api.sessions() as s:
+        row = s.get(PhoneNumber, n["id"])
+        assert (row.team_retry_seconds, row.team_retry_interval_seconds, row.team_retry_message) == want
+    # Cada campo cambia solo; 0 apaga los reintentos y el intervalo queda.
+    out = ana.patch(url, json={"team_retry_seconds": 0}).json()
+    assert (out["team_retry_seconds"], out["team_retry_interval_seconds"]) == (0, 60)
+    out = ana.patch(url, json={"team_retry_message": ""}).json()
+    assert out["team_retry_message"] == "" and out["team_retry_interval_seconds"] == 60
+    ana.patch(url, json={"team_retry_seconds": 300, "team_retry_interval_seconds": 15, "team_retry_message": "hola"})
+    # Otro cliente no lo cambia.
+    other = client_user(api, admin, make_client(admin, slug="otro"), email="otro@otro.com")
+    assert other.patch(url, json={"team_retry_seconds": 0}).status_code == 404
+    # Liberar y volver a asignar: los defaults.
+    out = admin.post(f"{url}/release").json()
+    assert (out["team_retry_seconds"], out["team_retry_interval_seconds"], out["team_retry_message"]) == (0, 30, "")
+
+
 def test_phone_number_fallback_member(api, admin):
     # «Si nadie atiende» = una persona: del cliente, con telefono, fuera del numero; member va con persona y al reves.
     c, n, ana, ana_id = setup(api, admin)

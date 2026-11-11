@@ -21,8 +21,10 @@ TYPES = frozenset({
     "handoff.unavailable",   # fuera de horario, sin canal, sin minutos o sin miembros
     "hold.started", "hold.ended",
     # Entrante al equipo (llamadas directas): nadie atendio y se uso el respaldo (agent, voicemail o hangup), con el
-    # motivo (team_no_answer o after_hours).
+    # motivo (team_no_answer o after_hours) y, si hubo etapa de reintentos, cuantos (retries).
     "team.fallback",
+    # Entrante al equipo: nadie atendio la primera vez, se aviso al que llama y empiezan los reintentos (seconds).
+    "team.retry",
     # Workflows del agente: ok, status, ms y slug, nunca la respuesta.
     "workflow.pre_call", "workflow.post_call",
     # Ruteo entre areas y avisos o rotacion por WhatsApp (por texto se reutilizan los handoff.* con channel: whatsapp).

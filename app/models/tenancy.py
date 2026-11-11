@@ -234,6 +234,12 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     team_connect_on_answer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Con team: musica mientras suena (True, como siempre) o silencio.
     team_hold_music: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Con team: etapa de reintentos antes del respaldo. Si nadie atiende (ocupado o sin atender), se avisa, suena la
+    # musica y se vuelve a llamar cada team_retry_interval_seconds hasta team_retry_seconds (0, sin reintentos).
+    # team_retry_message vacio usa el aviso por defecto.
+    team_retry_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    team_retry_interval_seconds: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
+    team_retry_message: Mapped[str] = mapped_column(Text, default="", server_default="")
 
 
 class Role(enum.StrEnum):

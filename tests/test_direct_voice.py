@@ -2,6 +2,7 @@
 la logica con lineas falsas, sin LiveKit ni inferencia. La API y el ruteo estan en tests/test_direct_calls.py."""
 import asyncio
 import datetime
+import time
 import wave
 from types import SimpleNamespace
 
@@ -899,6 +900,203 @@ def test_team_person_deleted_mid_call_is_not_marked(api, admin, monkeypatch, tmp
     line = TeamLine({"+5493512222222": "confirm"}, connected=[("left", "PERSON")])
     assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
     assert last_member(api, inbound.team.number_id) is None
+
+
+# ---------- reintentos (team_retry_*) ----------
+
+class RetryLine(TeamLine):
+    """TeamLine en la que cada telefono hace algo distinto en cada intento (una lista; el ultimo se repite)."""
+
+    def __init__(self, script, **kw):
+        self.plans = {k: list(v) if isinstance(v, list) else [v] for k, v in script.items()}
+        super().__init__({k: v[0] for k, v in self.plans.items()}, **kw)
+
+    async def dial(self, identity, phone, ring_seconds):
+        plan = self.plans[phone]
+        self.script[phone] = plan.pop(0) if len(plan) > 1 else plan[0]
+        return await super().dial(identity, phone, ring_seconds)
+
+
+def with_retries(api, inbound, seconds, interval=0, message="", **row):
+    """Reintentos escritos en la fila del numero (sin la API, que exige 15-120 de intervalo) y otra entrante."""
+    with api.sessions() as s:
+        number = s.get(PhoneNumber, inbound.team.number_id)
+        number.team_retry_seconds, number.team_retry_interval_seconds = seconds, interval
+        number.team_retry_message = message
+        for k, v in row.items():
+            setattr(number, k, v)
+        s.commit()
+    return next_inbound(api)
+
+
+@pytest.fixture
+def waits(monkeypatch):
+    """Los segundos que espera cada vez entre intentos (TeamCall._wait)."""
+    seen: list[float] = []
+    real = direct.TeamCall._wait
+
+    async def spy(self, seconds):
+        seen.append(seconds)
+        await real(self, seconds)
+    monkeypatch.setattr(direct.TeamCall, "_wait", spy)
+    return seen
+
+
+def test_team_retry_busy_then_answers(api, admin, monkeypatch, tmp_path, waits):
+    # Juan da ocupado: aviso, musica y al reintento atiende. El aviso no abre las pistas (sin resume).
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 60)
+    assert (inbound.team.retry_seconds, inbound.team.retry_interval_seconds, inbound.team.retry_message) == (60, 0, "")
+    cid = inbound.conversation_id
+    line = RetryLine({JUAN: ["busy", "confirm"]}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
+    assert waits == [0] and dialed(line) == [JUAN, JUAN] and ("resume",) not in line.log
+    assert [x for x in line.log if x[0] in ("hold", "say", "connect")] == [
+        ("hold", True), ("hold", False), ("say", direct.RETRY_MESSAGE), ("hold", True), ("hold", False),
+        ("connect", "persona-2"), ("hold", False)]
+    assert messages(api, cid)[0][:2] == ("assistant", direct.RETRY_MESSAGE)
+    events = team_events(api, cid)
+    assert ("team.retry", {"seconds": 60}) in events and not [t for t, _ in events if t == "team.fallback"]
+    with api.sessions() as s:
+        assert [leg.result for leg in s.query(HandoffLeg).filter_by(conversation_id=cid)
+                .order_by(HandoffLeg.created_at)] == ["busy", "connected"]
+    assert team_outcome(admin, cid) == {"answered": True, "person": "Juan", "fallback": None}
+
+
+def test_team_retry_until_the_limit_then_the_fallback(api, admin, monkeypatch, tmp_path, waits):
+    # 2 s con 1 s de intervalo: un reintento (el siguiente empezaria en el tope) y el respaldo "corta" con su mensaje.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 2, 1, "Aguarde en línea, por favor.", team_fallback="hangup",
+                           team_fallback_message="No lo hemos podido conectar.")
+    cid = inbound.conversation_id
+    line = RetryLine({JUAN: "no_answer"})
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "hangup" and team.reason == "team_no_answer"
+    assert waits == [1] and dialed(line) == [JUAN, JUAN]
+    assert [x[1] for x in line.log if x[0] == "say"] == ["Aguarde en línea, por favor.",
+                                                         "No lo hemos podido conectar."]
+    fallback = [d for t, d in team_events(api, cid) if t == "team.fallback"]
+    assert fallback == [{"fallback": "hangup", "reason": "team_no_answer", "retries": 1}]
+    assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "hangup"}
+
+
+def test_team_retry_customer_hangs_up_while_waiting(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 60, team_fallback="hangup")
+
+    class HangsUp(RetryLine):
+        async def say(self, text, interruptible=False):
+            await super().say(text)
+            self.events.put_nowait(("left", CUSTOMER))      # corta mientras oye el aviso
+
+    line = HangsUp({JUAN: "busy"})
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "customer_hung_up" and team.reason == "customer_hangup"
+    assert dialed(line) == [JUAN] and [x[1] for x in line.log if x[0] == "say"] == [direct.RETRY_MESSAGE]
+    assert line.log[-1] == ("hold", False)
+    assert not [t for t, _ in team_events(api, inbound.conversation_id) if t == "team.fallback"]
+
+    # Se cierra la room en la espera: igual.
+    inbound = next_inbound(api)
+    line = RetryLine({JUAN: "busy"})
+    line.say = lambda text, interruptible=False: line.events.put_nowait(("closed", "")) or asyncio.sleep(0)
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "customer_hung_up"
+
+
+def test_team_retry_stops_without_outbound_minutes_but_not_without_a_channel(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 60, team_fallback="hangup")
+    # Sin minutos salientes: no se llama, ni aviso ni reintentos.
+    monkeypatch.setattr(transfer.quota, "handoff_check", lambda s, client_id: "outbound_minutes")
+    line = RetryLine({JUAN: "confirm"})
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "hangup"
+    assert dialed(line) == [] and direct.RETRY_MESSAGE not in [x[1] for x in line.log if x[0] == "say"]
+    assert not [t for t, _ in team_events(api, inbound.conversation_id) if t == "team.retry"]
+
+    # Sin canal libre la primera vez: se reintenta y atiende.
+    answers = iter(["no_channel"])
+    monkeypatch.setattr(transfer.quota, "handoff_check", lambda s, client_id: next(answers, None))
+    inbound = next_inbound(api)
+    line = RetryLine({JUAN: "confirm"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and dialed(line) == [JUAN] and team.retries == 1
+
+
+def test_team_retry_stops_without_minutes_or_time(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 60, team_fallback="hangup")
+    # Sin minutos entrantes despues del aviso: termina la etapa sin reintentar.
+    monkeypatch.setattr(call_service, "call_remaining_seconds", lambda s, cid: 0)
+    line = RetryLine({JUAN: "busy"})
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "hangup" and dialed(line) == [JUAN] and team.retries == 0
+    monkeypatch.undo()
+
+    # Cerca del tope de duracion (deja el buzon y los mensajes): sin aviso ni reintentos.
+    inbound = next_inbound(api)
+    line = RetryLine({JUAN: "busy"})
+    team = team_call(api, c, inbound, line)
+    team.deadline = time.monotonic() + direct.RETRY_DEADLINE_MARGIN - 1
+    assert asyncio.run(team.run()) == "hangup" and dialed(line) == [JUAN] and team.retries is None
+    assert [x[1] for x in line.log if x[0] == "say"] == [direct.FALLBACK_MESSAGES["hangup"]]
+
+
+def test_team_retry_after_hours_and_without_music(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    # Fuera de horario: el respaldo, sin aviso ni intentos.
+    line = RetryLine({JUAN: "confirm"})
+    team = team_call(api, c, with_retries(api, inbound, 60, team_fallback="hangup", schedule={"week": {}}), line)
+    assert asyncio.run(team.run()) == "hangup" and team.reason == "after_hours" and dialed(line) == []
+    assert direct.RETRY_MESSAGE not in [x[1] for x in line.log if x[0] == "say"]
+
+    # Sin musica: el aviso igual, y la linea nunca recibe hold.
+    inbound = with_retries(api, inbound, 60, team_hold_music=False, schedule=None)
+    line = RetryLine({JUAN: ["busy", "confirm"]}, connected=[("left", "PERSON")])
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "answered"
+    assert not [x for x in line.log if x[0] == "hold"] and ("say", direct.RETRY_MESSAGE) in line.log
+
+
+def test_team_retry_keeps_an_attempt_for_the_backup_person(api, admin, monkeypatch, tmp_path):
+    # El tope de intentos por llamada (MAX_ATTEMPTS) deja lugar a la persona de "si nadie atiende".
+    monkeypatch.setattr(transfer, "MAX_ATTEMPTS", 3)
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    luis, inbound = backup_person(api, admin, c, inbound)
+    inbound = with_retries(api, inbound, 60)
+    line = RetryLine({JUAN: "busy", LUIS: "confirm"}, connected=[("left", "PERSON")])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "answered" and dialed(line) == [JUAN, JUAN, LUIS] and team.retries == 1
+    fallback = [d for t, d in team_events(api, inbound.conversation_id) if t == "team.fallback"]
+    assert fallback == [{"fallback": "member", "reason": "team_no_answer", "retries": 1}]
+
+
+def test_team_retry_does_not_ring_a_released_panel_user(api, admin, monkeypatch, tmp_path):
+    # Atendio en el panel y no entro (block): en los reintentos no se le vuelve a sonar.
+    c, inbound, users = team_setup(api, admin, monkeypatch, tmp_path, ("Ana", None, "ana"))
+    ana, ana_id = users["ana"]
+    ana.put(f"{V1}/me/presence", json={"available": True})
+    team = team_call(api, c, inbound, TeamLine())
+    team.released.add(ana_id)
+    assert asyncio.run(team._panel()) is None
+    assert not ana.get(f"{V1}/me/ringing").json()
+
+
+def test_team_retry_two_calls_at_once(api, admin, monkeypatch, tmp_path):
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    first = with_retries(api, inbound, 60)
+    second = next_inbound(api)
+    lines = [RetryLine({JUAN: ["busy", "busy", "confirm"]}, connected=[("left", "PERSON")]) for _ in range(2)]
+    teams = [team_call(api, c, inbound, line) for inbound, line in zip((first, second), lines)]
+
+    async def both():
+        return await asyncio.gather(*(t.run() for t in teams))
+
+    assert asyncio.run(both()) == ["answered", "answered"]
+    assert [t.retries for t in teams] == [2, 2] and [dialed(x) for x in lines] == [[JUAN] * 3] * 2
+    with api.sessions() as s:
+        for inbound in (first, second):
+            legs = s.query(HandoffLeg).filter_by(conversation_id=inbound.conversation_id).all()
+            assert sorted(leg.result for leg in legs) == ["busy", "busy", "connected"]
 
 
 # ---------- lado de LiveKit ----------

@@ -12,6 +12,7 @@ import {
   Stack,
   Switch,
   Text,
+  Textarea,
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -35,8 +36,17 @@ import {
   FALLBACK_LABELS,
   FALLBACK_MESSAGE_DEFAULTS,
   MESSAGE_MAX,
+  RETRY_HELP,
+  RETRY_INTERVAL_DEFAULT,
+  RETRY_INTERVAL_HELP,
+  RETRY_MESSAGE_DEFAULT,
+  RETRY_MESSAGE_HELP,
+  retryIntervalOptions,
+  retryOptions,
   RING_FIRST_HELP,
   RING_FIRST_OPTIONS,
+  RING_SECONDS_HELP,
+  RING_SECONDS_RETRY_HELP,
   STRATEGY_HELP,
   toAnsweringBody,
   toAnsweringDraft,
@@ -91,6 +101,7 @@ export function EditNumberModal({
           : null,
       team_fallback_member_id: (v, all) =>
         teamMode(all) && all.team_fallback === 'member' && !v ? 'Elegí la persona a la que se llama' : null,
+      team_retry_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
       team_fallback_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
     },
   });
@@ -293,7 +304,11 @@ export function EditNumberModal({
                     </Stack>
                     <NumberInput
                       label="Timbre por persona"
-                      description="Segundos antes de pasar a la siguiente."
+                      description={
+                        v.team_retry_seconds > 0 && !v.team_connect_on_answer
+                          ? RING_SECONDS_RETRY_HELP
+                          : RING_SECONDS_HELP
+                      }
                       min={5}
                       max={60}
                       suffix=" s"
@@ -313,7 +328,53 @@ export function EditNumberModal({
                     error={form.errors.schedule}
                   />
 
-                  <Divider label="Si nadie atiende o es fuera de horario" labelPosition="left" mt="xs" />
+                  <Divider label="Si nadie atiende" labelPosition="left" mt="xs" />
+                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+                    <Select
+                      label="Volver a intentar"
+                      description={RETRY_HELP}
+                      allowDeselect={false}
+                      data={retryOptions(v.team_retry_seconds)}
+                      value={String(v.team_retry_seconds)}
+                      onChange={(sec) => form.setFieldValue('team_retry_seconds', Number(sec ?? 0))}
+                      error={form.errors.team_retry_seconds}
+                    />
+                    {v.team_retry_seconds > 0 && (
+                      <Select
+                        label="Cada"
+                        description={RETRY_INTERVAL_HELP}
+                        allowDeselect={false}
+                        data={retryIntervalOptions(v.team_retry_interval_seconds)}
+                        value={String(v.team_retry_interval_seconds)}
+                        onChange={(sec) =>
+                          form.setFieldValue('team_retry_interval_seconds', Number(sec ?? RETRY_INTERVAL_DEFAULT))
+                        }
+                        error={form.errors.team_retry_interval_seconds}
+                      />
+                    )}
+                  </SimpleGrid>
+                  {v.team_retry_seconds > 0 && (
+                    <Textarea
+                      label="Aviso de espera"
+                      description={RETRY_MESSAGE_HELP}
+                      placeholder={RETRY_MESSAGE_DEFAULT}
+                      maxLength={MESSAGE_MAX}
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps('team_retry_message')}
+                    />
+                  )}
+
+                  <Divider
+                    label={
+                      v.team_retry_seconds > 0
+                        ? 'Si sigue sin atender, o fuera de horario'
+                        : 'Si nadie atiende o es fuera de horario'
+                    }
+                    labelPosition="left"
+                    mt="xs"
+                  />
                   <NoAnswerField
                     value={v.team_fallback}
                     onChange={(f) => {

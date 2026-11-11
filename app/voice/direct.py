@@ -7,9 +7,10 @@
 - Entrante al equipo (`run_inbound_team`, InboundCall.team de services/calls.start_inbound): musica de espera
   al que llama y suenan las personas del numero segun ring_first: en sus celulares, en orden (Transfer.run_team
   de la derivacion: whisper con la linea y quien llama, 1 para atender) y en el panel (services/direct_calls
-  .ring_panel: el primero que atiende entra a la room). Si nadie atiende o esta fuera de horario, el respaldo
-  del numero: el agente (sigue el worker con el agente en la misma room), un mensaje y grabar lo que dice el que
-  llama (voicemail) o un mensaje y cortar.
+  .ring_panel: el primero que atiende entra a la room). Con reintentos (route.retry_seconds), si nadie atiende se
+  avisa al que llama y se vuelve a llamar a todos cada route.retry_interval_seconds hasta el tope. Si nadie atiende o
+  esta fuera de horario, el respaldo del numero: el agente (sigue el worker con el agente en la misma room), un
+  mensaje y grabar lo que dice el que llama (voicemail) o un mensaje y cortar.
 
 `Outbound` y `TeamCall` son la logica, sin LiveKit; `OutboundRoom` y `TeamRoom` el lado de LiveKit (los tests
 usan falsos). Las directas graban siempre, sin mirar record_audio (plan, 2).
@@ -68,6 +69,10 @@ FALLBACK_MESSAGES = {
     "voicemail": "Ahora no podemos atenderte. Dejá tu mensaje y te llamamos.",
     "hangup": "Ahora no podemos atenderte. Por favor, volvé a llamar más tarde.",
 }
+# Aviso al empezar los reintentos (team_retry_message vacio).
+RETRY_MESSAGE = "En este momento no podemos atenderte. Por favor, esperá en línea."
+# Los reintentos terminan antes del tope de duracion con este margen: el buzon (VOICEMAIL_SECONDS) y los mensajes.
+RETRY_DEADLINE_MARGIN = 150
 
 
 # ---------- conversacion ----------
@@ -372,6 +377,11 @@ class TeamCall:
         self.transfer: transfer.Transfer | None = None
         self.attempts = 0
         self.reason = ""
+        # La pasada no pudo llamar por algo que no se arregla esperando (minutos salientes, plan, tope de intentos):
+        # no se reintenta. Sin canal libre si.
+        self.stuck: str | None = None
+        self.retries: int | None = None         # con etapa de reintentos, cuantos hubo (team.fallback)
+        self.released: set[str] = set()         # atendieron en el panel y no entraron: no se les vuelve a sonar
         self.end = CallEnd()
         # El tope de duracion cuenta desde que entro la llamada (en_curso), no desde que atiende alguien.
         self.deadline = time.monotonic() + settings.call_max_duration_seconds
@@ -392,13 +402,13 @@ class TeamCall:
             await self.line.hold(True)
             self._event("hold.started")
         try:
-            order = ("phone", "panel") if self.route.ring_first == "phone" else ("panel", "phone")
-            for where in order:
-                ended = await (self._phones() if where == "phone" else self._panel())
-                if ended is not None:
-                    self.end.mark()
-                    self.reason = ended
-                    return "answered"
+            ended = await self._pass()
+            if ended is None and self.route.retry_seconds > 0 and self.stuck is None:
+                ended = await self._retry()
+            if ended is not None:
+                self.end.mark()
+                self.reason = ended
+                return "answered"
         except transfer.CustomerGone:
             self.end.mark()
             self.reason = "customer_hangup"
@@ -410,6 +420,69 @@ class TeamCall:
             with self.sessions() as s:
                 direct_calls.cancel_rings(s, self.conversation_id)
         return await self._fallback("team_no_answer")
+
+    async def _pass(self) -> str | None:
+        """Una pasada: los telefonos y el panel en el orden de ring_first. Conectada, el motivo del corte; si no,
+        None."""
+        order = ("phone", "panel") if self.route.ring_first == "phone" else ("panel", "phone")
+        for where in order:
+            ended = await (self._phones() if where == "phone" else self._panel())
+            if ended is not None:
+                return ended
+        return None
+
+    # -- reintentos --
+
+    async def _retry(self) -> str | None:
+        """Nadie atendio la primera pasada: el aviso (sin resume: la persona del siguiente intento no tiene que oir
+        la voz ni la musica) y otra pasada cada retry_interval_seconds de musica. Un intento que empieza antes del
+        tope (retry_seconds desde el aviso, y el margen del tope de duracion) termina su timbre; despues no se empieza
+        otro. Conectada, el motivo del corte; si no, None (el respaldo)."""
+        route = self.route
+        interval = max(0, route.retry_interval_seconds)
+        until = min(time.monotonic() + route.retry_seconds, self.deadline - RETRY_DEADLINE_MARGIN)
+        if time.monotonic() + interval >= until:
+            return None         # no entra ni un intento: sin aviso, al respaldo
+        self.retries = 0
+        text = (route.retry_message or "").strip() or RETRY_MESSAGE
+        if route.hold_music:
+            await self.line.hold(False)
+        self.log.add("assistant", text)
+        await self.line.say(text)
+        if route.hold_music:
+            await self.line.hold(True)
+        self._event("team.retry", seconds=route.retry_seconds)
+        while time.monotonic() + interval < until:
+            await self._wait(interval)
+            if (why := self._limit()) is not None:
+                logger.info("directa %s: sin reintentos (%s)", self.conversation_id, why)
+                break
+            if self.attempts + self._phone_count() + (route.fallback_member is not None) > transfer.MAX_ATTEMPTS:
+                logger.info("directa %s: sin reintentos (tope de intentos)", self.conversation_id)
+                break
+            self.retries += 1
+            logger.info("directa %s: reintento %s", self.conversation_id, self.retries)
+            ended = await self._pass()
+            if ended is not None or self.stuck is not None:
+                return ended
+        return None
+
+    def _phone_count(self) -> int:
+        return sum(1 for p in self.route.members if p.phone)
+
+    async def _wait(self, seconds: float) -> None:
+        """La musica entre intentos; si el que llama corta (o se cierra la room), CustomerGone. Lee lo pendiente
+        aunque no haya espera."""
+        deadline = time.monotonic() + seconds
+        while True:
+            timeout = deadline - time.monotonic()
+            try:
+                ev = self.line.events.get_nowait() if timeout <= 0 else \
+                    await asyncio.wait_for(self.line.events.get(), timeout)
+            except (asyncio.QueueEmpty, asyncio.TimeoutError):
+                return
+            if ev[0] == "closed" or (ev[0] == "left" and ev[1] == self.customer):
+                raise transfer.CustomerGone()
 
     # -- celulares --
 
@@ -440,6 +513,8 @@ class TeamCall:
             self.transfer = None
         logger.info("directa %s: %s %s (%s)", self.conversation_id, what, outcome.status,
                     outcome.ended or outcome.result)
+        if outcome.status == "unavailable" and outcome.result != "no_channel":
+            self.stuck = outcome.result
         if outcome.status != "connected":
             return None
         return {"customer_hung_up": "customer_hangup", "person_hung_up": "person_hangup",
@@ -486,7 +561,7 @@ class TeamCall:
     # -- panel --
 
     async def _panel(self) -> str | None:
-        names = {p.user_id: p.name for p in self.route.members if p.user_id}
+        names = {p.user_id: p.name for p in self.route.members if p.user_id and p.user_id not in self.released}
         if not names:
             return None
         with self.sessions() as s:
@@ -538,6 +613,7 @@ class TeamCall:
                 # tarde con el token de answer, se lo saca (no escucha lo que sigue).
                 with self.sessions() as s:
                     direct_calls.release_answer(s, self.conversation_id)
+                self.released.add(answered)
                 await self.line.block(direct_calls.user_identity(answered))
             return None
         await self.line.hold(False)
@@ -573,7 +649,7 @@ class TeamCall:
         if fallback == "agent":
             if self.to_agent is not None and self.to_agent():
                 self.reason = why
-                self._event("team.fallback", fallback="agent", reason=why)
+                self._event("team.fallback", fallback="agent", reason=why, **self._retried())
                 return "agent"
             fallback = "voicemail"      # el agente del numero no esta (archivado): se toma el mensaje
         if fallback == "member":
@@ -581,7 +657,7 @@ class TeamCall:
             if result is not None:
                 return result
             fallback = "voicemail"      # no atendio, o inactiva o sin celular: se toma el mensaje
-        self._event("team.fallback", fallback=fallback, reason=why)
+        self._event("team.fallback", fallback=fallback, reason=why, **self._retried())
         text = (self.route.fallback_message or "").strip() or FALLBACK_MESSAGES[fallback]
         await self.line.resume()
         self.log.add("assistant", text)
@@ -608,6 +684,9 @@ class TeamCall:
         self.end.mark()
         return "voicemail"
 
+    def _retried(self) -> dict:
+        return {} if self.retries is None else {"retries": self.retries}
+
     async def _backup(self, why: str) -> str | None:
         """La persona de "si nadie atiende" (route.fallback_member), una vez en su telefono, como los del numero
         (musica y conectar al atender segun el numero). answered o customer_hung_up; None si no atendio o no se la
@@ -616,7 +695,7 @@ class TeamCall:
         if person is None or not person.phone:
             logger.info("directa %s: la persona de respaldo no esta activa o no tiene telefono", self.conversation_id)
             return None
-        self._event("team.fallback", fallback="member", reason=why)
+        self._event("team.fallback", fallback="member", reason=why, **self._retried())
         music = self.route.hold_music
         if music:
             await self.line.hold(True)

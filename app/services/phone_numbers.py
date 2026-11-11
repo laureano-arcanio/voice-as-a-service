@@ -19,6 +19,9 @@ ANSWER_MODES = ("team", "agent")
 RING_FIRST = ("phone", "panel")
 TEAM_FALLBACKS = ("agent", "member", "voicemail", "hangup")
 FALLBACK_MESSAGE_MAX = 500
+RETRY_MAX_SECONDS = 300      # y de a 15
+RETRY_STEP_SECONDS = 15
+RETRY_INTERVAL_RANGE = (15, 120)
 
 
 @dataclass
@@ -85,6 +88,7 @@ def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
     number.team_fallback_member_id = None
     number.strategy, number.last_member_id = "sequential", None
     number.team_connect_on_answer, number.team_hold_music = False, True
+    number.team_retry_seconds, number.team_retry_interval_seconds, number.team_retry_message = 0, 30, ""
 
 
 def release(number: PhoneNumber) -> None:
@@ -138,11 +142,12 @@ def _set_members(s: Session, number: PhoneNumber, ids: list[str]) -> None:
 
 def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), strategy, ring_first,
-    ring_seconds, schedule, team_fallback, team_fallback_member_id, team_fallback_message, team_connect_on_answer
-    y team_hold_music. Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el
+    ring_seconds, schedule, team_fallback, team_fallback_member_id, team_fallback_message, team_connect_on_answer,
+    team_hold_music, team_retry_seconds, team_retry_interval_seconds y team_retry_message. Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el
     numero; con member, la persona. El agente se cambia antes (set_agent)."""
     keys = ("answer_mode", "member_ids", "ring_first", "ring_seconds", "schedule", "team_fallback",
-            "team_fallback_member_id", "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music")
+            "team_fallback_member_id", "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music",
+            "team_retry_seconds", "team_retry_interval_seconds", "team_retry_message")
     if not any(k in changes for k in keys):
         if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente
             _check_fallback(number)
@@ -192,6 +197,21 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         if len(text) > FALLBACK_MESSAGE_MAX:
             raise Invalid(f"El mensaje va hasta {FALLBACK_MESSAGE_MAX} caracteres")
         number.team_fallback_message = text
+    if "team_retry_seconds" in changes:
+        seconds = int(changes["team_retry_seconds"])
+        if not 0 <= seconds <= RETRY_MAX_SECONDS or seconds % RETRY_STEP_SECONDS:
+            raise Invalid("team_retry_seconds: de 0 a 300, de a 15")
+        number.team_retry_seconds = seconds
+    if "team_retry_interval_seconds" in changes:
+        interval = int(changes["team_retry_interval_seconds"])
+        if not RETRY_INTERVAL_RANGE[0] <= interval <= RETRY_INTERVAL_RANGE[1]:
+            raise Invalid("team_retry_interval_seconds: de 15 a 120")
+        number.team_retry_interval_seconds = interval
+    if "team_retry_message" in changes:
+        text = changes["team_retry_message"].strip()
+        if len(text) > FALLBACK_MESSAGE_MAX:
+            raise Invalid(f"El mensaje de espera va hasta {FALLBACK_MESSAGE_MAX} caracteres")
+        number.team_retry_message = text
     for flag in ("team_connect_on_answer", "team_hold_music"):
         if flag in changes:
             setattr(number, flag, bool(changes[flag]))

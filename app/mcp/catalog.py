@@ -601,7 +601,10 @@ _WRITE: tuple[Tool, ...] = (
          "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`. `team_connect_on_answer` (por defecto false): "
          "en los teléfonos conecta apenas atienden, sin mensaje ni tecla y sin detectar contestadores (para destinos "
          "que siempre atienden, como una central). `team_hold_music` (por defecto true): música mientras suena; "
-         "false, silencio.",
+         "false, silencio. "
+         "`team_retry_seconds` (0 a 300, de a 15; por defecto 0): si nadie atiende, segundos durante los que se vuelve a llamar, "
+         "con un aviso y música; 0, no reintenta. `team_retry_interval_seconds` (15 a 120, por defecto 30): espera entre un "
+         "intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre).",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},
          required=("number_id",), body="PhoneNumberUpdate"),
     Tool("block_number", "calls", "Bloquear un número",

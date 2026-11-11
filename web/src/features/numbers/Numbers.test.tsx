@@ -32,6 +32,9 @@ const base = {
   ring_seconds: 20,
   team_connect_on_answer: false,
   team_hold_music: true,
+  team_retry_seconds: 0,
+  team_retry_interval_seconds: 30,
+  team_retry_message: '',
   schedule: null,
   team_fallback: 'voicemail',
   team_fallback_message: '',
@@ -235,6 +238,9 @@ describe('números: quién atiende', () => {
       ring_seconds: 30,
       team_connect_on_answer: false,
       team_hold_music: true,
+      team_retry_seconds: 0,
+      team_retry_interval_seconds: 30,
+      team_retry_message: '',
       schedule: null,
       team_fallback: 'agent',
       team_fallback_member_id: null,
@@ -268,6 +274,98 @@ describe('números: quién atiende', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
     expect(patched(calls, 'n1')).toMatchObject({ team_connect_on_answer: true, team_hold_music: false });
+  });
+
+  it('reintentos: elegir duración, intervalo y aviso se guarda y la fila lo dice', async () => {
+    const saved = {
+      ...TEAM_NUMBER,
+      team_retry_seconds: 180,
+      team_retry_interval_seconds: 15,
+      team_retry_message: 'Espere en línea.',
+    } as PhoneNumber;
+    const calls = mockApi([TEAM_NUMBER, { ...saved, id: 'n8', e164: '+541155550008' } as PhoneNumber], {
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse(saved),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    expect(
+      within(await screen.findByRole('row', { name: /\+541155550001/ })).queryByText(/reintenta/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /\+541155550008/ })).getByText(
+        'Suena primero en el panel · reintenta 3 min cada 15 s',
+      ),
+    ).toBeInTheDocument();
+
+    const dialog = await openEdit('+541155550001');
+    // Sin reintentos no se piden ni el intervalo ni el aviso.
+    expect(within(dialog).getByRole('textbox', { name: /Volver a intentar/ })).toHaveValue('No, pasar al respaldo');
+    expect(within(dialog).queryByLabelText(/Cada/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Aviso de espera')).not.toBeInTheDocument();
+    expect(within(dialog).getByText('Si nadie atiende o es fuera de horario')).toBeInTheDocument();
+    expect(within(dialog).getByText('Segundos antes de pasar a la siguiente.')).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('textbox', { name: /Volver a intentar/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Durante 3 minutos', hidden: true }));
+    expect(within(dialog).getByText('Si sigue sin atender, o fuera de horario')).toBeInTheDocument();
+    expect(within(dialog).getByText(/El buzón de un celular atiende a los ~33 s/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('textbox', { name: /Cada/ }));
+    await userEvent.click(await screen.findByRole('option', { name: '15 s', hidden: true }));
+    const notice = within(dialog).getByLabelText('Aviso de espera');
+    expect(notice).toHaveAttribute('placeholder', expect.stringContaining('esperá en línea'));
+    await userEvent.type(notice, ' Espere en línea. ');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
+    expect(patched(calls, 'n1')).toMatchObject({
+      team_retry_seconds: 180,
+      team_retry_interval_seconds: 15,
+      team_retry_message: 'Espere en línea.',
+    });
+  });
+
+  it('reintentos: elegir "No" esconde el intervalo y el aviso y manda 0', async () => {
+    const withRetry = {
+      ...TEAM_NUMBER,
+      team_retry_seconds: 120,
+      team_retry_message: 'Espere.',
+    } as PhoneNumber;
+    const calls = mockApi([withRetry], {
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse(TEAM_NUMBER),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit('+541155550001');
+    expect(within(dialog).getByLabelText('Aviso de espera')).toHaveValue('Espere.');
+    await userEvent.click(within(dialog).getByRole('textbox', { name: /Volver a intentar/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'No, pasar al respaldo', hidden: true }));
+    expect(within(dialog).queryByLabelText(/Cada/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Aviso de espera')).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
+    expect(patched(calls, 'n1')).toMatchObject({ team_retry_seconds: 0, team_retry_interval_seconds: 30 });
+  });
+
+  it('reintentos: un valor de la API fuera de las opciones (150 s, 45 s) aparece como opción', async () => {
+    const odd = {
+      ...TEAM_NUMBER,
+      team_retry_seconds: 150,
+      team_retry_interval_seconds: 45,
+    } as PhoneNumber;
+    mockApi([odd]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    expect(
+      within(await screen.findByRole('row', { name: /\+541155550001/ })).getByText(
+        'Suena primero en el panel · reintenta 150 s cada 45 s',
+      ),
+    ).toBeInTheDocument();
+    const dialog = await openEdit('+541155550001');
+    const duration = within(dialog).getByRole('textbox', { name: /Volver a intentar/ });
+    expect(duration).toHaveValue('Durante 150 s');
+    await userEvent.click(duration);
+    expect(await screen.findByRole('option', { name: 'Durante 150 s', hidden: true })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    const every = within(dialog).getByRole('textbox', { name: /Cada/ });
+    expect(every).toHaveValue('45 s');
+    await userEvent.click(every);
+    expect(await screen.findByRole('option', { name: '45 s', hidden: true })).toBeInTheDocument();
   });
 
   it('el modal abre con los switches de un número que ya los tiene cambiados', async () => {
@@ -452,6 +550,9 @@ describe('números: formulario y errores', () => {
       ring_seconds: 20,
       team_connect_on_answer: false,
       team_hold_music: true,
+      team_retry_seconds: 0,
+      team_retry_interval_seconds: 30,
+      team_retry_message: '',
       schedule: null,
       team_fallback: 'voicemail',
       team_fallback_member_id: null,
@@ -478,6 +579,13 @@ describe('números: formulario y errores', () => {
     );
     expect(answeringErrorField(err(422, 'Horarios superpuestos el lunes'))).toBe('schedule');
     expect(answeringErrorField(err(422, 'El mensaje va hasta 500 caracteres'))).toBe('team_fallback_message');
+    expect(answeringErrorField(err(422, 'team_retry_seconds: de 0 a 300, de a 15'))).toBe('team_retry_seconds');
+    expect(answeringErrorField(err(422, 'team_retry_interval_seconds: de 15 a 120'))).toBe(
+      'team_retry_interval_seconds',
+    );
+    expect(answeringErrorField(err(422, 'El mensaje de espera va hasta 500 caracteres'))).toBe(
+      'team_retry_message',
+    );
     expect(answeringErrorField(err(409, 'otra cosa'))).toBeUndefined();
     expect(answeringErrorField(new Error('red'))).toBeUndefined();
   });

@@ -481,6 +481,13 @@ class PhoneNumberUpdate(BaseModel):
                                   "no detecta contestadores")
     team_hold_music: bool | None = Field(
         default=None, description="Con el equipo: música mientras suena; false, silencio")
+    team_retry_seconds: int | None = Field(
+        default=None, ge=0, le=300, description="Con el equipo: segundos que se vuelve a llamar si nadie atiende, "
+                                                "con aviso y música (de a 15); 0, no reintenta")
+    team_retry_interval_seconds: int | None = Field(
+        default=None, ge=15, le=120, description="Espera entre un intento y el siguiente")
+    team_retry_message: str | None = Field(
+        default=None, max_length=500, description="Aviso al empezar a reintentar; vacío, el de siempre")
 
 
 class AssignIn(BaseModel):
@@ -515,6 +522,9 @@ class PhoneNumberOut(ORM):
     team_fallback_message: str
     team_connect_on_answer: bool
     team_hold_music: bool
+    team_retry_seconds: int
+    team_retry_interval_seconds: int
+    team_retry_message: str
     members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 
 

@@ -49,6 +49,47 @@ export const FALLBACK_MESSAGE_DEFAULTS: Record<'voicemail' | 'hangup', string> =
 
 export const MESSAGE_MAX = 500;
 
+/** Reintentos de la entrante al equipo (docs/features/EQUIPO_TELEFONIA.md): cuánto, cada cuánto y qué se avisa. */
+export const RETRY_SECONDS = [0, 60, 120, 180, 300];
+export const RETRY_INTERVALS = [15, 30, 60];
+export const RETRY_INTERVAL_DEFAULT = 30;
+/** El aviso que dice el worker si no se escribe uno. */
+export const RETRY_MESSAGE_DEFAULT = 'En este momento no podemos atenderte. Por favor, esperá en línea.';
+export const RETRY_HELP =
+  'Si da ocupado o no atiende, le avisa a quien llama, lo deja en espera y vuelve a llamar. La espera gasta minutos entrantes.';
+export const RETRY_INTERVAL_HELP = 'Espera con música entre un intento y el siguiente.';
+export const RETRY_MESSAGE_HELP = 'Lo dice una vez, antes de la espera. Vacío usa el de siempre.';
+export const RING_SECONDS_HELP = 'Segundos antes de pasar a la siguiente.';
+export const RING_SECONDS_RETRY_HELP = `${RING_SECONDS_HELP} El buzón de un celular atiende a los ~33 s.`;
+
+/** "3 min", "1 min", "45 s": como se dice en la fila y en el "Cada". */
+export const shortSeconds = (s: number) => (s % 60 === 0 ? `${s / 60} min` : `${s} s`);
+
+const retryDuration = (s: number) =>
+  s === 0
+    ? 'No, pasar al respaldo'
+    : s % 60 === 0
+      ? `Durante ${s / 60} ${s === 60 ? 'minuto' : 'minutos'}`
+      : `Durante ${s} s`;
+
+/** Las opciones de cuánto reintentar; un valor que dejó la API (múltiplo de 15) se agrega para no perderlo. */
+export function retryOptions(current: number): { value: string; label: string }[] {
+  const all = RETRY_SECONDS.includes(current) ? RETRY_SECONDS : [...RETRY_SECONDS, current].sort((a, b) => a - b);
+  return all.map((s) => ({ value: String(s), label: retryDuration(s) }));
+}
+
+/** Las opciones de la espera entre intentos; un valor de la API fuera de la lista (15-120) se agrega. */
+export function retryIntervalOptions(current: number): { value: string; label: string }[] {
+  const all = RETRY_INTERVALS.includes(current) ? RETRY_INTERVALS : [...RETRY_INTERVALS, current].sort((a, b) => a - b);
+  return all.map((s) => ({ value: String(s), label: shortSeconds(s) }));
+}
+
+/** " · reintenta 3 min cada 30 s" para la fila; vacío sin reintentos. */
+export const retrySummary = (n: Pick<PhoneNumber, 'team_retry_seconds' | 'team_retry_interval_seconds'>) =>
+  n.team_retry_seconds > 0
+    ? ` · reintenta ${shortSeconds(n.team_retry_seconds)} cada ${shortSeconds(n.team_retry_interval_seconds)}`
+    : '';
+
 /** Lo que se edita de un número asignado. */
 export interface AnsweringDraft {
   label: string;
@@ -60,6 +101,10 @@ export interface AnsweringDraft {
   ring_seconds: number | string;
   team_connect_on_answer: boolean;
   team_hold_music: boolean;
+  /** 0 = no reintenta. */
+  team_retry_seconds: number;
+  team_retry_interval_seconds: number;
+  team_retry_message: string;
   schedule: ScheduleDraft;
   team_fallback: TeamFallback;
   /** Con team_fallback member: la persona, fuera del número, con teléfono. */
@@ -78,6 +123,9 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     ring_seconds: n.ring_seconds,
     team_connect_on_answer: n.team_connect_on_answer,
     team_hold_music: n.team_hold_music,
+    team_retry_seconds: n.team_retry_seconds,
+    team_retry_interval_seconds: n.team_retry_interval_seconds,
+    team_retry_message: n.team_retry_message,
     schedule: toDraft(n.schedule),
     team_fallback: n.team_fallback,
     team_fallback_member_id: n.team_fallback_member_id ?? null,
@@ -104,6 +152,9 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     ring_seconds: Number(v.ring_seconds),
     team_connect_on_answer: v.team_connect_on_answer,
     team_hold_music: v.team_hold_music,
+    team_retry_seconds: v.team_retry_seconds,
+    team_retry_interval_seconds: v.team_retry_interval_seconds,
+    team_retry_message: v.team_retry_message.trim(),
     schedule: toSchedule(v.schedule),
     team_fallback: v.team_fallback,
     team_fallback_member_id: v.team_fallback === 'member' ? v.team_fallback_member_id : null,

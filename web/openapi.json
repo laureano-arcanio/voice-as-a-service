@@ -1720,7 +1720,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music` y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona\n`team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,\n`team_hold_music`, los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y\n`team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona\n`team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -24865,6 +24865,18 @@
       "type": "boolean",
       "title": "Team Hold Music"
      },
+     "team_retry_seconds": {
+      "type": "integer",
+      "title": "Team Retry Seconds"
+     },
+     "team_retry_interval_seconds": {
+      "type": "integer",
+      "title": "Team Retry Interval Seconds"
+     },
+     "team_retry_message": {
+      "type": "string",
+      "title": "Team Retry Message"
+     },
      "members": {
       "items": {
        "$ref": "#/components/schemas/PhoneNumberMemberOut"
@@ -24891,7 +24903,10 @@
      "team_fallback",
      "team_fallback_message",
      "team_connect_on_answer",
-     "team_hold_music"
+     "team_hold_music",
+     "team_retry_seconds",
+     "team_retry_interval_seconds",
+     "team_retry_message"
     ],
     "title": "PhoneNumberOut"
    },
@@ -25073,6 +25088,47 @@
       ],
       "title": "Team Hold Music",
       "description": "Con el equipo: música mientras suena; false, silencio"
+     },
+     "team_retry_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 300.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Retry Seconds",
+      "description": "Con el equipo: segundos que se vuelve a llamar si nadie atiende, con aviso y música (de a 15); 0, no reintenta"
+     },
+     "team_retry_interval_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 120.0,
+        "minimum": 15.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Retry Interval Seconds",
+      "description": "Espera entre un intento y el siguiente"
+     },
+     "team_retry_message": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Retry Message",
+      "description": "Aviso al empezar a reintentar; vacío, el de siempre"
      }
     },
     "type": "object",

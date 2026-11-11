@@ -14,6 +14,8 @@ mensajes con su WAV). Casos:
    pasajero marca 1 (el IVR de la central) y la central lo recibe (lo devuelve por DTMF), y termina cuando corta.
 4. Entrante al equipo, "si nadie atiende" una persona (team_fallback member): la unica del numero no atiende, se
    llama a la persona de respaldo, que marca 1, y termina cuando corta.
+5. Entrante al equipo con reintentos (team_retry_*): la unica del numero da ocupado; aviso, musica y se la vuelve a
+   llamar cada 2 s hasta el tope (8 s); despues el respaldo "corta" con su mensaje.
 """
 import asyncio
 import contextlib
@@ -41,6 +43,7 @@ from app.models import (
     CallRow,
     CallStatus,
     Client,
+    Event,
     HandoffLeg,
     PhoneNumber,
     TeamMember,
@@ -337,6 +340,63 @@ async def connect_on_answer(lk, trunk_id, sessions, client_id, number_id) -> Non
             await lk.room.delete_room(api.DeleteRoomRequest(room=name))
 
 
+async def retries(lk, trunk_id, sessions, client_id, number_id, members) -> None:
+    conv, name = "d5", "e2e-direct-retry"
+    new_call(sessions, client_id, conv, CallMode.entrante, CUSTOMER_PHONE, number_id)
+    store = ConversationStore(sessions)
+    worker = await join(name, "agente")
+    result, status, _ = await smoke.dial(lk, trunk_id, name, CUSTOMER_PHONE, "cliente", ring=8)
+    assert result == "answered", (result, status)
+    deadline = time.monotonic() + 5
+    while not any(p.identity == "cliente" and p.track_publications for p in worker.remote_participants.values()):
+        if time.monotonic() > deadline:
+            raise RuntimeError("el cliente no publico su pista")
+        await asyncio.sleep(0.1)
+    line = direct.TeamRoom(SimpleNamespace(room=worker, api=lk), fake_voice(), customer="cliente", trunk_id=trunk_id,
+                           caller_id=smoke.FROM_NUMBER, voice_name="e2e")
+    said: list[str] = []
+    real_say = line.say
+
+    async def say(text, *a, **kw):
+        said.append(text)
+        await real_say(text, *a, **kw)
+    line.say = say
+    route = TeamRoute(members=members, ring_first="phone", ring_seconds=6, schedule=None, fallback="hangup",
+                      fallback_message="No lo hemos podido conectar.", agent_id=None,
+                      number_e164=smoke.FROM_NUMBER, number_label="Remises",
+                      retry_seconds=8, retry_interval_seconds=2, retry_message="Aguarde en línea, por favor.")
+    team = direct.TeamCall(sessions=sessions, store=store, line=line, conversation_id=conv, client_id=client_id,
+                           route=route, customer="cliente", caller=CUSTOMER_PHONE, confirm_seconds=4)
+    t = time.monotonic()
+    try:
+        await line.start()
+        outcome = await asyncio.wait_for(team.run(), 60)
+        await asyncio.sleep(1)
+        with sessions() as s:
+            legs = [(leg.result, leg.sip_status)
+                    for leg in s.scalars(select(HandoffLeg).where(HandoffLeg.conversation_id == conv)
+                                         .order_by(HandoffLeg.created_at))]
+            events = [(e.type, e.data) for e in s.scalars(select(Event).where(
+                Event.conversation_id == conv, Event.type.in_(("team.retry", "team.fallback"))).order_by(Event.id))]
+        live = {p.identity for p in (await lk.room.list_participants(
+            api.ListParticipantsRequest(room=name))).participants}
+        ok = outcome == "hangup" and team.reason == "team_no_answer" and len(legs) >= 3 and \
+            all(leg == ("busy", 486) for leg in legs) and team.retries == len(legs) - 1 and \
+            said == ["Aguarde en línea, por favor.", "No lo hemos podido conectar."] and \
+            events == [("team.retry", {"seconds": 8}), ("team.fallback", {"fallback": "hangup",
+                                                                         "reason": "team_no_answer",
+                                                                         "retries": team.retries})] and \
+            not any(x.startswith(transfer.PERSON_PREFIX) for x in live)
+        smoke.check("directa entrante al equipo con reintentos: ocupado, aviso, reintentos y el respaldo", ok,
+                    f"{outcome}/{team.reason} en {time.monotonic() - t:.1f} s; tramos {legs}; "
+                    f"reintentos {team.retries}; dijo {said}; eventos {events}; en la room {sorted(live)}")
+    finally:
+        await line.aclose()
+        await worker.disconnect()
+        with contextlib.suppress(api.TwirpError):
+            await lk.room.delete_room(api.DeleteRoomRequest(room=name))
+
+
 async def main() -> int:
     # Los WAV, fuera del codigo montado (solo lectura).
     settings.call_recordings_dir = Path("/tmp/e2e-direct/recordings")
@@ -352,6 +412,7 @@ async def main() -> int:
     await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members[:2])
     await connect_on_answer(lk, trunk_id, sessions, client_id, number_id)
     await inbound_by_phone(lk, trunk_id, sessions, client_id, number_id, members[2:], backup=members[1])
+    await retries(lk, trunk_id, sessions, client_id, number_id, members[:1])
     await lk.aclose()
 
     failed = [n for n, ok, _ in smoke.RESULTS if not ok]

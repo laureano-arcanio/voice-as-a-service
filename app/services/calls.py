@@ -280,6 +280,11 @@ class TeamRoute:
     # Musica mientras suena (team_hold_music); en falso, silencio.
     hold_music: bool = True
     fallback_member: TeamPerson | None = None
+    # Reintentos antes del respaldo (team_retry_*): hasta retry_seconds (0, sin reintentos), uno cada
+    # retry_interval_seconds de musica; retry_message vacio usa el aviso por defecto (app/voice/direct.py).
+    retry_seconds: int = 0
+    retry_interval_seconds: int = 30
+    retry_message: str = ""
 
 
 @dataclass
@@ -316,6 +321,8 @@ def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
         fallback=number.team_fallback, fallback_message=number.team_fallback_message, agent_id=number.agent_id,
         number_e164=number.e164, number_label=number.label, number_id=number.id,
         connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music,
+        retry_seconds=number.team_retry_seconds, retry_interval_seconds=number.team_retry_interval_seconds,
+        retry_message=number.team_retry_message,
         fallback_member=TeamPerson(member_id=backup.id, name=backup.name, phone=backup.phone, user_id=backup.user_id)
         if backup else None)
 
