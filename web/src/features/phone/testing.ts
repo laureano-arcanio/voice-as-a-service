@@ -17,6 +17,7 @@ export class FakeRoom {
   connect = vi.fn(async () => undefined);
   disconnect = vi.fn(async () => undefined);
   startAudio = vi.fn(async () => undefined);
+  registerTextStreamHandler = vi.fn();
 
   options: Record<string, unknown>;
 

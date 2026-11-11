@@ -245,6 +245,105 @@ body {
   font-size: 0.95rem;
 }
 
+/* Derivacion a una persona: a quien se llama, la fase y cuanto va (HANDOFF en main.ts). */
+.handoff {
+  width: 100%;
+  max-width: 340px;
+  text-align: left;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--color-ink-2);
+}
+
+.handoff p {
+  margin: 0;
+}
+
+.handoff-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--color-ink);
+}
+
+.handoff-head b {
+  flex: 1;
+  font-weight: 600;
+}
+
+.handoff .dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  align-self: center;
+  animation: handoff-pulse 1.4s ease-in-out infinite;
+}
+
+.handoff[data-state='connected'] .dot {
+  background: var(--color-ok);
+  animation: none;
+}
+
+.handoff[data-state='failed'] .dot {
+  background: var(--color-warn);
+  animation: none;
+}
+
+.handoff[data-state='notified'] .dot {
+  background: var(--color-muted);
+  animation: none;
+}
+
+@keyframes handoff-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handoff .dot {
+    animation: none;
+  }
+}
+
+.handoff-total,
+.handoff-live {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.handoff-total {
+  color: var(--color-muted);
+}
+
+.handoff-note {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.handoff-list {
+  margin: 4px 0 0;
+  padding: 6px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--color-line);
+  display: grid;
+  gap: 2px;
+  font-size: 0.82rem;
+}
+
+.handoff-list small {
+  color: var(--color-muted);
+  font-size: inherit;
+}
+
 .notice {
   width: 100%;
   max-width: 340px;

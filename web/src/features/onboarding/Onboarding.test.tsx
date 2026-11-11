@@ -1,10 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Onboarding } from '@/api/types';
 import { AppLayout } from '@/components/AppLayout';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { HomePage } from './HomePage';
+import { stubMediaDevices } from '@/features/phone/testing';
 
 // Sin micrófono ni servidor de voz en jsdom.
 vi.mock('livekit-client', () => ({
@@ -77,6 +78,8 @@ const layout = (me = CLIENT_USER, path = '/inicio') =>
     ],
   });
 
+// jsdom no trae mediaDevices: el modal de voz lo pide antes de abrir el micrófono.
+beforeEach(() => stubMediaDevices());
 afterEach(() => vi.unstubAllGlobals());
 
 describe('asistente de primera vez', () => {

@@ -61,6 +61,13 @@ del build de Vite, con los tokens de la marca de la landing en `llamar.css`).
 5. La página pasa a "En llamada" cuando el agente publica su pista; subtítulos plegados (`lk.transcription`),
    silenciar, cortar, aviso a los 30 s del final; al terminar, duración y "Volver a llamar". No muestra los datos
    que tomó el agente.
+6. **Derivación a una persona:** el worker publica el tema `handoff_status` solo a esta persona
+   ([`EQUIPO_TELEFONIA`](EQUIPO_TELEFONIA.md), "Progreso en pantalla") y la página muestra un recuadro entre el
+   estado y los botones: "Llamando a la persona 2 de 3", "Si nadie atiende: persona 3", la fase con su contador,
+   los intentos anteriores y, al final, "Conectado con la persona 3" o "No se pudo derivar" con el total. **Sin
+   nombres ni áreas** (el link es público). Los contadores corren con el reloj del navegador desde que llega cada
+   snapshot; el recuadro se oculta al cortar. Lógica en `web/src/lib/handoffProgress.ts`, compartida con la prueba
+   del panel.
 
 Errores para quien llama (sin "plan" ni "minutos"; el motivo real queda en el log): ocupado ("Todas las líneas
 están ocupadas. Probá en unos minutos."), límite por IP ("Hiciste varias llamadas seguidas. Probá más tarde.") y

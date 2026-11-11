@@ -1,9 +1,10 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentDetail } from '@/api/types';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { AgentTestPanel } from './AgentTestPanel';
+import { stubMediaDevices } from '@/features/phone/testing';
 
 // Sin micrófono ni servidor de voz en jsdom: lo justo para que el modal llegue a pedir la llamada.
 vi.mock('livekit-client', () => ({
@@ -57,6 +58,8 @@ function mockApi() {
   return calls;
 }
 
+// jsdom no trae mediaDevices: el modal de voz lo pide antes de abrir el micrófono.
+beforeEach(() => stubMediaDevices());
 afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentTestPanel', () => {

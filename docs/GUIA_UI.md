@@ -215,7 +215,11 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
     las pruebas la ejecutan de verdad (si registra algo o cobra, lo hace); por texto, la de después corre al terminar
     o a los 10 minutos sin mensajes.
   - **Hablar:** el mismo modal de Inicio (llamada de prueba por el navegador, con micrófono y subtítulos),
-    con ese número. Deshabilitado si el agente está archivado.
+    con ese número. Deshabilitado si el agente está archivado. Si el agente deriva a una persona, el modal muestra
+    el progreso: a quién se llama ("Llamando a Ana (Ventas)"; "Si nadie atiende: Ana" si es esa persona), la fase
+    con su contador (marcando, sonando, contándole el caso, esperando que marque 1), los intentos anteriores con su
+    resultado y, al final, "Conectado con…" o "No se pudo derivar" con el total y el desglose por persona
+    ([`HandoffProgress`](../web/src/components/HandoffProgress.tsx)). Se oculta al cortar. En Inicio no aparece.
   - **Conversación por texto:** chateás con el agente sin voz. Los datos aparecen al terminar la
     conversación; las llamadas a herramientas se ven en la traza de cada respuesta (argumentos, estado,
     tiempo y resultado).

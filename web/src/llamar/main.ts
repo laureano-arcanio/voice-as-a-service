@@ -6,6 +6,7 @@ import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import './llamar.css';
 import type { LocalAudioTrack, Participant, Room, TextStreamReader } from 'livekit-client';
+import { buildView, HANDOFF_TOPIC, parseHandoffStatus, type HandoffSnapshot } from '@/lib/handoffProgress';
 import { initials } from '@/lib/initials';
 import { CaptchaError, loadTurnstile, turnstileToken } from './turnstile';
 
@@ -48,6 +49,12 @@ const notice = $('[data-notice]');
 const noticeTitle = $('[data-notice-title]');
 const noticeText = $('[data-notice-text]');
 const noticeSteps = $<HTMLOListElement>('[data-notice-steps]');
+const handoffBox = $('[data-handoff]');
+const handoffTitle = $('[data-handoff-title]');
+const handoffTotal = $('[data-handoff-total]');
+const handoffNote = $('[data-handoff-note]');
+const handoffLive = $('[data-handoff-live]');
+const handoffList = $('[data-handoff-list]');
 const captionsToggle = $<HTMLButtonElement>('[data-captions-toggle]');
 const captions = $('[data-captions]');
 const muteButton = $<HTMLButtonElement>('[data-mute]');
@@ -63,6 +70,8 @@ let startedAt = 0;
 let ticker: number | undefined;
 let levelFrame: number | undefined;
 let reconnectTimer: number | undefined;
+let handoff: { snapshot: HandoffSnapshot; at: number } | null = null;
+let handoffTicker: number | undefined;
 let wakeLock: WakeLockSentinel | null = null;
 let ending = false;
 let endReason: 'hangup' | 'limit' | 'lost' | null = null;
@@ -135,6 +144,55 @@ function micSteps(): string[] {
         'Volvé a intentar.',
       ]
     : ['Tocá el candado de la barra de direcciones.', 'Micrófono → Permitir.', 'Volvé a intentar.'];
+}
+
+// ---------- derivacion a una persona ----------
+
+/** Sin nombres: el link es publico, quien llama ve "Persona 2 de 3". */
+function renderHandoff() {
+  if (!handoff) {
+    handoffBox.hidden = true;
+    return;
+  }
+  const v = buildView(handoff.snapshot, 'anonymous', handoff.at, Date.now());
+  handoffBox.hidden = false;
+  handoffBox.dataset.state = v.state;
+  handoffTitle.textContent = v.headline;
+  handoffTotal.textContent = v.total;
+  handoffNote.textContent = v.note;
+  handoffNote.hidden = !v.note;
+  handoffLive.textContent = v.live;
+  handoffLive.hidden = !v.live;
+  handoffList.replaceChildren(
+    ...v.attempts.map((a) => {
+      const li = document.createElement('li');
+      const who = document.createElement('b');
+      who.textContent = a.who;
+      li.append(who, document.createTextNode([a.note, a.result].filter(Boolean).map((t) => ` · ${t}`).join('')));
+      if (a.detail) {
+        const small = document.createElement('small');
+        small.textContent = ` · ${a.detail}`;
+        li.append(small);
+      }
+      return li;
+    }),
+  );
+  handoffList.hidden = v.attempts.length === 0;
+}
+
+function onHandoff(payload: Uint8Array) {
+  const snapshot = parseHandoffStatus(payload);
+  if (!snapshot) return;
+  handoff = { snapshot, at: Date.now() };
+  window.clearInterval(handoffTicker);
+  if (snapshot.state === 'running') handoffTicker = window.setInterval(renderHandoff, 1000);
+  renderHandoff();
+}
+
+function clearHandoff() {
+  window.clearInterval(handoffTicker);
+  handoff = null;
+  renderHandoff();
 }
 
 // ---------- subtitulos ----------
@@ -217,6 +275,7 @@ function goLive() {
 function release() {
   window.clearInterval(ticker);
   window.clearTimeout(reconnectTimer);
+  clearHandoff();
   if (levelFrame) cancelAnimationFrame(levelFrame);
   phone.style.setProperty('--level', '0');
   mic?.stop();
@@ -287,6 +346,9 @@ async function createRoom(): Promise<Room> {
   r.on(RoomEvent.Reconnected, () => {
     window.clearTimeout(reconnectTimer);
     hint.textContent = '';
+  });
+  r.on(RoomEvent.DataReceived, (payload: Uint8Array, _p?: unknown, _k?: unknown, topic?: string) => {
+    if (topic === HANDOFF_TOPIC) onHandoff(payload);
   });
   r.on(RoomEvent.Disconnected, () => finish());
   r.registerTextStreamHandler(
