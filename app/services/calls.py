@@ -219,6 +219,12 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
                 # Derivacion a personas (app/voice/handoff.py): no en el loadtest ni las campañas, y en la demo de
                 # la landing solo con DEMO_HANDOFF (docs/features/EQUIPO_TELEFONIA.md).
                 "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id)}
+    # Progreso de la derivacion en pantalla (tema handoff_status): con nombres en la prueba del panel, sin nombres
+    # en el link publico. Nunca en la demo de la landing (tambien es prueba, por eso lo decide esto y no el modo).
+    progress = ("names" if mode == CallMode.prueba and not req.from_landing and not req.campaign_contact_id
+                else "anonymous" if mode == CallMode.web else None)
+    if progress:
+        metadata["handoff_progress"] = progress
     return CallStarted(conversation_id=state.conversation_id, room=room, mode=mode), metadata
 
 

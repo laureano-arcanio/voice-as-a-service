@@ -605,3 +605,57 @@ def test_slow_finalize_does_not_add_seconds(api, admin, client, monkeypatch):  #
     call = h.call(inbound_id(api))
     assert call.status == CallStatus.finalizada and call.duration_seconds <= 1
     assert call.ended_at < cut["at"] + datetime.timedelta(seconds=30)
+
+
+# --- Progreso de la derivacion en pantalla (tema handoff_status) ----------------------------------
+
+class FakeData:
+    """direct.DataSender sin LiveKit: guarda (tema, datos, destinatarios)."""
+    sent: list = []
+
+    def __init__(self, room):
+        pass
+
+    def send(self, topic, data, to=None):
+        FakeData.sent.append((topic, data, to))
+
+
+def progress_call(api, agent, client, monkeypatch, metadata: dict, mode: CallMode = CallMode.prueba,
+                  attributes=None):
+    FakeData.sent = []
+    monkeypatch.setattr(worker.direct, "DataSender", FakeData)
+    if attributes is None:
+        metadata = {"conversation_id": seed_call(api, agent["id"], client["id"], mode), **metadata}
+    h = Harness(api, monkeypatch, script={"+5493511111111": "no_answer", "+5493512222222": "confirm"},
+                connected=[("dtmf", "PERSON", "2")])
+
+    async def during(h):
+        await h.session.agent.on_handoff("Ventas", False)
+        await h.session.agent.on_handoff("Ventas", False)
+
+    asyncio.run(h.run(metadata, attributes=attributes, during=during))
+    return FakeData.sent
+
+
+def test_progress_goes_to_the_customer_with_names_in_the_panel_test(api, agent, client, monkeypatch):
+    sent = progress_call(api, agent, client, monkeypatch, {"handoff_progress": "names"})
+    assert sent and {(topic, tuple(to)) for topic, _, to in sent} == {("handoff_status", (CUSTOMER,))}
+    finals = [data for _, data, _ in sent if data["state"] != "running"]
+    # Dos derivaciones en la misma llamada: cada una con su id y su final.
+    assert [(d["id"], d["state"]) for d in finals] == [(1, "connected"), (2, "connected")]
+    assert [leg["person"] for leg in finals[0]["legs"]] == ["Ana", "Juan"]
+
+
+def test_progress_is_anonymous_in_the_link(api, agent, client, monkeypatch):
+    sent = progress_call(api, agent, client, monkeypatch, {"call_link_id": "link", "handoff_progress": "anonymous"},
+                         mode=CallMode.web)
+    assert sent and all(leg["person"] is None for _, data, _ in sent for leg in data["legs"])
+
+
+@pytest.mark.parametrize("metadata", [{}, {"from_landing": True}, {"handoff_progress": "otra"}])
+def test_no_progress_without_the_flag(api, agent, client, monkeypatch, metadata):
+    assert progress_call(api, agent, client, monkeypatch, metadata) == []
+
+
+def test_no_progress_by_phone(api, agent, client, monkeypatch):
+    assert progress_call(api, agent, client, monkeypatch, {}, attributes=inbound_attributes()) == []

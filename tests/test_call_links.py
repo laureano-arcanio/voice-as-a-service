@@ -140,6 +140,7 @@ def test_start_call_is_web_and_uses_inbound_minutes(links):
     meta = links.dispatched[-1]
     assert meta["max_duration_seconds"] == 120 and meta["phone"] is None and meta["call_link_id"]
     assert meta["join_timeout_seconds"] == settings.call_link_join_timeout_seconds
+    assert meta["handoff_progress"] == "anonymous"   # el link es publico: progreso sin nombres
     with links.sessions() as s:
         row = s.query(CallRow).one()
         assert row.mode == CallMode.web and row.call_link_id == meta["call_link_id"]

@@ -357,10 +357,13 @@ def test_test_call_and_outbound_call(api, admin):
     number = admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+541100000001"}).json()
     test = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()
     assert test["mode"] == "prueba" and test["join_url"].endswith(test["room"])
+    # Progreso de la derivacion con nombres en la prueba del panel; por telefono, nada.
+    assert api.dispatched[-1]["handoff_progress"] == "names"
     out = admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "+54 9 11 5555-1234"}).json()
     assert out["mode"] == "saliente" and out["join_url"] is None
     meta = api.dispatched[-1]
     assert meta["phone"] == "+5491155551234" and meta["from_number"] == number["e164"]
+    assert "handoff_progress" not in meta
     assert admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "123"}).status_code == 422
     assert admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "voice": "nadie"}).status_code == 422
 

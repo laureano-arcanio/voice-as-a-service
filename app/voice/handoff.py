@@ -12,7 +12,8 @@ El agente llama a la herramienta transfer_call con el area (app/llm/platform_too
 6. Si nadie atiende o al volver, el agente retoma con el mensaje que corresponda.
 
 Sigue por las rutas del area: `after_hours_area_id` fuera de horario y `no_answer_area_id` si nadie acepto o no se
-puede llamar, con la musica sin cortar y el mensaje solo al final. Un area `delivery=whatsapp` no llama: avisa a una
+puede llamar, con la musica sin cortar y el mensaje solo al final; en lugar de `no_answer_area_id`, el area puede
+llamar despues de los miembros a la persona de `no_answer_member_id`. Un area `delivery=whatsapp` no llama: avisa a una
 persona, en una tarea propia, que termina aunque el cliente corte. Un area de llamada con `call_template` le manda
 ademas un WhatsApp a cada persona, sin demorar el marcado.
 
@@ -121,6 +122,7 @@ class _Step:
     values: dict
     members: list[TeamMember]
     reason: str | None
+    backup: TeamMember | None = None   # la persona de "Si nadie atiende", despues de los miembros
 
     @property
     def notice(self) -> bool:
@@ -141,7 +143,8 @@ class Transfer:
     def __init__(self, *, sessions, line: Line | None, conversation_id: str, client_id: str, areas: list[dict],
                  customer: str, caller: str = "", summary=None, on_message=None, hang_up=None,
                  hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
-                 on_connected=None, limit=None, get_vars=None, spawn_notice=None):
+                 on_connected=None, limit=None, get_vars=None, spawn_notice=None, on_progress=None,
+                 progress_names: bool = True, progress_id: int = 1):
         self.sessions = sessions
         self.line = line
         self.conversation_id = conversation_id
@@ -167,6 +170,21 @@ class Transfer:
         self._summary_task: asyncio.Task | None = None
         self._summary_shared = False         # lo espera un aviso: no se cancela al terminar la derivacion
         self._complemented: set[str] = set()   # a quienes ya les salio el WhatsApp de esta derivacion
+        # Progreso para la pantalla (tema handoff_status): on_progress(snapshot) en cada cambio; sin nombres si
+        # progress_names es False. Relojes del worker (monotonic), nunca la hora.
+        self.on_progress = on_progress
+        self.progress_names = progress_names
+        self.progress_id = progress_id
+        self._t0 = time.monotonic()
+        self._phase: str | None = "preparing"
+        self._phase_t = self._t0
+        self._pre: list[list] = []           # fases fuera de los intentos: preparing, announcing, notifying
+        self._reroutes: list[dict] = []
+        self._legs: list[dict] = []
+        self._leg: dict | None = None        # el intento en curso
+        self._area = ""
+        self._state, self._result, self._total = "running", None, None
+        self._abort = "error"
 
     # ---------- registro ----------
 
@@ -205,6 +223,71 @@ class Transfer:
         if self._open_leg is not None:
             self._update_leg(self._open_leg, ended_at=utcnow())
 
+    # ---------- progreso (docs/features/EQUIPO_TELEFONIA.md, "Progreso en pantalla") ----------
+
+    def progress(self) -> dict:
+        """El snapshot completo: sin telefonos ni ids. Las fases cerradas van en pre y legs; la en curso, en phase."""
+        now = time.monotonic()
+        legs = [{"n": leg["n"], "of": leg["of"], "area": leg["area"],
+                 "person": leg["person"] if self.progress_names else None, "no_answer": leg["no_answer"],
+                 "result": leg["result"], "phases": [[p, round(t, 1)] for p, t in leg["phases"]],
+                 "total": round((leg["end"] if leg["end"] is not None else now) - leg["start"], 1)}
+                for leg in self._legs]
+        return {"v": 1, "id": self.progress_id, "state": self._state, "result": self._result, "area": self._area,
+                "elapsed": round(now - self._t0, 1), "phase": self._phase,
+                "phase_elapsed": round(now - self._phase_t, 1) if self._phase else None,
+                "pre": [[p, round(t, 1)] for p, t in self._pre], "reroutes": list(self._reroutes), "legs": legs,
+                "total": self._total}
+
+    def _emit(self) -> None:
+        """Una falla de la pantalla no frena la derivacion."""
+        if self.on_progress is None:
+            return
+        try:
+            self.on_progress(self.progress())
+        except Exception:
+            logger.exception("derivacion %s: progreso", self.conversation_id)
+
+    def _phase_to(self, phase: str | None, emit: bool = True) -> None:
+        """Cierra la fase en curso (en el intento abierto o en pre) y abre otra."""
+        if self._state != "running":
+            return
+        now = time.monotonic()
+        if self._phase is not None:
+            (self._leg["phases"] if self._leg is not None else self._pre).append([self._phase, now - self._phase_t])
+        self._phase, self._phase_t = phase, now
+        if emit:
+            self._emit()
+
+    def _leg_start(self, area_name: str, member: TeamMember, position: tuple[int, int], no_answer: bool = False):
+        if self._state != "running":
+            return
+        self._phase_to(None, emit=False)
+        self._leg = {"n": position[0], "of": position[1], "area": area_name, "person": member.name,
+                     "no_answer": no_answer, "result": None, "phases": [], "start": time.monotonic(), "end": None}
+        self._legs.append(self._leg)
+        self._phase_to("dialing")
+
+    def _leg_end(self, result: str, emit: bool = True) -> None:
+        if self._leg is None or self._state != "running":
+            return
+        self._phase_to(None, emit=False)
+        self._leg["result"], self._leg["end"] = result, time.monotonic()
+        self._leg = None
+        if emit:
+            self._emit()
+
+    def _finish(self, state: str, result: str) -> None:
+        """El final: connected, failed o notified, con el total desde el inicio. Se emite una sola vez."""
+        if self._state != "running":
+            return
+        if self._leg is not None:
+            self._leg_end(result, emit=False)
+        self._phase_to(None, emit=False)
+        self._state, self._result = state, result
+        self._total = round(time.monotonic() - self._t0, 1)
+        self._emit()
+
     # ---------- flujo ----------
 
     def _variables(self) -> dict:
@@ -232,20 +315,33 @@ class Transfer:
                 reason = "unknown_area"
             elif not handoff.is_open(area.schedule):
                 reason = "after_hours"
-            members = []
+            members, backup = [], None
             if reason is None and area.delivery != "whatsapp":
                 members = handoff.candidates(s, area)
-                if not members:
+                backup = self._backup(s, area)
+                if not members and backup is None:
                     reason = "no_members"
                 if reason is None:
                     reason = quota.handoff_check(s, self.client_id)
-                if reason is None and self.attempt + len(members) > MAX_ATTEMPTS:
+                if reason is None and self.attempt + len(members) + (backup is not None) > MAX_ATTEMPTS:
                     reason = "too_many_attempts"
             if area is not None:
                 s.expunge(area)
-                for m in members:
+                for m in members + ([backup] if backup is not None else []):
                     s.expunge(m)
-        return _Step(area, texts, values, members, reason)
+        return _Step(area, texts, values, members, reason, backup)
+
+    def _backup(self, s, area: HandoffArea) -> TeamMember | None:
+        """La persona de "Si nadie atiende": del cliente, activa, con telefono y que no sea miembro del area (la API
+        lo valida; la base puede decir otra cosa). Si no sirve, vuelve el agente."""
+        if not area.no_answer_member_id:
+            return None
+        member = s.get(TeamMember, area.no_answer_member_id)
+        if (member is None or member.client_id != self.client_id or not member.active or not member.phone
+                or member.id in handoff.area_member_ids(s, area.id)):
+            logger.warning("derivacion %s: persona de si nadie atiende ignorada", self.conversation_id)
+            return None
+        return member
 
     def _route(self, area: HandoffArea | None, key: str, visited: set[str]) -> tuple[str, str, bool] | None:
         """El area siguiente: (id, nombre, si es de aviso), o None si no hay, ya paso por ella (un ciclo se corta aca)
@@ -273,6 +369,10 @@ class Transfer:
     def _rerouted(self, step: _Step, route: tuple[str, str, bool], reason: str) -> None:
         """Un pase a otra area de llamada no suma por esta en los reportes. A un area de aviso no es un pase: el
         pedido quedo sin atender y esta area lo cuenta."""
+        self._reroutes.append({"at": round(time.monotonic() - self._t0, 1), "from": step.values["area"],
+                               "to": route[1], "reason": reason})
+        self._area = route[1]
+        self._emit()
         if not route[2]:
             self._event("handoff.rerouted", area_id=step.area.id, actor="agent", area=step.values["area"],
                         to=route[1], reason=reason)
@@ -287,10 +387,13 @@ class Transfer:
         told = announced
         holding = False
         outcome = Outcome("failed")
+        self._area = name
+        self._emit()
         try:
             while True:
                 step = self._load(area_id, name)
                 area, texts, values = step.area, step.texts, step.values
+                self._area = values["area"]
                 if area is not None:
                     visited.add(area.id)
                 if step.reason is not None:
@@ -302,14 +405,18 @@ class Transfer:
                         area_id, name = route[0], route[1]
                         continue
                     self._unavailable(step, name)
+                    self._finish("failed", step.reason)
                     if holding:
                         await self._stop_hold(area.id if area else None)
                     await self._back(texts["after_hours" if step.reason == "after_hours" else "no_answer"], values)
                     outcome.status, outcome.result = "unavailable", step.reason
                     return outcome
                 if step.notice:
+                    self._phase_to("notifying")
                     notice = await self._until(asyncio.shield(self.spawn_notice(self._notify(area, values))))
+                    self._phase_to(None, emit=False)
                     if notice.ok:
+                        self._finish("notified", "notified")
                         if holding:
                             await self._stop_hold(area.id)
                         await self._back(texts["notified"], values | {"persona": self._member_name(notice.member_id)})
@@ -320,6 +427,7 @@ class Transfer:
                         self._rerouted(step, route, "no_answer")
                         area_id, name = route[0], route[1]
                         continue
+                    self._finish("failed", "no_answer")
                     if holding:
                         await self._stop_hold(area.id)
                     await self._back(texts["no_answer"], values)
@@ -330,30 +438,43 @@ class Transfer:
                             members=len(step.members))
                 if not told:
                     told = True
+                    self._phase_to("announcing")
                     await self._say(handoff.render(texts["transfer"], **values))
+                    self._phase_to(None, emit=False)
                 summary = self._shared_summary()
                 if self.hold_music and not holding:
                     holding = True
                     await self.line.hold(True)
                     self._event("hold.started", area_id=area.id)
-                for member in step.members:
-                    result, leg_id, identity = await self._attempt(area, member, texts, values, summary)
+                # Los miembros y al final la persona de "Si nadie atiende", que va en lugar de pasar a otra area (son
+                # excluyentes): si no acepta, vuelve el agente. No entra en el round robin.
+                people = [(m, False) for m in step.members] + ([(step.backup, True)] if step.backup else [])
+                for n, (member, backup) in enumerate(people, 1):
+                    result, leg_id, identity = await self._attempt(area, member, texts, values, summary,
+                                                                   position=(n, len(people)), no_answer=backup)
                     outcome.legs.append(leg_id)
                     outcome.result = result
                     if result == "confirmed":
+                        self._finish("connected", result)
                         await self._stop_hold(area.id)
                         outcome.status = "connected"
-                        outcome.ended = await self._connected(area, member, leg_id, identity, texts, values)
+                        outcome.ended = await self._connected(area, member, leg_id, identity, texts, values,
+                                                              rotate=not backup)
                         return outcome
-                route = self._route(area, "no_answer_area_id", visited)
+                route = None if step.backup else self._route(area, "no_answer_area_id", visited)
                 if route is not None:
                     self._rerouted(step, route, outcome.result)
                     area_id, name = route[0], route[1]
                     continue
+                self._finish("failed", outcome.result)
                 await self._stop_hold(area.id)
                 await self._back(texts["busy" if outcome.result == "busy" else "no_answer"], values)
                 return outcome
+        except CustomerGone:
+            self._abort = "customer_hung_up"
+            raise
         finally:
+            self._finish("failed", self._abort)
             if self._summary_task is not None and not self._summary_shared:
                 self._summary_task.cancel()
 
@@ -468,17 +589,31 @@ class Transfer:
             return FALLBACK_SUMMARY
 
     async def _attempt(self, area: HandoffArea | TeamRing, member: TeamMember, texts: dict, values: dict,
-                       summary: asyncio.Task) -> tuple[str, str, str]:
-        """Un miembro: (resultado, tramo, identidad). confirmed, no_answer, busy, failed, machine o not_confirmed."""
+                       summary: asyncio.Task, position: tuple[int, int] = (1, 1),
+                       no_answer: bool = False) -> tuple[str, str, str]:
+        """Un miembro: (resultado, tramo, identidad). confirmed, no_answer, busy, failed, machine o not_confirmed.
+        no_answer: es la persona de "Si nadie atiende"."""
+        self._leg_start(area.name, member, position, no_answer=no_answer)
+        try:
+            result, leg_id, identity = await self._dial_member(area, member, texts, values, summary, no_answer)
+        except CustomerGone:
+            self._leg_end("failed")
+            raise
+        self._leg_end(result)
+        return result, leg_id, identity
+
+    async def _dial_member(self, area: HandoffArea | TeamRing, member: TeamMember, texts: dict, values: dict,
+                           summary: asyncio.Task, no_answer: bool = False) -> tuple[str, str, str]:
         self.attempt += 1
         identity = f"{PERSON_PREFIX}{self.attempt}"
         leg_id = self._new_leg(area, member)
         ids = {"area_id": area.id, "member_id": member.id}
-        self._event("handoff.dialing", **ids, attempt=self.attempt, person=member.name)
+        self._event("handoff.dialing", **ids, attempt=self.attempt, person=member.name,
+                    **({"no_answer": True} if no_answer else {}))
         self._spawn_complement(area, member, values, summary)
         dial = asyncio.create_task(self.line.dial(identity, member.phone, area.ring_seconds))
         try:
-            res = await self._until(dial)
+            res = await self._until(dial, ringing=identity)
         except CustomerGone:
             await self.line.remove(identity)
             self._update_leg(leg_id, result="failed", ended_at=utcnow())
@@ -493,6 +628,7 @@ class Transfer:
             # Conectar al atender (run_team): atendido es la senal SIP; se transcribe desde ya.
             await self.line.listen(identity)
             return "confirmed", leg_id, identity
+        self._phase_to("summary")
         try:
             result = await self._confirm(identity, texts, values | {"persona": member.name}, summary)
         except CustomerGone:
@@ -505,9 +641,10 @@ class Transfer:
             self._event(f"handoff.{result}", **ids)
         return result, leg_id, identity
 
-    async def _until(self, task: asyncio.Task):
+    async def _until(self, task: asyncio.Task, ringing: str | None = None):
         """Espera la tarea; si mientras tanto corta el cliente, la cancela y levanta CustomerGone. Los demas
-        eventos se descartan (antes de atender no hay DTMF ni voz que importe)."""
+        eventos se descartan (antes de atender no hay DTMF ni voz que importe), salvo la entrada de `ringing` a la
+        room: empieza a sonar (la persona SIP entra al timbrar)."""
         while True:
             get = asyncio.create_task(self.line.events.get())
             done, _ = await asyncio.wait({task, get}, return_when=asyncio.FIRST_COMPLETED)
@@ -516,6 +653,8 @@ class Transfer:
                 if ev[0] == "left" and ev[1] == self.customer:
                     task.cancel()
                     raise CustomerGone()
+                if ringing is not None and ev[0] == "joined" and ev[1] == ringing and self._phase == "dialing":
+                    self._phase_to("ringing")
             else:
                 get.cancel()
             if task in done:
@@ -527,7 +666,15 @@ class Transfer:
         machine = asyncio.create_task(self.line.first_words(identity, MACHINE_WINDOW_SECONDS))
         await self.line.listen(identity)
         text = handoff.render(texts["whisper"], **(values | {"resumen": await summary}))
+        self._phase_to("whisper")
         whisper = asyncio.create_task(self.line.whisper(identity, text))
+        waiting = [True]   # al terminar el susurro empieza la espera del 1, si no se decidio antes
+
+        def whispered(task: asyncio.Task) -> None:
+            if waiting[0] and not task.cancelled() and self._phase == "whisper":
+                self._phase_to("waiting_digit")
+
+        whisper.add_done_callback(whispered)
         deadline: float | None = None
         checked = False
         try:
@@ -559,20 +706,22 @@ class Transfer:
                 if kind == "text" and detector.feed(ev[2], True):
                     return "machine"
         finally:
+            waiting[0] = False
             machine.cancel()
             if not whisper.done():
                 await self.line.stop_whisper()
                 whisper.cancel()
 
     async def _connected(self, area: HandoffArea | TeamRing, member: TeamMember, leg_id: str, identity: str,
-                         texts: dict, values: dict) -> str:
-        """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino."""
+                         texts: dict, values: dict, rotate: bool = True) -> str:
+        """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino. rotate: anota a la persona como
+        la ultima del round robin (la de "Si nadie atiende" no entra en la rueda)."""
         ids = {"area_id": area.id, "member_id": member.id}
         auto = texts["whisper"] is None     # conectar al atender: nadie marco 1
         self._event("handoff.confirmed", **ids, actor="person", **({"auto": True} if auto else {}))
         await self.line.connect(identity)
         self._update_leg(leg_id, result="connected", connected_at=utcnow())
-        if area.id is not None:
+        if area.id is not None and rotate:
             with self.sessions() as s:
                 if (row := s.get(HandoffArea, area.id)) is not None:
                     row.last_member_id = member.id

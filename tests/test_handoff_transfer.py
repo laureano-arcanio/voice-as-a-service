@@ -812,3 +812,325 @@ def test_person_leg_is_billed_from_answer_rounded_up_like_anura(api, admin):
         s.commit()
         assert quota.handoff_seconds(s, c["id"], start, end, now) == 2 * 60 + 60 + 60
         assert quota.handoff_seconds(s, c["id"], start, end, now, running_exact=True) == 2 * 60 + 60 + 5
+
+
+# ---------- progreso en pantalla (tema handoff_status) ----------
+
+class TimedLine(FakeLine):
+    """FakeLine con tiempos: el aviso tarda, la persona entra a la room al timbrar (`joined`, salvo en
+    `no_join`) y suena un rato antes del resultado."""
+
+    def __init__(self, script, connected=(), no_join=()):
+        super().__init__(script, connected)
+        self.no_join = set(no_join)
+
+    async def say(self, text, interruptible=False):
+        await asyncio.sleep(0.05)
+        await super().say(text, interruptible)
+
+    async def dial(self, identity, phone, ring_seconds):
+        await asyncio.sleep(0.05)
+        if phone not in self.no_join:
+            self.events.put_nowait(("joined", identity))
+            self.events.put_nowait(("joined", "otra-persona"))   # la de otro no cambia la fase
+        await asyncio.sleep(0.1)
+        return await super().dial(identity, phone, ring_seconds)
+
+    async def whisper(self, identity, text):
+        await asyncio.sleep(0.05)
+        self.log.append(("whisper", text))
+        if self.script[self.identity_of[identity]] == "confirm":   # marca 1 al rato de terminar el susurro
+            asyncio.get_running_loop().call_later(0.05, self.events.put_nowait, ("dtmf", identity, "1"))
+
+
+def phases(rows) -> list[str]:
+    return [p for p, _ in rows]
+
+
+def check_final(snaps: list[dict]) -> dict:
+    """Uno solo final, el ultimo; todos con el formato v1 y la suma de fases cerca del total."""
+    assert snaps and all(s["v"] == 1 and s["id"] == 1 for s in snaps)
+    assert [s["state"] for s in snaps[:-1]] == ["running"] * (len(snaps) - 1)
+    final = snaps[-1]
+    assert final["state"] != "running" and final["phase"] is None and final["total"] is not None
+    summed = sum(t for _, t in final["pre"]) + sum(leg["total"] for leg in final["legs"])
+    assert abs(summed - final["total"]) < 0.3, (summed, final)
+    for leg in final["legs"]:
+        assert abs(sum(t for _, t in leg["phases"]) - leg["total"]) < 0.2, leg
+    return final
+
+
+def test_progress_of_an_attempt_that_answers_and_presses_1(api, admin):
+    c, conv, areas = setup_call(api, admin)
+    line = TimedLine({ANA: "no_answer", JUAN: "confirm"}, connected=[("dtmf", "PERSON", "2")], no_join={ANA})
+    snaps: list[dict] = []
+    outcome, _ = run(api, conv, c, areas, line, on_progress=snaps.append)
+    assert outcome.status == "connected"
+    first = snaps[0]
+    assert (first["state"], first["phase"], first["area"], first["legs"]) == ("running", "preparing", "Ventas", [])
+    # Mientras suena Juan: la fase en curso es ringing y el intento de Ana ya tiene su resultado.
+    ringing = next(s for s in snaps if s["phase"] == "ringing")
+    assert [leg["result"] for leg in ringing["legs"]] == ["no_answer", None]
+    [[name, seconds]] = ringing["legs"][1]["phases"]
+    assert name == "dialing" and seconds >= 0.04
+    final = check_final(snaps)
+    assert (final["state"], final["result"]) == ("connected", "confirmed")
+    assert phases(final["pre"]) == ["preparing", "announcing"] and final["pre"][1][1] >= 0.04
+    ana, juan = final["legs"]
+    # Sin joined, todo el intento queda en dialing.
+    assert (ana["n"], ana["of"], ana["person"], ana["result"], phases(ana["phases"])) == (
+        1, 2, "Ana", "no_answer", ["dialing"])
+    assert (juan["n"], juan["of"], juan["person"], juan["result"]) == (2, 2, "Juan", "confirmed")
+    assert phases(juan["phases"]) == ["dialing", "ringing", "summary", "whisper", "waiting_digit"]
+    assert juan["no_answer"] is False and final["reroutes"] == []
+
+
+def test_progress_of_no_answer_with_ringing_and_machine(api, admin):
+    c, conv, areas = setup_call(api, admin)
+    line = TimedLine({ANA: "no_answer", JUAN: "machine"})
+    snaps: list[dict] = []
+    outcome, _ = run(api, conv, c, areas, line, on_progress=snaps.append)
+    final = check_final(snaps)
+    assert (final["state"], final["result"]) == ("failed", "machine")
+    ana, juan = final["legs"]
+    assert phases(ana["phases"]) == ["dialing", "ringing"] and ana["result"] == "no_answer"
+    assert juan["result"] == "machine" and phases(juan["phases"])[:3] == ["dialing", "ringing", "summary"]
+
+
+def test_progress_is_anonymous_and_never_has_phones_or_ids(api, admin):
+    import json
+
+    c, conv, areas = setup_call(api, admin)
+    line = TimedLine({ANA: "busy", JUAN: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    snaps: list[dict] = []
+    run(api, conv, c, areas, line, on_progress=snaps.append, progress_names=False)
+    final = check_final(snaps)
+    assert [leg["person"] for leg in final["legs"]] == [None, None]
+    with api.sessions() as s:
+        secrets = [m.id for m in s.scalars(select(TeamMember))] + [areas[0]["id"], conv, c["id"], ANA, JUAN,
+                                                                    "3511111111", "Ana", "Juan"]
+    payload = json.dumps(snaps)
+    assert not [x for x in secrets if x in payload]
+
+
+def test_progress_reroute_and_notice(chain):
+    aviso = chain.notice("Aviso final")
+    guardia = chain.area("Guardia", ("Juan",), no_answer_area_id=aviso)
+    chain.area("Entrada", no_answer_area_id=guardia)
+    snaps: list[dict] = []
+    outcome, _ = chain.run(TimedLine({ANA: "no_answer", JUAN: "busy"}), "Entrada", on_progress=snaps.append)
+    assert outcome.status == "notified"
+    final = check_final(snaps)
+    assert (final["state"], final["result"], final["area"]) == ("notified", "notified", "Aviso final")
+    assert [(r["from"], r["to"], r["reason"]) for r in final["reroutes"]] == [
+        ("Entrada", "Guardia", "no_answer"), ("Guardia", "Aviso final", "busy")]
+    assert [(leg["area"], leg["person"], leg["n"], leg["of"]) for leg in final["legs"]] == [
+        ("Entrada", "Ana", 1, 1), ("Guardia", "Juan", 1, 1)]
+    assert phases(final["pre"]) == ["preparing", "announcing", "notifying"]
+    assert final["reroutes"][0]["at"] <= final["reroutes"][1]["at"] <= final["total"]
+
+
+def test_progress_when_not_attempted(chain):
+    chain.area("Entrada", schedule=CLOSED)
+    snaps: list[dict] = []
+    chain.run(FakeLine({}), "Entrada", on_progress=snaps.append)
+    final = check_final(snaps)
+    assert (final["state"], final["result"], final["legs"]) == ("failed", "after_hours", [])
+    assert phases(final["pre"]) == ["preparing"]
+
+
+def test_progress_callback_that_fails_does_not_stop_the_transfer(api, admin):
+    c, conv, areas = setup_call(api, admin)
+    calls: list[int] = []
+
+    def broken(snapshot):
+        calls.append(1)
+        raise RuntimeError("publish_data")
+
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = run(api, conv, c, areas, line, on_progress=broken)
+    assert outcome.status == "connected" and len(calls) > 3
+
+
+def test_progress_ends_failed_when_the_customer_hangs_up(api, admin):
+    c, conv, areas = setup_call(api, admin)
+
+    class Ringing(FakeLine):
+        async def dial(self, identity, phone, ring_seconds):
+            self.events.put_nowait(("joined", identity))
+            await asyncio.sleep(0.05)
+            self.events.put_nowait(("left", CUSTOMER))
+            await asyncio.sleep(10)
+
+    snaps: list[dict] = []
+    with pytest.raises(transfer.CustomerGone):
+        run(api, conv, c, areas, Ringing({}), on_progress=snaps.append)
+    final = check_final(snaps)
+    assert (final["state"], final["result"]) == ("failed", "customer_hung_up")
+    assert final["legs"][0]["result"] == "failed" and phases(final["legs"][0]["phases"]) == ["dialing", "ringing"]
+
+
+def test_team_ring_and_no_callback_do_not_publish(api, admin):
+    """run_team (entrante al equipo) no tiene pantalla: sin on_progress no hay nada que emitir ni falla."""
+    c, conv, areas = setup_call(api, admin)
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = run(api, conv, c, areas, line)
+    assert outcome.status == "connected"
+
+
+# ---------- la persona de "Si nadie atiende" (no_answer_member_id) ----------
+
+LUCIA = "+5493513333333"
+
+
+def backup_person(chain, phone="3513333333", name="Lucía", client=None) -> str:
+    r = chain.admin.post(f"{V1}/team", params={"client_id": (client or chain.client)["id"]},
+                         json={"name": name, "phone": phone})
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def legs(chain) -> list[HandoffLeg]:
+    with chain.api.sessions() as s:
+        return list(s.scalars(select(HandoffLeg).order_by(HandoffLeg.created_at)))
+
+
+def test_nobody_accepts_then_the_no_answer_person_connects(chain):
+    lucia = backup_person(chain)
+    area = chain.area("Ventas", ("Ana", "Juan"), strategy="round_robin", no_answer_member_id=lucia)
+    line = FakeLine({ANA: "no_answer", JUAN: "silent", LUCIA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    snaps: list[dict] = []
+    outcome, _ = chain.run(line, "Ventas", on_progress=snaps.append)
+    assert (outcome.status, outcome.ended) == ("connected", "returned_to_ai")
+    assert dials(line) == [ANA, JUAN, LUCIA] and ("connect", "persona-3") in line.log
+    assert [x for x in line.log if x[0] == "hold"] == [("hold", True), ("hold", False)]
+    # handoff.dialing marca el intento; los demas eventos, iguales a los de un miembro.
+    dialing = chain.events("handoff.dialing")
+    assert [e.data.get("no_answer") for e in dialing] == [None, None, True]
+    assert dialing[2].team_member_id == lucia and "handoff.rerouted" not in chain.types()
+    assert [leg.result for leg in legs(chain)] == ["no_answer", "not_confirmed", "connected"]
+    final = check_final(snaps)
+    assert [(leg["n"], leg["of"], leg["person"], leg["no_answer"]) for leg in final["legs"]] == [
+        (1, 3, "Ana", False), (2, 3, "Juan", False), (3, 3, "Lucía", True)]
+    assert (final["state"], final["result"]) == ("connected", "confirmed")
+    # Round robin: la persona de "Si nadie atiende" no entra en la rueda.
+    with chain.api.sessions() as s:
+        assert s.get(HandoffArea, area).last_member_id is None
+
+
+@pytest.mark.parametrize("what", ["no_answer", "busy", "silent", "hangup", "machine"])
+def test_no_answer_person_who_does_not_accept_brings_back_the_agent(chain, what):
+    chain.area("Ventas", ("Ana",), no_answer_member_id=backup_person(chain))
+    line = FakeLine({ANA: "no_answer", LUCIA: what})
+    outcome, _ = chain.run(line, "Ventas")
+    assert outcome.status == "failed" and dials(line) == [ANA, LUCIA]
+    key = "busy" if what == "busy" else "no_answer"
+    assert says(line)[-1] == handoff.render(handoff.DEFAULT_MESSAGES[key], area="Ventas")
+    assert ("resume",) in line.log and len(legs(chain)) == 2
+
+
+def test_area_without_callable_members_calls_the_no_answer_person(chain):
+    chain.area("Ventas", (), no_answer_member_id=backup_person(chain))
+    snaps: list[dict] = []
+    outcome, _ = chain.run(FakeLine({LUCIA: "confirm"}, connected=[("dtmf", "PERSON", "2")]), "Ventas",
+                           on_progress=snaps.append, progress_names=False)
+    assert outcome.status == "connected"
+    assert "handoff.unavailable" not in chain.types()
+    [leg] = check_final(snaps)["legs"]
+    assert (leg["n"], leg["of"], leg["person"], leg["no_answer"]) == (1, 1, None, True)
+
+
+@pytest.mark.parametrize("change", [{"active": False}, {"phone": None}, "deleted", "member"])
+def test_unusable_no_answer_person_brings_back_the_agent(chain, change):
+    """Inactiva, sin telefono, borrada o (si la base lo dice) miembro del area: no se la llama."""
+    lucia = backup_person(chain)
+    area = chain.area("Ventas", ("Ana",), no_answer_member_id=lucia)
+    if change == "deleted":
+        assert chain.admin.delete(f"{V1}/team/{lucia}").status_code == 204
+    elif change == "member":
+        with chain.api.sessions() as s:
+            s.get(HandoffArea, area).no_answer_member_id = chain.ids["Ana"]
+            s.commit()
+    else:
+        with chain.api.sessions() as s:
+            m = s.get(TeamMember, lucia)
+            for k, v in change.items():
+                setattr(m, k, v)
+            s.commit()
+    line = FakeLine({ANA: "no_answer", LUCIA: "confirm"})
+    outcome, _ = chain.run(line, "Ventas")
+    assert outcome.status == "failed" and dials(line) == [ANA]
+    assert says(line)[-1] == handoff.render(handoff.DEFAULT_MESSAGES["no_answer"], area="Ventas")
+
+
+def test_unusable_no_answer_person_in_an_area_without_members_is_no_members(chain):
+    lucia = backup_person(chain)
+    chain.area("Ventas", (), no_answer_member_id=lucia)
+    with chain.api.sessions() as s:
+        s.get(TeamMember, lucia).active = False
+        s.commit()
+    outcome, _ = chain.run(FakeLine({}), "Ventas")
+    assert (outcome.status, outcome.result) == ("unavailable", "no_members")
+
+
+def test_no_answer_person_of_another_client_in_the_database_is_ignored(chain):
+    other = make_client(chain.admin, slug="otro")
+    foreign = backup_person(chain, phone="3513333333", client=other)
+    area = chain.area("Ventas", ("Ana",))
+    with chain.api.sessions() as s:
+        s.get(HandoffArea, area).no_answer_member_id = foreign
+        s.commit()
+    line = FakeLine({ANA: "no_answer", LUCIA: "confirm"})
+    assert chain.run(line, "Ventas")[0].status == "failed" and dials(line) == [ANA]
+
+
+def test_no_answer_person_is_not_called_after_hours_nor_without_minutes_or_channel(chain, monkeypatch):
+    chain.area("Ventas", ("Ana",), schedule=CLOSED, no_answer_member_id=backup_person(chain))
+    line = FakeLine({LUCIA: "confirm"})
+    outcome, _ = chain.run(line, "Ventas")
+    assert (outcome.status, outcome.result) == ("unavailable", "after_hours") and dials(line) == []
+
+    chain.admin.patch(f"{V1}/handoff-areas/{chain.areas[0]['id']}", json={"schedule": None})
+    monkeypatch.setattr(quota.settings, "anura_channels", 1)   # la entrante en curso ocupa el unico canal
+    line = FakeLine({LUCIA: "confirm"})
+    outcome, _ = chain.run(line, "Ventas")
+    assert (outcome.status, outcome.result) == ("unavailable", "no_channel") and dials(line) == []
+
+
+def test_after_hours_route_uses_the_no_answer_person_of_the_next_area(chain):
+    guardia = chain.area("Guardia", ("Juan",), no_answer_member_id=backup_person(chain))
+    chain.area("Entrada", schedule=CLOSED, after_hours_area_id=guardia)
+    line = FakeLine({JUAN: "no_answer", LUCIA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Entrada")[0].status == "connected" and dials(line) == [JUAN, LUCIA]
+
+
+def test_no_answer_person_counts_in_max_attempts(chain, monkeypatch):
+    chain.area("Ventas", ("Ana", "Juan"), no_answer_member_id=backup_person(chain))
+    monkeypatch.setattr(transfer, "MAX_ATTEMPTS", 2)
+    line = FakeLine({})
+    outcome, _ = chain.run(line, "Ventas")
+    assert outcome.result == "too_many_attempts" and dials(line) == []
+
+
+def test_no_answer_person_leg_is_billed_from_answer(chain):
+    """Su tramo es uno mas: Anura cobra desde que atiende, acepte o no."""
+    chain.area("Ventas", ("Ana",), no_answer_member_id=backup_person(chain))
+
+    class Slow(FakeLine):
+        async def whisper(self, identity, text):
+            await asyncio.sleep(1.1)
+            await super().whisper(identity, text)
+
+    chain.run(Slow({ANA: "no_answer", LUCIA: "silent"}), "Ventas")
+    ana, lucia = legs(chain)
+    assert (ana.billed_seconds, ana.answered_at) == (0, None)
+    assert lucia.result == "not_confirmed" and lucia.answered_at is not None and lucia.billed_seconds >= 2
+    assert lucia.billed_seconds == quota.elapsed_seconds((lucia.ended_at - lucia.answered_at).total_seconds())
+
+
+def test_with_no_answer_area_everything_stays_the_same(chain):
+    guardia = chain.area("Guardia", ("Juan",))
+    chain.area("Entrada", ("Ana",), no_answer_area_id=guardia)
+    line = FakeLine({ANA: "no_answer", JUAN: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Entrada")[0].status == "connected" and dials(line) == [ANA, JUAN]
+    assert [e.data.get("no_answer") for e in chain.events("handoff.dialing")] == [None, None]

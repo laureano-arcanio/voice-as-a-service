@@ -12,7 +12,12 @@ pista propia. Casos:
    `handoff.rerouted`, el whisper con las variables del pre-call solo a la persona y el post-call armado al conectar.
 4. Cadena que termina sin conectar: el post-call no se arma y el cliente oye solo el aviso inicial y el mensaje final.
 5. Rutas en ciclo: se corta al volver a un area ya visitada.
+6. Progreso (tema handoff_status): la persona entra a la room al timbrar y el intento marca `ringing` antes de
+   atender; el snapshot final dice conectada, con las fases de cada intento y sin telefonos.
+7. "Si nadie atiende" con una persona (`no_answer_member_id`): dos miembros que no atienden y la persona, que marca 1
+   (conectada, intento con `no_answer` en el progreso, sin pase de area) o que corta (vuelve el agente).
 """
+import json
 import asyncio
 import contextlib
 import os
@@ -156,6 +161,14 @@ def setup_db():
         a = make_area("Ciclo A", ["+5493510000003"])
         b = make_area("Ciclo B", ["+5493510000003"], no_answer_area_id=a.id)
         a.no_answer_area_id = b.id
+        # Progreso: no atiende (suena) y despues suena 3 s, atiende y marca 1.
+        make_area("Timbre", ["+5493510000003", "+5493510000010"])
+        # "Si nadie atiende" con una persona: dos que no atienden y despues ella (marca 1, o corta).
+        for name, phone in (("Respaldo", "+5493510000001"), ("Respaldo corta", "+5493510000007")):
+            backup = TeamMember(client_id=client.id, name=f"{name} guardia", phone=phone)
+            s.add(backup)
+            s.flush()
+            make_area(name, ["+5493510000003", "+5493510000003"], no_answer_member_id=backup.id)
         s.commit()
         return sessions, client.id, areas
 
@@ -305,6 +318,51 @@ async def main() -> int:
     ok = outcome.status == "failed" and len(legs) == 2 and probe["holds"] == [True, False] and \
         sum(1 for t, _ in probe["events"] if t == "handoff.rerouted") == 1 and "cliente" in live
     smoke.check("cadena: el ciclo se corta", ok, f"{outcome.status} en {secs} s; tramos {legs}; dijo {said}")
+
+    # 6. Progreso: cada cambio de fase sale en un snapshot; sonando antes de atender, con la persona real.
+    snaps: list[dict] = []
+    outcome, legs, types, live, said, secs = await case(lk, trunk_id, sessions, client_id, areas, "Timbre", "c6",
+                                                        on_progress=snaps.append)
+    final = snaps[-1] if snaps else {}
+    steps = [(s["phase"], len(s["legs"])) for s in snaps if s["phase"]]
+    first, second = (final.get("legs") or [{}, {}])[:2]
+    names = lambda leg: [p for p, _ in leg.get("phases", [])]
+    ringing = dict(second.get("phases", [])).get("ringing", 0)
+    payload = json.dumps(snaps)
+    ok = outcome.status == "connected" and final.get("state") == "connected" and \
+        [s["state"] for s in snaps[:-1]] == ["running"] * (len(snaps) - 1) and \
+        names(first) == ["dialing", "ringing"] and first.get("result") == "no_answer" and \
+        names(second)[:3] == ["dialing", "ringing", "summary"] and "whisper" in names(second) and \
+        second.get("result") == "confirmed" and ringing >= 2 and \
+        steps.index(("ringing", 2)) < steps.index(("summary", 2)) and \
+        "+549351" not in payload and "3510000" not in payload
+    smoke.check("progreso: sonando antes de atender y final conectada", ok,
+                f"{outcome.status} en {secs} s; fases {steps}; final {final}")
+
+    # 7. La persona de "Si nadie atiende": despues de los dos miembros, en lugar de pasar a otra area.
+    snaps = []
+    probe: dict = {}
+    outcome, legs, types, live, said, secs = await case(lk, trunk_id, sessions, client_id, areas, "Respaldo", "c7",
+                                                        probe=probe, on_progress=snaps.append)
+    final = snaps[-1] if snaps else {}
+    marks = [(leg["n"], leg["of"], leg["person"], leg["no_answer"], leg["result"]) for leg in final.get("legs", [])]
+    dialing = [d.get("no_answer") for t, d in probe["events"] if t == "handoff.dialing"]
+    ok = (outcome.status, outcome.ended) == ("connected", "returned_to_ai") and \
+        [r[0] for r in legs] == ["no_answer", "no_answer", "connected"] and legs[2][2] and \
+        marks == [(1, 3, "Respaldo 1", False, "no_answer"), (2, 3, "Respaldo 2", False, "no_answer"),
+                  (3, 3, "Respaldo guardia", True, "confirmed")] and dialing == [None, None, True] and \
+        "handoff.rerouted" not in types and probe["holds"] == [True, False] and "cliente" in live and \
+        said[-1] == "¿Te puedo ayudar con algo más?"
+    smoke.check("si nadie atiende: la persona marca 1", ok,
+                f"{outcome.status}/{outcome.ended} en {secs} s; tramos {legs}; intentos {marks}; dijo {said}")
+
+    outcome, legs, types, live, said, secs = await case(lk, trunk_id, sessions, client_id, areas, "Respaldo corta",
+                                                        "c8")
+    ok = outcome.status == "failed" and [r[0] for r in legs] == ["no_answer", "no_answer", "not_confirmed"] and \
+        "cliente" in live and not any(x.startswith(transfer.PERSON_PREFIX) for x in live) and \
+        said[-1].startswith("No pude comunicarte")
+    smoke.check("si nadie atiende: la persona corta y vuelve el agente", ok,
+                f"{outcome.status}/{outcome.result} en {secs} s; tramos {legs}; en la room {sorted(live)}; dijo {said}")
     await lk.aclose()
 
     failed = [n for n, ok, _ in smoke.RESULTS if not ok]

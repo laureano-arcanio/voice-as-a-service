@@ -358,6 +358,7 @@ def test_loadtest_only_admin_or_internal_client(api, admin):
     r = api.client.post(f"{V1}/calls", json={"agent_id": agent_i["id"], "loadtest": True},
                         headers={"Authorization": f"Bearer {key}"})
     assert r.status_code == 201 and api.dispatched[-1]["loadtest"] is True
+    assert "handoff_progress" not in api.dispatched[-1]
 
 
 def test_dispatch_error_is_not_leaked(api, admin, monkeypatch):

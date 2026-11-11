@@ -698,22 +698,23 @@ def _left_reason(p) -> str:
     return ""
 
 
-class _DataSender:
-    """publish_data al panel sin esperar (los callbacks de la conversacion son sincronicos)."""
+class DataSender:
+    """publish_data al panel sin esperar (los callbacks de la conversacion son sincronicos). `to`: solo a esas
+    identidades (el progreso de la derivacion va al cliente, no a la persona: app/voice/worker.py)."""
 
     def __init__(self, room: rtc.Room):
         self.room = room
         self.tasks: set[asyncio.Task] = set()
 
-    def send(self, topic: str, data: dict) -> None:
-        task = asyncio.create_task(self._send(topic, data))
+    def send(self, topic: str, data: dict, to: list[str] | None = None) -> None:
+        task = asyncio.create_task(self._send(topic, data, to or []))
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
 
-    async def _send(self, topic: str, data: dict) -> None:
+    async def _send(self, topic: str, data: dict, to: list[str]) -> None:
         try:
             await self.room.local_participant.publish_data(json.dumps(data, ensure_ascii=False), reliable=True,
-                                                           topic=topic)
+                                                           destination_identities=to, topic=topic)
         except Exception:
             logger.exception("publish_data %s", topic)
 
@@ -731,7 +732,7 @@ class OutboundRoom:
         self.events: asyncio.Queue = asyncio.Queue()
         self.listener = Listener(voice.vad, voice.stt,
                                  lambda who, text, pcm: self.events.put_nowait(("text", who, text, pcm)))
-        self.data = _DataSender(self.room)
+        self.data = DataSender(self.room)
         self.send = self.data.send
 
     async def start(self) -> None:
@@ -816,7 +817,7 @@ class TeamRoom(transfer.RoomLine):
                          hold_music=SimpleNamespace(track="default", volume=0.3),
                          max_call_seconds=settings.call_max_duration_seconds)
         self.voice_name = voice_name
-        self.data = _DataSender(self.room)
+        self.data = DataSender(self.room)
         self.send = self.data.send
         self.blocked: set[str] = set()
         self._kicks: set[asyncio.Task] = set()

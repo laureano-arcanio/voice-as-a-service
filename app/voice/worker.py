@@ -560,7 +560,11 @@ async def entrypoint(ctx: JobContext):
     end = direct.CallEnd()   # hora del corte: lo que tarda finalize (avisos, extraccion) no suma segundos
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
     # Derivacion en curso, su lado de LiveKit y los avisos por WhatsApp, que siguen aunque el cliente corte.
-    current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": []}
+    current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": [], "handoffs": 0}
+    # Progreso de la derivacion en la pantalla (tema handoff_status): solo si prepare_call lo pidio (prueba del
+    # panel con nombres, link sin nombres); nunca por telefono ni en la demo (docs/features/EQUIPO_TELEFONIA.md).
+    progress_mode = metadata.get("handoff_progress")
+    progress_data = direct.DataSender(ctx.room) if progress_mode in ("names", "anonymous") else None
 
     async def wait_notices() -> None:
         """Hasta NOTICE_WAIT_SECONDS, tambien por los que aparezcan mientras tanto. Es de mejor esfuerzo."""
@@ -735,12 +739,16 @@ async def entrypoint(ctx: JobContext):
                     caller_id=company_number(), hold_music=handoff_cfg.hold_music,
                     max_call_seconds=settings.call_max_duration_seconds)
             line = current["line"]
+            current["handoffs"] += 1
+            on_progress = ((lambda snap: progress_data.send("handoff_status", snap, to=[customer]))
+                           if progress_data is not None else None)
             tr = current["transfer"] = transfer.Transfer(
                 sessions=sessions, line=line, conversation_id=conversation_id, client_id=state.client_id,
                 areas=areas, customer=customer, caller=caller_number, summary=handoff_summary,
                 on_message=add_message, hang_up=hang_up, hold_music=handoff_cfg.hold_music.enabled,
                 first_attempt=current["attempts"], get_vars=tool_vars, spawn_notice=spawn_notice,
-                on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow))
+                on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow),
+                on_progress=on_progress, progress_names=progress_mode == "names", progress_id=current["handoffs"])
             await line.start()
             outcome = await tr.run(area_name, announced=announced)
             logger.info("llamada %s: derivacion a %r %s (%s)", conversation_id, area_name, outcome.status,
