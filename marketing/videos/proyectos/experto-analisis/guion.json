@@ -1,0 +1,57 @@
+{
+  "nota": "v2 (sobre v1): formato de goldman-analisis v3 y baicenter-analisis, con intro y cierre en blanco (VIDEOS.md, desde el 30-oct-2026). paula a 1x; gonzalo en dos líneas a destacar: la reseña de un cliente (a3, v2: reemplaza la cita de los dueños) y el panel (a6). Ortografía normal, sin grafías forzadas; números en palabras; 0800 se dice 'cero ochocientos'; pausas con puntuación. Dónde podríamos mejorar en cuatro líneas (a4a a a4d), una por tarjeta, con un respiro entre cada una. Ninguna línea termina en una palabra corta.",
+  "musica_segundos": 68,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "Cada consulta atendida en el momento, y lista para su asesor."
+    },
+    {
+      "id": "a2",
+      "voz": "paula",
+      "texto": "En Experto, ya hicieron lo difícil. Veintidós años, cuatro locales, y un asesoramiento que sus clientes recomiendan."
+    },
+    {
+      "id": "a3",
+      "voz": "gonzalo",
+      "texto": "Lo dicen sus clientes: gran asesoramiento, para quienes justamente no somos expertos."
+    },
+    {
+      "id": "a4a",
+      "voz": "paula",
+      "texto": "Dónde podríamos mejorar. Hoy atienden cuarenta y cinco de las ciento sesenta y ocho horas de la semana."
+    },
+    {
+      "id": "a4b",
+      "voz": "paula",
+      "texto": "Muchos canales, y todo termina en un asesor."
+    },
+    {
+      "id": "a4c",
+      "voz": "paula",
+      "texto": "Cada cotización se arma a mano."
+    },
+    {
+      "id": "a4d",
+      "voz": "paula",
+      "texto": "Y los reclamos van por mail, y esperan a que alguien los retome."
+    },
+    {
+      "id": "a5",
+      "voz": "paula",
+      "texto": "Proponemos un agente que atiende su WhatsApp, el cero ochocientos y la web, a toda hora. Responde las preguntas frecuentes, pasa los reclamos a posventa, y cada cotización, completa, al asesor de su sucursal."
+    },
+    {
+      "id": "a6",
+      "voz": "gonzalo",
+      "texto": "Y en el panel, ven quién tomó cada cotización, y cuánto tardó."
+    },
+    {
+      "id": "a7",
+      "voz": "paula",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}

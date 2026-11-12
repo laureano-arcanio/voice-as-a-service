@@ -22,6 +22,8 @@ import { TOTAL as ZENNONBI_ANALISIS_TOTAL } from "../proyectos/zennonbi-analisis
 import { ZennonbiAnalisisVideo } from "../proyectos/zennonbi-analisis/src/Video";
 import { TOTAL as SIMTECUIDA_ANALISIS_TOTAL } from "../proyectos/simtecuida-analisis/src/timeline";
 import { SimtecuidaAnalisisVideo } from "../proyectos/simtecuida-analisis/src/Video";
+import { TOTAL as EXPERTO_ANALISIS_TOTAL } from "../proyectos/experto-analisis/src/timeline";
+import { ExpertoAnalisisVideo } from "../proyectos/experto-analisis/src/Video";
 import { TOTAL as LAESTRELLA_PROPUESTA_TOTAL } from "../proyectos/laestrella-propuesta/src/timeline";
 import { LaestrellaPropuestaVideo } from "../proyectos/laestrella-propuesta/src/Video";
 import { TOTAL as PRIMEROS_PASOS_TOTAL } from "../proyectos/primeros-pasos/src/timeline";
@@ -66,6 +68,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="axiomait-analisis" component={AxiomaitAnalisisVideo} durationInFrames={f(AXIOMAIT_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="zennonbi-analisis" component={ZennonbiAnalisisVideo} durationInFrames={f(ZENNONBI_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="simtecuida-analisis" component={SimtecuidaAnalisisVideo} durationInFrames={f(SIMTECUIDA_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
+    <Composition id="experto-analisis" component={ExpertoAnalisisVideo} durationInFrames={f(EXPERTO_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="laestrella-propuesta" component={LaestrellaPropuestaVideo} durationInFrames={f(LAESTRELLA_PROPUESTA_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="mcp-claude-code" component={McpClaudeCodeVideo} durationInFrames={f(MCP_CLAUDE_CODE_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="api-desarrolladores" component={ApiDesarrolladoresVideo} durationInFrames={f(API_DESARROLLADORES_TOTAL)} fps={FPS} width={1920} height={1080} />

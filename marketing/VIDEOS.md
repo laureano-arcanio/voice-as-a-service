@@ -36,6 +36,8 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`simtecuida-analisis`](../marketing/videos/proyectos/simtecuida-analisis/README.md) (SIM Te Cuida, 59,6 s y todo en blanco: lo que vimos, las oportunidades y la solución, con el diagrama de la home; paula y gonzalo) y
 [`laestrella-propuesta`](../marketing/videos/proyectos/laestrella-propuesta/README.md) (Empresa La Estrella, 84,6 s y todo en
 blanco: el PDF de la propuesta, con las etapas y el diagrama de cómo funciona; paula y gonzalo en partes iguales, como diálogo) y
+[`experto-analisis`](../marketing/videos/proyectos/experto-analisis/README.md) (Experto Construcción Inteligente, 58,3 s y todo en
+blanco: el PDF de la propuesta, con lo que hacen bien, dónde mejorar, la propuesta y el panel; paula y gonzalo) y
 [`primeros-pasos`](../marketing/videos/proyectos/primeros-pasos/README.md) (tutorial vertical 9:16 para clientes: crear un agente y
 probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula) y
 [`derivaciones`](../marketing/videos/proyectos/derivaciones/README.md) (tutorial vertical 9:16 para clientes: cómo
@@ -196,6 +198,7 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](../
 | endpoint, streaming, key | escritos normal | tu-propio-agente v1, con `paula`: el STT oye "endpoint" y "streaming" en todas las tomas (a confirmar de oído). Con `gonzalo`, "una key de llamadas" salió "un aquí" y "la key", "la que": se dijo "una ápi key" (el STT oye "API Key"). `end_call` y `transfer_call` no se dicen: van en pantalla |
 | headers | escrito normal | yoizen-tu-propio-agente v1, con `paula`: el STT oye "headers" (4 de 4 tomas elegidas con fidelidad 1,00); a confirmar de oído |
 | SIM Te Cuida, DNI, CABA, 0800 | `SIM Te Cuida`, `DNI`, `CABA`, `cero ochocientos` | simtecuida-analisis v1, con `paula`: el STT oye "SimTecuida", "DNI", "Cava" (mismo sonido) y "0800"; a confirmar de oído |
+| Experto (nombre de la empresa) | escrito normal, con coma después: `En Experto, ya…` | experto-analisis v1, con `paula`: sin la coma ("En Experto ya hicieron") el STT oyó "En expertos"; con la coma, "En experto" (a confirmar de oído) |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.
