@@ -215,7 +215,7 @@ voseo, sin superlativos, categoría "agentes con IA que atienden a tus clientes"
 - SIP se cuenta como "corre sobre SIP, consultanos si tenés central o proveedor propio", nunca como trunk
   autoservicio (hoy se arma a mano). Las páginas de capacidad tienen 600 a 900 palabras de texto propio.
 - **JSON-LD:** `Base.astro` recibe `schema?: object[]` y lo suma a `Organization` (siempre: logo PNG 512 × 512
-  `src/assets/logo-512.png`, `contactPoint` con el 0800, email y `areaServed` AR). Helpers en `src/data/schema.ts`:
+  `src/assets/logo-512.png`, `contactPoint` con el 0800, email y `areaServed` AR; `description` y `sameAs` (canal de YouTube) para que Google reconozca la marca y no la corrija a "argentina"). Helpers en `src/data/schema.ts`:
   `WebSite` (home), `Service` con planes como `Offer` en ARS por mes, `FAQPage` con los mismos `items` que `Faq`,
   `BreadcrumbList` (verticales y capacidades). JSON con `<` escapado. Validar con la prueba de resultados
   enriquecidos de Google después de cada deploy.

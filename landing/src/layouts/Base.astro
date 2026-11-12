@@ -33,6 +33,11 @@ const organization = {
   "@id": ORG_ID,
   name: "Atentina",
   url: "https://atentina.com.ar/",
+  // Para que Google reconozca la marca como entidad y no corrija "atentina" a "argentina".
+  // sameAs es un array: se suman más perfiles oficiales a medida que existan.
+  sameAs: ["https://www.youtube.com/@atentinaar"],
+  description:
+    "Atentina ofrece agentes con IA que atienden a tus clientes por teléfono, WhatsApp y web, con voces argentinas e inferencia propia en Argentina.",
   // El logo real (PNG de 512 × 512 generado de docs/brand/atentina-mark.svg), no la imagen de las vistas previas.
   logo: new URL(logo.src, Astro.site).href,
   email: "hola@atentina.com.ar",
