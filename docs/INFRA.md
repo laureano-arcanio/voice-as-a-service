@@ -183,7 +183,8 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md).
 
 - `livekit-redis` corre sin persistencia (`--save ""`): cada reinicio borra los trunks SIP y la dispatch
-  rule, y las entrantes dan 486 `flood` hasta `make livekit-sip` (lo corren `make up` y `deploy/boot.sh`).
+  rule, y las entrantes dan 486 `flood` hasta `make livekit-sip` (lo corren `make up`, `deploy/boot.sh` y, si falta
+  alguno, el cron cada 5 min). Actualiza por ID, sin recrear: correrlo con llamadas en curso no las corta.
 - `LIVEKIT_SIP_TRUNK_ID` va vacío: el ID cambia en cada recreación y el agente busca el trunk saliente
   por nombre (`anura-asterisk-outbound`).
 - Los navegadores entran por `wss://rtc.atentina.com.ar` (`DEMO_LIVEKIT_URL`, túnel); el audio WebRTC va
@@ -201,11 +202,12 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 
 ## Arranque, backup y cron
 
-**Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/`):
-- `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min), el
-  túnel, `make livekit-sip`, el calentamiento del TTS y, si el `.env` tiene `REGISTROS_HEALTH_URL`, Registros (último paso,
-  sin `--wait`: su falla no corta llamadas ni WhatsApp). En la réplica, solo los modelos y el calentamiento.
-  En server2 instalado el 2-nov-2026 y validado con un simulacro (`--dry-run`), **sin probar con un reinicio real**.
+**Arranque** (`sudo deploy/install.sh` instala las unidades de `deploy/systemd/` y, salvo en la réplica o con `--sin-cron`, el cron del usuario):
+- `atentina-stack.service` (`deploy/boot.sh`): `docker compose up -d --wait` sin build (hasta 15 min; si falla, un
+  segundo `up` de hasta 5 min levanta lo que quedó sin crear por una dependencia que Docker reinició), el
+  túnel, `make livekit-sip` (hasta 4 intentos), el calentamiento del TTS (solo con `vllm-tts` healthy, espera hasta 5 min) y, si el `.env`
+  tiene `REGISTROS_HEALTH_URL`, Registros (sin `--wait`). Un paso que falla no corta los siguientes: al final sale con 1 y la
+  unidad queda `failed` con la lista en `journalctl -u atentina-stack`. En la réplica, solo los modelos y el calentamiento.
 - `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`), solo server2.
 - El monitoreo, el CRM y Registros vuelven por `restart: unless-stopped`.
 - **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
@@ -218,6 +220,7 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 |---|---|
 | 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), las de `BACKUP_EXTRA_DBS` (`registros`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
 | cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, certificado SIP (< 14 días), backup completo en 26 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
+| cada 5 min | `scripts/ops/livekit-sip-reconcile.sh`: si el Redis de LiveKit perdió los trunks SIP o la dispatch rule, `make livekit-sip`; si están, solo los lista. Escribe en `livekit-sip.log` solo al crear algo o fallar |
 | 04:15 | `scripts/ops/sip-cert-renew.sh`: renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso |
 
 - **Copia externa a S3: no activa.** Está implementada (`make backup-key`, `make backup-s3-setup`,

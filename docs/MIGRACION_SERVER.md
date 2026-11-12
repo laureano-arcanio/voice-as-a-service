@@ -392,7 +392,7 @@ Detalle de cada alta: [`features/LANDING.md`](features/LANDING.md) (Cloudflare, 
 
 ### 8.1 systemd
 
-Precondiciones de `sudo deploy/install.sh` (graba en las unidades la ruta y el dueño del repo):
+Precondiciones de `sudo deploy/install.sh --sin-cron` (el cron va después del corte, 8.2; graba en las unidades la ruta y el dueño del repo):
 repo en su ruta final, `.env` completo con `COMPOSE_FILE`, checkpoint en `TTS_FT_CKPT`, imágenes
 construidas (`deploy/boot.sh` no hace build) y usuario en el grupo `docker`. Instala
 `atentina-stack` (compose, túnel, trunks SIP y calentamiento del TTS en el arranque).
@@ -412,7 +412,7 @@ Instalarlo después del corte (antes, el chequeo marca falta de Asterisk y túne
 respalda una base que todavía se va a reemplazar): `make cron-install`. Toma `deploy/crontab` con
 la ruta del repo, crea `~/atentina-ops` y `~/atentina-backups`, y reemplaza solo el bloque de
 Atentina del crontab (el resto queda igual). Backup a las 03:30 y cada hora con `--if-due` (corre
-solo si el último completo tiene más de 25 h), chequeo cada 2 min, certificado a las 04:15.
+solo si el último completo tiene más de 25 h), chequeo cada 2 min, trunks SIP cada 5 min, certificado a las 04:15.
 
 `sip-cert-renew.sh` necesita `CLOUDFLARE_DNS_API_TOKEN` y `WA_SIP_PASSWORD` en `.env`. Sin esa línea,
 el certificado de `sip.atentina.com.ar` vence (el actual, el 4-ene-2027; renovarlo sin el cron:
@@ -480,7 +480,7 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
   tenerlo como `tts/lr2e-6-checkpoint-epoch-2`, sin `multi41`.
 - **`vllm/vllm-openai:latest` sin fijar** (5.1). Con vllm-omni ya pasó que `latest` no arrancaba.
 - **Redis de LiveKit sin persistencia:** después de cada reinicio, `make livekit-sip` (lo hacen
-  `make up` y `deploy/boot.sh`); si no, las entrantes dan 486 `flood`.
+  `make up`, `deploy/boot.sh` y el cron cada 5 min); si no, las entrantes dan 486 `flood`.
 - **El seed no pisa el ruteo** de un número existente, pero en una base vacía rutea `ANURA_DID` a
   `WORKFLOW_ID` (4.2).
 - **`make db-reset`** borra `$(notdir $(CURDIR))_postgres_data`: depende del nombre del directorio.

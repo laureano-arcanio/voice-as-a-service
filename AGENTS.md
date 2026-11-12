@@ -174,7 +174,7 @@ Detalle y resto en [`docs/INFRA.md`](docs/INFRA.md).
   recrear los tres. El parser de herramientas de `vllm-llm` tiene que ser el del modelo, o todo agente da 400.
 - **TTS no comparte GPU con el LLM ni con otra réplica.** `--gpu-memory-utilization` es fracción de la memoria total;
   los que comparten GPU no arrancan a la vez (`depends_on` los encadena).
-- **Redis de LiveKit no persiste**: tras reiniciar el host, `make livekit-sip` (lo hace `make up` y el arranque).
+- **Redis de LiveKit no persiste**: tras reiniciar el host, `make livekit-sip` (lo hacen `make up`, el arranque y el cron cada 5 min).
 - **DTMF `*` en Anura corta otra llamada activa de la cuenta**: los códigos para personas van con `#`.
 - **`/api/v1/demo` es la única parte pública sin login**; el dashboard (`app.atentina.com.ar`) se defiende solo
   (sesión revocable, CSRF por `Origin`, CSP con hash): no relajar CSP, `APP_ORIGINS` ni `TRUSTED_PROXY_CIDRS` sin

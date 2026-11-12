@@ -128,8 +128,8 @@ Lee `phone_numbers`: con la base vacía crea el inbound trunk sin los números.
 
 **Redis sin persistencia:** `livekit-redis` corre con `--save "" --appendonly no`, así que cada reinicio
 del host (o de Redis) borra los tres objetos y las entrantes dan 486 `flood` en `livekit-sip` hasta
-recrearlos. `make up` termina con `make livekit-sip` y `deploy/boot.sh` lo corre en el arranque; si se
-levantó de otra forma, correrlo a mano.
+recrearlos. `make up` termina con `make livekit-sip`, `deploy/boot.sh` lo corre en el arranque y el cron
+lo repone en menos de 5 min si falta alguno (`scripts/ops/livekit-sip-reconcile.sh`, [`INFRA.md`](INFRA.md)).
 
 **Otros datos:**
 - Turn detector local: `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/voice/worker.py`;

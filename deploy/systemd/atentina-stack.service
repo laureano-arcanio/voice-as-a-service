@@ -11,7 +11,8 @@ RemainAfterExit=yes
 User=@USER@
 WorkingDirectory=@REPO@
 ExecStart=@REPO@/deploy/boot.sh
-TimeoutStartSec=1200
+# Peor caso de boot.sh: 15+5 min de compose, ~8 de trunks SIP, 5 de espera del TTS y 2 de calentamiento.
+TimeoutStartSec=2400
 
 [Install]
 WantedBy=multi-user.target

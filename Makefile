@@ -268,16 +268,17 @@ pbx-status: ## Registro con Anura, endpoints y llamadas activas en Asterisk
 	@$(COMPOSE) exec asterisk asterisk -rx "pjsip show contacts"
 	@$(COMPOSE) exec asterisk asterisk -rx "core show channels"
 
-livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para Anura via Asterisk (idempotente)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup
+livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para Anura via Asterisk (idempotente; actualiza por ID, no corta llamadas)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup $(SIP_ARGS)
 
 # Paso fijo de `make up` con LiveKit propio (docker-compose.livekit.yml en COMPOSE_FILE):
 # su Redis no persiste, asi que cada reinicio del host borra los trunks y la dispatch
-# rule y las entrantes vuelven con 486 "flood" (26-sep-2026). Con Cloud no hace falta.
+# rule y las entrantes vuelven con 486 "flood" (26-sep-2026). Con Cloud (y en la replica) no hace falta.
+# SIP_ARGS=--if-missing: solo escribe si falta alguno, sin imprimir nada (cron, scripts/ops/livekit-sip-reconcile.sh).
 livekit-sip-si-local:
 	@if $(COMPOSE) config --services 2>/dev/null | grep -qx livekit; then \
-		echo "LiveKit propio: recreando trunks SIP y dispatch rule (make livekit-sip)"; \
-		$(MAKE) --no-print-directory livekit-sip; \
+		[ -n "$(SIP_ARGS)" ] || echo "LiveKit propio: trunks SIP y dispatch rule (make livekit-sip)"; \
+		$(MAKE) --no-print-directory -s livekit-sip SIP_ARGS="$(SIP_ARGS)"; \
 	fi
 
 # --- Base, usuarios y UI -------------------------------------------------

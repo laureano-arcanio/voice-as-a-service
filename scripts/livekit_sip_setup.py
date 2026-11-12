@@ -28,6 +28,9 @@ Al cargar o borrar numeros, la API los agrega o quita en caliente
 (app/services/livekit.py); este script rearma la lista entera. Anura y Asterisk
 tienen que entregar esos numeros (docs/TELEFONIA_ANURA.md).
 
+Con --if-missing (reconciliacion periodica, scripts/ops/livekit-sip-reconcile.sh) solo lee: si
+los tres objetos existen, termina sin escribir ni imprimir; si falta alguno, hace lo de siempre.
+
 Uso: make livekit-sip
 """
 import asyncio
@@ -101,6 +104,15 @@ async def upsert(name, items, create, update):
     return await create(), "creado"
 
 
+async def all_present(lk) -> bool:
+    """True si ya estan los tres objetos (por nombre)."""
+    inbound = (await lk.sip.list_inbound_trunk(api.ListSIPInboundTrunkRequest())).items
+    rules = (await lk.sip.list_dispatch_rule(api.ListSIPDispatchRuleRequest())).items
+    outbound = (await lk.sip.list_outbound_trunk(api.ListSIPOutboundTrunkRequest())).items
+    return (any(x.name == INBOUND_NAME for x in inbound) and any(x.name == DISPATCH_NAME for x in rules)
+            and any(x.name == OUTBOUND_NAME for x in outbound))
+
+
 def client_numbers() -> list[str]:
     """Numeros E.164 de la tabla phone_numbers ([] si la base no responde)."""
     try:
@@ -116,15 +128,12 @@ def client_numbers() -> list[str]:
         return []
 
 
-async def main() -> None:
+async def main(if_missing: bool = False) -> None:
     did = required("ANURA_DID")
     if not re.fullmatch(r"\d{10}", did):
         sys.exit("ANURA_DID tiene que ser el numero nacional de 10 digitos, sin 0 ni 15 ni +54 (ej. 1152630861)")
-    numbers = sorted({f"+54{did}", *client_numbers()})
     password = required("LIVEKIT_SIP_PASSWORD")
     agent_name = required("LIVEKIT_AGENT_NAME")
-    address = (os.getenv("LIVEKIT_SIP_OUTBOUND_ADDRESS", "").strip()
-               or f"{public_address()}:{os.getenv('ASTERISK_SIP_PORT') or '5080'}")
 
     wait_for_livekit(required("LIVEKIT_URL"))
     async with api.LiveKitAPI(
@@ -132,6 +141,12 @@ async def main() -> None:
         api_key=required("LIVEKIT_API_KEY"),
         api_secret=required("LIVEKIT_API_SECRET"),
     ) as lk:
+        if if_missing and await all_present(lk):
+            return
+        # Despues del chequeo: la base y la IP publica solo hacen falta para escribir.
+        numbers = sorted({f"+54{did}", *client_numbers()})
+        address = (os.getenv("LIVEKIT_SIP_OUTBOUND_ADDRESS", "").strip()
+                   or f"{public_address()}:{os.getenv('ASTERISK_SIP_PORT') or '5080'}")
         inbound_info = api.SIPInboundTrunkInfo(
             name=INBOUND_NAME,
             numbers=numbers,
@@ -192,4 +207,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(if_missing="--if-missing" in sys.argv[1:]))
