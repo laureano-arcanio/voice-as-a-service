@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para Experto Construcción Inteligente</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css); base: goldman-propuesta y baicenter-propuesta */
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 5.5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 12.5pt; line-height: 1.25; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.2pt; color: var(--muted); margin-top: 1.2mm; }
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+  .strengths li { font-size: 9.2pt; margin-bottom: 2mm; }
+  .promise { border: 1.5px solid var(--accent); border-radius: 4mm; padding: 4mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); margin: 5mm 0 4mm; }
+  .promise h2 { margin-bottom: 2.5mm; }
+  .promise .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .promise .three div { font-size: 8.9pt; }
+  .promise .three b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--accent2); margin-bottom: .8mm; }
+
+  .opps { margin: 1mm 0 3.5mm; }
+  .opp { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 3mm; overflow: hidden; margin-bottom: 2.2mm; }
+  .opp > div { padding: 2.1mm 4mm; }
+  .opp .now { border-left: 3px solid #c2410c; background: #fff; }
+  .opp .then { background: var(--accent-soft); border-left: 1px solid #c9d7ff; }
+  .opp b.t { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ink); line-height: 1.15; margin-bottom: .8mm; }
+  .opp .then b.t { color: var(--accent2); }
+  .opp p { font-size: 8.4pt; margin: 0; line-height: 1.36; }
+  .opp .lbl { font-family: "Plex Mono"; font-size: 6.6pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .6mm; }
+  .opp .then .lbl { color: var(--accent); }
+
+  .voices { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 3.5mm; margin: 1.5mm 0 3mm; }
+  .voice { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3mm 3.8mm; background: var(--bg2); }
+  .voice q { display: block; font-style: italic; font-size: 9pt; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.4mm; }
+  .voice .when { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+  .voice.good { background: var(--ok-soft); border-color: #bfe6cf; }
+  .voice.good b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10.5pt; color: var(--ok); margin-bottom: 1mm; }
+  .voice.good p { font-size: 8.6pt; margin: 0; }
+
+  .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 3.5mm; }
+  .channels .card { padding: 3mm 3.6mm; }
+  .channels .card p { font-size: 8.6pt; margin-bottom: 1.2mm; }
+  .channels .card .ej { margin-top: 1.6mm; padding-top: 1.6mm; }
+  .channels .card .ej b { color: var(--ink2); }
+  .solves { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 0 0 1mm; }
+  .solves > div { border-radius: 3.5mm; padding: 2.6mm 4mm 1.4mm; }
+  .solves .alone { border: 1.5px solid var(--accent); }
+  .solves .route { border: 1px solid var(--line2); background: #fbfcfe; }
+  .solves li { font-size: 8.6pt; margin-bottom: .9mm; }
+  .solves .route li::before { background: var(--muted); }
+  .later { display: grid; grid-template-columns: 44mm 1fr; gap: 4mm; align-items: center; background: var(--bg2); border-radius: 3mm; padding: 2.6mm 4mm; margin-top: 3mm; }
+  .later b { font-family: "Bricolage"; font-weight: 800; font-size: 10.5pt; color: var(--ink); }
+  .later p { margin: 0; font-size: 8.6pt; }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2.5mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3.5mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 2.5mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.4pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2.5mm; margin-bottom: 2.5mm; }
+  .pgrid2 { display: grid; grid-template-columns: 1.7fr 1fr; gap: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.4mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.6mm; }
+  .hb { display: grid; grid-template-columns: 21mm 1fr 8mm; align-items: center; gap: 1.5mm; font-size: 7.6pt; margin-bottom: 1.1mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.6pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 1mm 1mm 0; }
+  table.pt td { padding: 1mm 1mm 1mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+  .claims { font-size: 7.6pt; }
+  .claims .big { font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: #c2410c; line-height: 1.1; }
+  .claims p { margin: 0 0 1mm; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.7pt; margin: 2mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.6mm 0; }
+  table.map th:first-child { color: #c2410c; }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.2mm 3mm 1.35mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 38%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+
+  .pilot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2.5mm 0 4mm; }
+  .pilot div { background: var(--bg2); border-radius: 3mm; padding: 2.8mm 3.5mm; font-size: 8.8pt; }
+  .pilot b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .6mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3.5mm; }
+  .steps.six .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.six .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .ops.tight li { font-size: 8.8pt; margin-bottom: .7mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.5pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+
+  /* v2: tres hojas */
+  .stats.c { margin: 2mm 0 4mm; }
+  .stats.c .stat { padding: 2.6mm 3.2mm; }
+  .pull.c { margin: 0 0 4.5mm; }
+  .opps2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin: 1.5mm 0 3mm; }
+  .o2 { border: 1px solid var(--line); border-radius: 3mm; overflow: hidden; background: #fff; }
+  .o2 .now { border-left: 3px solid #c2410c; padding: 2.4mm 3.6mm 2mm; }
+  .o2 .then { background: var(--accent-soft); padding: 2mm 3.6mm 2.4mm; border-left: 3px solid var(--accent); }
+  .o2 b.t { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); line-height: 1.15; margin-bottom: .7mm; }
+  .o2 .then b.t { color: var(--accent2); font-size: 10pt; }
+  .o2 p { font-size: 8.4pt; margin: 0; line-height: 1.36; }
+  .heard { font-size: 8.6pt; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 2mm; }
+  .heard q { font-style: italic; color: var(--ink); quotes: "“" "”"; }
+  .channels.c .card { padding: 2.8mm 3.4mm; }
+  .channels.c h3 { font-size: 10.5pt; }
+  .channels.c .card .num { width: 6.5mm; height: 6.5mm; font-size: 9pt; margin-bottom: 1.8mm; }
+  .pilot.c { margin: 2mm 0 3mm; }
+  .steps.c { grid-template-columns: repeat(3, 1fr); gap: 2.5mm; margin: 1.5mm 0 3mm; }
+  .steps.c .step { padding: 2.2mm 3mm; font-size: 8.3pt; }
+  .steps.c .step::before { font-size: 12pt; margin-bottom: .6mm; }
+  .need { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-bottom: 3mm; }
+  .need > div { border-radius: 3mm; padding: 2.4mm 3.6mm; font-size: 8.5pt; }
+  .need .a { border: 1px solid var(--line2); background: #fbfcfe; }
+  .need .b { border-left: 2px solid var(--accent); border-radius: 0; padding-left: 3.6mm; }
+  .need b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: quiénes son y dónde podríamos mejorar ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · EXPERTO CONSTRUCCIÓN INTELIGENTE<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:6mm 0 4mm">
+    <div class="eyebrow">Atención 24 horas por WhatsApp, teléfono y web, con todo a la vista</div>
+    <h1>Cada consulta atendida en el momento, <span class="accent">y lista para el asesor de su sucursal.</span></h1>
+    <p class="lead" style="font-size:10.5pt">
+      Federico, Carlos e Ignacio: somos Atentina y todavía no nos conocemos. Miramos Experto desde afuera y les
+      proponemos <strong>un agente con IA y voz argentina que atiende su WhatsApp, su 0800 y su web a toda hora</strong>,
+      toma la consulta completa, la pasa al asesor que corresponde y deja <strong>cada conversación medida en un
+      panel</strong>.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats c">
+    <div class="stat"><b>22 años</b><span>desde la maderera de Santa María de Punilla, en 2004</span></div>
+    <div class="stat"><b>4 locales</b><span>Punilla, Carlos Paz, Zona Sur y un centro de distribución de 5.300 m²</span></div>
+    <div class="stat"><b>752</b><span>reseñas en Google entre los cuatro locales, con 4,3 a 4,5 de promedio</span></div>
+    <div class="stat"><b>19 marcas</b><span>y 331 productos en su catálogo; distribuidor Knauf</span></div>
+  </div>
+
+  <div class="pull c">
+    <q>Gran asesoramiento para quienes justamente no somos expertos!</q>
+    <span>Un cliente de Villa Carlos Paz, en Google. En las reseñas de 5 estrellas se repite el nombre de quien los
+      asesoró: el valor de Experto está en sus asesores.</span>
+  </div>
+
+  <h2>Dónde podríamos mejorar con Atentina</h2>
+  <div class="opps2">
+    <div class="o2">
+      <div class="now"><b class="t">45 de 168 horas con atención</b>
+        <p>Lunes a viernes de 8 a 13 y de 14 a 18. Mediodía, noche y fin de semana, cuando muchos instaladores y quienes
+          hacen su obra consultan, esperan.</p></div>
+      <div class="then"><b class="t">Las 168 horas, atendidas</b>
+        <p>Lo que necesita un asesor queda listo para las 8 del día hábil.</p></div>
+    </div>
+    <div class="o2">
+      <div class="now"><b class="t">Todo termina en un asesor</b>
+        <p>WhatsApp central, cuatro líneas de sucursal, 0800, mail y formulario: la consulta se deriva a mano “al asesor
+          comercial de la sucursal más cercana”.</p></div>
+      <div class="then"><b class="t">Clasifica y deriva solo</b>
+        <p>Por la localidad de la obra a la sucursal, o al área que corresponde.</p></div>
+    </div>
+    <div class="o2">
+      <div class="now"><b class="t">Cada cotización se arma a mano</b>
+        <p>Los 331 productos terminan en “Agregar a cotización”; el cálculo, el flete y los cursos también pasan por un
+          asesor.</p></div>
+      <div class="then"><b class="t">La cotización llega completa</b>
+        <p>Sistema, m², localidad, retiro o envío: el asesor solo pone el precio.</p></div>
+    </div>
+    <div class="o2">
+      <div class="now"><b class="t">Retiros y reclamos que se persiguen</b>
+        <p>“Te notificaremos cuando esté lista para retirar”, promete su FAQ; los reclamos van por mail a ventas.</p></div>
+      <div class="then"><b class="t">Avisos solos, reclamos con dueño</b>
+        <p>WhatsApp de “pedido listo” y cada reclamo pasado a posventa, a la vista.</p></div>
+    </div>
+  </div>
+
+  <p class="heard"><strong>Lo que también dicen sus clientes:</strong> <q>No responden el whatsapp. Clavan el visto y te
+    responden al otro día</q> (hace 11 meses) y <q>Reclame y no me han dado respuestas!</q> (hace 5 meses).</p>
+
+  <p class="src-line">Fuentes: experto.com.ar, sus fichas de Google Maps (reseñas textuales y sin nombres), leídos el
+    11-nov-2026.</p>
+
+  <div class="pagefoot"><span>Atentina · Experto Construcción Inteligente</span><span>1 / 3</span></div>
+</section>
+
+<!-- ========== HOJA 2: la solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · EXPERTO CONSTRUCCIÓN INTELIGENTE<br>NOVIEMBRE 2026</div>
+  </header>
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">La solución propuesta</div>
+    <h2 style="font-size:17pt">Un asesor de primera línea, <span class="accent">en todos sus canales.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Un agente con IA, con el nombre que ustedes elijan y <strong>voz con acento argentino</strong>, atiende las 24
+      horas con la información de Experto. Al profesional le habla corto y técnico; al particular, simple. <strong>No da
+      precios ni cantidades de obra</strong>: toma los datos y el asesor cotiza.
+    </p>
+  </div>
+
+  <div class="channels c cards">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>WhatsApp</h3>
+      <p>El central y los de sucursal: contesta en segundos, por texto y notas de voz.</p>
+      <div class="ej"><b>Pasa a una persona:</b> al WhatsApp del asesor de la sucursal, con el resumen de lo hablado.</div>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>0800 y sucursales</h3>
+      <p>Atiende las llamadas fuera de horario, o siempre, según decidan.</p>
+      <div class="ej"><b>Pasa a una persona:</b> transfiere al asesor o al área y le dice quién llama y para qué.</div>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Su web</h3>
+      <p>“Hablar con un especialista” abre el agente: WhatsApp o una llamada desde el navegador, sin marcar.</p>
+      <div class="ej"><b>Pasa a una persona:</b> como en los otros canales, en el mismo registro.</div>
+    </div>
+  </div>
+
+  <div class="solves">
+    <div class="alone">
+      <div class="eyebrow" style="margin-bottom:1.4mm">Resuelve solo</div>
+      <ul>
+        <li>Sucursales, horarios, medios de pago y factura A o B</li>
+        <li>Retiro, envíos, devoluciones y cursos</li>
+        <li>Cada sistema: steel frame, drywall, melaminas</li>
+        <li><strong>Toma la cotización completa</strong> para el asesor</li>
+      </ul>
+    </div>
+    <div class="route">
+      <div class="eyebrow" style="margin-bottom:1.4mm;color:var(--muted)">Deriva con el resumen escrito</div>
+      <ul>
+        <li><strong>Asesor de la sucursal:</strong> cotización, flete, cursos</li>
+        <li><strong>Posventa:</strong> reclamos, con pedido y motivo</li>
+        <li><strong>Logística y administración:</strong> retiros, pagos y envíos</li>
+        <li>Fuera de horario: listo para las 8 del día hábil</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram" style="margin-top:3mm;padding-top:3.5mm">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 318" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="56" width="112" height="118" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="44" cy="88" r="9"/><path d="M28 116 a16 14 0 0 1 32 0z"/>
+        <circle cx="78" cy="88" r="9" opacity=".55"/><path d="M62 116 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="60" y="140" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Sus clientes</text>
+      <text x="60" y="156" text-anchor="middle" font-size="10" fill="#64748b">instaladores, carpinteros</text>
+      <text x="60" y="168" text-anchor="middle" font-size="10" fill="#64748b">y particulares</text>
+
+      <path d="M116 94 C 132 94, 132 40, 148 40" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 115 L148 115" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 136 C 132 136, 132 190, 148 190" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Canales -->
+      <g font-size="12" font-weight="700" fill="#1740b8">
+        <rect x="150" y="22" width="122" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="211" y="45" text-anchor="middle">WhatsApp</text>
+        <rect x="150" y="97" width="122" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="211" y="113" text-anchor="middle">0800 y</text><text x="211" y="126" text-anchor="middle" font-size="10.5">teléfonos de sucursal</text>
+        <rect x="150" y="172" width="122" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="211" y="195" text-anchor="middle">Su web</text>
+      </g>
+      <path d="M272 40 C 284 40, 284 94, 296 94" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M272 115 L296 115" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M272 190 C 284 190, 284 136, 296 136" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+
+      <!-- Agente -->
+      <rect x="298" y="10" width="204" height="210" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="314" y="33" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · 24 HORAS</text>
+      <text x="314" y="55" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El agente</text>
+      <text x="314" y="72" font-size="10.5" fill="#33415c">Responde con la información de</text>
+      <text x="314" y="86" font-size="10.5" fill="#33415c">Experto, toma los datos y clasifica:</text>
+      <g font-size="10.5" fill="#1740b8">
+        <rect x="314" y="96" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="355" y="111" text-anchor="middle">Cotización</text>
+        <rect x="402" y="96" width="84" height="22" rx="11" fill="#eaf0ff"/><text x="444" y="111" text-anchor="middle">Flete</text>
+        <rect x="314" y="124" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="355" y="139" text-anchor="middle">Pago y retiro</text>
+        <rect x="402" y="124" width="84" height="22" rx="11" fill="#eaf0ff"/><text x="444" y="139" text-anchor="middle">Reclamo</text>
+        <rect x="314" y="152" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="355" y="167" text-anchor="middle">Curso</text>
+        <rect x="402" y="152" width="84" height="22" rx="11" fill="#eaf0ff"/><text x="444" y="167" text-anchor="middle">Otros</text>
+      </g>
+      <text x="314" y="196" font-size="10.5" fill="#33415c">Resuelve lo general; lo demás</text>
+      <text x="314" y="210" font-size="10.5" fill="#33415c">lo pasa con el resumen escrito.</text>
+
+      <path d="M502 115 L554 115" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="528" y="103" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">deriva</text>
+
+      <!-- Su equipo -->
+      <rect x="556" y="10" width="160" height="210" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="572" y="33" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">EXPERTO</text>
+      <text x="572" y="55" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">Su equipo</text>
+      <g font-size="10.5" fill="#33415c">
+        <rect x="572" y="66" width="128" height="22" rx="11" fill="#f1f4f9"/><text x="636" y="81" text-anchor="middle">Asesor Punilla</text>
+        <rect x="572" y="92" width="128" height="22" rx="11" fill="#f1f4f9"/><text x="636" y="107" text-anchor="middle">Asesor Carlos Paz</text>
+        <rect x="572" y="118" width="128" height="22" rx="11" fill="#f1f4f9"/><text x="636" y="133" text-anchor="middle">Asesor Zona Sur</text>
+        <rect x="572" y="144" width="128" height="22" rx="11" fill="#f1f4f9"/><text x="636" y="159" text-anchor="middle">Asesor Rivadavia</text>
+        <rect x="572" y="170" width="128" height="22" rx="11" fill="#f1f4f9"/><text x="636" y="185" text-anchor="middle">Posventa y logística</text>
+      </g>
+      <text x="636" y="210" text-anchor="middle" font-size="10" fill="#64748b">toma la consulta lista</text>
+
+      <!-- Al panel -->
+      <path d="M211 208 V250" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M400 220 V250" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M636 220 V250" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <rect x="150" y="252" width="566" height="60" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="168" y="275" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PARA LOS DUEÑOS</text>
+      <text x="168" y="298" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El panel</text>
+      <text x="300" y="283" font-size="11" fill="#1740b8">Cada conversación, por canal y por sucursal: qué se pidió,</text>
+      <text x="300" y="299" font-size="11" fill="#1740b8">a quién se derivó, cuánto tardó en tomarla y cómo terminó.</text>
+    </svg>
+    <div class="caption">Sus clientes escriben o llaman como hoy. El agente contesta al instante, resuelve lo general y
+      pasa el resto al asesor de la sucursal o al área, con el resumen. Todo queda en un solo panel.</div>
+  </div>
+
+  <div class="later">
+    <b>Segunda etapa: salientes</b>
+    <p>El agente también escribe o llama: <strong>aviso de pedido listo</strong>, seguimiento de cotizaciones sin
+      respuesta y recordatorio de cursos.</p>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Experto Construcción Inteligente</span><span>2 / 3</span></div>
+</section>
+
+<!-- ========== HOJA 3: panel y piloto ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · EXPERTO CONSTRUCCIÓN INTELIGENTE<br>NOVIEMBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:5mm 0 1mm">
+    <div class="eyebrow">Para los dueños: ver la atención</div>
+    <h2 style="font-size:16pt">Cuatro locales y todos sus canales, <span class="accent">en una sola pantalla.</span></h2>
+  </div>
+
+  <div class="panel" style="margin-top:1.5mm">
+    <div class="bar"><b>PANEL · EXPERTO</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UNA SEMANA</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>1.180</b><span>consultas en todos los canales</span></div>
+        <div class="kpi"><b>5 s</b><span>hasta la primera respuesta (mediana)</span></div>
+        <div class="kpi"><b>42 %</b><span>llegaron fuera de horario</span></div>
+        <div class="kpi"><b>57 %</b><span>resueltas por el agente; el resto, derivadas</span></div>
+        <div class="kpi"><b>6</b><span>reclamos abiertos; el más antiguo, de 4 días</span></div>
+      </div>
+      <div class="pgrid2" style="grid-template-columns:1fr 1.5fr">
+        <div class="pbox">
+          <div class="t">Por sucursal</div>
+          <div class="hb">Carlos Paz<i style="width:100%"></i><em>402</em></div>
+          <div class="hb">Rivadavia<i style="width:79%"></i><em>318</em></div>
+          <div class="hb">Punilla<i style="width:61%"></i><em>247</em></div>
+          <div class="hb">Zona Sur<i style="width:53%"></i><em>213</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Cotizaciones por asesor (mediana)</div>
+          <table class="pt">
+            <tr><th>Quién</th><th class="n">Recibió</th><th class="n">La tomó en</th><th class="n">Sin tomar</th></tr>
+            <tr><td>Asesor Carlos Paz</td><td class="n">82</td><td class="n">7 min</td><td class="n">0</td></tr>
+            <tr><td>Asesor Rivadavia</td><td class="n">64</td><td class="n">22 min</td><td class="n">4</td></tr>
+            <tr><td>Asesor Punilla</td><td class="n">51</td><td class="n">12 min</td><td class="n">1</td></tr>
+            <tr><td>Asesor Zona Sur</td><td class="n">39</td><td class="n">9 min</td><td class="n">2</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:3mm">Cifras ilustrativas: muestran qué se mide, no un resultado. Cada conversación se abre con su transcripción.</p>
+
+  <div class="hero" style="margin:0 0 1mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:16pt">Un piloto de 30 días, <span class="accent">con un alcance acotado.</span></h2>
+  </div>
+
+  <p class="lead" style="font-size:10pt;margin:0 0 1mm">
+    <strong>El WhatsApp central y el 0800, o un solo local</strong>, durante 30 días con consultas reales y sin cambiar
+    cómo trabaja su equipo. Al cierre, <strong>la decisión se toma con números</strong>: el panel contra la línea de
+    base medida al empezar.
+  </p>
+  <div class="steps c">
+    <div class="step"><b>Relevamiento</b>Una reunión: sucursales, políticas, cursos y quién recibe cada derivación.</div>
+    <div class="step"><b>Configuración y pruebas</b>Ustedes y sus asesores lo prueban hasta que suene a Experto.</div>
+    <div class="step"><b>Línea de base</b>Cuántas consultas entran, a qué hora y cuánto tardan hoy.</div>
+    <div class="step"><b>Salida en vivo</b>Atiende a clientes reales y deriva a los asesores.</div>
+    <div class="step"><b>Revisión semanal</b>Media hora con el panel: qué ajustar.</div>
+    <div class="step"><b>Cierre y decisión</b>Si sirve, se sigue; si no, se termina.</div>
+  </div>
+
+  <div class="need">
+    <div class="a"><b>Necesitamos de ustedes:</b> las políticas por escrito (pagos, retiro, envíos, devoluciones), qué
+      localidades atiende cada sucursal y quién recibe cada derivación, y un responsable del piloto.</div>
+    <div class="b"><b>Después:</b> todas las sucursales, avisos de pedido listo, seguimiento de cotizaciones a las 48
+      horas e integración con su sistema de gestión.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> El del piloto se acuerda en la reunión de relevamiento, según los canales y el volumen que
+    definamos juntos. Ahí también elegimos con qué número de WhatsApp y de teléfono se atiende.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Cada consulta atendida,<br><span>y lista para su asesor.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>
