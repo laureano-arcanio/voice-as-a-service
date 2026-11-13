@@ -27,7 +27,12 @@ from app.conversation.models import (
 
 from . import platform_tools
 from .client import extraction_schema, parse_extraction, wants_summary
-from .prompt import build_extraction_prompt, build_turn_messages, extraction_prompt
+from .prompt import (
+    build_extraction_prompt,
+    build_turn_messages,
+    extraction_prompt,
+    tool_history,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,22 +55,60 @@ def accepts_sampling(model: str) -> bool:
 
 def to_messages(messages: list[dict]) -> tuple[str, list[dict]]:
     """Mensajes estilo OpenAI -> (system, messages) de Anthropic: la conversacion tiene que empezar con el usuario
-    (la apertura del agente va despues de una linea de arranque) y los roles alternan (los seguidos se juntan).
-    Un mensaje con `name` (una persona del equipo en una derivacion) lleva el nombre adelante."""
+    (la apertura del agente va despues de una linea de arranque) y los roles alternan (los seguidos se juntan, con
+    sus bloques: un texto y un tool_result no se pueden pegar en un string).
+    Un mensaje con `name` (una persona del equipo en una derivacion) lleva el nombre adelante; las herramientas del
+    cliente van como tool_use en el assistant y como tool_result en el user siguiente."""
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
-    rest: list[dict] = []
-    for m in messages:
-        # El historial trae la derivacion como tool_calls + tool (prompt.classic_history): aca queda el texto.
-        if m["role"] in ("system", "tool"):
-            continue
-        content = f"{m['name']}: {m['content']}" if m.get("name") else (m["content"] or "")
-        if rest and rest[-1]["role"] == m["role"]:
-            rest[-1]["content"] += "\n" + content
-        else:
-            rest.append({"role": m["role"], "content": content})
+    rest = [_message(m) for m in messages if m["role"] != "system"]
     if not rest or rest[0]["role"] != "user":
         rest.insert(0, {"role": "user", "content": OPENING})
-    return system, rest
+    out: list[dict] = []
+    for item in rest:
+        if out and out[-1]["role"] == item["role"]:
+            _join(out[-1], item["content"])
+        else:
+            out.append(item)
+    return system, out
+
+
+def _message(m: dict) -> dict:
+    """Un mensaje del historial en formato Anthropic. Los tool_result van antes que el texto."""
+    if m["role"] == "tool":
+        return {"role": "user", "content": [{"type": "tool_result", "tool_use_id": m["tool_call_id"],
+                                             "content": m["content"] or ""}]}
+    content = f"{m['name']}: {m['content']}" if m.get("name") else (m["content"] or "")
+    calls = m.get("tool_calls") or []
+    if not calls:
+        return {"role": m["role"], "content": content}
+    blocks = [{"type": "text", "text": content}] if content else []
+    return {"role": m["role"], "content": blocks + [_tool_use(c) for c in calls]}
+
+
+def _tool_use(call: dict) -> dict:
+    try:
+        args = json.loads(call["function"]["arguments"] or "{}")
+    except ValueError:
+        args = {}
+    return {"type": "tool_use", "id": call["id"], "name": call["function"]["name"],
+            "input": args if isinstance(args, dict) else {}}
+
+
+def _blocks(content) -> list[dict]:
+    if isinstance(content, list):
+        return content
+    return [{"type": "text", "text": content}] if content else []
+
+
+def _join(prev: dict, content) -> None:
+    """Junta un mensaje con el anterior del mismo rol: los dos textos con un salto de linea, y si alguno trae
+    bloques, todos como bloques (los tool_result adelante)."""
+    if isinstance(prev["content"], str) and isinstance(content, str):
+        prev["content"] += "\n" + content
+        return
+    blocks = _blocks(prev["content"]) + _blocks(content)
+    prev["content"] = ([b for b in blocks if b["type"] == "tool_result"]
+                       + [b for b in blocks if b["type"] != "tool_result"])
 
 
 def usage_of(message) -> tuple[int, int]:
@@ -187,6 +230,9 @@ class AnthropicClient:
                     {"role": "user", "content": [
                         {"type": "tool_result", "tool_use_id": c["id"],
                          "content": results.get(c["id"], '{"ok": true}')} for c in calls]}]
+                # Lo que uso el turno queda en el mensaje: el turno siguiente ve la llamada y su resultado
+                # (app/llm/prompt.py, classic_history).
+                turn.tools = (turn.tools or []) + tool_history(customer, results)
             platform_tools.apply(turn, calls, state)
             if not customer or turn.status == "completed" or turn.handoff:
                 break

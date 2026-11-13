@@ -290,3 +290,58 @@ async def test_transfer_call_at_the_cap_without_areas_does_not_hand_off(api, adm
     engine, cid = at_the_cap(api, admin, mock_api_url, make_llm, [("transfer_call", {"area": "Guardia"})], areas=())
     _, turn = await engine.process_turn(cid, "es una emergencia", on_message=lambda t: None)
     assert turn.handoff is None and turn.assistant_message == "No pude con eso."
+
+
+# ---------- Historial: el turno siguiente ve la herramienta y su resultado ----------
+
+def requests_of(llm) -> list[dict]:
+    """Los pedidos del LLM, en orden, como los guarda el falso de cada cliente."""
+    if hasattr(llm.client, "messages"):      # Anthropic: FakeMessages.create(**params)
+        return [c["messages"] for c in llm.client.messages.calls]
+    return [r["messages"] for r in llm.client.chat.completions.requests]
+
+
+def exchange(messages: list[dict]) -> tuple[list[tuple[str, str]], list[str]]:
+    """Las llamadas a herramientas (id, nombre) y los resultados de un pedido, en los dos formatos."""
+    calls, results = [], []
+    for m in messages:
+        for c in m.get("tool_calls") or []:
+            calls.append((c["id"], c["function"]["name"]))
+        if m.get("role") == "tool":
+            results.append(m["content"])
+        for b in m["content"] if isinstance(m["content"], list) else []:      # Anthropic: bloques
+            if b.get("type") == "tool_use":
+                calls.append((b["id"], b["name"]))
+            elif b.get("type") == "tool_result":
+                results.append(b["content"])
+    return calls, results
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_the_next_turn_sees_the_tool_call_and_its_result(api, admin, mock_api_url, make_llm):
+    """El turno 2 manda la llamada del turno 1 con su id y el resultado que trajo: el modelo no repite la consulta
+    ni inventa el dato."""
+    llm = make_llm([("", [TURNOS]), ("A las 10, 11:30 y 16.", []), ("De nada.", [])])
+    engine, cid = setup(api, admin, mock_api_url, None, llm=llm)
+    state, _ = await engine.process_turn(cid, "¿Tienen turno el 6?", on_message=lambda t: None)
+    [tool] = state.messages[-1].tools
+    assert tool["name"] == "consultar_turnos" and "09:00" in tool["result"]
+    await engine.process_turn(cid, "gracias", on_message=lambda t: None)
+    calls, results = exchange(requests_of(llm)[-1])
+    assert (tool["id"], "consultar_turnos") in calls and tool["result"] in results
+
+
+@pytest.mark.parametrize("make_llm", [openai_llm, anthropic_llm], ids=["openai", "anthropic"])
+async def test_the_history_is_the_same_in_every_turn(api, admin, mock_api_url, make_llm):
+    """Una vez guardado, el historial no cambia: cada pedido empieza con los mensajes del anterior (prefix cache de
+    vLLM)."""
+    llm = make_llm([("", [TURNOS]), ("A las 10.", []), ("De nada.", []), ("Chau.", [])])
+    engine, cid = setup(api, admin, mock_api_url, None, llm=llm)
+    for message in ("turnos", "gracias", "chau"):
+        await engine.process_turn(cid, message, on_message=lambda t: None)
+    second, third = requests_of(llm)[2], requests_of(llm)[3]
+    # El pedido del turno 2 ya trae la herramienta del turno 1: lo que se compara no es una lista vacia.
+    assert len(second) >= 6 and "consultar_turnos" in json.dumps(second, default=str)
+    assert second == third[:len(second)]
+
+

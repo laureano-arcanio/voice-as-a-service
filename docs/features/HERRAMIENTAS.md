@@ -319,9 +319,18 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
    derivación se respeta (un `end_call` no).
 6. Cada ejecución queda en la traza del mensaje (`Message.llm`: `kind: herramienta`, argumentos, ms, resultado y
    `tool: {slug, type, revision, ok, status, ms}`) y en `tool_runs`.
-7. Con un LLM BYOK y respaldo propio: si el proveedor falla después de ejecutar una herramienta, no hay respaldo (la
+7. Las herramientas del cliente del turno quedan en el mensaje (`Message.tools`: `{id, name, arguments, result}`) y
+   el turno siguiente las ve en el historial: el `assistant` con sus llamadas (los ids del proveedor, guardados; no
+   se regeneran), un `tool` por resultado y después el texto de esa respuesta (`prompt.classic_history`; con un LLM
+   de Anthropic, bloques `tool_use`/`tool_result`). Así el modelo no repite una consulta que ya hizo ni inventa el
+   dato. `end_call` y `transfer_call` no van ahí: la derivación va por `Message.handoff`. Los argumentos
+   se guardan hasta 2.000 caracteres y el resultado hasta 4.000, con el mismo texto de recorte: el historial sale
+   igual en cada turno, que es lo que mantiene el prefix cache de vLLM. Si el turno se deshace
+   (`retract_last_turn`, interrupción), sus herramientas pasan a `progress.carry_tools` y el turno siguiente las
+   pone en su respuesta: una que ya tuvo efecto (reservar, cobrar) no se pierde ni se repite.
+8. Con un LLM BYOK y respaldo propio: si el proveedor falla después de ejecutar una herramienta, no hay respaldo (la
    repetiría; `app/llm/resolver.py`).
-8. Si la persona interrumpe mientras corre una herramienta, la herramienta sigue: el pedido ya salió.
+9. Si la persona interrumpe mientras corre una herramienta, la herramienta sigue: el pedido ya salió.
 
 `confirm: true` es solo una frase en la descripción: decide el modelo, no hay confirmación de plataforma.
 

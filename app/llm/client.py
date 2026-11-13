@@ -14,7 +14,12 @@ from app.conversation.models import (
 )
 
 from . import platform_tools
-from .prompt import build_extraction_prompt, build_turn_messages, extraction_prompt
+from .prompt import (
+    build_extraction_prompt,
+    build_turn_messages,
+    extraction_prompt,
+    tool_history,
+)
 
 if TYPE_CHECKING:
     from app.tools.conversation import TurnTools
@@ -185,11 +190,15 @@ class LLMClient:
                 break
             if customer and tools is not None:
                 rounds += 1
+                results = await tools.execute(customer, on_message, spoke=bool(content.strip()))
                 messages.append({"role": "assistant", "content": content or None, "tool_calls": [
                     {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c["arguments"]}}
                     for c in customer]})
-                for call_id, result in await tools.execute(customer, on_message, spoke=bool(content.strip())):
+                for call_id, result in results:
                     messages.append({"role": "tool", "tool_call_id": call_id, "content": result})
+                # Lo que uso el turno queda en el mensaje: el turno siguiente ve la llamada y su resultado
+                # (app/llm/prompt.py, classic_history).
+                turn.tools = (turn.tools or []) + tool_history(customer, dict(results))
             platform_tools.apply(turn, calls, state)
             if not customer or turn.status == "completed" or turn.handoff:
                 break

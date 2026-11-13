@@ -361,6 +361,12 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   conversación tiene áreas: las del agente en una llamada, y por WhatsApp de texto las que tienen plantilla;
   `app/llm/platform_tools.py`). La plataforma ejecuta, dice una frase de voz mientras tanto y
   le devuelve el resultado; tope de rondas por turno en `tool_settings`.
+- **Historial de herramientas:** lo que corrió cada turno queda en el mensaje (`Message.tools`: `{id, name,
+  arguments, result}`, ids del proveedor, argumentos hasta 2.000 y resultado hasta 4.000 con un recorte fijo) y el
+  turno siguiente lo ve como `assistant` con `tool_calls` + `tool` en los dos clientes (`classic_history`; en
+  Anthropic, bloques `tool_use`/`tool_result`). Como los ids y el recorte son los guardados, el historial es el
+  mismo en cada turno (prefix cache). Si `retract_last_turn` deshace el turno, sus herramientas pasan a
+  `progress.carry_tools` y van en la respuesta del siguiente.
 - **Qué LLM:** `app/llm/resolver.py` elige por turno entre la inferencia propia (default y respaldo) y una
   conexión del cliente según `Workflow.llm`.
 - **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`

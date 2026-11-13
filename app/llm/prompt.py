@@ -88,6 +88,25 @@ def build_extraction_prompt(workflow: Workflow, state: ConversationState) -> str
 
 # ---------- conversacion ----------
 
+# Tope de lo que se guarda de cada herramienta del cliente en el historial. El texto del recorte es fijo: el
+# historial tiene que salir igual en cada turno, o el prefix cache de vLLM se pierde.
+MAX_TOOL_ARGUMENTS = 2000
+MAX_TOOL_RESULT = 4000
+TRUNCATED = "… [recortado]"
+
+
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + TRUNCATED
+
+
+def tool_history(calls: list[dict], results: dict[str, str]) -> list[dict]:
+    """Las herramientas del cliente de una vuelta como van al historial del mensaje: {id, name, arguments, result},
+    con los ids del proveedor y los textos recortados."""
+    return [{"id": c["id"], "name": c["name"],
+             "arguments": _clip(c.get("arguments") or "", MAX_TOOL_ARGUMENTS),
+             "result": _clip(results.get(c["id"]) or "", MAX_TOOL_RESULT)} for c in calls]
+
+
 def handoff_enabled(state: ConversationState | None) -> bool:
     """Si en esta conversacion el agente puede derivar: una llamada con areas (las fija el worker)."""
     return bool(state and state.channel == "voice" and state.progress.handoff_areas)
@@ -114,22 +133,42 @@ def classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
     """La conversacion como mensajes del chat. En una llamada derivada, lo que dijo la persona del equipo va como
     assistant con su nombre (`name`), y lo que dijo quien llama, como user.
     La respuesta que derivo (Message.handoff) va con su llamada a transfer_call y el resultado: sin eso el modelo
-    ve que "te paso con X" solo alcanza y en la siguiente derivacion no llama a la herramienta."""
+    ve que "te paso con X" solo alcanza y en la siguiente derivacion no llama a la herramienta.
+    Las herramientas del cliente del turno (Message.tools) van igual: el assistant con sus llamadas (los ids que se
+    guardaron), un tool por resultado y despues el texto de esa respuesta. Con eso el modelo no repite una consulta
+    que ya hizo, y el historial sale igual en cada turno (prefix cache)."""
     out: list[dict] = []
     for i, m in enumerate(messages):
         item = {"role": m.role, "content": _turn_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
         if m.person:
             item["name"] = "".join(c if c.isalnum() else "_" for c in m.person)[:64]
+        if m.role == "assistant" and m.tools:
+            calls = [{"id": t["id"], "type": "function", "function": {"name": t["name"], "arguments": t["arguments"]}}
+                     for t in m.tools]
+            results = [{"role": "tool", "tool_call_id": t["id"], "content": t["result"]} for t in m.tools]
+            if m.handoff:
+                call_id = f"call_handoff_{i}"
+                calls.append({"id": call_id, "type": "function", "function": {
+                    "name": "transfer_call", "arguments": json.dumps({"area": m.handoff}, ensure_ascii=False)}})
+                results.append({"role": "tool", "tool_call_id": call_id, "content": _handoff_result(m.handoff)})
+            out.append({**item, "content": None, "tool_calls": calls})
+            out += results
+            if item["content"]:
+                out.append(item)
+            continue
         if m.role == "assistant" and m.handoff:
             call_id = f"call_handoff_{i}"
             item["content"] = item["content"] or None
             item["tool_calls"] = [{"id": call_id, "type": "function", "function": {
                 "name": "transfer_call", "arguments": json.dumps({"area": m.handoff}, ensure_ascii=False)}}]
-            out += [item, {"role": "tool", "tool_call_id": call_id,
-                           "content": f"Derivacion a {m.handoff} ejecutada; lo que paso despues sigue en la conversacion."}]
+            out += [item, {"role": "tool", "tool_call_id": call_id, "content": _handoff_result(m.handoff)}]
             continue
         out.append(item)
     return out
+
+
+def _handoff_result(area: str) -> str:
+    return f"Derivacion a {area} ejecutada; lo que paso despues sigue en la conversacion."
 
 
 def _turn_text(text: str, voice_note: bool) -> str:

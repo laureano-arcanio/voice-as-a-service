@@ -216,6 +216,10 @@ class ConversationEngine:
         # Una extraccion atrasada pudo guardar mientras el LLM respondia: se
         # relee el estado y el turno solo agrega lo suyo.
         state = self.store.get(conversation_id)
+        # Las herramientas del turno que se deshizo van en esta respuesta y se limpian aca: si este tambien se
+        # deshace, vuelven con las suyas (retract_last_turn).
+        tool_calls = state.progress.carry_tools + (result.tools or [])
+        state.progress.carry_tools = []
         undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
         undo["n_messages"] = len(state.messages)
         state.status = result.status
@@ -228,7 +232,7 @@ class ConversationEngine:
                 variables.merge(state, values, f"tool:{slug}", hidden)
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=result.assistant_message, llm=trace,
-                                   handoff=result.handoff)]
+                                   handoff=result.handoff, tools=tool_calls or None)]
         self.store.save(state)
 
         # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
@@ -404,14 +408,19 @@ class ConversationEngine:
     def retract_last_turn(self, conversation_id: str) -> bool:
         """Deshace el ultimo turno. Para cuando el cliente siguio hablando y la
         respuesta no llego a sonar: el turno siguiente trae el mensaje completo.
-        La extraccion de ese turno se cancela; la del turno combinado ve todo."""
+        La extraccion de ese turno se cancela; la del turno combinado ve todo.
+        Las herramientas del turno quitado pasan al turno siguiente: si una ya tuvo efecto (reservar, cobrar), no
+        se pierde y el modelo no la repite."""
         state = self.store.get(conversation_id)
         if state is None or state.progress.undo is None:
             return False
         if tasks := self.extractions.get(conversation_id):
             tasks[-1].cancel()
         undo = state.progress.undo
-        state.messages = state.messages[:undo.pop("n_messages")]
+        n_messages = undo.pop("n_messages")
+        removed, state.messages = state.messages[n_messages:], state.messages[:n_messages]
         restored = ConversationState.model_validate({**state.model_dump(), **undo})
+        restored.progress.carry_tools = ([t for m in removed for t in (m.tools or [])]
+                                         + restored.progress.carry_tools)
         self.store.save(restored)
         return True

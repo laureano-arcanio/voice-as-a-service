@@ -364,6 +364,9 @@ class Message(BaseModel):
     # En las respuestas del agente: la llamada al LLM del turno, con su salida
     # tal cual (para el dashboard).
     llm: list[dict[str, Any]] | None = None
+    # Herramientas del cliente que uso el turno, para el historial del LLM [{id, name, arguments, result}]: los ids
+    # son los del proveedor (se guardan, no se regeneran) y los textos van recortados (app/llm/prompt.py).
+    tools: list[dict[str, Any]] | None = None
     # WhatsApp. Usuario: el texto es la transcripcion de una nota de voz;
     # agente: la respuesta salio como nota de voz.
     voice_note: bool = False
@@ -408,6 +411,9 @@ class Progress(BaseModel):
     system_prompt: str | None = None
     # Resumen del analisis (analysis.summary).
     summary: str | None = None
+    # Herramientas del turno que se deshizo (retract_last_turn) y todavia no vio el modelo: van en la respuesta
+    # del turno siguiente, que las limpia (una herramienta con efecto no se repite).
+    carry_tools: list[dict[str, Any]] = Field(default_factory=list)
     # Llamada con derivacion: las areas que puede usar el agente, como las ve el LLM ({id, name, when, schedule}).
     # Las fija el worker al empezar (app/voice/handoff.py) y no cambian en la llamada.
     handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
@@ -453,6 +459,9 @@ class AgentTurn(BaseModel):
     end_reason: Literal["off_topic", "external_error", "external_agent_not_in_plan"] | None = None
     # El agente pasa la llamada a esa area (transfer_call); status sigue active.
     handoff: str | None = None
+    # Herramientas del cliente ejecutadas en el turno (end_call y transfer_call no: van por status y handoff), para
+    # el historial [{id, name, arguments, result}] (app/llm/prompt.py).
+    tools: list[dict[str, Any]] | None = None
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)
     reasoning: str | None = Field(default=None, exclude=True)

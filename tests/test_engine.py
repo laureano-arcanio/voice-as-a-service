@@ -4,6 +4,7 @@ import asyncio
 
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, TurnMedia
+from app.llm.prompt import classic_history
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
 
@@ -175,6 +176,27 @@ async def test_retract_last_turn(store):
     after = store.get(cid)
     assert after.fields == before.fields and after.messages == before.messages
     assert not engine.retract_last_turn(cid)
+
+
+async def test_retract_keeps_the_tools_of_the_undone_turn(store):
+    """Un turno deshecho que ya uso una herramienta con efecto no la pierde: el turno combinado la ve en su
+    respuesta y el modelo no la repite (progress.carry_tools)."""
+    reserve = {"id": "call_1", "name": "reservar_turno", "arguments": '{"hora": "11:30"}', "result": '{"ok": true}'}
+    other = {"id": "call_2", "name": "consultar_turnos", "arguments": "{}", "result": '{"ok": true}'}
+    llm = FakeLLM(AgentTurn(assistant_message="Reservado.", tools=[reserve]),
+                  AgentTurn(assistant_message="Listo, quedó reservado.", tools=[other]))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    await engine.process_turn(cid, "reservá el de las 11:30")
+    assert engine.retract_last_turn(cid)
+    after = store.get(cid)
+    assert after.progress.carry_tools == [reserve] and len(after.messages) == 1
+    state, _ = await engine.process_turn(cid, "reservá el de las 11:30, soy Ana")
+    assert state.messages[-1].tools == [reserve, other]
+    assert state.progress.carry_tools == []
+    # Lo ve el historial del LLM: la llamada con su id y el resultado.
+    calls = [c for m in classic_history(state.messages, False) if m.get("tool_calls") for c in m["tool_calls"]]
+    assert [c["id"] for c in calls] == ["call_1", "call_2"]
 
 
 async def test_retract_cancels_the_pending_extraction(store):

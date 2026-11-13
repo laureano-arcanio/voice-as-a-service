@@ -104,6 +104,45 @@ def test_messages_conversion():
     assert msgs == [{"role": "user", "content": "x"}]
 
 
+def test_tool_history_becomes_tool_use_and_tool_result_blocks():
+    """Las herramientas del turno, como las manda classic_history: tool_use en el assistant y los tool_result
+    seguidos en un solo user (los roles alternan sin romper los bloques)."""
+    from app.llm.prompt import classic_history
+    tools = [{"id": "call_1", "name": "consultar_turnos", "arguments": '{"sucursal": "centro"}',
+              "result": '{"ok": true, "data": {"turnos": ["10:00"]}}'},
+             {"id": "call_2", "name": "reservar_turno", "arguments": '{"hora": "10:00"}', "result": '{"ok": true}'}]
+    system, msgs = to_messages([
+        {"role": "system", "content": "S"},
+        *classic_history([Message(role="assistant", text="Hola."),
+                          Message(role="user", text="¿turnos?"),
+                          Message(role="assistant", text="Hay a las 10.", tools=tools),
+                          Message(role="user", text="gracias")], False)])
+    assert system == "S"
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant", "user", "assistant", "user"]
+    assert msgs[3]["content"] == [
+        {"type": "tool_use", "id": "call_1", "name": "consultar_turnos", "input": {"sucursal": "centro"}},
+        {"type": "tool_use", "id": "call_2", "name": "reservar_turno", "input": {"hora": "10:00"}}]
+    assert msgs[4]["content"] == [
+        {"type": "tool_result", "tool_use_id": "call_1", "content": tools[0]["result"]},
+        {"type": "tool_result", "tool_use_id": "call_2", "content": tools[1]["result"]}]
+    assert msgs[5] == {"role": "assistant", "content": "Hay a las 10."}
+
+
+def test_handoff_history_keeps_its_text_and_result():
+    """La derivacion (classic_history): el texto de la respuesta y su tool_use, y el resultado en el user siguiente."""
+    from app.llm.prompt import classic_history
+    _, msgs = to_messages(classic_history([Message(role="assistant", text="Te paso con Ventas.", handoff="Ventas")],
+                                          False))
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
+    use = msgs[1]["content"]
+    assert use[0] == {"type": "text", "text": "Te paso con Ventas."}
+    assert use[1]["type"] == "tool_use" and use[1]["name"] == "transfer_call"
+    assert use[1]["input"] == {"area": "Ventas"}
+    assert msgs[2]["content"] == [{"type": "tool_result", "tool_use_id": use[1]["id"],
+                                   "content": "Derivacion a Ventas ejecutada; lo que paso despues sigue en la "
+                                              "conversacion."}]
+
+
 def test_model_compatibility_table():
     for model in ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "claude-opus-4-8",
                   "claude-sonnet-4-6", "claude-opus-4-6"):

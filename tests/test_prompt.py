@@ -1,6 +1,7 @@
 """Prompt del motor (app/llm/prompt.py): el canal y el prompt del agente tal cual, con sus {{variables}}; sin
 reglas de comportamiento ni bloques de la plataforma. Se renderiza una vez, en el primer turno."""
 import datetime
+import json
 
 import pytest
 
@@ -11,9 +12,13 @@ from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
 from app.llm.prompt import (
     CHANNEL,
+    MAX_TOOL_ARGUMENTS,
+    MAX_TOOL_RESULT,
+    TRUNCATED,
     build_extraction_prompt,
     build_system_prompt,
     build_turn_messages,
+    tool_history,
 )
 
 from .helpers import FakeLLM
@@ -133,6 +138,47 @@ def test_classic_history_derivacion_con_tool_call():
     call = out[1]["tool_calls"][0]
     assert call["function"]["name"] == "transfer_call" and '"Ventas"' in call["function"]["arguments"]
     assert out[2]["tool_call_id"] == call["id"]
+
+
+def test_classic_history_con_las_herramientas_del_turno():
+    """El assistant con sus llamadas (los ids guardados), un tool por resultado y despues el texto."""
+    from app.llm.prompt import classic_history
+    tools = [{"id": "call_7", "name": "consultar_turnos", "arguments": '{"sucursal": "centro"}',
+              "result": '{"ok": true, "data": {"turnos": ["10:00"]}}'}]
+    out = classic_history([Message(role="user", text="¿turnos?"),
+                           Message(role="assistant", text="Hay a las 10.", tools=tools)], False)
+    assert [m["role"] for m in out] == ["user", "assistant", "tool", "assistant"]
+    call = out[1]["tool_calls"][0]
+    assert call["id"] == "call_7" and call["function"]["name"] == "consultar_turnos"
+    assert call["function"]["arguments"] == '{"sucursal": "centro"}' and out[1]["content"] is None
+    assert out[2] == {"role": "tool", "tool_call_id": "call_7", "content": tools[0]["result"]}
+    assert out[3] == {"role": "assistant", "content": "Hay a las 10."}
+
+
+def test_classic_history_con_herramienta_y_derivacion():
+    """Un turno que uso una herramienta y derivo: van las dos llamadas, sus resultados y el texto."""
+    from app.llm.prompt import classic_history
+    tools = [{"id": "call_7", "name": "consultar_turnos", "arguments": "{}", "result": '{"ok": true}'}]
+    out = classic_history([Message(role="assistant", text="Te paso con Ventas.", handoff="Ventas", tools=tools)],
+                          False)
+    assert [m["role"] for m in out] == ["assistant", "tool", "tool", "assistant"]
+    assert [c["function"]["name"] for c in out[0]["tool_calls"]] == ["consultar_turnos", "transfer_call"]
+    assert [m["tool_call_id"] for m in out[1:3]] == [c["id"] for c in out[0]["tool_calls"]]
+    assert out[3]["content"] == "Te paso con Ventas."
+
+
+def test_tool_history_truncates_with_a_fixed_suffix():
+    """Argumentos a 2.000 y resultado a 4.000, con el mismo sufijo: el recorte no cambia entre turnos (prefix cache)."""
+    arguments = json.dumps({"x": "a" * 5000})
+    calls = [{"id": "c1", "name": "f", "arguments": arguments},
+             {"id": "c2", "name": "g", "arguments": '{"ok": 1}'}]
+    results = {"c1": "r" * 10_000, "c2": '{"ok": true}'}
+    first = tool_history(calls, results)
+    assert first[0]["arguments"] == arguments[:MAX_TOOL_ARGUMENTS] + TRUNCATED
+    assert first[0]["result"] == "r" * MAX_TOOL_RESULT + TRUNCATED
+    assert first[1] == {"id": "c2", "name": "g", "arguments": '{"ok": 1}', "result": '{"ok": true}'}
+    assert tool_history(calls, results) == first
+
 
 
 @pytest.mark.parametrize("text", ["Clave {{secrets.API}}", "Dato {{fields.email}}", "Resumen {{ call.summary }}"])
