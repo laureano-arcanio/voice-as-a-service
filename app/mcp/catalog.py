@@ -191,7 +191,8 @@ _READ: tuple[Tool, ...] = (
          "Los agentes de voz y WhatsApp del cliente, con su voz, versión vigente y si es su propio agente.", path="/agents",
          params={"include_archived": {"type": "boolean", "description": "Incluir los archivados."}}),
     Tool("get_agent", "agents", "Agente",
-         "Un agente con su definición vigente completa (prompt, datos que toma, voz, apertura, reglas).",
+         "Un agente con su definición vigente completa (prompt, primer mensaje, variables, análisis, voz y si es su "
+         "propio agente).",
          path="/agents/{agent_id}", params={"agent_id": _s("ID del agente.")}, required=("agent_id",)),
     Tool("list_agent_versions", "agents", "Versiones de un agente",
          "Las versiones de la definición de un agente (cada cambio es una versión nueva).",

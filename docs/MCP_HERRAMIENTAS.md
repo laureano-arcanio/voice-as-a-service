@@ -53,7 +53,7 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | Herramienta | Qué hace | Tipo | Plan | API |
 |---|---|---|---|---|
 | `list_agents` | Los agentes de voz y WhatsApp del cliente, con su voz, versión vigente y si es su propio agente. | lectura | todos | `GET /agents` |
-| `get_agent` | Un agente con su definición vigente completa (prompt, datos que toma, voz, apertura, reglas). | lectura | todos | `GET /agents/{agent_id}` |
+| `get_agent` | Un agente con su definición vigente completa (prompt, primer mensaje, variables, análisis, voz y si es su propio agente). | lectura | todos | `GET /agents/{agent_id}` |
 | `list_agent_versions` | Las versiones de la definición de un agente (cada cambio es una versión nueva). | lectura | todos | `GET /agents/{agent_id}/versions` |
 | `get_agent_version` | La definición de un agente en una versión anterior. | lectura | todos | `GET /agents/{agent_id}/versions/{version}` |
 | `get_agent_schema` | JSON Schema de la definición de un agente: todos los campos que se pueden configurar. | lectura | todos | `GET /agents/schema` |

@@ -299,7 +299,7 @@
    "name": "get_agent",
    "toolset": "agents",
    "title": "Agente",
-   "description": "Un agente con su definición vigente completa (prompt, datos que toma, voz, apertura, reglas).",
+   "description": "Un agente con su definición vigente completa (prompt, primer mensaje, variables, análisis, voz y si es su propio agente).",
    "kind": "lectura",
    "features": [],
    "oauth": false,
