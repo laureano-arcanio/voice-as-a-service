@@ -331,6 +331,7 @@ def test_detail_has_summary_and_variables(api, data):
     progress = {"summary": "Quiere una demo el jueves.", "variables": {"deuda": "125000", "token_crm": "xyz"},
                 "hidden_variables": ["token_crm"],
                 "variable_sources": {"deuda": "pre_call:consultar_deuda", "token_crm": "pre_call:consultar_deuda"},
+                "system_prompt": "Estás en una llamada telefónica.\n\nSos Sofía, de Browix.",
                 "call": {"id": "c-9", "phone": "+5493510000001", "direction": "inbound", "mode": "entrante"}}
     with api.sessions() as s:
         cid = conv(s, data["acme"], data["agent_a"], T(8, 10), fields={"contact_name": "Ana"},
@@ -350,6 +351,19 @@ def test_detail_has_summary_and_variables(api, data):
     field = body["fields"][0]
     assert "required" not in field and field["label"] and field["description"]
     assert body["messages"][0]["tools"] == [{"id": "t1", "name": "stock", "arguments": "{}", "result": "ok"}]
+    # El prompt renderizado del primer turno, tal como quedó en progress.system_prompt.
+    assert body["system_prompt"] == "Estás en una llamada telefónica.\n\nSos Sofía, de Browix."
+
+
+def test_detail_of_an_old_conversation_has_no_system_prompt(api, data):
+    """Las conversaciones anteriores a `progress.system_prompt` (y las de WhatsApp sin renderizar) dan null."""
+    with api.sessions() as s:
+        cid = conv(s, data["acme"], data["agent_a"], T(8, 14), fields={"contact_name": "Ana"})
+        s.commit()
+    body = data["admin"].get(f"{V1}/calls/{cid}").json()
+    assert body["system_prompt"] is None
+    # El resto del detalle sigue igual que sin prompt.
+    assert body["summary"] is None and body["fields"] and body["variables"]
 
 
 def test_calls_list_counts_all_the_analysis_fields(api, data):

@@ -1465,6 +1465,9 @@ class CallDetail(BaseModel):
     # definición; las ocultas, enmascaradas.
     summary: str | None = None
     variables: list[ConversationVariable] = []
+    # El prompt que vio el LLM en el primer turno, con las variables ya sustituidas (`progress.system_prompt`): null en
+    # las conversaciones viejas o de WhatsApp sin renderizar.
+    system_prompt: str | None = None
     # Numero de cada WAV grabado (agent.record_audio), uno por mensaje, si los hay.
     recordings: list[int] = []
     # Grabacion completa de la llamada (opcion del numero, Asterisk): GET /calls/{id}/recording.

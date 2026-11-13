@@ -270,6 +270,7 @@ class Reports:
             "messages": conv.messages,
             "summary": progress.summary,
             "variables": variables.detail(state, workflow),
+            "system_prompt": progress.system_prompt,
             "recordings": recordings,
             # Grabacion completa (Asterisk, app/services/line_recordings.py): GET /calls/{id}/recording.
             "full_recording": full_recording_path(conv.id).is_file(),

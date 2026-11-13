@@ -4856,6 +4856,8 @@ export interface components {
              * @default []
              */
             variables?: components["schemas"]["ConversationVariable"][];
+            /** System Prompt */
+            system_prompt?: string | null;
             /**
              * Recordings
              * @default []

@@ -705,9 +705,10 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
   análisis de la versión con que corrió).
 - **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis con `name`,
   `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
-  (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`). No hay `context`:
-  el motivo es la variable `motivo`. Los mensajes traen `tools` (`{id, name, arguments, result}`) si el turno usó
-  herramientas del cliente.
+  (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`); `system_prompt` es
+  el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar). No
+  hay `context`: el motivo es la variable `motivo`. Los mensajes traen `tools` (`{id, name, arguments, result}`) si el
+  turno usó herramientas del cliente.
 
 | Router (`app/api/routers/`) | Rutas | Detalle |
 |---|---|---|

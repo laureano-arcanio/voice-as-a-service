@@ -16625,6 +16625,17 @@
       "title": "Variables",
       "default": []
      },
+     "system_prompt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "System Prompt"
+     },
      "recordings": {
       "items": {
        "type": "integer"
