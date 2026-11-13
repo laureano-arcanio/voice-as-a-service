@@ -1315,7 +1315,7 @@ class CallSummary(BaseModel):
     outcome: str | None
     goal: bool
     captured: int
-    required: int
+    total: int = Field(description="Datos del análisis de la versión con que corrió la conversación")
     mode: str
     phone: str | None
     status: str | None
@@ -1347,10 +1347,19 @@ class CallBulkDeleteOut(BaseModel):
 
 class FieldValue(BaseModel):
     name: str
+    label: str
     description: str
     value: Any
-    required: bool
     rejected: Any = None
+
+
+class ConversationVariable(BaseModel):
+    """Una variable de la conversación (app/conversation/variables.py): la oculta va enmascarada y las del sistema
+    llevan `source: system`."""
+    name: str
+    value: Any
+    source: str
+    hidden: bool = False
 
 
 class TeamOutcome(BaseModel):
@@ -1414,6 +1423,8 @@ class MessageOut(BaseModel):
     role: Literal["assistant", "user"]
     text: str
     llm: list[LlmCall] | None = None
+    # Herramientas del cliente que usó el turno: [{id, name, arguments, result}], con los textos recortados.
+    tools: list[dict[str, Any]] | None = None
     # WhatsApp: del usuario, transcripcion de una nota de voz; del agente, enviada como nota de voz.
     voice_note: bool = False
     # Llamada con agent.record_audio: numero de su WAV (/calls/{id}/recordings/{n}), uno por mensaje.
@@ -1450,8 +1461,10 @@ class CallDetail(BaseModel):
     fields: list[FieldValue]
     outcome: OutcomeOut | None
     messages: list[MessageOut]
-    # Llamada suelta (pantalla Llamadas): el motivo con que se llamo.
-    context: str | None = None
+    # Del análisis (app/conversation/engine.py): el resumen y las variables de la conversación, en el orden de la
+    # definición; las ocultas, enmascaradas.
+    summary: str | None = None
+    variables: list[ConversationVariable] = []
     # Numero de cada WAV grabado (agent.record_audio), uno por mensaje, si los hay.
     recordings: list[int] = []
     # Grabacion completa de la llamada (opcion del numero, Asterisk): GET /calls/{id}/recording.
@@ -2881,7 +2894,7 @@ class ReportOutcomesOut(BaseModel):
     by_agent: list[ReportOutcomesAgentOut]
     outcomes: list[ReportOutcomeOut]
     funnel: ReportFunnelOut
-    fields: list[ReportFieldOut] = Field(description="Datos obligatorios de la versión vigente de cada agente")
+    fields: list[ReportFieldOut] = Field(description="Datos del análisis de la versión vigente de cada agente")
     by_version: list[ReportVersionOut]
 
 

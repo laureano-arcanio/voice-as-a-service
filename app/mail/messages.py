@@ -418,8 +418,9 @@ def _duration(seconds: int) -> str:
 def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone: str | None,
                  client_number: str | None, started_at: datetime.datetime, duration_seconds: int,
                  outcome: str | None, fields: list[tuple[str, str]], transcript: list[tuple[str, str]],
-                 truncated: bool, call_url: str, context: str | None = None) -> Mail:
-    """Resumen de una llamada para el cliente (app/mail/call_summary.py): datos, resultado y transcripcion."""
+                 truncated: bool, call_url: str, context: str | None = None, summary: str | None = None) -> Mail:
+    """Resumen de una llamada para el cliente (app/mail/call_summary.py): resumen del análisis, datos, resultado y
+    transcripcion."""
     # phone: el de la llamada o, por el link, el que dio la persona (None si no lo dio).
     who = phone or "número oculto"
     web = f"Llamada por el link de {phone} a {agent_name}" if phone else f"Llamada por el link a {agent_name}"
@@ -438,6 +439,8 @@ def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone
     content = [L.heading("Resumen de la llamada"), L.details("La llamada", rows)]
     if context:     # llamada suelta: con que motivo se llamo
         content.append(L.details("Motivo del llamado", [], note=context))
+    if summary:     # el resumen del analisis, arriba de los datos
+        content.append(L.details("Resumen de la conversación", [], note=summary))
     if fields:
         content.append(L.details("Datos que tomó el agente", fields))
     if transcript:
@@ -446,6 +449,8 @@ def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone
     lines = [subject, "", "La llamada", *(f"- {label}: {value}" for label, value in rows), ""]
     if context:
         lines += ["Motivo del llamado", context, ""]
+    if summary:
+        lines += ["Resumen de la conversación", summary, ""]
     if fields:
         lines += ["Datos que tomó el agente", *(f"- {label}: {value}" for label, value in fields), ""]
     if transcript:

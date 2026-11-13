@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.conversation import workflows
+from app.conversation.models import Extraction
 from app.db import utcnow
 from app.models import (
     Agent,
@@ -168,6 +169,8 @@ class Tools:
 
     def __init__(self, w):
         self.calls: list[tuple[str, str | None]] = []
+        # (clave, datos, resumen) de cada workflow, con lo que tenia la conversacion al correr.
+        self.contexts: list[tuple[str, dict, str | None]] = []
         self.post_call = ToolResult(ok=True, status=200, data={"charged": True, "operator_message": "Cobro registrado."})
         self.pre_call = ToolResult(ok=True, status=200, assigned={"nombre": "María Gómez", "ficha": "https://f/1"})
         self.gate: asyncio.Event | None = None
@@ -175,6 +178,7 @@ class Tools:
 
     async def run(self, workflow, state, slug, actor, key, *, emit=True):
         self.calls.append((key, actor))
+        self.contexts.append((key, dict(state.fields), state.progress.summary))
         if self.gate and key == "post_call":
             await self.gate.wait()
         result = self.post_call if key == "post_call" else self.pre_call
@@ -974,6 +978,41 @@ async def test_post_call_slow_delivers_then_finishes_on_its_own(h):
     await h.service.drain()
     assert post_call_row(h).post_call_status == "done"
     assert post_call_row(h).post_call_note == "Cobro registrado."
+
+
+async def test_post_call_waits_for_the_analysis(h):
+    """El análisis corre antes del post-call: `{{fields.x}}` y `{{call.summary}}` llegan con el dato extraído."""
+    configure(h, [h.area_id], post_call="handoff_accepted")
+
+    async def extract(workflow, state):
+        await asyncio.sleep(0.02)
+        return Extraction(fields={"demo_answer": "si"}, summary="Quiere pagar la deuda.")
+    h.llm.extract = extract
+    await derive(h)
+    await accept(h)
+    assert post_call_row(h).post_call_status == "done"
+    [(key, fields, summary)] = h.tools.contexts
+    assert key == "post_call" and fields["demo_answer"] == "si" and summary == "Quiere pagar la deuda."
+
+
+async def test_analysis_that_expires_does_not_hold_the_delivery(h):
+    """Si el análisis no termina dentro de POST_CALL_WAIT_SECONDS, el post-call corre igual con lo que haya."""
+    configure(h, [h.area_id], post_call="handoff_accepted")
+    gate = asyncio.Event()
+
+    async def extract(workflow, state):
+        await gate.wait()
+        return Extraction(fields={"demo_answer": "si"}, summary="Quiere pagar la deuda.")
+    h.llm.extract = extract
+    await derive(h)
+    started = asyncio.get_running_loop().time()
+    await accept(h)
+    assert asyncio.get_running_loop().time() - started < 2
+    assert thread_of(h).handoff_status == "accepted"
+    assert PERSON_PHONE in h.graph.texts(TO["ana"])[1]
+    gate.set()
+    await h.service.drain()
+    assert post_call_row(h).post_call_status == "done"
 
 
 async def test_no_charge_delivers_with_operator_message(h):

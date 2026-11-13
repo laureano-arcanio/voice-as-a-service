@@ -308,8 +308,9 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   cambiar el checkpoint del TTS, borrar `storage/openings/` o volver a guardar los agentes
   (`app/conversation/opening_audio.py`).
 - **`call_summary_email`** (default `false`): al terminar cada llamada conectada (entrante, saliente suelta o por
-  el link; no campañas, prueba ni loadtest) se manda al cliente un email con datos, resultado, conversación (hasta
-  `CALL_SUMMARY_TRANSCRIPT_CHARS`) y link. El worker deja `call_logs.summary_email = pending` y un loop de `app`
+  el link; no campañas, prueba ni loadtest) se manda al cliente un email con el resumen del análisis, los datos en el
+  orden de `analysis.fields`, el resultado, la conversación (hasta `CALL_SUMMARY_TRANSCRIPT_CHARS`) y el link. El
+  worker deja `call_logs.summary_email = pending` y un loop de `app`
   lo manda por Resend (`app/mail/call_summary.py`, cada `CALL_SUMMARY_TICK_SECONDS`; 4 intentos: ya, 1 min,
   10 min, 1 h; `Idempotency-Key` por llamada y destino). El cliente lo apaga o elige destinos en
   `GET/PUT /clients/{id}/call-emails` (vacío = sus usuarios activos). Estados: `sent`, `disabled` (sin
@@ -700,7 +701,13 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
   `internal_error`. Los 422 de pydantic mantienen el formato de FastAPI.
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`, y filtra por uno o varios `mode` y por `landing`; el resto, listas simples. Las
   fechas de `/calls` y `/reports` toman días locales de `tz` (default `BILLING_TIMEZONE`). Los admins pasan
-  `client_id` en las rutas de recursos de un cliente.
+  `client_id` en las rutas de recursos de un cliente. Cada ítem trae `captured` (datos capturados) y `total` (los del
+  análisis de la versión con que corrió).
+- **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis con `name`,
+  `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
+  (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`). No hay `context`:
+  el motivo es la variable `motivo`. Los mensajes traen `tools` (`{id, name, arguments, result}`) si el turno usó
+  herramientas del cliente.
 
 | Router (`app/api/routers/`) | Rutas | Detalle |
 |---|---|---|

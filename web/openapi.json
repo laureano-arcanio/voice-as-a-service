@@ -16606,7 +16606,7 @@
       "type": "array",
       "title": "Messages"
      },
-     "context": {
+     "summary": {
       "anyOf": [
        {
         "type": "string"
@@ -16615,7 +16615,15 @@
         "type": "null"
        }
       ],
-      "title": "Context"
+      "title": "Summary"
+     },
+     "variables": {
+      "items": {
+       "$ref": "#/components/schemas/ConversationVariable"
+      },
+      "type": "array",
+      "title": "Variables",
+      "default": []
      },
      "recordings": {
       "items": {
@@ -17562,9 +17570,10 @@
       "type": "integer",
       "title": "Captured"
      },
-     "required": {
+     "total": {
       "type": "integer",
-      "title": "Required"
+      "title": "Total",
+      "description": "Datos del análisis de la versión con que corrió la conversación"
      },
      "mode": {
       "type": "string",
@@ -17679,7 +17688,7 @@
      "outcome",
      "goal",
      "captured",
-     "required",
+     "total",
      "mode",
      "phone",
      "status",
@@ -20825,6 +20834,34 @@
     ],
     "title": "ConversationStateOut"
    },
+   "ConversationVariable": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "value": {
+      "title": "Value"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "hidden": {
+      "type": "boolean",
+      "title": "Hidden",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "value",
+     "source"
+    ],
+    "title": "ConversationVariable",
+    "description": "Una variable de la conversación (app/conversation/variables.py): la oculta va enmascarada y las del sistema\nllevan `source: system`."
+   },
    "CredentialIn": {
     "properties": {
      "slug": {
@@ -21564,16 +21601,16 @@
       "type": "string",
       "title": "Name"
      },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
      "description": {
       "type": "string",
       "title": "Description"
      },
      "value": {
       "title": "Value"
-     },
-     "required": {
-      "type": "boolean",
-      "title": "Required"
      },
      "rejected": {
       "title": "Rejected"
@@ -21582,9 +21619,9 @@
     "type": "object",
     "required": [
      "name",
+     "label",
      "description",
-     "value",
-     "required"
+     "value"
     ],
     "title": "FieldValue"
    },
@@ -23884,6 +23921,21 @@
        }
       ],
       "title": "Llm"
+     },
+     "tools": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tools"
      },
      "voice_note": {
       "type": "boolean",
@@ -27568,7 +27620,7 @@
       },
       "type": "array",
       "title": "Fields",
-      "description": "Datos obligatorios de la versión vigente de cada agente"
+      "description": "Datos del análisis de la versión vigente de cada agente"
      },
      "by_version": {
       "items": {

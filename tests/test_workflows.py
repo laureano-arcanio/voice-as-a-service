@@ -715,6 +715,25 @@ def test_note_on_whatsapp(api, admin, client, http, reply, note):  # noqa: F811
     assert read(api, conversation_id).post_call_note == note
 
 
+def test_post_call_gets_the_summary_and_the_analysis_fields(api, admin, client, http):  # noqa: F811
+    """La herramienta del post-call ve `{{call.summary}}` y `{{fields.x}}` (el análisis ya corrió)."""
+    add_tool(admin, client, http_tool("registrar_cobro", BASE + "/cobrar", body={
+        "type": "object", "properties": {
+            "resumen": {"type": "string", "value": "{{call.summary}}"},
+            "demo": {"type": "string", "value": "{{fields.demo_answer}}"}}}))
+    agent = add_agent(admin, client, workflows={"post_call": {"tool": "registrar_cobro", "when": "always"}})
+    conversation_id = pending_conversation(api, agent, client)
+    with api.sessions() as s:
+        row = s.get(ConversationRow, conversation_id)
+        row.fields = {**row.fields, "demo_answer": "si"}
+        row.progress = {**(row.progress or {}), "summary": "Quiere una demo el jueves."}
+        s.commit()
+    http.replies = [{"charged": True}]
+    assert run_post_call(api, conversation_id) == "done"
+    body = json.loads(http.requests[0]["body"])
+    assert (body["resumen"], body["demo"]) == ("Quiere una demo el jueves.", "si")
+
+
 def test_no_note_on_voice(api, admin, client, http):  # noqa: F811
     agent = post_call_agent(admin, client)
     conversation_id = pending_conversation(api, agent, client)
@@ -768,8 +787,11 @@ def test_responses_are_not_exposed(api, admin, client, http):  # noqa: F811
         assert '"workflow.post_call"' in bodies[2] and '"workflow.pre_call"' in bodies[2]
         for body in bodies:
             for secret in ("Cobro registrado", "operator_message", "al día", "Ficha:", "fichas.test/c", "post_call_note",
-                           "tool_vars", "nota_operador", "no se asigna"):
+                           "tool_vars", "no se asigna"):
                 assert secret not in body, (secret, body)
+        # Las variables ocultas salen en el detalle con su nombre y el valor enmascarado.
+        for body in (bodies[1], bodies[3]):
+            assert '"name":"nota_operador","value":"•••"' in body
         stored = api.engine.store.get(cid).model_dump_json(include={"messages"})
         assert "Cobro registrado" not in stored and "Ficha:" not in stored
 

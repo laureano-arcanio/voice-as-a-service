@@ -262,3 +262,31 @@ def test_summary_web_call_without_phone(api, admin, resend):
     run(api)
     [(mail, _)] = resend
     assert mail.subject == "Llamada por el link a Ventas" and "- Teléfono: No lo dio" in mail.text
+
+
+def test_summary_and_data_in_the_analysis_order(api, admin, resend):
+    """El resumen arriba de los datos, y los datos en el orden de la lista, no el del mapa guardado."""
+    c = make_client(admin)
+    client_user(api, admin, c)
+    definition = Workflow.model_validate(reference_data("sales_discovery")).model_dump(mode="json", exclude_none=True)
+    definition["analysis"]["fields"] = [
+        {"name": "z", "label": "Zeta", "description": "Z", "type": "string"},
+        {"name": "a", "label": "Alfa", "description": "A", "type": "string"},
+        {"name": "m", "label": "Mike", "description": "M", "type": "string"},
+    ]
+    definition["analysis"]["outcomes"] = []      # sus `when` nombran los campos de antes
+    r = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Ventas",
+                                         "definition": {**definition, "call_summary_email": True}})
+    assert r.status_code == 201, r.text
+    conv_id = finished_call(api, admin, r.json())
+    with api.sessions() as s:
+        conv = s.get(ConversationRow, conv_id)
+        conv.fields = {"m": 3, "z": 1, "a": 2}
+        conv.progress = {"summary": "Quiere que lo llamen el jueves."}
+        s.commit()
+    run(api)
+    [(mail, _)] = resend
+    assert "Resumen de la conversación\nQuiere que lo llamen el jueves." in mail.text
+    position = [mail.text.index(line) for line in ("- Zeta: 1", "- Alfa: 2", "- Mike: 3")]
+    assert position == sorted(position)
+    assert mail.text.index("Quiere que lo llamen el jueves.") < mail.text.index("- Zeta: 1")

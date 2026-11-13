@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..agents.definitions import DefinitionSource
 from ..agents.templates import load_reference
 from ..config import settings
+from ..conversation import variables
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.recordings import full_recording_path
 from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, outcome_for
@@ -136,6 +137,16 @@ def _base_query():
             .outerjoin(WaAccount, WaAccount.id == WaThread.account_id))
 
 
+def state_of(conv: ConversationRow) -> ConversationState:
+    """El estado del motor de una conversacion guardada: lo que leen el detalle, el email y el webhook."""
+    return ConversationState(
+        conversation_id=conv.id, agent_id=conv.agent_id or conv.legacy_workflow_id or "",
+        agent_version=conv.agent_version or 1, client_id=conv.client_id,
+        channel="whatsapp" if conv.channel == "whatsapp" else "voice",
+        status="completed" if conv.status == "completed" else "active",
+        fields=conv.fields or {}, progress=Progress.model_validate(conv.progress or {}))
+
+
 class Reports:
     def __init__(self, s: Session, definitions: DefinitionSource):
         self.s = s
@@ -168,7 +179,8 @@ class Reports:
                 client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
         workflow = self.workflow(conv)
         f = conv.fields
-        required = list(workflow.analysis_fields) if workflow else list(f)
+        # Todos los datos del analisis: cuantos se capturaron.
+        names = list(workflow.analysis_fields) if workflow else list(f)
         outcome = self.outcome(workflow, conv)
         lat = (call.latency or {}).get("stats", {}).get("total") if call else None
         if conv.channel == "whatsapp":
@@ -183,7 +195,7 @@ class Reports:
             "contact_name": f.get("contact_name"),
             "company": f.get("company_name") or f.get("company_context"),
             "outcome": outcome.label if outcome else None, "goal": bool(outcome and outcome.goal),
-            "captured": sum(f.get(n) is not None for n in required), "required": len(required),
+            "captured": sum(f.get(n) is not None for n in names), "total": len(names),
             "mode": mode, "phone": phone,
             "status": call.status if call else None,
             "duration_seconds": call.duration_seconds if call else 0,
@@ -234,12 +246,13 @@ class Reports:
             return None
         conv, call, agent_name, client_name, thread, business_number = row
         workflow = self.workflow(conv)
-        progress = Progress.model_validate(conv.progress or {})
+        state = state_of(conv)
+        progress = state.progress
         if workflow:
-            fields = [{"name": n, "description": spec.description.strip(), "value": conv.fields.get(n),
-                       "required": False} for n, spec in workflow.analysis_fields.items()]
+            fields = [{"name": n, "label": spec.label or n, "description": spec.description.strip(),
+                       "value": conv.fields.get(n)} for n, spec in workflow.analysis_fields.items()]
         else:
-            fields = [{"name": n, "description": n, "value": v, "required": True} for n, v in conv.fields.items()]
+            fields = [{"name": n, "label": n, "description": n, "value": v} for n, v in conv.fields.items()]
         for f in fields:
             f["rejected"] = progress.rejected.get(f["name"])
         outcome = self.outcome(workflow, conv)
@@ -255,7 +268,8 @@ class Reports:
             "workflow_status": conv.status, "fields": fields,
             "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
             "messages": conv.messages,
-            "context": progress.variables.get("motivo") or None,
+            "summary": progress.summary,
+            "variables": variables.detail(state, workflow),
             "recordings": recordings,
             # Grabacion completa (Asterisk, app/services/line_recordings.py): GET /calls/{id}/recording.
             "full_recording": full_recording_path(conv.id).is_file(),

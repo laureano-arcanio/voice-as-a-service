@@ -164,7 +164,9 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
   contacto). Van a `campaign_callbacks` en la misma transacción y los entrega `callback_loop`.
 - POST JSON con `X-Atentina-Event`, `X-Atentina-Delivery` (el mismo en los reintentos) y
   `X-Atentina-Signature: sha256=<HMAC-SHA256 del cuerpo>`. 2xx es éxito; si no, reintenta a los 30 s, 2 min, 10 min,
-  1 h y 6 h (`CAMPAIGN_CALLBACK_MAX_ATTEMPTS`, 6) y queda `failed`.
+  1 h y 6 h (`CAMPAIGN_CALLBACK_MAX_ATTEMPTS`, 6) y queda `failed`. Los eventos por contacto llevan `contact` con los
+  campos del reporte más `summary` (el resumen del análisis) y `variables` (las visibles de la conversación, sin las
+  ocultas); `campos` y `vars` siguen como JSON en texto.
 - El secreto va cifrado con `WA_TOKEN_KEY`; si el cliente no manda uno se genera y se muestra una sola vez.
 - **SSRF:** solo https a un host público; al entregar se resuelve, se exige IP pública y se conecta a esa IP con el
   SNI y el `Host` originales, sin redirecciones. `CAMPAIGN_CALLBACK_ALLOW_PRIVATE=true` solo en desarrollo.

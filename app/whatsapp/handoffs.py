@@ -794,10 +794,13 @@ class TextHandoffs:
                 if status != "running":
                     return
         if run:
+            # El post-call usa {{fields.x}} y {{call.summary}}: el análisis corre antes, dentro de la misma espera. Si
+            # vence, el post-call corre igual con lo que haya y la entrega sigue.
+            await self.engine.analyze(conversation_id, max(until - loop.time(), 0))
             # No se cancela al vencer la espera: termina en su tarea y deja su resultado en la base.
             task = self.service._spawn(workflows.run_post_call(self.sessions, self.engine, conversation_id,
                                                                actor=f"wa:{thread.wa_id}"))
-            done, _ = await asyncio.wait([task], timeout=settings.post_call_wait_seconds)
+            done, _ = await asyncio.wait([task], timeout=max(until - loop.time(), 0))
             if not done or task.cancelled() or task.exception() is not None or task.result() is not None:
                 return
         # Lo esta corriendo otro (el loop, o una aceptacion anterior).

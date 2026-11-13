@@ -12,7 +12,7 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 | Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, objetivo, % de transferencia, embudo ni turnos |
 | Transferencia | conversación (llamada o WhatsApp de texto) con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
 | Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
-| Conversión | `complete`: el agente terminó la conversación y no fue `fuera_de_tema`; `partial`: algún dato del análisis capturado sin completar; `empty`: ningún dato (`app/conversation/workflow.py`, `conversion`) |
+| Conversión | `complete`: el agente terminó la conversación y no fue `fuera_de_tema`; `partial`: algún dato del análisis capturado (sin precarga, no se descuenta nada); `empty`: ningún dato (`app/conversation/workflow.py`, `conversion`) |
 
 ## Modelo de datos (migración 0036)
 
@@ -35,7 +35,7 @@ el `loadtest` nunca entra).
 |---|---|---|
 | `GET /reports/summary` | todos | `kpis` y `previous` (período anterior): consultas por canal (`voice_in`, `voice_out`, `whatsapp`, `web`), `with_agent`, conversiones, objetivos, transferencias, minutos, finalizadas, fallidas, duración media, rechazadas por límite, mensajes de WhatsApp; `daily` |
 | `GET /reports/calls` | todos | `daily` por modo, `heatmap` (sin directas), `by_line`, `by_agent`, `by_type` (`agent`, `direct`, `team`), `by_user`, `durations` (solo finalizadas), `total`, `ended` por motivo, `early_hangups`, `callers` (nuevos, recurrentes, top) |
-| `GET /reports/outcomes` | `advanced_reports` | conversión diaria y por agente, resultados, embudo, captura de cada dato requerido (versión vigente), por versión del agente |
+| `GET /reports/outcomes` | `advanced_reports` | conversión diaria y por agente, resultados, embudo, captura de cada dato del análisis (versión vigente), por versión del agente |
 | `GET /reports/messages` | `advanced_reports` | mensajes por día (texto y audio), heatmap, entrega (`sent`, `delivered`, `read`, `failed`), fallas por código, promedio por conversación, cuentas con historial de calidad |
 | `GET /reports/transfers` | `advanced_reports` | KPIs (pedidas, atendidas, no atendidas, sin nadie, tiempo de respuesta, minutos), por día, área y persona; WhatsApp (asignadas, primera respuesta, reasignadas) |
 | `GET /reports/campaigns` | `advanced_reports` | por campaña (contactos, intentos, alcanzados, completos, objetivo, bajas, minutos), motivos de no contacto, mejores horarios |

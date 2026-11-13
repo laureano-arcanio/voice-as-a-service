@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import select
 
 from app.db import utcnow
-from app.models import Campaign, CampaignContact, Contact
+from app.models import Campaign, CampaignCallback, CampaignContact, Client, Contact, ConversationRow, Tier
 from app.services import campaigns as common
 from app.whatsapp.sender import CampaignSender
 
@@ -625,3 +625,39 @@ def test_contacts_import_ignores_extra_columns(api, voice):
     wide = "telefono,nombre," + ",".join(f"c{i}" for i in range(40)) + "\n351 555-4001,Ana\n"
     r = user.post(f"{V1}/contacts/import", json={"csv": wide})
     assert r.status_code == 200 and r.json()["created"] == 1
+
+
+def test_webhook_contact_has_summary_and_visible_variables(sessions):
+    """`contact.finished`: el cuerpo suma el resumen del análisis y las variables visibles (las ocultas no salen)."""
+    from app.agents.templates import ReferenceDefinitions
+    from app.campaigns.callbacks import payload
+
+    with sessions() as s:
+        tier = Tier(name="T")
+        s.add(tier)
+        s.flush()
+        client = Client(name="Acme", slug="acme", tier_id=tier.id)
+        s.add(client)
+        s.flush()
+        contact = Contact(client_id=client.id, phone="+5493515551001", name="Ana")
+        camp = Campaign(client_id=client.id, name="Cobranza", channel="voice", status="done", concurrency=1)
+        s.add_all([contact, camp])
+        s.flush()
+        member = CampaignContact(campaign_id=camp.id, contact_id=contact.id, status="done", result="answered")
+        s.add(member)
+        s.flush()
+        conv = ConversationRow(
+            id="c-1", client_id=client.id, agent_id="sales_discovery", agent_version=1, status="completed",
+            channel="voice", fields={"contact_name": "Ana"}, messages=[],
+            progress={"summary": "Quiere una demo el jueves.",
+                      "variables": {"deuda": "125000", "token_crm": "xyz"}, "hidden_variables": ["token_crm"],
+                      "variable_sources": {"deuda": "pre_call:consultar_deuda", "token_crm": "pre_call:consultar_deuda"}})
+        s.add(conv)
+        s.flush()
+        member.conversation_id = conv.id
+        row = CampaignCallback(campaign_id=camp.id, campaign_contact_id=member.id, event="contact.finished")
+        s.add(row)
+        s.commit()
+        body = payload(s, row, camp, ReferenceDefinitions())
+    assert body["contact"]["summary"] == "Quiere una demo el jueves."
+    assert body["contact"]["variables"] == {"deuda": "125000"}

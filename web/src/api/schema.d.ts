@@ -4849,8 +4849,13 @@ export interface components {
             outcome: components["schemas"]["OutcomeOut"] | null;
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
-            /** Context */
-            context?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Variables
+             * @default []
+             */
+            variables?: components["schemas"]["ConversationVariable"][];
             /**
              * Recordings
              * @default []
@@ -5191,8 +5196,11 @@ export interface components {
             goal: boolean;
             /** Captured */
             captured: number;
-            /** Required */
-            required: number;
+            /**
+             * Total
+             * @description Datos del análisis de la versión con que corrió la conversación
+             */
+            total: number;
             /** Mode */
             mode: string;
             /** Phone */
@@ -6444,6 +6452,24 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
         };
+        /**
+         * ConversationVariable
+         * @description Una variable de la conversación (app/conversation/variables.py): la oculta va enmascarada y las del sistema
+         *     llevan `source: system`.
+         */
+        ConversationVariable: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: unknown;
+            /** Source */
+            source: string;
+            /**
+             * Hidden
+             * @default false
+             */
+            hidden?: boolean;
+        };
         /** CredentialIn */
         CredentialIn: {
             /**
@@ -6774,12 +6800,12 @@ export interface components {
         FieldValue: {
             /** Name */
             name: string;
+            /** Label */
+            label: string;
             /** Description */
             description: string;
             /** Value */
             value: unknown;
-            /** Required */
-            required: boolean;
             /** Rejected */
             rejected?: unknown;
         };
@@ -7727,6 +7753,10 @@ export interface components {
             text: string;
             /** Llm */
             llm?: components["schemas"]["LlmCall"][] | null;
+            /** Tools */
+            tools?: {
+                [key: string]: unknown;
+            }[] | null;
             /**
              * Voice Note
              * @default false
@@ -9130,7 +9160,7 @@ export interface components {
             funnel: components["schemas"]["ReportFunnelOut"];
             /**
              * Fields
-             * @description Datos obligatorios de la versión vigente de cada agente
+             * @description Datos del análisis de la versión vigente de cada agente
              */
             fields: components["schemas"]["ReportFieldOut"][];
             /** By Version */

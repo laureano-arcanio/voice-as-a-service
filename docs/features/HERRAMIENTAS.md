@@ -280,9 +280,10 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
   es condicional, así que dos retomas no corren a la vez.
 - **Cuándo se arma.** Por voz, `handoff_accepted`: al marcar 1 la persona y conectarse; `always`: con la llamada
   conectada. `finalize` pasa `armed` a `pending` después de la extracción. Por texto, `handoff_accepted` corre al aceptar el
-  operador, **antes de la extracción** (una `{{fields.x}}` va vacía), como paso (b) de la entrega
-  ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)); `always` sin aceptación se arma en la transacción que cierra
-  el hilo y pasa a `pending` después de la extracción. No se arma en `loadtest` ni `celular`; en `prueba`, solo si la
+  operador, como paso (b) de la entrega ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)): antes corre el
+  análisis (`engine.analyze`), con lo que queda de `POST_CALL_WAIT_SECONDS`, así `{{fields.x}}` y `{{call.summary}}` llegan
+  con el dato; si vence, el post-call corre igual con lo que haya. `always` sin aceptación se arma en la transacción que
+  cierra el hilo y pasa a `pending` después de la extracción. No se arma en `loadtest` ni `celular`; en `prueba`, solo si la
   prueba es del panel con `workflows: true` (`progress.test_workflows`): la demo de la landing, Inicio y una API key no lo
   traen.
 - **Pruebas del panel (`workflows: true`):** corren el post-call de verdad; si registra o cobra, lo hace. Cada prueba es una

@@ -37,7 +37,8 @@ def test_call_with_contact_and_motive(api, admin):
     # El analisis ve las variables visibles como contexto.
     assert MOTIVO in build_extraction_prompt(api.engine.workflow(state), state)
     detail = admin.get(f"{V1}/calls/{state.conversation_id}").json()
-    assert detail["context"] == MOTIVO and detail["call"]["phone"] == "+5493515551234"
+    variables = {v["name"]: v["value"] for v in detail["variables"]}
+    assert variables["motivo"] == MOTIVO and detail["call"]["phone"] == "+5493515551234"
     assert detail["call"]["mode"] == "saliente"
 
 
@@ -69,7 +70,7 @@ def test_without_motive_nothing_changes(api, admin):
     out = admin.post(f"{V1}/calls", json={"agent_id": _agent(admin, c)["id"], "phone": "+5491155551234"}).json()
     state = api.engine.store.get(out["conversation_id"])
     assert "motivo" not in state.progress.variables
-    assert admin.get(f"{V1}/calls/{state.conversation_id}").json()["context"] is None
+    assert "motivo" not in {v["name"] for v in admin.get(f"{V1}/calls/{state.conversation_id}").json()["variables"]}
 
 
 def test_contact_of_another_client_or_archived(api, admin):

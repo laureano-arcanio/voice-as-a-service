@@ -194,8 +194,10 @@ texto, fuera de la conversación: `tap_wait` (quien ya tocó, mientras se entreg
 del otro falla. Un toque de una plantilla cuyo `wamid` todavía no se registró sigue como botón común y no acepta: el
 operador acepta con la plantilla que manda la retoma.
 
-**Entrega**, en este orden: (a) `operator_ack` sin datos de la persona; (b) el post-call del agente, con espera de hasta
-`POST_CALL_WAIT_SECONDS` (3) si no termina, y la entrega sigue igual; (c) un solo texto con la nota del post-call
+**Entrega**, en este orden: (a) `operator_ack` sin datos de la persona; (b) el análisis del agente (`engine.analyze`) y
+después su post-call, dentro de la misma espera de hasta `POST_CALL_WAIT_SECONDS` (3): el análisis va primero para que
+`{{fields.x}}` y `{{call.summary}}` lleguen con el dato, y si vence el post-call corre igual con lo que haya y la entrega
+sigue; (c) un solo texto con la nota del post-call
 (`operator_message`; si falló, `post_call_failed`) y `operator_contact` con nombre, teléfono y motivo (se recorta la nota
 antes que el teléfono); (d) `accepted`: se manda `accepted` a la persona, el tramo queda `connected` y arranca el reenvío.
 Se relee al operador justo antes de enviarle el contacto. Si el envío del contacto falla, se reintenta hasta 3 veces; si

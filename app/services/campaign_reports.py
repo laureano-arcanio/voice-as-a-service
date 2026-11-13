@@ -19,12 +19,13 @@ from sqlalchemy.orm import Session
 
 from ..agents.definitions import DefinitionSource
 from ..config import settings
+from ..conversation import variables
 from ..conversation.models import Workflow
 from ..models import CallRow, Campaign, CampaignContact, ConversationRow, WaMessage
 from ..whatsapp import campaigns as wa
 from . import campaign_calls
 from . import campaigns as common
-from .reports import Reports, iso
+from .reports import Reports, iso, state_of
 
 REPORT_COLUMNS = ["telefono", "nombre", "vars", "estado", "resultado", "intentos", "ultimo_intento",
                   "duracion_segundos", "outcome", "objetivo", "campos", "seguimiento", "error", "conversation_id",
@@ -169,13 +170,15 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
     out = []
     for r, message_status in rows:
         conv = conversations.get(r.conversation_id)
-        outcome, captured = None, {}
+        outcome, captured, summary, visible_variables = None, {}, None, {}
         if conv is not None:
             key = (conv.agent_id, conv.agent_version, conv.legacy_workflow_id)
             if key not in workflows:
                 workflows[key] = reports.workflow(conv)
             outcome = reports.outcome(workflows[key], conv)
             captured = {k: v for k, v in (conv.fields or {}).items() if v is not None}
+            state = state_of(conv)
+            summary, visible_variables = state.progress.summary, variables.visible(state)
         out.append({
             "campaign_contact_id": r.id,
             "followup_conversation_id": r.followup_conversation_id,
@@ -189,6 +192,9 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
             "outcome": outcome.label if outcome else "",
             "objetivo": ("si" if outcome.goal else "no") if outcome else "",
             "campos": _json(captured),
+            # Del análisis: el resumen y las variables visibles (las ocultas no salen del cliente).
+            "summary": summary,
+            "variables": visible_variables,
             "seguimiento": followup_shown(r),
             "error": _error(r.error),
             "conversation_id": r.conversation_id,

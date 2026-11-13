@@ -57,16 +57,18 @@ def _value(value: object) -> str:
 
 def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Client) -> Mail | None:
     """El mail, sin destino (`to` vacio). None si la conversacion ya no esta."""
-    from ..services.reports import Reports
+    from ..services.reports import Reports, state_of
 
     conv = s.get(ConversationRow, call.conversation_id)
     if conv is None:
         return None
     reports = Reports(s, definitions)
     workflow = reports.workflow(conv)
+    state = state_of(conv)
     outcome = reports.outcome(workflow, conv)
     agent = s.get(Agent, conv.agent_id) if conv.agent_id else None
     number = s.get(PhoneNumber, call.phone_number_id) if call.phone_number_id else None
+    # Los datos en el orden del análisis (la lista de la definición), no el del mapa guardado en jsonb.
     specs = list(workflow.analysis_fields.items()) if workflow else []
     # El telefono: el de la llamada o, en las del link (sin numero), el que dio la persona (dato tipo phone).
     phone = call.phone or next((conv.fields[name] for name, spec in specs
@@ -92,7 +94,7 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
         phone=phone, client_number=number.e164 if number else None,
         started_at=call.started_at or call.created_at, duration_seconds=call.duration_seconds,
         outcome=outcome.label if outcome else None, fields=fields, transcript=transcript, truncated=truncated,
-        context=((conv.progress or {}).get("variables") or {}).get("motivo"),
+        context=state.progress.variables.get("motivo"), summary=state.progress.summary,
         call_url=f"{settings.app_url.rstrip('/')}/calls/{conv.id}")
 
 

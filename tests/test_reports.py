@@ -37,12 +37,13 @@ T = lambda day, h, m=0: datetime.datetime(2026, 10, day, h, m)   # noqa: E731
 
 def conv(s, client_id, agent_id, at, *, channel="voice", mode="entrante", status="finalizada", duration=0,
          conversion=None, goal=None, outcome=None, phone=None, ended_reason="", line=None, latency=None,
-         messages=(), fields=None, cc=None, **call) -> str:
+         messages=(), fields=None, progress=None, cc=None, **call) -> str:
     """Una conversacion con su llamada (mode None: sin llamada, por API o WhatsApp)."""
     cid = str(uuid.uuid4())
     s.add(ConversationRow(id=cid, client_id=client_id, agent_id=agent_id, agent_version=1, channel=channel,
                           status="completed" if conversion == "complete" else "active", fields=fields or {},
-                          messages=list(messages), progress={}, outcome=outcome, goal=goal, conversion=conversion,
+                          messages=list(messages), progress=progress or {}, outcome=outcome, goal=goal,
+                          conversion=conversion,
                           created_at=at, **{k: call.pop(k) for k in ("llm_input_tokens", "llm_output_tokens")
                                             if k in call}))
     s.flush()
@@ -88,6 +89,7 @@ def data(api, admin, monkeypatch):
                   ended_reason="completed", line=line.id, messages=turn("openrouter", 300, "boom"),
                   fields={"contact_name": "Beto", "company_name": ""})
         c3 = conv(s, ac, a, T(3, 9), channel="whatsapp", mode=None, conversion="empty")
+        ids["c1"] = c1
         conv(s, ac, a, T(4, 15), mode="web", duration=60, conversion="complete", goal=False)
         conv(s, ac, a, T(5, 10), mode="prueba", duration=30)
         conv(s, ac, a, T(5, 11), mode="loadtest", duration=30)
@@ -322,6 +324,60 @@ def test_outcomes_report(api, data):
     assert fields["company_name"]["captured"] == 1 and "email" in fields
     assert out["by_version"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "version": 1, "total": 5,
                                   "conversion_pct": 40.0, "goal_pct": 20.0}]
+
+
+def test_detail_has_summary_and_variables(api, data):
+    """El detalle: resumen, variables (la oculta enmascarada, las del sistema con su fuente) y sin `context`."""
+    progress = {"summary": "Quiere una demo el jueves.", "variables": {"deuda": "125000", "token_crm": "xyz"},
+                "hidden_variables": ["token_crm"],
+                "variable_sources": {"deuda": "pre_call:consultar_deuda", "token_crm": "pre_call:consultar_deuda"},
+                "call": {"id": "c-9", "phone": "+5493510000001", "direction": "inbound", "mode": "entrante"}}
+    with api.sessions() as s:
+        cid = conv(s, data["acme"], data["agent_a"], T(8, 10), fields={"contact_name": "Ana"},
+                   progress=progress,
+                   messages=[{"role": "assistant", "text": "Listo.",
+                              "tools": [{"id": "t1", "name": "stock", "arguments": "{}", "result": "ok"}]}])
+        s.commit()
+    body = data["admin"].get(f"{V1}/calls/{cid}").json()
+    assert body["summary"] == "Quiere una demo el jueves." and "context" not in body
+    variables = {v["name"]: v for v in body["variables"]}
+    assert variables["deuda"] == {"name": "deuda", "value": "125000", "source": "pre_call:consultar_deuda",
+                                  "hidden": False}
+    assert variables["token_crm"] == {"name": "token_crm", "value": "•••", "source": "pre_call:consultar_deuda",
+                                      "hidden": True}
+    assert variables["call.phone"]["source"] == "system" and variables["call.phone"]["value"] == "+5493510000001"
+    assert [v["name"] for v in body["variables"]][:2] == ["deuda", "token_crm"]     # declaradas y despues sistema
+    field = body["fields"][0]
+    assert "required" not in field and field["label"] and field["description"]
+    assert body["messages"][0]["tools"] == [{"id": "t1", "name": "stock", "arguments": "{}", "result": "ok"}]
+
+
+def test_calls_list_counts_all_the_analysis_fields(api, data):
+    """`captured` sobre todos los datos del análisis, no solo los obligatorios (ya no existen)."""
+    [item] = [c for c in data["admin"].get(f"{V1}/calls", params={"client_id": data["acme"]}).json()["items"]
+              if c["id"] == data["c1"]]
+    assert (item["captured"], item["total"]) == (2, 11)
+
+
+def test_outcomes_report_with_an_agent_without_outcomes(api, data):
+    """Un agente sin resultados (analysis.outcomes vacío): el reporte no rompe y `outcome_for` da None."""
+    from app.agents.templates import reference_data
+    from app.conversation.models import Workflow
+
+    definition = Workflow.model_validate(reference_data("sales_discovery")).model_dump(mode="json", exclude_none=True)
+    definition["analysis"]["outcomes"] = []
+    created = data["admin"].post(f"{V1}/agents", json={"client_id": data["acme"], "name": "Sin resultados",
+                                                      "definition": definition})
+    assert created.status_code == 201, created.text
+    with api.sessions() as s:
+        cid = conv(s, data["acme"], created.json()["id"], T(8, 11), fields={"contact_name": "Ana"},
+                   conversion="partial")
+        s.commit()
+    out = report(data["admin"], "outcomes", client_id=data["acme"])
+    assert created.json()["id"] not in {o["agent_id"] for o in out["outcomes"]}
+    assert {f["agent_id"] for f in out["fields"]} >= {created.json()["id"]}
+    detail = data["admin"].get(f"{V1}/calls/{cid}").json()
+    assert detail["outcome"] is None and detail["summary"] is None
 
 
 def test_messages_report(api, data):
