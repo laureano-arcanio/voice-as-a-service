@@ -11,12 +11,34 @@ GUIDES = {
 2. `list_agent_templates` y `get_agent_template`: partir de una plantilla es lo más rápido. El esquema
    completo de la definición está en el recurso `atentina://agents/schema` (o `get_agent_schema`).
 3. Armar la definición:
-   - `agent`: nombre, rol, idioma (`es-AR`) y voz (`list_voices`, `preview_voice` para escucharla).
-   - `objective.description`: qué tiene que lograr la conversación.
-   - `conversation.opening`: lo primero que dice; `conversation.rules`: tono y reglas del negocio.
-   - `knowledge`: lo que tiene que saber (horarios, precios, dirección, preguntas frecuentes).
-   - `fields`: los datos que toma (nombre, teléfono, motivo...), con tipo y si son obligatorios.
-   - `completion`: cuándo termina y con qué resultados.
+   - `agent`: nombre, idioma (`es-AR`) y voz (`list_voices`, `preview_voice` para escucharla).
+   - `prompt`: el texto que va al LLM tal cual, hasta 40.000 caracteres. Escribilo en markdown con
+     títulos, como las plantillas: `# Identidad` (quién es, idioma), `# Objetivo` (qué tiene que
+     lograr), `# Datos de la comunicación` (lo que llega en variables), `# Cómo conversar` (tono y
+     reglas del negocio), `# Información` (horarios, precios, dirección, preguntas frecuentes) y
+     `# Límites` (qué no hace).
+   - `first_message`: lo primero que dice en una llamada, hasta 1.000 caracteres; por WhatsApp
+     entrante escribe primero la persona.
+   - `variables`: las que el texto nombra con `{{nombre}}`, como lista `[{"name", "default",
+     "description"}]` (hasta 30; el nombre en minúsculas, números y `_`; la descripción, hasta 300
+     caracteres; el `default`, hasta 2.000). El `default` vale si nadie la asigna. Otras fuentes, de
+     menor a mayor: los datos del contacto (la agenda, o las columnas del CSV de una campaña) < las
+     `variables` que manda quien lanza la llamada o la conversación < el `assign` de la herramienta
+     de antes de la conversación < el `assign` de una herramienta durante la conversación. Las del
+     sistema no se declaran ni se pisan: `{{call.from}}`, `{{call.to}}`, `{{call.phone}}` (la otra
+     punta), `{{call.direction}}`, `{{call.mode}}`, `{{call.id}}`, `{{channel}}`, `{{today}}`,
+     `{{now}}`, `{{agent.slug}}` y `{{agent.version}}`. En las herramientas valen además
+     `{{call.summary}}` (el resumen del análisis, post-call), `{{fields.<campo>}}` y
+     `{{secrets.NOMBRE}}`, que nunca van al prompt. Una variable del `assign` con `hide` llega a las
+     herramientas y nunca al LLM: no la nombres. Una variable sin valor queda vacía; el resto del
+     texto no cambia.
+   - `analysis`: qué se saca al terminar. `fields` es una lista `[{"name", "type", "description",
+     "label", "options"}]` en el orden en que se analizan y en el que salen en el detalle y el email
+     (`type`: `string`, `integer`, `boolean`, `email`, `email_or_phone`, `phone` o `choice` con
+     `options`); `summary: true` pide un resumen; `instructions`, en palabras, qué mirar; `outcomes`,
+     los resultados posibles (`id`, `label`, `when` con igualdades sobre los campos, `goal` si es el
+     objetivo y `no_contact` si pidió no ser contactado; el último, sin `when`, es el default). Sin
+     `analysis` no hay datos ni resultado.
 4. `validate_agent_definition` hasta que no tenga errores, y `create_agent` (o `update_agent_definition`
    si ya existe: cada cambio es una versión nueva).
 5. Probarlo por texto: `test_agent_start` y varios `test_agent_turn` como si fueras el cliente final,

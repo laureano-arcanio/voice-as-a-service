@@ -94,7 +94,30 @@ const error = `{"detail": "texto para mostrar", "code": "codigo_estable", "error
 const call = `curl ${API}/calls \\
   -H "Authorization: Bearer $ATENTINA_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"agent_id": "<id del agente>", "phone": "+5493515551234"}'`;
+  -d '{"agent_id": "<id del agente>", "phone": "+5493515551234",
+       "variables": {"nombre": "Ana", "motivo": "Pidió presupuesto"}}'`;
+
+const agentDefinition = `{
+  "agent": {"name": "Sofía", "language": "es-AR", "voice": "sofia"},
+  "prompt": "# Identidad\\nSos Sofía, asesora de Acme. Hablás por teléfono, en español rioplatense.\\n\\n# Objetivo\\nAtender consultas y coordinar una reunión.\\n\\n# Datos de la comunicación\\nNombre: {{nombre}}. Motivo: {{motivo}}. Hoy es {{today}}.\\n\\n# Cómo conversar\\nUna pregunta por vez, respuestas cortas.",
+  "first_message": "Hola {{nombre}}, te habla Sofía, de Acme. ¿En qué te puedo ayudar?",
+  "variables": [
+    {"name": "nombre", "default": "", "description": "Nombre de la persona, si ya se conoce"},
+    {"name": "motivo", "default": "", "description": "Por qué se la llama o escribe"}
+  ],
+  "analysis": {
+    "summary": true,
+    "fields": [
+      {"name": "contact_name", "type": "string", "label": "Nombre", "description": "Nombre de la persona"},
+      {"name": "wants_demo", "type": "boolean", "label": "Quiere demo", "description": "Quiere una reunión o una demo"},
+      {"name": "topic", "type": "choice", "label": "Tema", "description": "Qué vino a resolver", "options": ["turnos", "precios", "otro"]}
+    ],
+    "outcomes": [
+      {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "goal": true},
+      {"id": "otro", "label": "Sin demo"}
+    ]
+  }
+}`;
 
 const byokStages = `"llm": {
   "stages": [
@@ -612,8 +635,20 @@ const campaignEndpoints = [
     <section id="agentes" class="grid gap-4">
       <h2>Agentes y llamadas</h2>
       <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, conectado por <a href="/desarrolladores/docs/mcp">MCP</a>. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
+
+      <h3>La definición del agente</h3>
+      <p>El agente es un JSON: <code>POST /agents</code> lo crea y <code>PUT /agents/{"{"}id{"}"}/definition</code> guarda una versión nueva (desde el panel se vuelve a una anterior). <code>GET /agents/schema</code> lo da completo, <code>POST /agents/validate</code> lo valida sin guardarlo, <code>POST /agents/prompt</code> muestra el texto que recibe el modelo y <code>GET /variables/catalog</code> las variables del sistema, los límites y dónde vale cada una.</p>
+      <CodeBlock label="JSON" code={agentDefinition} />
+      <ul>
+        <li><strong><code>prompt</code></strong> (hasta 40.000 caracteres): va tal cual al modelo, después de una línea con el canal. Los títulos <code>#</code> son convención de las plantillas (<code># Identidad</code>, <code># Objetivo</code>, <code># Datos de la comunicación</code>, <code># Cómo conversar</code>, <code># Información</code>, <code># Límites</code>), no los lee el motor. <strong><code>first_message</code></strong> (hasta 1.000) es lo primero que dice en una llamada; por WhatsApp entrante escribe primero la persona.</li>
+        <li><strong><code>variables</code></strong>: las que el prompt y el primer mensaje nombran con <code>{"{{"}nombre{"}}"}</code>, como lista de <code>{"{"}"name", "default", "description"{"}"}</code> (hasta 30; el nombre en minúsculas, números y <code>_</code>; el <code>default</code>, de hasta 2.000 caracteres). Lista y no objeto porque la definición se guarda en un JSON de base que no conserva el orden de las claves, y el orden es el del panel y los reportes. Un <code>{"{{"}x{"}}"}</code> sin declarar vale igual: puede venir de un contacto, de una campaña o de una herramienta.</li>
+        <li><strong>De dónde sale cada valor</strong>, de menor a mayor prioridad: el <code>default</code> de <code>variables</code>; los datos de la persona (su ficha de la agenda o las <a href="#campanas">columnas del CSV de la campaña</a>, con el nombre del encabezado); las <code>variables</code> del pedido (<code>POST /calls</code>, <code>POST /conversations</code>); el <code>assign</code> de la herramienta de antes de la conversación; el <code>assign</code> de una herramienta durante la conversación, que siempre pisa. Las del sistema no se declaran ni se pueden pisar: <code>{"{{"}call.from{"}}"}</code>, <code>{"{{"}call.to{"}}"}</code>, <code>{"{{"}call.phone{"}}"}</code> (la otra punta), <code>{"{{"}call.direction{"}}"}</code>, <code>{"{{"}call.mode{"}}"}</code>, <code>{"{{"}call.id{"}}"}</code>, <code>{"{{"}channel{"}}"}</code>, <code>{"{{"}today{"}}"}</code>, <code>{"{{"}now{"}}"}</code>, <code>{"{{"}agent.slug{"}}"}</code> y <code>{"{{"}agent.version{"}}"}</code>. Un valor de hasta 2.000 caracteres; el texto se sustituye una sola vez, y lo que no tiene valor queda vacío.</li>
+        <li><strong>Una variable oculta</strong> (<code>hide</code> en el <code>assign</code> de una herramienta) llega a las herramientas y nunca al modelo: es para un token o un dato interno que el agente no tiene que decir ni leer.</li>
+        <li><strong><code>analysis</code></strong> (opcional): lo que se saca al terminar, en una llamada guiada. <code>fields</code> es una lista de <code>{"{"}"name", "type", "description", "label", "options"{"}"}</code> y su orden es el del análisis, el detalle, el email y el reporte; <code>type</code> es <code>string</code>, <code>integer</code>, <code>boolean</code>, <code>email</code>, <code>email_or_phone</code>, <code>phone</code> o <code>choice</code> (con <code>options</code>). <code>summary</code> pide un resumen e <code>instructions</code> explica qué mirar. En <code>outcomes</code> gana el primero cuyo <code>when</code> (igualdades sobre esos campos) se cumple; si hay resultados, el último va sin <code>when</code> y es el que vale por defecto; <code>goal</code> lo marca como objetivo y <code>no_contact</code> da de baja el teléfono en las campañas. Sin <code>analysis</code> no se extraen datos ni hay resultado.</li>
+      </ul>
+
       <h3>Una llamada</h3>
-      <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
+      <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz. Los datos que el prompt nombra con <code>{"{{"}x{"}}"}</code> van en <code>variables</code>, un objeto plano de texto, número o booleano (hasta 30, de hasta 2.000 caracteres); un <code>null</code> se ignora y las del sistema no se aceptan. Sin <code>phone</code> es una llamada de prueba desde el navegador.</p>
       <CodeBlock label="curl" code={call} />
       <p>La respuesta trae el <code>conversation_id</code>. Con <code>GET /calls/{"{"}conversation_id{"}"}</code> ves el estado (<code>pendiente</code>, <code>sonando</code>, <code>en_curso</code>, <code>finalizada</code>, <code>fallida</code>), la duración, los datos que tomó el agente y el resultado. Para muchos números, usá una campaña.</p>
     </section>
@@ -650,6 +685,7 @@ const campaignEndpoints = [
     <section id="herramientas" class="grid gap-4">
       <h2>Herramientas y secretos</h2>
       <p>Una herramienta deja que el agente haga algo en tu sistema durante la conversación: consultar turnos, reservar, ver una deuda. Hay dos tipos: <code>http</code> (Atentina llama a tu API, con su ruta, query, headers, body y autenticación) y <code>code</code> (una función en JavaScript que corre aislada). Se agregan al agente por su <code>slug</code> en <code>tools</code> de la definición. En el panel están en <strong>Agentes &gt; Herramientas</strong> y <strong>Agentes &gt; Secretos</strong>; por MCP, con las mismas herramientas (<code>create_tool</code>, <code>test_tool_draft</code>, <code>update_client_secret</code>…).</p>
+      <p><strong>Variables en una herramienta.</strong> En los valores fijos (path y query, headers, body y autenticación; el host de la URL nunca) va <code>{"{{"}x{"}}"}</code>, la variable de la conversación: la de la campaña o el contacto, la del pedido, la del pre-call o la que asignó otra herramienta. Además valen <code>{"{{"}secrets.NOMBRE{"}}"}</code>, <code>{"{{"}call.id{"}}"}</code>, <code>{"{{"}call.mode{"}}"}</code>, <code>{"{{"}call.direction{"}}"}</code>, <code>{"{{"}call.from{"}}"}</code>, <code>{"{{"}call.to{"}}"}</code>, <code>{"{{"}call.phone{"}}"}</code>, <code>{"{{"}call.summary{"}}"}</code>, <code>{"{{"}agent.slug{"}}"}</code>, <code>{"{{"}agent.version{"}}"}</code>, <code>{"{{"}channel{"}}"}</code>, <code>{"{{"}now{"}}"}</code>, <code>{"{{"}today{"}}"}</code> y <code>{"{{"}fields.campo{"}}"}</code> con los datos del análisis. El valor se codifica para la URL; un valor con acentos o saltos de línea en un header da error de la herramienta (<code>invalid_header</code>): mandalo en la query o el body.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
         <tbody>{toolEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}</tbody>
@@ -662,7 +698,7 @@ const campaignEndpoints = [
       </table></div>
       <p>Las herramientas van en los planes que las incluyen (ver <a href="#planes">Qué incluye cada plan</a>); si no, la API responde con el motivo (<code>tools_not_in_plan</code>, <code>code_tools_not_in_plan</code> o <code>tools_limit</code>).</p>
       <h3>Antes y después de la conversación</h3>
-      <p>Dos herramientas que corre la plataforma sola, sin que el modelo las vea, en <code>workflows</code> de la definición del agente: <code>pre_call</code> (<code>tool</code> y <code>timeout_ms</code>, de 200 a 5000) trae datos de la persona al empezar, por ejemplo con <code>{"{{"}call.phone{"}}"}</code>, y los deja como datos del contacto con <code>assign</code>; <code>post_call</code> (<code>tool</code> y <code>when</code>: <code>handoff_accepted</code> o <code>always</code>) corre una sola vez al terminar. Tienen que tener todos sus valores fijos, y la del post-call ser un <code>http</code> que no sea <code>GET</code>: se reintenta si falla la conexión, o responde 429 o 5xx (4 intentos en 11 minutos), con la misma <code>Idempotency-Key</code>, y que no cobre dos veces depende de que tu API la respete. Cualquier otra respuesta de tu API, aunque sea un error, no se reintenta.</p>
+      <p>Dos herramientas que corre la plataforma sola, sin que el modelo las vea, en <code>workflows</code> de la definición del agente: <code>pre_call</code> (<code>tool</code> y <code>timeout_ms</code>, de 200 a 5000) trae datos de la persona al empezar, por ejemplo con <code>{"{{"}call.phone{"}}"}</code>, y los deja como variables de la conversación con <code>assign</code> (con <code>hide</code>, para las que el modelo no tiene que ver); <code>post_call</code> (<code>tool</code> y <code>when</code>: <code>handoff_accepted</code> o <code>always</code>) corre una sola vez al terminar, ya con los datos del análisis en <code>{"{{"}fields.campo{"}}"}</code> y el resumen en <code>{"{{"}call.summary{"}}"}</code>. Tienen que tener todos sus valores fijos, y la del post-call ser un <code>http</code> que no sea <code>GET</code>: se reintenta si falla la conexión, o responde 429 o 5xx (4 intentos en 11 minutos), con la misma <code>Idempotency-Key</code>, y que no cobre dos veces depende de que tu API la respete. Cualquier otra respuesta de tu API, aunque sea un error, no se reintenta.</p>
     </section>
 
     <section id="cortar" class="grid gap-4">
@@ -693,7 +729,7 @@ const campaignEndpoints = [
         <li><strong>De a uno o en paralelo:</strong> <code>concurrency</code> en 1 llama de a un contacto; con N, hasta N a la vez (el tope lo pone tu plan). <code>rate_per_minute</code> limita cuántas llamadas empiezan por minuto.</li>
         <li><strong>Programada:</strong> <code>starts_at</code> y <code>ends_at</code> (UTC), y el horario en la hora de Argentina con <code>window_start</code>, <code>window_end</code> y <code>weekdays</code> (0 es lunes).</li>
         <li><strong>Reintentos:</strong> <code>max_attempts</code>, <code>retry_minutes</code> y <code>retry_on</code>, los resultados que se reintentan (por defecto no atendió, ocupado, contestador y falla).</li>
-        <li><strong>Datos del contacto:</strong> el saludo del agente puede usar <code>{"{{"}nombre{"}}"}</code> o cualquier atributo (<code>{"{{"}deuda{"}}"}</code>). Un atributo con el mismo nombre que un dato que el agente pide ya no se pregunta, y el resto lo recibe como contexto.</li>
+        <li><strong>Datos de cada contacto:</strong> las columnas del CSV de la campaña que no son suyas se guardan como variables de la conversación, con el nombre del encabezado (sin acentos ni mayúsculas): el prompt las nombra con <code>{"{{"}deuda{"}}"}</code> y una celda vacía deja el valor por defecto del agente. Hasta 30 columnas de datos y 2.000 caracteres por celda; <code>nombre</code>, <code>telefono</code>, <code>email</code> y <code>params</code> no se toman como variables. Por <code>POST /campaigns/{"{"}id{"}"}/contacts</code>, cada contacto puede llevar su objeto <code>variables</code>.</li>
         <li><strong>Finalidad:</strong> <code>purpose</code> es <code>comercial</code>, <code>cobranza</code>, <code>turnos</code> o <code>aviso</code>. Una comercial se inicia con <code>"no_call_registry_checked": true</code>: confirmás que filtraste la lista contra el Registro Nacional No Llame (Ley 26.951).</li>
         <li><strong>Seguimiento por WhatsApp:</strong> con <code>followup</code> (apagado por defecto), a quien no atendió después del último intento le llega una plantilla de WhatsApp; si responde, sigue la conversación con el agente.</li>
       </ul>

@@ -14,11 +14,13 @@ const request = `POST https://tu-agente.com/v1/chat/completions
 Authorization: Bearer <la API key que cargaste en la conexión>
 X-Atentina-Conversation-Id: 6f1c2a9e-...
 X-Atentina-Channel: voice
+X-Atentina-Direction: inbound
 X-Atentina-Mode: entrante
 X-Atentina-From: +5493515551234
 X-Atentina-To: +541152630861
 X-Atentina-Agent: ventas
 X-Atentina-Turn: 2
+X-Atentina-Variables: {"nombre":"Ana","deuda":"125000"}
 
 {
   "model": "ventas",
@@ -101,11 +103,11 @@ const headers = [
   { name: "X-Atentina-Conversation-Id", text: "La conversación: la misma en todos los turnos y en la API (GET /calls/{id})" },
   { name: "X-Atentina-Channel", text: "voice (llamada, también la de WhatsApp) o whatsapp (mensajes)" },
   { name: "X-Atentina-Mode", text: "entrante, saliente, web (link para llamar) o prueba" },
+  { name: "X-Atentina-Direction", text: "inbound (entrante) u outbound (saliente)" },
   { name: "X-Atentina-From / -To", text: "Quién llama y a qué número, en formato internacional. Por WhatsApp, From es el número del contacto" },
   { name: "X-Atentina-Agent", text: "El identificador del agente en Atentina" },
   { name: "X-Atentina-Turn", text: "El número de mensaje de la persona: 1 es el primero" },
-  { name: "X-Atentina-Contact", text: "En una campaña, los datos del contacto (JSON)" },
-  { name: "X-Atentina-Context", text: "En una llamada saliente, el motivo que cargaste al lanzarla" },
+  { name: "X-Atentina-Variables", text: "Las variables de la conversación visibles, en JSON ASCII: el nombre y el motivo de la campaña o la llamada, o lo que trajo el pre-call. Las ocultas no van" },
 ];
 
 const configs = [
@@ -149,7 +151,7 @@ const configs = [
   <section id="como-funciona" class="grid gap-4">
     <h2>Cómo funciona</h2>
     <ol>
-      <li>Entra una llamada al número del agente (o un WhatsApp, o la hace una campaña). El agente de Atentina dice la apertura que configuraste.</li>
+      <li>Entra una llamada al número del agente (o un WhatsApp, o la hace una campaña). El agente de Atentina dice el primer mensaje (<code>first_message</code>) que configuraste.</li>
       <li>La persona habla. Cuando termina, Atentina le manda a tu endpoint toda la conversación, con los datos de la llamada en headers.</li>
       <li>Tu endpoint contesta en streaming. Cada pedazo de texto pasa a voz apenas llega, sin esperar la respuesta completa.</li>
       <li>Para cortar o pasar la llamada a una persona, tu agente usa las herramientas <code>end_call</code> y <code>transfer_call</code>.</li>
@@ -190,7 +192,7 @@ const configs = [
     <h2>end_call y transfer_call</h2>
     <p>Las manda Atentina en <code>tools</code> y las ejecuta Atentina. Si tu agente las pasa a su LLM, el modelo decide cuándo usarlas.</p>
     <ul>
-      <li><strong><code>end_call</code></strong>: corta cuando termina de decir lo que escribió en ese mensaje (la despedida). Con <code>outcome</code> elige el resultado de la conversación, entre los que definiste en el agente; sin él, vale el último.</li>
+      <li><strong><code>end_call</code></strong>: corta cuando termina de decir lo que escribió en ese mensaje (la despedida). Con <code>outcome</code> elige el resultado de la conversación entre los <code>id</code> de <code>analysis.outcomes</code> del agente; sin él, vale el último.</li>
       <li><strong><code>transfer_call</code></strong>: pasa la llamada a un área de tu equipo (<code>area</code>, una de las del agente). Llega solo si el agente tiene áreas de <a href="/desarrolladores/docs/api#derivaciones">derivación</a>. Mientras tanto, la persona escucha música; si nadie atiende, el agente retoma.</li>
     </ul>
     <p>Si tu agente las ignora, la llamada termina cuando corta la persona o al llegar a la duración máxima.</p>
@@ -209,7 +211,7 @@ const configs = [
       <thead><tr><th>Campo</th><th>Qué es</th></tr></thead>
       <tbody>{configs.map((c) => <tr><td><code>{c.name}</code></td><td>{c.text}</td></tr>)}</tbody>
     </table></div>
-    <p>Del agente de Atentina siguen valiendo el nombre, la voz, la apertura, los resultados, las áreas de derivación, la grabación y el resumen por email. Después asignale un número o una cuenta de WhatsApp, como a cualquier agente.</p>
+    <p>Del agente de Atentina siguen valiendo el nombre, la voz, el primer mensaje, los resultados de <code>analysis.outcomes</code>, las áreas de derivación, la grabación y el resumen por email. Después asignale un número o una cuenta de WhatsApp, como a cualquier agente.</p>
   </section>
 
   <section id="ejemplo" class="grid gap-4">

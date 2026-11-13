@@ -41,8 +41,10 @@ de `services/features.TIER_HAS` que corresponda. Catálogo generado: [`MCP_HERRA
 | `inference` | 3 (`transcribe_audio`, `synthesize_speech`, `get_inference_usage`) | no |
 | `admin` | 29 (`admin_*`, `get_report_technical`, `get_report_platform`) | solo token "Toda la plataforma" |
 
-Sin parámetro: 122 herramientas (~18k tokens de contexto); `core`: 67. Resources: `atentina://agents/schema` y tres
-guías; prompts: `crear_agente`, `revisar_llamadas`, `lanzar_campana` (`app/mcp/guides.py`).
+Sin parámetro: 122 herramientas (~18k tokens de contexto); `core`: 67. Resources: `atentina://agents/schema`
+(JSON Schema de la definición: `prompt`, `first_message`, `variables` y `analysis` con listas de `name`) y tres guías
+(`agentes`, `campanas`, `derivaciones`); prompts: `crear_agente`, `revisar_llamadas`, `lanzar_campana`
+(`app/mcp/guides.py`).
 
 ## Flujo
 

@@ -429,6 +429,10 @@ def test_resources_and_prompts(api, full):
     assert schema["mimeType"] == "application/json" and '"properties"' in schema["text"]
     guide = mcp.rpc("resources/read", {"uri": "atentina://guides/campanas"})["contents"][0]["text"]
     assert "start_campaign" in guide
+    agents = mcp.rpc("resources/read", {"uri": "atentina://guides/agentes"})["contents"][0]["text"]
+    for key in ("`prompt`", "`first_message`", "`variables`", "`analysis`", "# Identidad", "call.phone", "hide"):
+        assert key in agents, key
+    assert "objective" not in agents and "completion" not in agents
     names = {p["name"] for p in mcp.rpc("prompts/list")["prompts"]}
     assert names == {"crear_agente", "revisar_llamadas", "lanzar_campana"}
     msg = mcp.rpc("prompts/get", {"name": "revisar_llamadas", "arguments": {"desde": "2026-10-01"}})["messages"][0]
