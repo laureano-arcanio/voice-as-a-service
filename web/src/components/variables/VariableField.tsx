@@ -30,6 +30,8 @@ export interface VariableFieldProps {
   extra?: ExtraVariable[];
   /** Catálogo ya cargado; sin él se pide a `GET /variables/catalog`. */
   catalog?: VariableCatalog | null;
+  /** Si la lista puede abrirse en esta posición (la URL no lleva variables antes del path). */
+  opensAt?: (text: string, cursor: number) => boolean;
   /** Varias líneas (`Textarea` con alto automático) en vez de `TextInput`. */
   multiline?: boolean;
   minRows?: number;
@@ -57,6 +59,7 @@ export function VariableField({
   declared,
   extra,
   catalog: catalogProp,
+  opensAt,
   multiline = false,
   minRows,
   maxRows,
@@ -103,7 +106,8 @@ export function VariableField({
 
   const track = (target: HTMLInputElement | HTMLTextAreaElement) => {
     el.current = target;
-    setOpen(openAt(target.value, target.selectionStart ?? target.value.length));
+    const cursor = target.selectionStart ?? target.value.length;
+    setOpen(opensAt && !opensAt(target.value, cursor) ? null : openAt(target.value, cursor));
   };
 
   const apply = (name: string) => {

@@ -3,6 +3,7 @@ import { notifications } from '@mantine/notifications';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HandoffArea, TeamMember } from '@/api/types';
+import { CATALOG } from '@/components/variables/fixtures';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { scheduleError, toDraft, toSchedule } from './schedule';
 import { TeamPage } from './TeamPage';
@@ -96,6 +97,8 @@ function mockApi(extra: Record<string, () => Response> = {}) {
     'GET /api/v1/team': () => jsonResponse([ANA, LUIS]),
     'GET /api/v1/handoff-areas': () => jsonResponse([VENTAS, POSVENTA]),
     'GET /api/v1/handoff-areas/defaults': () => jsonResponse(DEFAULTS),
+    'GET /api/v1/variables/catalog': () => jsonResponse(CATALOG),
+    'GET /api/v1/agents': () => jsonResponse([]),
     'GET /api/v1/clients': () => jsonResponse([{ id: 'c-1', name: 'Acme' }]),
     ...extra,
   };
@@ -409,6 +412,23 @@ describe('equipo: áreas', () => {
       on_person_hangup: 'end',
       messages: {},
       member_ids: ['m1'],
+    });
+  });
+
+  it('los mensajes del área ofrecen las variables de derivación al tipear {{', async () => {
+    mockApi();
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    const transfer = within(dialog).getByLabelText('Antes de transferir');
+    await userEvent.click(transfer);
+    await userEvent.type(transfer, '{{{{');
+    await waitFor(() => {
+      const names = screen
+        .queryAllByRole('option', { hidden: true })
+        .map((o) => o.querySelector('p')?.textContent);
+      expect(names).toContain('persona');
+      expect(names).toContain('resumen');
     });
   });
 

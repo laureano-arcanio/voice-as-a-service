@@ -1,22 +1,21 @@
 import { Button, Menu, TextInput, type TextInputProps } from '@mantine/core';
 import { IconChevronDown, IconPlus, IconVariable } from '@tabler/icons-react';
-import { useContext, useRef } from 'react';
-import { SECRET_RE, TEMPLATE_VARS } from './draft';
+import { useContext, useMemo } from 'react';
+import { VariableField, type VariableFieldProps } from '@/components/variables';
+import { SECRET_RE } from './draft';
 import { ToolSecretsContext } from './ToolSecretsContext';
 
 /** Ancho del boton "Variables" dentro del campo (rightSection). */
 const MENU_WIDTH = 118;
 
 /**
- * Boton "Variables" con el menu de secretos y variables. Con onVar inserta {{secrets.X}} o {{call.phone}}
- * donde esta el cursor; sin onVar (campo que lleva solo el nombre de un secreto) lista solo los secretos.
+ * Boton "Variables" con el menu de secretos. Con onSecret inserta {{secrets.X}} o el nombre donde esta el
+ * cursor; el campo que lleva solo el nombre de un secreto lista solo los secretos.
  */
 export function VariablesMenu({
   onSecret,
-  onVar,
 }: {
   onSecret: (name: string) => void;
-  onVar?: (v: string) => void;
 }) {
   const { names: secrets, newSecret } = useContext(ToolSecretsContext);
   return (
@@ -37,7 +36,7 @@ export function VariablesMenu({
         {secrets.length === 0 && <Menu.Label>Todavía no cargaste secretos.</Menu.Label>}
         {secrets.map((s) => (
           <Menu.Item key={s} className="mono" onClick={() => onSecret(s)}>
-            {onVar ? `{{secrets.${s}}}` : s}
+            {s}
           </Menu.Item>
         ))}
         {newSecret && (
@@ -45,58 +44,8 @@ export function VariablesMenu({
             Nuevo secreto
           </Menu.Item>
         )}
-        {onVar &&
-          TEMPLATE_VARS.map((g) => (
-            <div key={g.group}>
-              <Menu.Divider />
-              <Menu.Label>{g.group}</Menu.Label>
-              {g.items.map((v) => (
-                <Menu.Item
-                  key={v.value}
-                  onClick={() => onVar(v.value)}
-                  rightSection={<span className="mono">{v.value}</span>}
-                >
-                  {v.label}
-                </Menu.Item>
-              ))}
-            </div>
-          ))}
       </Menu.Dropdown>
     </Menu>
-  );
-}
-
-/** Campo de texto para un valor fijo, con el boton de variables a la derecha. */
-export function TemplateInput({
-  value,
-  onChange,
-  ...props
-}: Omit<TextInputProps, 'value' | 'onChange'> & {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  const insert = (v: string) => {
-    const el = ref.current;
-    const at = el?.selectionStart ?? value.length;
-    const end = el?.selectionEnd ?? at;
-    onChange(value.slice(0, at) + v + value.slice(end));
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(at + v.length, at + v.length);
-    });
-  };
-  return (
-    <TextInput
-      ref={ref}
-      {...props}
-      classNames={{ input: 'mono' }}
-      value={value}
-      onChange={(e) => onChange(e.currentTarget.value)}
-      rightSectionWidth={MENU_WIDTH}
-      rightSectionPointerEvents="all"
-      rightSection={<VariablesMenu onSecret={(s) => insert(`{{secrets.${s}}}`)} onVar={insert} />}
-    />
   );
 }
 
@@ -124,4 +73,24 @@ export function SecretInput({
       rightSection={<VariablesMenu onSecret={onChange} />}
     />
   );
+}
+
+/**
+ * Campo de una herramienta que acepta templates (valor fijo, header, URL, autenticación): al tipear `{{`
+ * ofrece las variables que aplican a una herramienta y los secretos del cliente por nombre.
+ */
+export function ToolVariableField({ extra = [], ...props }: Omit<VariableFieldProps, 'field'>) {
+  const { names } = useContext(ToolSecretsContext);
+  const all = useMemo(
+    () => [
+      ...names.map((name) => ({
+        name: `secrets.${name}`,
+        description: 'Secreto de la cuenta o del agente',
+        kind: 'secret' as const,
+      })),
+      ...extra,
+    ],
+    [names, extra],
+  );
+  return <VariableField field="tool" extra={all} {...props} />;
 }

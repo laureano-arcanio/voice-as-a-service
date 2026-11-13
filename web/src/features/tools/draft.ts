@@ -27,35 +27,6 @@ export const AUTH_TYPES: { value: CredentialType; label: string }[] = [
   { value: 'oauth2_client_credentials', label: 'OAuth2 (client credentials)' },
 ];
 
-/** Templates de los valores fijos (app/tools/schema.py, NAMESPACES). */
-export const TEMPLATE_VARS: { group: string; items: { value: string; label: string }[] }[] = [
-  {
-    group: 'Conversación',
-    items: [
-      { value: '{{call.id}}', label: 'Id de la conversación' },
-      { value: '{{call.channel}}', label: 'Canal' },
-      { value: '{{call.mode}}', label: 'Modo' },
-      { value: '{{call.phone}}', label: 'Teléfono de la persona' },
-      { value: '{{call.from}}', label: 'Número de quien llama (en una saliente, el de la empresa)' },
-      { value: '{{call.to}}', label: 'Número llamado' },
-    ],
-  },
-  {
-    group: 'Agente',
-    items: [
-      { value: '{{agent.slug}}', label: 'Slug del agente' },
-      { value: '{{agent.version}}', label: 'Versión del agente' },
-    ],
-  },
-  {
-    group: 'Fecha',
-    items: [
-      { value: '{{now}}', label: 'Fecha y hora' },
-      { value: '{{today}}', label: 'Fecha de hoy' },
-    ],
-  },
-];
-
 export const SECRET_RE = /^[A-Z][A-Z0-9_]{1,63}$/;
 export const TOOL_SLUG_RE = /^[a-z][a-z0-9_]{1,63}$/;
 export const SIGNING_SECRET = 'ATENTINA_SIGNING_SECRET';
@@ -296,6 +267,16 @@ export function urlPathVars(url: string): string[] {
 export function syncPathRows(rows: ParamRow[], url: string): ParamRow[] {
   const vars = urlPathVars(url);
   return vars.map((name) => rows.find((r) => r.name === name) ?? { ...blankParam(name), required: true });
+}
+
+/**
+ * Si el autocompletado puede abrirse en esa posición de la URL: solo después de la primera `/` del path.
+ * El host no lleva templates (`check_url`, app/tools/schema.py): una variable no elige el servidor (SSRF).
+ */
+export function urlOpensAt(text: string, cursor: number): boolean {
+  const scheme = text.indexOf('://');
+  const pathStart = text.indexOf('/', scheme >= 0 ? scheme + 3 : 0);
+  return pathStart >= 0 && text.lastIndexOf('{{', cursor - 1) > pathStart;
 }
 
 export function emptyDraft(type: ToolType): ToolDraft {

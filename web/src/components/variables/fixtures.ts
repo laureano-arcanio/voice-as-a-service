@@ -21,7 +21,10 @@ export const CATALOG: VariableCatalog = {
     },
     { name: 'call.summary', description: 'Resumen del análisis', example: '…', applies_to: ['tool'] },
     { name: 'fields.<campo>', description: 'Dato del análisis', example: 'true', applies_to: ['tool'] },
+    { name: 'secrets.<NOMBRE>', description: 'Secreto de la cuenta o del agente', example: 'CRM_TOKEN', applies_to: ['tool'] },
     { name: 'area', description: 'Área a la que se deriva', example: 'Ventas', applies_to: ['handoff'] },
+    { name: 'persona', description: 'Persona que atiende', example: 'Ana', applies_to: ['handoff'] },
+    { name: 'resumen', description: 'Motivo de la derivación', example: '…', applies_to: ['handoff'] },
   ],
 };
 

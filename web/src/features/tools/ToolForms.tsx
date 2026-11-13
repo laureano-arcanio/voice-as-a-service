@@ -25,6 +25,7 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { type ReactNode, useContext, useState } from 'react';
 import type { Credential } from '@/api/types';
+import type { ExtraVariable } from '@/components/variables';
 import { useCredentials } from './api';
 import { CredentialModal } from './CredentialModal';
 import { CREDENTIAL_TYPE_LABEL, CREDENTIAL_VALUE } from './credentials';
@@ -43,9 +44,10 @@ import {
   SIGNING_SECRET,
   syncPathRows,
   type ToolDraft,
+  urlOpensAt,
 } from './draft';
 import { ParamsEditor } from './ParamsEditor';
-import { SecretInput, TemplateInput } from './TemplateInput';
+import { SecretInput, ToolVariableField } from './TemplateInput';
 import { ToolSecretsContext } from './ToolSecretsContext';
 
 type Update = (fn: (d: ToolDraft) => ToolDraft) => void;
@@ -135,7 +137,7 @@ function ResponseFields({ draft, update }: { draft: ToolDraft; update: Update })
           Guardar en variables
         </Text>
         <Text size="xs" c="dimmed" mb="xs">
-          Un valor del resultado que otras herramientas usan como {'{{vars.nombre}}'}. Oculto: no lo ve el
+          Un valor del resultado que otras herramientas usan como {'{{nombre}}'}. Oculto: no lo ve el
           agente.
         </Text>
         <Stack gap="xs">
@@ -265,7 +267,15 @@ function VoiceFields({ draft, update }: { draft: ToolDraft; update: Update }) {
   );
 }
 
-function HeadersEditor({ http, setHttp }: { http: HttpDraft; setHttp: (patch: Partial<HttpDraft>) => void }) {
+function HeadersEditor({
+  http,
+  setHttp,
+  extra,
+}: {
+  http: HttpDraft;
+  setHttp: (patch: Partial<HttpDraft>) => void;
+  extra: ExtraVariable[];
+}) {
   const rows = http.headers;
   return (
     <Stack gap="xs">
@@ -287,15 +297,17 @@ function HeadersEditor({ http, setHttp }: { http: HttpDraft; setHttp: (patch: Pa
             }}
             w={{ base: '100%', xs: 200 }}
           />
-          <TemplateInput
-            aria-label={`Valor del header ${i + 1}`}
-            placeholder="centro"
-            style={{ flex: 1, minWidth: 220 }}
-            value={r.value}
-            onChange={(value) =>
-              setHttp({ headers: rows.map((x) => (x.key === r.key ? { ...x, value } : x)) })
-            }
-          />
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <ToolVariableField
+              aria-label={`Valor del header ${i + 1}`}
+              placeholder="centro"
+              extra={extra}
+              value={r.value}
+              onChange={(value) =>
+                setHttp({ headers: rows.map((x) => (x.key === r.key ? { ...x, value } : x)) })
+              }
+            />
+          </div>
           <Tooltip label="Quitar" withArrow>
             <ActionIcon
               variant="subtle"
@@ -323,7 +335,15 @@ function HeadersEditor({ http, setHttp }: { http: HttpDraft; setHttp: (patch: Pa
 }
 
 /** La autenticacion configurada en la herramienta (sin credencial): la de las herramientas hechas por API. */
-function InlineAuth({ auth, set }: { auth: Json; set: (k: string, value: string) => void }) {
+function InlineAuth({
+  auth,
+  set,
+  extra,
+}: {
+  auth: Json;
+  set: (k: string, value: string) => void;
+  extra: ExtraVariable[];
+}) {
   const type = (auth.type as CredentialType) || 'bearer';
   const v = (k: string) => (typeof auth[k] === 'string' ? (auth[k] as string) : '');
   return (
@@ -383,13 +403,15 @@ function InlineAuth({ auth, set }: { auth: Json; set: (k: string, value: string)
         </SimpleGrid>
       )}
       {type === 'basic' && (
-        <TemplateInput
-          label="Usuario"
-          placeholder="atentina"
-          value={v('username')}
-          onChange={(x) => set('username', x)}
-          maw={320}
-        />
+        <div style={{ maxWidth: 320 }}>
+          <ToolVariableField
+            label="Usuario"
+            placeholder="atentina"
+            extra={extra}
+            value={v('username')}
+            onChange={(x) => set('username', x)}
+          />
+        </div>
       )}
       {type === 'oauth2_client_credentials' && (
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -399,7 +421,12 @@ function InlineAuth({ auth, set }: { auth: Json; set: (k: string, value: string)
             value={v('token_url')}
             onChange={(e) => set('token_url', e.currentTarget.value)}
           />
-          <TemplateInput label="Client ID" value={v('client_id')} onChange={(x) => set('client_id', x)} />
+          <ToolVariableField
+            label="Client ID"
+            extra={extra}
+            value={v('client_id')}
+            onChange={(x) => set('client_id', x)}
+          />
           <TextInput label="Scope" value={v('scope')} onChange={(e) => set('scope', e.currentTarget.value)} />
           <TextInput
             label="Audience"
@@ -428,10 +455,12 @@ function AuthEditor({
   http,
   setHttp,
   clientId,
+  extra,
 }: {
   http: HttpDraft;
   setHttp: (patch: Partial<HttpDraft>) => void;
   clientId: string;
+  extra: ExtraVariable[];
 }) {
   const credentials = useCredentials(clientId);
   const [modal, setModal] = useState<{ edit?: Credential } | null>(null);
@@ -503,7 +532,9 @@ function AuthEditor({
       {type === 'credential' && !chosen && !credentials.isLoading && (
         <Alert color="yellow">La credencial {String(auth.credential)} no existe. Elegí otra o creala.</Alert>
       )}
-      {value === INLINE && <InlineAuth auth={auth} set={(k, x) => setHttp({ auth: { ...auth, [k]: x } })} />}
+      {value === INLINE && (
+        <InlineAuth auth={auth} set={(k, x) => setHttp({ auth: { ...auth, [k]: x } })} extra={extra} />
+      )}
       <Switch
         label="Firmar el pedido"
         description={`Header X-Atentina-Signature (HMAC-SHA256 del body) con el secreto ${SIGNING_SECRET}, para que tu API verifique que viene de Atentina.`}
@@ -539,6 +570,7 @@ export function HttpForm({
   tab,
   onTab,
   errorTabs,
+  extra = [],
 }: {
   draft: ToolDraft;
   update: Update;
@@ -546,6 +578,8 @@ export function HttpForm({
   tab: string;
   onTab: (t: string) => void;
   errorTabs: Set<string>;
+  /** Variables que ofrecen los campos, además de las del sistema y los secretos. */
+  extra?: ExtraVariable[];
 }) {
   const http = draft.http;
   const setHttp = (patch: Partial<HttpDraft>) => update((d) => ({ ...d, http: { ...d.http, ...patch } }));
@@ -569,17 +603,20 @@ export function HttpForm({
               w={110}
               style={{ flex: 'none' }}
             />
-            <TemplateInput
-              label="URL"
-              description="Con {variables} en la ruta para los parámetros (https://api.ejemplo.com/clientes/{dni})."
-              inputWrapperOrder={['label', 'input', 'description', 'error']}
-              placeholder="https://api.ejemplo.com/turnos"
-              style={{ flex: 1, minWidth: 0 }}
-              value={http.url}
-              onChange={(url) =>
-                update((d) => ({ ...d, http: { ...d.http, url, path: syncPathRows(d.http.path, url) } }))
-              }
-            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ToolVariableField
+                label="URL"
+                description="Con {variables} en la ruta para los parámetros (https://api.ejemplo.com/clientes/{dni})."
+                placeholder="https://api.ejemplo.com/turnos"
+                maxLength={2000}
+                extra={extra}
+                opensAt={urlOpensAt}
+                value={http.url}
+                onChange={(url) =>
+                  update((d) => ({ ...d, http: { ...d.http, url, path: syncPathRows(d.http.path, url) } }))
+                }
+              />
+            </div>
           </Group>
           <SimpleGrid cols={{ base: 2, sm: 3 }}>
             <NumberInput
@@ -641,6 +678,7 @@ export function HttpForm({
               onChange={(path) => setHttp({ path })}
               fixedNames
               showRequired={false}
+              extra={extra}
               empty="La URL no tiene {variables} en la ruta. Agregalas en la URL (…/clientes/{dni}) y aparecen acá."
             />
           </Tabs.Panel>
@@ -652,6 +690,7 @@ export function HttpForm({
             <ParamsEditor
               rows={http.query}
               onChange={(query) => setHttp({ query })}
+              extra={extra}
               empty="Sin parámetros de query (?fecha=…)."
             />
           </Tabs.Panel>
@@ -660,7 +699,7 @@ export function HttpForm({
               Encabezados extra del pedido, como X-Sucursal. El valor puede llevar variables o secretos; el
               token de acceso va en Autenticación.
             </SectionIntro>
-            <HeadersEditor http={http} setHttp={setHttp} />
+            <HeadersEditor http={http} setHttp={setHttp} extra={extra} />
           </Tabs.Panel>
           <Tabs.Panel value="body">
             <SectionIntro>
@@ -691,6 +730,7 @@ export function HttpForm({
                 <ParamsEditor
                   rows={http.body}
                   onChange={(body) => setHttp({ body })}
+                  extra={extra}
                   label="Campo"
                   addLabel="Agregar campo"
                   empty="Sin campos. Los que completa el agente y los fijos van juntos en el JSON."
@@ -703,7 +743,7 @@ export function HttpForm({
               Cómo se identifica Atentina ante tu API. Elegí una credencial (o creá una acá): se carga una
               vez, la usan todas las herramientas que llaman a esa API y el agente nunca ve el valor.
             </SectionIntro>
-            <AuthEditor http={http} setHttp={setHttp} clientId={clientId} />
+            <AuthEditor http={http} setHttp={setHttp} clientId={clientId} extra={extra} />
           </Tabs.Panel>
           <Tabs.Panel value="respuesta">
             <SectionIntro>

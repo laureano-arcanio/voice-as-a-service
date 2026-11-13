@@ -15,9 +15,10 @@ import {
   Title,
 } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ToolTestResult, ToolType } from '@/api/types';
 import { ErrorAlert } from '@/components/QueryState';
+import { isSystemVariable, useVariableCatalog, usedVariables } from '@/components/variables';
 import { useAgents } from '@/features/agents/api';
 import { prettyJson } from '@/lib/format';
 import { useTestToolDraft } from './api';
@@ -191,9 +192,17 @@ export function ToolTestPanel({
   const [args, setArgs] = useState<Json>({});
   const [agentId, setAgentId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [vars, setVars] = useState<Record<string, string>>({});
   const [from, setFrom] = useState('');
   const agents = useAgents(clientId);
   const test = useTestToolDraft(clientId);
+  // Las variables que nombra la definición ({{x}}), sin las del sistema: se prueban como en una conversación.
+  const catalog = useVariableCatalog().data;
+  const used = useMemo(
+    () =>
+      usedVariables(JSON.stringify(definition)).filter((name) => !isSystemVariable(name, catalog)),
+    [definition, catalog],
+  );
 
   const run = () => {
     const sent: Json = {};
@@ -202,12 +211,16 @@ export function ToolTestPanel({
       if (v !== undefined) sent[name] = v;
     }
     const adhoc = Object.fromEntries(Object.entries(values).filter(([k, v]) => v && secrets.includes(k)));
+    const variables = Object.fromEntries(
+      used.filter((name) => vars[name]?.trim()).map((name) => [name, vars[name]!.trim()]),
+    );
     test.mutate({
       type,
       definition,
       args: sent,
       agent_id: agentId,
       secrets: Object.keys(adhoc).length ? adhoc : null,
+      variables: Object.keys(variables).length ? variables : null,
       // Como una entrante: el numero de quien llama es el de la persona ({{call.from}} y {{call.phone}}).
       call: from.trim()
         ? { from: from.trim(), phone: from.trim(), channel: 'voice', mode: 'inbound' }
@@ -240,6 +253,26 @@ export function ToolTestPanel({
               onChange={(v) => setArgs((a) => ({ ...a, [name]: v }))}
             />
           ))
+        )}
+        {used.length > 0 && (
+          <>
+            <Text size="xs" c="dimmed">
+              Variables de la conversación para la prueba. Vacías: quedan vacías, como si nadie las hubiera
+              cargado.
+            </Text>
+            {used.map((name) => (
+              <TextInput
+                key={name}
+                label={<span className="mono">{`{{${name}}}`}</span>}
+                placeholder="Valor de ejemplo"
+                value={vars[name] ?? ''}
+                onChange={(e) => {
+                  const v = e.currentTarget.value;
+                  setVars((x) => ({ ...x, [name]: v }));
+                }}
+              />
+            ))}
+          </>
         )}
         {secrets.length > 0 && (
           <>

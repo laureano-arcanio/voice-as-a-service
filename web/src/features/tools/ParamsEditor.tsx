@@ -12,8 +12,9 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import type { ExtraVariable } from '@/components/variables';
 import { blankParam, PARAM_TYPES, type ParamRow, type ParamType } from './draft';
-import { TemplateInput } from './TemplateInput';
+import { ToolVariableField } from './TemplateInput';
 
 /**
  * Filas de parametros: nombre, tipo, quien lo completa (el agente o un valor fijo) y su descripcion o valor.
@@ -28,6 +29,7 @@ export function ParamsEditor({
   addLabel = 'Agregar parámetro',
   empty,
   label = 'Parámetro',
+  extra = [],
 }: {
   rows: ParamRow[];
   onChange: (rows: ParamRow[]) => void;
@@ -41,6 +43,8 @@ export function ParamsEditor({
   empty?: string;
   /** Para los aria-label: "Parámetro", "Campo". */
   label?: string;
+  /** Variables que se ofrecen en un valor fijo, además de las del sistema y los secretos. */
+  extra?: ExtraVariable[];
 }) {
   const set = (key: string, patch: Partial<ParamRow>) =>
     onChange(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -114,18 +118,20 @@ export function ParamsEditor({
               )}
             </Group>
             {fixed ? (
-              <TemplateInput
-                mt="xs"
-                aria-label={`Valor de ${n}`}
-                description={
-                  r.type === 'array'
-                    ? 'Separado por comas. Puede llevar variables.'
-                    : 'Siempre se manda este valor; el agente no lo ve. Puede llevar variables.'
-                }
-                placeholder="{{call.phone}}"
-                value={r.value}
-                onChange={(value) => set(r.key, { value })}
-              />
+              <div style={{ marginTop: 'var(--mantine-spacing-xs)' }}>
+                <ToolVariableField
+                  aria-label={`Valor de ${n}`}
+                  extra={extra}
+                  description={
+                    r.type === 'array'
+                      ? 'Separado por comas. Puede llevar variables.'
+                      : 'Siempre se manda este valor; el agente no lo ve. Puede llevar variables.'
+                  }
+                  placeholder="{{call.phone}}"
+                  value={r.value}
+                  onChange={(value) => set(r.key, { value })}
+                />
+              </div>
             ) : (
               <Group mt="xs" gap="xs" align="flex-start" wrap="wrap">
                 <TextInput

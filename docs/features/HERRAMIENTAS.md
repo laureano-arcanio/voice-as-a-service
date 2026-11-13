@@ -85,7 +85,9 @@ Los de `path` son siempre obligatorios; los de query, con `"required": true`; lo
 | `{{fields.x}}` | dato del análisis |
 
 `{{vars.x}}` y `{{contact.x}}` se rechazan al guardar (el error dice `usá {{x}}`); el mensaje de error de un template
-desconocido lista las válidas del catálogo (`GET /variables/catalog`). El host de la URL no puede tener variables:
+desconocido lista las válidas del catálogo (`GET /variables/catalog`). En el editor, `{{` en un valor fijo, un header,
+la URL (después del host) o `auth.username`/`auth.client_id` abre la lista de variables de una herramienta. El host de
+la URL no puede tener variables:
 una columna de campaña o un pedido de la API no eligen a qué servidor se llama (SSRF). Un parámetro de path o uno fijo obligatorio sin valor da
 `missing_variable` sin llamar; un secreto que falta, `missing_secret`.
 
@@ -376,8 +378,12 @@ agente de IA que usa el MCP (lo dice su descripción). Catálogo en [`../MCP_HER
   (`ParamsEditor`: "lo completa el agente", valor fijo o variable), headers, body, Autenticación (desplegable
   Credencial: ninguna, las del cliente o "Configurada en esta herramienta (avanzado)"; Nueva/Editar credencial en
   `CredentialModal`), respuesta y voz; código con CodeMirror, parámetros, secretos que usa, hosts permitidos y timeout.
-  Botón **Variables** (`TemplateInput`) con los secretos y "Nuevo secreto". "Secretos que pide" con Cargado/Falta.
-  "Lo que ve el modelo" (esquema generado). **Probar** (`ToolTestPanel`) e historial de versiones (`ToolHistory`).
+  Los campos con templates (`VariableField`: URL después del host, valores fijos, headers, `auth.username` y
+  `auth.client_id`) abren la lista al tipear `{{`: las del sistema de una herramienta, los secretos del cliente por
+  nombre y las que declaran los agentes que la usan o asignan otras; el campo del secreto de Autenticación mantiene el
+  botón **Variables** (`SecretInput`) con los secretos y "Nuevo secreto". "Secretos que pide" con Cargado/Falta.
+  "Lo que ve el modelo" (esquema generado). **Probar** (`ToolTestPanel`, con un valor de ejemplo por variable que
+  nombra la definición) e historial de versiones (`ToolHistory`).
 - **Agentes > Secretos** (`/secrets`, `SecretsPage`): Credenciales y Secretos del cliente (`••••last4`, quién los usa,
   agentes con otro valor, **Falta**).
 - **Editor del agente, sección Herramientas** (`web/src/features/agents/`): elegir herramientas, aviso **Falta X**, y

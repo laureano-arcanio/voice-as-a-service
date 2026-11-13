@@ -10,10 +10,12 @@ export type VariableContext = 'prompt' | 'first_message' | 'analysis' | 'handoff
 export interface DeclaredVariable {
   name: string;
   description?: string | null;
+  /** Cómo se muestra (`declarada` por defecto); `secret` para un `secrets.NOMBRE` que ofrece una herramienta. */
+  kind?: Exclude<VariableKind, 'system'>;
 }
 /** Variable que otra fuente asigna (el `assign` de una herramienta o del pre-call, un dato del análisis). */
 export type ExtraVariable = string | DeclaredVariable;
-export type VariableKind = 'system' | 'declared' | 'extra';
+export type VariableKind = 'system' | 'declared' | 'extra' | 'secret';
 
 export interface VariableOption {
   name: string;
@@ -37,6 +39,7 @@ export const KIND_LABEL: Record<VariableKind, string> = {
   system: 'sistema',
   declared: 'declarada',
   extra: 'asignada',
+  secret: 'secreto',
 };
 
 export const UNKNOWN_HINT =
@@ -81,7 +84,7 @@ export function variableOptions({
       taken.add(name);
       out.push({
         name,
-        kind,
+        kind: v.kind ?? kind,
         description: v.description ?? '',
         example: '',
         partial: false,

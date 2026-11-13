@@ -11,6 +11,7 @@ import {
   syncPathRows,
   toolPathLabel,
   toToolDraft,
+  urlOpensAt,
   urlPathVars,
 } from './draft';
 
@@ -144,6 +145,13 @@ describe('parámetros', () => {
       ['dni', ''],
     ]);
     expect(syncPathRows(rows, 'https://x.com/{dni}').map((r) => r.name)).toEqual(['dni']);
+  });
+
+  it('las variables de la URL se ofrecen solo después del host', () => {
+    expect(urlOpensAt('https://api.x.com{{', 18)).toBe(false);
+    expect(urlOpensAt('https://api.x.com', 16)).toBe(false);
+    expect(urlOpensAt('https://api.x.com/turnos?d={{', 30)).toBe(true);
+    expect(urlOpensAt('https://api.x.com/clientes/{{dni}}', 35)).toBe(true);
   });
 });
 

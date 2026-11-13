@@ -17,6 +17,9 @@ import {
 import { useForm } from '@mantine/form';
 import { ApiError } from '@/api/errors';
 import type { TeamMember } from '@/api/types';
+import { VariableField, useAgentVariables, useVariableCatalog } from '@/components/variables';
+import { useAgents } from '@/features/agents/api';
+import { useCurrentUser } from '@/features/auth/api';
 import { notifyError, notifyInvalid, notifySuccess } from '@/lib/notify';
 import { type AreaRow, useAreaDefaults, useSaveArea } from './api';
 import { AreaWhatsapp } from './AreaWhatsapp';
@@ -99,6 +102,12 @@ export function AreaModal({
 }) {
   const save = useSaveArea();
   const defaults = useAreaDefaults();
+  // Las variables que aceptan los mensajes: las de derivación del catálogo y las que declaran los agentes
+  // del cliente (los mensajes los renderiza el agente que deriva, sea cual sea).
+  const catalog = useVariableCatalog().data;
+  const me = useCurrentUser();
+  const clientId = area?.client_id ?? members[0]?.client_id ?? me.client_id ?? undefined;
+  const agentVariables = useAgentVariables(useAgents(clientId).data);
   // Los mensajes que salen antes de aceptar admiten pocas variables: la lista viene de la API.
   const preAcceptKeys = defaults.data?.pre_accept_messages ?? [];
   const preAcceptVars = defaults.data?.pre_accept_variables ?? [];
@@ -478,23 +487,27 @@ export function AreaModal({
           <Text size="xs" c="dimmed">
             Vacío usa el texto por defecto.
             {defaults.data?.variables.length
-              ? ` Podés usar ${defaults.data.variables.map((x) => `{{${x}}}`).join(', ')}.`
+              ? ` Podés usar ${defaults.data.variables.map((x) => `{{${x}}}`).join(', ')}. Tipeá {{ para elegirlas.`
               : ''}
           </Text>
           {shownMessages.map((f) => {
             const text = v.messages[f.key] ?? '';
             return (
               <Stack key={f.key} gap={4}>
-                <Textarea
+                <VariableField
+                  field="handoff"
+                  catalog={catalog}
+                  extra={agentVariables}
                   label={f.label}
                   description={helpFor(f)}
                   placeholder={defaults.data?.messages[f.key]}
-                  autosize
+                  multiline
                   minRows={1}
+                  maxRows={6}
                   maxLength={500}
                   value={text}
                   error={form.errors[`messages.${f.key}`]}
-                  onChange={(e) => setMessage(f.key, e.currentTarget.value)}
+                  onChange={(next) => setMessage(f.key, next)}
                 />
                 {text && (
                   <Group justify="flex-end">

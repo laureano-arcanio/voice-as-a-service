@@ -39,6 +39,7 @@ describe('VariableField', () => {
         'today',
         'call.summary',
         'fields.<campo>',
+        'secrets.<NOMBRE>',
       ]),
     );
     await user.type(input(), 'ph');
@@ -74,8 +75,8 @@ describe('VariableField', () => {
     await user.click(input());
     input().setSelectionRange(4, 4);
     await user.keyboard('{ArrowRight}{ArrowLeft}');
-    await waitFor(() => expect(optionNames()).toEqual(['nombre']));
-    await user.click(screen.getByRole('option', { hidden: true }));
+    await waitFor(() => expect(optionNames()).toEqual(['nombre', 'secrets.<NOMBRE>']));
+    await user.click(screen.getAllByRole('option', { hidden: true })[0]!);
     expect(input().value).toBe('{{nombre}} fin');
   });
 
@@ -108,5 +109,16 @@ describe('VariableField', () => {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(input()).not.toHaveAttribute('data-expanded'));
     expect(input().value).toBe('{{');
+  });
+
+  it('opensAt decide si la lista puede abrirse en esa posición', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness opensAt={(text) => text.startsWith('/')} />);
+    await user.click(input());
+    await user.type(input(), '{{{{');
+    expect(screen.queryAllByRole('option', { hidden: true })).toHaveLength(0);
+    await user.clear(input());
+    await user.type(input(), '/{{{{');
+    await waitFor(() => expect(optionNames()).toContain('nombre'));
   });
 });

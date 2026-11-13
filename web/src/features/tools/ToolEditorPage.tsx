@@ -31,6 +31,7 @@ import { JsonEditor } from '@/components/JsonEditor';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { QueryState } from '@/components/QueryState';
+import { useAgentVariables } from '@/components/variables';
 import { stableJson } from '@/features/agents/draft';
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -41,6 +42,7 @@ import {
   useCredentials,
   useDeleteTool,
   useTool,
+  useTools,
   useToolsClient,
   useToolsStatus,
   useUpdateTool,
@@ -63,6 +65,7 @@ import { ToolSecretsContext } from './ToolSecretsContext';
 import { CodeForm, HttpForm } from './ToolForms';
 import { ToolHistory } from './ToolHistory';
 import { ToolTestPanel } from './ToolTestPanel';
+import { assignedByOthers } from './variables';
 
 type Mode = 'form' | 'json';
 
@@ -108,6 +111,14 @@ function ToolEditor({
   const clientSecrets = useClientSecrets(clientId);
   const credentials = useCredentials(clientId);
   const secrets = requiredSecrets(type, definition, credentials.data ?? []);
+  // Lo que ofrecen los campos con variables: las declaradas por los agentes que la usan y las que asignan
+  // las demás herramientas. Los secretos los suma el campo (ToolSecretsContext).
+  const clientTools = useTools(clientId);
+  const agentVariables = useAgentVariables(saved?.used_by);
+  const extra = useMemo(
+    () => [...agentVariables, ...assignedByOthers(clientTools.data ?? [], saved?.slug ?? slug)],
+    [agentVariables, clientTools.data, saved?.slug, slug],
+  );
   // Los cargados en el cliente (para todos los agentes) y los que ya usa la herramienta.
   const loaded = new Set((clientSecrets.data ?? []).filter((x) => !x.missing).map((x) => x.name));
   const secretNames = [...new Set([...loaded, ...secrets])].sort();
@@ -311,6 +322,7 @@ function ToolEditor({
                   tab={tab}
                   onTab={setTab}
                   errorTabs={errorTabs}
+                  extra={extra}
                 />
               ) : (
                 <CodeForm draft={draft} update={setDraft} runnerDown={runnerDown} />

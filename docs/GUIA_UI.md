@@ -659,9 +659,10 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 
 - **Nueva herramienta > Llamar a una API:** método y URL (con `{variables}` de la ruta) y pestañas
   **Ruta**, **Query**, **Headers**, **Body**, **Autenticación**, **Respuesta** y **Mientras se espera**. Cada parámetro
-  lo completa **el agente** (con una descripción: qué dato es) o es un **valor fijo** (puede llevar
-  `{{secrets.NOMBRE}}`, `{{call.from}}` y otras variables, del botón **Variables**, que también crea un
-  secreto nuevo). El agente solo ve los que completa. **Autenticación:** elegir una **Credencial** del
+  lo completa **el agente** (con una descripción: qué dato es) o es un **valor fijo** (puede llevar variables:
+  al tipear `{{` aparece la lista con las del sistema, los secretos del cliente por nombre y las que declaran los
+  agentes que usan la herramienta o asignan otras; el host de la URL no las admite). El agente solo ve los que
+  completa. **Autenticación:** elegir una **Credencial** del
   cliente o crearla ahí (**Nueva credencial**: Bearer, API key en header o query, Basic u OAuth2 client
   credentials, con su valor); "Configurada en esta herramienta" es la opción avanzada. **Lo que ve el
   agente** muestra la función tal como le llega al modelo, y **Secretos que pide** marca **Cargado** o
@@ -671,7 +672,8 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
   usa** (llegan en `secrets`), **Hosts permitidos** (la función solo puede llamar a esos dominios) y el
   tiempo máximo.
 - **Probar** (los dos tipos): los argumentos como los mandaría el agente; usa los secretos del cliente,
-  los valores propios de un agente si se elige uno, o valores solo para la prueba (no se guardan), y el resultado: el pedido enviado (con los secretos
+  los valores propios de un agente si se elige uno, o valores solo para la prueba (no se guardan), los valores
+  de las variables que nombra la definición (`{{x}}`, cada una con su campo) y el resultado: el pedido enviado (con los secretos
   tachados), la respuesta, lo que recibe el agente y los logs del código. Llama de verdad a la API.
 - Para que un agente la use: en el agente, **Herramientas** (la pestaña del agente), elegirla; si le falta
   un secreto, la herramienta dice **Falta X** y se carga ahí (**Cargar valor**: para todos los agentes o
@@ -797,7 +799,8 @@ agente se elige en su definición, **Derivación a personas**.
 3. **Mensajes:** cada momento (antes de transferir, el aviso a la persona, no atiende, ocupado, fuera de
    horario, vuelta y despedida; por WhatsApp de texto, además, lo que se le dice al operador y a la persona) tiene un
    texto por defecto; se cambia por área, con `{{area}}`, `{{persona}}`, `{{cliente}}`, `{{resumen}}`, `{{horario}}`,
-   `{{nombre}}` y los datos de «Antes de la conversación». Los mensajes que salen antes de que alguien acepte solo
+   `{{nombre}}` y los datos de «Antes de la conversación» (al tipear `{{` aparece la lista con las de derivación y las
+   que declaran los agentes del cliente). Los mensajes que salen antes de que alguien acepte solo
    admiten `{{area}}`, `{{persona}}` y `{{horario}}`: la ayuda del campo lo dice, y con otra variable el campo se marca
    con su nombre y no se guarda.
 
