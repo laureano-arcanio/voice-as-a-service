@@ -541,10 +541,12 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
   y, si se llamó a un contacto que había pedido no recibir llamadas, un aviso amarillo dice quién lo confirmó.
   Cada frase trae su audio (la grabación es siempre) y el chat rotula "Contacto" o "Quien llamó".
 - **Variables:** nombre, valor (las ocultas, `•••`) y fuente en palabras: "del sistema", "valor por defecto",
-  "contacto o campaña", "pedido de la llamada", "pre-call (slug)" o "herramienta (slug)". Una conversación vieja
-  sin variables no muestra la tabla.
+  "contacto o campaña", "pedido de la llamada", "pre-call (slug)" o "herramienta (slug)". La tabla no se muestra si
+  la conversación solo tiene variables del sistema (las viejas no tienen de usuario, aunque la API sume las suyas).
 - **Estado:** cada dato del análisis, en su orden, con su valor (o `–`) y "Obtenido" en los capturados; los valores
   rechazados se muestran en rojo. Los recién obtenidos se resaltan unos segundos.
+- **Prompt del agente:** plegable, con el prompt renderizado del primer turno (las variables ya sustituidas) en
+  monoespaciada y con sus saltos de línea. No aparece en conversaciones viejas, que no lo guardan.
 - **Conversación:** el chat. Con **Salida del LLM** se despliega lo que devolvió el LLM en cada turno
   (conversación y extracción, con su tiempo y razonamiento); si el agente tiene **Grabar audio**
   prendido, cada mensaje trae el reproductor de su WAV. En una llamada derivada, el tramo con la persona del

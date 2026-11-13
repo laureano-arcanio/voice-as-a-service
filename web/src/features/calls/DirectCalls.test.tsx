@@ -337,8 +337,11 @@ describe('detalle de una conversación con agente: resumen y variables', () => {
     variables: [
       { name: 'deuda', value: '125000', source: 'request' },
       { name: 'token_crm', value: '•••', source: 'tool:consultar_deuda', hidden: true },
+      { name: 'nota', value: 'Pidió cuotas', source: 'pre_call:consultar_deuda' },
       { name: 'call.phone', value: '+5493515551234', source: 'system' },
     ],
+    system_prompt:
+      'Estás en una llamada telefónica.\n\n# Identidad\nSos Sofía, de Cobranzas.\n\n# Objetivo\nCobrar la deuda de 125000.',
     call: { ...DETAIL.call!, mode: 'saliente', answered_by: 'agent', user_id: null, user_name: null },
     messages: [{ role: 'assistant', text: 'Hola, te llamo de Cobranzas.' }],
   };
@@ -354,6 +357,7 @@ describe('detalle de una conversación con agente: resumen y variables', () => {
     expect(within(row('deuda')).getByText('pedido de la llamada')).toBeInTheDocument();
     expect(within(row('token_crm')).getByText('•••')).toBeInTheDocument();
     expect(within(row('token_crm')).getByText('herramienta (consultar_deuda)')).toBeInTheDocument();
+    expect(within(row('nota')).getByText('pre-call (consultar_deuda)')).toBeInTheDocument();
     expect(within(row('call.phone')).getByText('del sistema')).toBeInTheDocument();
     // Los datos no dicen "Pendiente" ni "Opcional"; el que tiene valor, "Obtenido".
     expect(screen.queryByText('Pendiente')).not.toBeInTheDocument();
@@ -368,5 +372,34 @@ describe('detalle de una conversación con agente: resumen y variables', () => {
     renderDetail(old);
     await screen.findByText('Resumen');
     expect(screen.queryByText('Variables')).not.toBeInTheDocument();
+  });
+
+  it('con solo variables del sistema tampoco muestra la tabla; con una de usuario, sí', async () => {
+    const system = [
+      { name: 'call.id', value: 'cv-2', source: 'system' },
+      { name: 'channel', value: 'voice', source: 'system' },
+      { name: 'today', value: 'viernes 2026-11-13', source: 'system' },
+    ];
+    const { unmount } = renderDetail({ ...AGENT, variables: system });
+    await screen.findByText('Resumen');
+    expect(screen.queryByText('Variables')).not.toBeInTheDocument();
+    unmount();
+    renderDetail({ ...AGENT, variables: [...system, { name: 'deuda', value: '1', source: 'request' }] });
+    expect(await screen.findByText('Variables')).toBeInTheDocument();
+  });
+
+  it('muestra el prompt renderizado en un desplegable y no aparece si la conversación no lo tiene', async () => {
+    const { unmount } = renderDetail(AGENT);
+    await screen.findByText('Resumen');
+    await userEvent.click(screen.getByRole('button', { name: 'Prompt del agente' }));
+    expect(await screen.findByText(/Sos Sofía, de Cobranzas/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Sos Sofía, de Cobranzas/)).toBeVisible());
+    expect(screen.getByText(/Cobrar la deuda de 125000/)).toBeVisible();
+    unmount();
+
+    const { system_prompt: _omit, ...old } = AGENT;
+    renderDetail(old);
+    await screen.findByText('Resumen');
+    expect(screen.queryByRole('button', { name: 'Prompt del agente' })).not.toBeInTheDocument();
   });
 });

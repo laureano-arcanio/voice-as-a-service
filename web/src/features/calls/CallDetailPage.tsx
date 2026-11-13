@@ -35,6 +35,7 @@ import {
   WorkflowBadge,
 } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
+import { CollapsibleCard } from '@/components/CollapsibleCard';
 import { PageHeader } from '@/components/PageHeader';
 import { ErrorAlert, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
@@ -155,6 +156,16 @@ function VariablesCard({ variables }: { variables: NonNullable<CallDetail['varia
         </Table>
       </Table.ScrollContainer>
     </Card>
+  );
+}
+
+/** El prompt renderizado del primer turno (con las variables sustituidas), plegado. */
+function PromptCard({ prompt }: { prompt: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <CollapsibleCard title="Prompt del agente" opened={open} onToggle={() => setOpen((x) => !x)}>
+      <pre className="code">{prompt}</pre>
+    </CollapsibleCard>
   );
 }
 
@@ -576,29 +587,35 @@ export function CallDetailPage() {
         actions={query.data ? <DetailActions c={query.data} live={live} /> : undefined}
       />
       <QueryState query={query}>
-        {(c) => (
-          <Stack gap="md">
-            {c.summary && <SummaryCard summary={c.summary} />}
-            <CallHeader c={c} />
-            {isPersonOnly(c) ? (
-              // Sin agente no hay datos que obtener: la conversación ocupa todo el ancho.
-              <ChatCard c={c} live={live} />
-            ) : (
-              <Grid gutter="md">
-                <Grid.Col span={{ base: 12, lg: 5 }}>
-                  <Stack gap="md">
-                    {!!c.variables?.length && <VariablesCard variables={c.variables} />}
-                    {!isPersonOnly(c) && <FieldsCard c={c} />}
-                  </Stack>
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, lg: 7 }}>
-                  <ChatCard c={c} live={live} />
-                </Grid.Col>
-              </Grid>
-            )}
-            <LatencyCard latency={asLatency(c.call?.latency)} folded={!isAdmin} />
-          </Stack>
-        )}
+        {(c) => {
+          // Las del sistema siempre están: sin ninguna de usuario, la tabla no se muestra (conversación vieja).
+          const variables = c.variables ?? [];
+          const hasUserVariables = variables.some((v) => v.source !== 'system');
+          return (
+            <Stack gap="md">
+              {c.summary && <SummaryCard summary={c.summary} />}
+              <CallHeader c={c} />
+              {isPersonOnly(c) ? (
+                // Sin agente no hay datos que obtener: la conversación ocupa todo el ancho.
+                <ChatCard c={c} live={live} />
+              ) : (
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, lg: 5 }}>
+                    <Stack gap="md">
+                      {hasUserVariables && <VariablesCard variables={variables} />}
+                      {!isPersonOnly(c) && <FieldsCard c={c} />}
+                    </Stack>
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, lg: 7 }}>
+                    <ChatCard c={c} live={live} />
+                  </Grid.Col>
+                </Grid>
+              )}
+              {c.system_prompt && <PromptCard prompt={c.system_prompt} />}
+              <LatencyCard latency={asLatency(c.call?.latency)} folded={!isAdmin} />
+            </Stack>
+          );
+        }}
       </QueryState>
     </>
   );
