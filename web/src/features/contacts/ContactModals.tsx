@@ -69,8 +69,9 @@ export function RejectedTable({ rows }: { rows: ContactRejected[] }) {
   );
 }
 
-/** Que entendió la API del CSV: columnas con su destino y las primeras filas. */
-export function CsvPreviewTable({ text }: { text: string }) {
+/** Que entendió la API del CSV: columnas con su destino y las primeras filas. En una campaña de voz las
+ * columnas que no son un rol llegan a la llamada como variables, no se ignoran. */
+export function CsvPreviewTable({ text, voice = false }: { text: string; voice?: boolean }) {
   const preview = useMemo(() => previewCsv(text), [text]);
   if (!preview) return null;
   if (preview.error)
@@ -79,6 +80,8 @@ export function CsvPreviewTable({ text }: { text: string }) {
         {preview.error}
       </Alert>
     );
+  const label = (role: (typeof preview.columns)[number]['role']) =>
+    voice && role === 'ignored' ? 'Variable de la llamada' : ROLE_LABEL[role];
   return (
     <Stack gap="xs">
       <Text size="sm">
@@ -95,7 +98,7 @@ export function CsvPreviewTable({ text }: { text: string }) {
                     {c.header}
                   </Text>
                   <Badge color={c.role === 'phone' ? 'blue' : 'gray'} mt={2}>
-                    {ROLE_LABEL[c.role]}
+                    {label(c.role)}
                   </Badge>
                 </Table.Th>
               ))}

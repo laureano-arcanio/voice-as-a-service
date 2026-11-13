@@ -315,7 +315,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
           )}
 
           <Divider label="Destinatarios" labelPosition="left" mt="xs" />
-          <RecipientsPicker value={recipients} onChange={setRecipients} />
+          <RecipientsPicker value={recipients} onChange={setRecipients} voice />
           {noRecipients && (
             <Text size="sm" c="red">
               Elegí a quién llamar: tus clientes o un CSV.

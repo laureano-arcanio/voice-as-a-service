@@ -533,6 +533,9 @@ describe('campañas: alta de llamadas', () => {
     );
 
     expect(await screen.findByText('Variables que espera el agente')).toBeInTheDocument();
+    // La columna extra del CSV es una variable de la llamada, no se ignora.
+    expect(screen.getByText('Variable de la llamada')).toBeInTheDocument();
+    expect(screen.queryByText('Se ignora')).not.toBeInTheDocument();
     // La columna que coincide con el nombre normalizado queda elegida sola.
     expect(screen.getByRole('textbox', { name: 'Columna para nombre_cliente' })).toHaveValue(
       'Nombre Cliente',

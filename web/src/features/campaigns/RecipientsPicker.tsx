@@ -101,10 +101,13 @@ export function RecipientsPicker({
   clientId,
   value,
   onChange,
+  voice = false,
 }: {
   clientId?: string;
   value: Recipients;
   onChange: (next: Recipients) => void;
+  /** Campaña de voz: las columnas extra del CSV son variables de la llamada. */
+  voice?: boolean;
 }) {
   const n = recipientsCount(value);
   const badge = (count: number) => (count ? ` (${count})` : '');
@@ -130,7 +133,11 @@ export function RecipientsPicker({
           <Stack gap="xs">
             <Textarea
               aria-label="Contactos (CSV)"
-              description="Con encabezado: telefono (obligatorio), nombre, email y notas. Quienes no estén en Tus clientes se agregan."
+              description={
+                voice
+                  ? 'Con encabezado: telefono (obligatorio), nombre, email y notas. Las demás columnas llegan al agente como variables.'
+                  : 'Con encabezado: telefono (obligatorio), nombre, email y notas. Quienes no estén en Tus clientes se agregan.'
+              }
               placeholder={'telefono,nombre,email\n351 555-1234,Ana Pérez,ana@empresa.com'}
               autosize
               minRows={4}
@@ -140,7 +147,7 @@ export function RecipientsPicker({
               onChange={(e) => onChange({ ...value, csv: e.currentTarget.value })}
             />
             <CsvFileInput onText={(csv) => onChange({ ...value, csv })} />
-            <CsvPreviewTable text={value.csv} />
+            <CsvPreviewTable text={value.csv} voice={voice} />
           </Stack>
         </Tabs.Panel>
       </Tabs>
