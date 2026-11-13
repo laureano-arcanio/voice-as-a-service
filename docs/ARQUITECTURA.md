@@ -109,7 +109,7 @@ crm/                 FastAPI propio: routes (leads, outreach, reminders), servic
 apps/                apps aparte, cada una con su imagen, su base y su compose: registros/ (fichas; no importa app/ ni crm/)
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0050
+migrations/          Alembic, 0001 a 0057
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -126,7 +126,7 @@ del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un sol
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
 propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
 pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación, 0050 orden o rotativa en la
-entrante al equipo.
+entrante al equipo, 0057 definiciones guardadas a la forma con `prompt` (y `definition_legacy` para la vuelta atrás).
 
 ## Modelo de datos
 
@@ -178,8 +178,8 @@ incluido.
 
 | Tabla | Claves y reglas |
 |---|---|
-| `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
-| `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
+| `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `definition_legacy` (la definición de antes de la 0057, solo para la vuelta atrás); `archived_at`. |
+| `agent_versions` | `(agent_id, version)`; inmutables, con `created_by` y `definition_legacy`. |
 | `conversations` | Estado del motor (`fields`, `messages`, `progress`; un mensaje con `dtmf` son teclas marcadas, texto `Marcó 123`: [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#teclas-marcadas)), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`, `line_id` (entrante: `UNIQUEID` del canal de Asterisk, nombre de su grabación completa). Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `strategy` (`sequential`/`round_robin`, con `last_member_id`: la última que atendió en su celular), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` (`agent`, `member`, `voicemail`, `hangup`), `team_fallback_member_id` (la persona de `member`; SET NULL), `team_fallback_message`, `team_connect_on_answer` (conecta apenas atiende el teléfono), `team_hold_music`, `team_retry_seconds`/`team_retry_interval_seconds`/`team_retry_message` (reintentos antes del respaldo), `record_full_call` (graba la llamada completa; marcador del spool en `app/services/line_spool.py`); personas en `phone_number_members`. |
@@ -198,7 +198,7 @@ incluido.
 | `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result` (con la rotación por WhatsApp, también `whatsapp_sent` e `interrupted`), `sip_status`, tiempos, `billed_seconds` (minutos salientes) y `wamid` (la plantilla enviada). | ídem |
 | `user_presence`, `call_rings` | Disponible en el panel (pulso, TTL 60 s); timbre de una entrante al equipo por usuario (el primero que atiende se queda). | ídem |
 | `events` | Línea de tiempo (`call.*`, con `call.dtmf` por tecla de quien llama, `handoff.*`, `hold.*`, `team.*`, `workflow.*`), `id` incremental para leer con cursor. Por WhatsApp de texto, los `handoff.*` llevan `channel: whatsapp`; `handoff.ignored` (una segunda derivación con otra viva) trae `area`, `live_area`, `live_status` y `other_conversation`. | ídem |
-| `tools`, `tool_versions`, `tool_runs` | Herramienta del cliente (`slug`, `type` `http`/`code`, `definition`, `revision`, última prueba), cada revisión y cada ejecución (`ok`, `status_code`, `ms`). | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
+| `tools`, `tool_versions`, `tool_runs` | Herramienta del cliente (`slug`, `type` `http`/`code`, `definition`, `revision`, última prueba), cada revisión (las dos con `definition_legacy`) y cada ejecución (`ok`, `status_code`, `ms`). | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
 | `client_secrets`, `agent_secrets`, `credentials` | Secretos del cliente con valor propio opcional por agente (cifrados, `last4`) y credenciales de autenticación de una API. | ídem |
 | `llm_connections` | Conexión de LLM del cliente: `kind` (`openai_compatible`, `openrouter`, `anthropic`), `base_url`, `api_key_enc`, `default_model`, `json_mode`, última prueba. | [`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md) |
 
@@ -217,6 +217,10 @@ Detalle en [`features/WHATSAPP.md`](features/WHATSAPP.md).
 **Migraciones:** el esquema lo manejan las de Alembic (`make migrate`; antes de desplegar, `make migrate-test`
 contra una copia del backup). Un cambio de modelo va con una migración nueva, probada de ida y vuelta en
 PostgreSQL y SQLite; `alembic check` no tiene que dar diferencias. `create_all` solo para SQLite en tests y evals.
+La **0057** reescribió las definiciones guardadas con `legacy.upgrade` (`prompt`, `first_message` y `analysis`) y las
+herramientas con `{{vars.x}}`/`{{contact.x}}` a `{{x}}`, y dejó la de antes en `definition_legacy` (la escribe y la
+lee la migración; la app no la usa). `make migrate-down REV=0056` la restaura; aborta, sin tocar nada, si hay
+definiciones nuevas sin copia (después de la migración), y ahí se vuelve con el backup.
 
 ## Definición de un agente
 

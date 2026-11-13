@@ -21,6 +21,9 @@ class Agent(IdMixin, TimestampMixin, Base):
     # Version vigente y su definicion (copia de agent_versions, para no hacer join).
     version: Mapped[int] = mapped_column(Integer, default=1)
     definition: Mapped[dict] = mapped_column(JSONDoc)
+    # La definicion de antes de la 0057 (forma vieja, con objective/conversation): la escribe y la lee la migracion
+    # para la vuelta atras; la app no la usa.
+    definition_legacy: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     # Archivado: no se puede usar en llamadas nuevas; queda para el historial.
     archived_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -30,6 +33,7 @@ class AgentVersion(Base):
     agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True)
     version: Mapped[int] = mapped_column(Integer, primary_key=True)
     definition: Mapped[dict] = mapped_column(JSONDoc)
+    definition_legacy: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

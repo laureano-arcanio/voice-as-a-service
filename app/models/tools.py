@@ -23,6 +23,9 @@ class ClientTool(IdMixin, TimestampMixin, Base):
     type: Mapped[str] = mapped_column(String(8))            # http | code
     # La definicion sin slug ni type (app/tools/schema.py).
     definition: Mapped[dict] = mapped_column(JSONDoc)
+    # La definicion de antes de la 0057 (con {{vars.x}}/{{contact.x}}): la escribe y la lee la migracion para la
+    # vuelta atras; la app no la usa.
+    definition_legacy: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     # Sube con cada cambio; va en la traza de cada ejecucion.
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_by: Mapped[str | None] = mapped_column(
@@ -84,6 +87,7 @@ class ToolVersion(IdMixin, Base):
     revision: Mapped[int] = mapped_column(Integer)
     type: Mapped[str] = mapped_column(String(8))
     definition: Mapped[dict] = mapped_column(JSONDoc)
+    definition_legacy: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

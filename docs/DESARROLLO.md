@@ -52,6 +52,8 @@ Se le pide al agente `deploy`, diciendo qué se probó. Mira qué cambió entre 
 `git pull --ff-only` y corre solo los `make` que hacen falta; lo que corta llamadas pasa por `make calls-active`. La tabla de
 qué comando corresponde a cada cambio está en el agente. `make deploy-status` muestra lo desplegado y lo pendiente, sin tocar nada.
 
-Vuelta atrás: `git revert` en `main` y otro deploy, nunca mover server2 a otro commit.
+Vuelta atrás: `git revert` en `main` y otro deploy, nunca mover server2 a otro commit. Una migración que transforma
+datos se deshace con `make migrate-down REV=<la anterior>` **antes** del revert (0057: restaura desde `definition_legacy`);
+si aborta porque se guardaron definiciones nuevas sin copia, se restaura el backup en vez de insistir.
 
 `landing/` se publica aparte: Render compila al llegar el push a la rama que sigue ([`features/LANDING.md`](features/LANDING.md)). Un push con cambios ahí ya es público, sin pasar por el agente.

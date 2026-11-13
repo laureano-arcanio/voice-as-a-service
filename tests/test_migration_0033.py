@@ -53,7 +53,7 @@ def test_0033_upgrade_downgrade_upgrade(tmp_path):
     assert archived["clasico"] is None and archived["sin_motor"] is None
     assert [(v.tool_id, v.revision, v.type, json.loads(v.definition)) for v in versions] == [
         ("h", 3, "http", {"description": "x"})]
-    assert [d for d in diff if "tool_versions" in repr(d)] == []
+    assert [d for d in diff if "tool_versions" in repr(d) and "'definition_legacy'" not in repr(d)] == []   # 0057
     # Las tablas quitadas tampoco estan en los modelos.
     assert not set(DROPPED) & set(Base.metadata.tables)
 
