@@ -164,7 +164,7 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
   respaldo; `GenerationEditor.tsx` para los parámetros) y sección "Tu propio agente" (`ExternalSection.tsx`, dentro de
   `PlanGate` `external_agent`): el switch agrega o quita `external`; se elige la conexión `openai_compatible`, modelo,
   prompt opcional, mensaje de error, espera, errores seguidos y qué hacer después. Con `external` se ocultan Modelo de
-  lenguaje, Reglas, Base de conocimiento y Datos, y los resultados dicen "Lo elige tu agente".
+  lenguaje, Prompt, Variables y los datos del análisis, y los resultados dicen "Lo elige tu agente".
 - La API devuelve `AgentOut.own_agent` para saber si un agente usa su propio agente.
 
 ## Reglas y trampas

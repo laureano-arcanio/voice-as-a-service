@@ -150,10 +150,10 @@ estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys
 Entrando como el cliente, **Agentes > Nuevo agente**: nombre, slug (opcional), descripción y **punto de partida** (no se
 elige motor: hay uno solo desde el 26-oct-2026): el **asistente básico** (atiende, responde con la
 base de conocimiento y, si no puede, toma nombre y contacto), una **plantilla por rubro** (salud, gimnasio,
-inmobiliaria, gastronomía, cobranzas, con datos de ejemplo en la base de conocimiento) o **en blanco** (un dato y
-el resultado por defecto). Las plantillas ya traen el nombre de la empresa. Te lleva a la pestaña **Conversación** para completarlo.
+inmobiliaria, gastronomía, cobranzas, con datos de ejemplo en la base de conocimiento) o **en blanco** (un prompt
+con los títulos para completar y un primer mensaje). Las plantillas ya traen el nombre de la empresa. Te lleva a la pestaña **Conversación** para completarlo.
 
-El detalle del agente tiene pestañas. Cinco de ellas (Conversación, Datos, Herramientas, Voz y canales y
+El detalle del agente tiene pestañas. Cinco de ellas (Conversación, Análisis, Herramientas, Voz y canales y
 Modelo) editan la misma definición: comparten el borrador y la barra de arriba (versión, estado de la
 validación, **Descartar** y **Guardar versión nueva**), así que cambiar de pestaña no pierde nada y guardar
 lleva lo de todas. Cada una responde una pregunta: qué dice, qué obtiene, qué puede hacer, cómo suena y
@@ -161,19 +161,37 @@ quién piensa. Las ve igual el cliente y el admin que entró como él (ver [Agen
 admin, en **Agentes** de `/admin`, ve los de todos los clientes en solo lectura (cliente, nombre, slug, versión, voz
 y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abre para editarlo.
 
-- **Resumen:** la definición en limpio: agente, idioma, versión, objetivo, apertura, reglas, base de
-  conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
-- **Conversación:** qué dice y cómo. Es lo que arma el prompt.
-  - **Agente:** nombre, rol e idioma.
-  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**. La plantilla trae reglas genéricas de comportamiento (una pregunta por turno, no inventar, cuándo cortar), editables. La fecha no se le pasa sola al agente: `{{today}}` y `{{now}}` se pueden usar en el objetivo, las reglas y la base de conocimiento.
-  - **Ver prompt** (en la barra): el prompt que arma el motor con lo que está en pantalla, por llamada o por
-    WhatsApp. No hay un prompt aparte para editar: sale de la definición.
-- **Datos:** qué obtiene.
-  - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
-    de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
-    y pregunta sugerida. Se ordenan con las flechas. Al renombrar uno, se actualizan las condiciones que lo usan.
-  - **Resultados:** etiqueta, ID, si cumple el objetivo, mensaje de cierre y condiciones. Vale el
-    primero que se cumple; el último es el de por defecto.
+- **Resumen:** la definición en limpio: agente, idioma, versión, prompt (las primeras líneas), primer mensaje,
+  variables y el análisis (resumen, instrucciones, datos y resultados).
+- **Conversación:** qué dice. Es lo que recibe el modelo.
+  - **Agente:** nombre e idioma.
+  - **Prompt:** el texto que va tal cual al modelo, con los títulos `#` (`# Identidad`, `# Objetivo`,
+    `# Cómo conversar`, `# Información`, `# Límites`) y las variables `{{nombre}}`. Al tipear `{{` aparece la
+    lista: las declaradas en **Variables**, las que asigna el pre-call y las del sistema (`{{today}}`,
+    `{{call.phone}}`, `{{channel}}`…); seguir tipeando filtra, y Enter, Tab o clic insertan `{{nombre}}` completo.
+    Una variable sin fuente declarada se marca en naranja: puede venir del pedido de la llamada, del contacto o
+    del pre-call. Tope 40.000 caracteres (el contador avisa, no corta).
+  - **Primer mensaje:** lo primero que dice en una llamada (por WhatsApp entrante escribe primero la persona), con
+    las mismas variables y tope 1.000. **Pregenerar el audio del primer mensaje** lo sintetiza entero al guardar
+    (no se pregenera si el texto tiene variables: cambia en cada conversación) y **Espera antes del primer
+    mensaje (ms)**.
+  - **Variables:** nombre (minúsculas, números y `_`), descripción y valor por defecto, en el orden en que se
+    agregan. Son los "Default Dynamic Variables": no se agregan solas al prompt, se sustituyen donde el prompt las
+    nombra. Debajo avisa, sin bloquear, las que los textos usan y no están declaradas (**Declarar** agrega la fila)
+    y las declaradas que ningún texto nombra. El orden de las fuentes es: valor por defecto, contacto o columna de
+    la campaña, pedido de la llamada (`variables` de `POST /calls` o `/conversations`), pre-call y herramienta.
+  - **Ver prompt** (en la barra): cómo lo ve el modelo con lo que está en pantalla, por llamada o por WhatsApp.
+- **Análisis:** qué obtiene al terminar. Una llamada guiada saca los datos, el resumen y clasifica la conversación;
+  sin análisis el agente no extrae nada.
+  - **Escribir un resumen de lo hablado:** un párrafo para el detalle, el email y las herramientas
+    (`{{call.summary}}`).
+  - **Instrucciones para el análisis:** qué mirar y cómo resumir; vacío usa las de la plataforma. Acepta
+    variables.
+  - **Datos:** etiqueta, nombre interno, tipo (texto, número, sí o no, opción de una lista, email, email o
+    teléfono, teléfono) y descripción. El orden de las filas es el del análisis; el nombre interno es la clave que
+    usan los resultados y las herramientas (`{{fields.nombre}}`). Al renombrar uno se actualizan las condiciones.
+  - **Resultados:** etiqueta, ID, si cumple el objetivo, "no volver a llamar" y condiciones. Vale el
+    primero que se cumple; el último es el de por defecto. El cierre se escribe en el prompt.
 - **Herramientas:** qué puede hacer además de hablar.
   - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** que usan sus herramientas: **Del cliente** (cargados en Agentes > Secretos), **Propio** (un valor solo de este agente, que pisa al del cliente) o **Falta** (con **Cargar valor**). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
   - **Derivación a personas:** las áreas del cliente (de
@@ -193,9 +211,9 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
     acepta la derivación o siempre, al terminar la conversación; con la primera y sin áreas de derivación, avisa que nunca
     va a correr. Solo se ofrecen herramientas con todos sus valores fijos.
 - **Voz y canales:** cómo suena y por dónde atiende.
-  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Pregenerar el audio de la apertura** y **Espera antes de la apertura (ms)**: cómo arranca la llamada. **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con el primer mensaje como texto (editable). El audio pregenerado y la espera están en **Primer mensaje**. **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
 - **Modelo:** quién piensa.
-  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas**, **Modelo de lenguaje**, reglas, base de conocimiento y datos ([`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md)). Es una opción del agente, no un motor aparte.
+  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas**, **Modelo de lenguaje**, **Prompt**, **Variables** y los datos del análisis ([`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md)). Es una opción del agente, no un motor aparte.
   - **Modelo de lenguaje:** el de Atentina o los proveedores del cliente por etapas, con sus parámetros.
 - **JSON:** la misma definición en JSON (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)), para pegar o editar a mano. Para salir de la pestaña el JSON tiene que parsear: lo escrito pasa al formulario.
 - En las cinco pestañas de edición y en JSON:
@@ -211,6 +229,10 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
   - **Número de quien llama (simulado):** opcional, E.164. Llega al prompt y a las herramientas como `{{call.phone}}`;
     no se llama a ese número. Vale para **Hablar** y para el chat. Un número
     inválido muestra el error y no empieza la prueba.
+  - **Valores de prueba:** una fila por variable declarada o usada, prellenada con su valor por defecto (las usadas
+    sin declarar, vacías), y **Agregar** para otras. Se mandan como `variables` al empezar la conversación o la
+    llamada de prueba, así se prueba el prompt con datos reales; se recuerdan por agente en la pestaña. Las del
+    sistema no se cargan (las pone la plataforma).
   - **Aviso amarillo:** si el agente tiene herramienta automática antes o después de la conversación, avisa que
     las pruebas la ejecutan de verdad (si registra algo o cobra, lo hace); por texto, la de después corre al terminar
     o a los 10 minutos sin mensajes.
@@ -578,13 +600,13 @@ otro cliente.
 
 1. **Agentes > Nuevo agente** (o **Crear otro agente** en Inicio): nombre, descripción (opcional) y punto de
    partida (asistente básico, una plantilla por rubro o en blanco). Te lleva a la pestaña **Conversación**.
-2. **Conversación**, **Datos**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
-   definición (agente, objetivo y apertura, reglas, base de conocimiento; datos a obtener y resultados;
+2. **Conversación**, **Análisis**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
+   definición (agente, prompt, primer mensaje y variables; análisis con resumen, datos y resultados;
    herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
    **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
-4. **Probar:** **Hablar** (llamada de prueba) o conversación por texto, con un número de quien llama simulado
-   si hace falta, antes de ponerlo a atender. También con **Probar** en la lista.
+4. **Probar:** **Hablar** (llamada de prueba) o conversación por texto, con un número de quien llama simulado y
+   valores de prueba si hace falta, antes de ponerlo a atender. También con **Probar** en la lista.
 5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 6. Para que atienda: elegilo en **Números** o en **WhatsApp**.

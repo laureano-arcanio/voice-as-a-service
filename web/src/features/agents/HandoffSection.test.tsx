@@ -44,14 +44,14 @@ const ADMINISTRACION: HandoffArea = {
 const DEF = {
   id: 'a',
   version: 1,
-  agent: { name: 'S', role: 'r', language: 'es-AR' },
-  objective: { description: 'x' },
-  conversation: { opening: 'Hola', rules: [] },
-  knowledge: '',
-  fields: { nombre: { priority: 10, description: 'n', type: 'string', required: true, question: '?' } },
-  completion: {
-    when: 'all_required_fields_completed',
-    outcomes: [{ id: 'ok', label: 'ok', when: {}, message: 'm', goal: true }],
+  agent: { name: 'S', language: 'es-AR' },
+  prompt: 'Sos S.',
+  first_message: 'Hola',
+  analysis: {
+    summary: true,
+    instructions: '',
+    fields: [{ name: 'nombre', description: 'n', type: 'string' }],
+    outcomes: [{ id: 'ok', label: 'ok', when: {}, goal: true }],
   },
 };
 

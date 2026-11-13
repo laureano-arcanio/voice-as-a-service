@@ -11,7 +11,7 @@ export { PromptEditor } from './PromptEditorLazy';
 export type { PromptEditorProps } from './PromptEditor';
 export { VariableField } from './VariableField';
 export type { VariableFieldProps } from './VariableField';
-export { classify, resolveVariable, useVariableCatalog, variableOptions } from './catalog';
+export { classify, resolveVariable, useVariableCatalog, variableOptions, isSystemVariable } from './catalog';
 export type {
   DeclaredVariable,
   ExtraVariable,

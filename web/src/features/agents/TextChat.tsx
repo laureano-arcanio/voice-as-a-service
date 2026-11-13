@@ -29,7 +29,16 @@ interface Session {
 }
 
 /** Conversacion por texto con el agente (sin llamada): POST /conversations y /turns. */
-export function TextChat({ agent, callerPhone }: { agent: Agent; callerPhone?: string }) {
+export function TextChat({
+  agent,
+  callerPhone,
+  variables,
+}: {
+  agent: Agent;
+  callerPhone?: string;
+  /** Valores de prueba que ve el agente ({{x}}); se mandan al empezar. */
+  variables?: Record<string, string>;
+}) {
   const start = useStartConversation();
   const turn = useSendTurn();
   const [session, setSession] = useState<Session | null>(null);
@@ -38,7 +47,7 @@ export function TextChat({ agent, callerPhone }: { agent: Agent; callerPhone?: s
 
   const begin = () =>
     start.mutate(
-      { agentId: agent.id, callerPhone },
+      { agentId: agent.id, callerPhone, variables },
       {
         onSuccess: (r) => {
           turn.reset();

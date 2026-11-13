@@ -50,6 +50,7 @@ import {
   type Draft,
   errorTarget,
   fromDraft,
+  keepKeys,
   type Part,
   PARTS,
   pathLabel,
@@ -67,7 +68,7 @@ const TABS: Tab[] = ['resumen', ...PARTS, 'json', 'versiones', 'probar', 'link']
 const TAB_META: Record<Tab, { label: string; icon: ComponentType<{ size?: number }> }> = {
   resumen: { label: 'Resumen', icon: IconInfoCircle },
   conversacion: { label: 'Conversación', icon: IconMessage },
-  datos: { label: 'Datos', icon: IconListDetails },
+  datos: { label: 'Análisis', icon: IconListDetails },
   herramientas: { label: 'Herramientas', icon: IconTool },
   voz: { label: 'Voz y canales', icon: IconMicrophone },
   modelo: { label: 'Modelo', icon: IconCpu },
@@ -158,7 +159,8 @@ function PromptModal({
     <Modal opened={opened} onClose={onClose} title="Prompt generado" size="xl">
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
-          Se arma de la definición, con los cambios sin guardar: no hay un prompt aparte para editar.
+          Así lo ve el modelo con los cambios sin guardar: el canal y el prompt de la definición. Las
+          variables se completan al empezar cada conversación.
         </Text>
         <SegmentedControl
           w="fit-content"
@@ -294,14 +296,9 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
       onSuccess: (saved) => {
         const savedKey = canonical(saved.definition);
         setBase(savedKey);
-        // id y version los fija el servidor; si no cambio nada mas, el formulario queda como esta.
         setDraft((d) => {
-          const next = {
-            ...toDraft(saved.definition),
-            fields: d.fields,
-            outcomes: d.outcomes,
-            rules: d.rules,
-          };
+          // id y version los fija el servidor; las filas abiertas conservan su clave.
+          const next = keepKeys(d, toDraft(saved.definition));
           return stableJson(fromDraft(next)) === savedKey ? next : toDraft(saved.definition);
         });
         setJsonText(toJsonText(saved.definition));

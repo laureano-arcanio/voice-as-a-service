@@ -10,11 +10,19 @@ export const FIELD_TYPES = [
   { value: 'choice', label: 'Opción de una lista' },
   { value: 'email', label: 'Email' },
   { value: 'email_or_phone', label: 'Email o teléfono' },
-  { value: 'digits', label: 'Dígitos (leídos o dictados)' },
-  { value: 'phone', label: 'Teléfono (el de la llamada, o lo pide)' },
+  { value: 'phone', label: 'Teléfono' },
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
+
+/** Límites de la definición (app/conversation/models.py). */
+export const MAX_PROMPT = 40_000;
+export const MAX_FIRST_MESSAGE = 1_000;
+export const MAX_VARIABLES = 30;
+export const MAX_VARIABLE_VALUE = 2_000;
+
+/** Espera por defecto antes del primer mensaje (Workflow.first_message_delay_ms). */
+export const FIRST_MESSAGE_DELAY_MS = 200;
 
 /** Tu propio agente (definition.external, docs/features/LLM_CONEXIONES.md): el endpoint del cliente y que hacer
  * si falla. */
@@ -87,12 +95,11 @@ export type Part = 'conversacion' | 'datos' | 'herramientas' | 'voz' | 'modelo';
 export const PARTS: Part[] = ['conversacion', 'datos', 'herramientas', 'voz', 'modelo'];
 export const SECTION_PART: Record<string, Part> = {
   agente: 'conversacion',
-  objetivo: 'conversacion',
-  reglas: 'conversacion',
-  conocimiento: 'conversacion',
-  datos: 'datos',
+  prompt: 'conversacion',
+  primer_mensaje: 'conversacion',
+  variables: 'conversacion',
+  analisis: 'datos',
   dato: 'datos',
-  resultados: 'datos',
   resultado: 'datos',
   herramientas: 'herramientas',
   derivacion: 'herramientas',
@@ -101,7 +108,6 @@ export const SECTION_PART: Record<string, Part> = {
   externo: 'modelo',
   modelo: 'modelo',
 };
-export type Requirement = 'yes' | 'no' | 'if';
 export type ConditionValue = string | number | boolean;
 
 export interface ConditionDraft {
@@ -110,6 +116,7 @@ export interface ConditionDraft {
   value: ConditionValue | null;
 }
 
+/** Un dato del analisis (Analysis.fields). Lista y no mapa: el orden es el del analisis y de jsonb. */
 export interface FieldDraft {
   key: string;
   name: string;
@@ -117,12 +124,9 @@ export interface FieldDraft {
   type: FieldType;
   options: string[];
   description: string;
-  question: string;
-  requirement: Requirement;
-  conditions: ConditionDraft[];
-  priority: number;
 }
 
+/** Un resultado del analisis (Analysis.outcomes): el primero cuyo `when` se cumple; el ultimo es el default. */
 export interface OutcomeDraft {
   key: string;
   id: string;
@@ -130,13 +134,26 @@ export interface OutcomeDraft {
   goal: boolean;
   /** Campañas de voz: el contacto pidió que no lo llamen más; el teléfono pasa a la lista de bajas. */
   noContact: boolean;
-  message: string;
   conditions: ConditionDraft[];
 }
 
-export interface RuleDraft {
+export type VariableValue = string | number | boolean;
+
+/** Una variable declarada (VariableSpec): su default y qué es. */
+export interface VariableDraft {
   key: string;
-  text: string;
+  name: string;
+  default: VariableValue;
+  description: string;
+}
+
+/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos, instrucciones ni resultados, no va a
+ * la definicion: un agente sin analisis no extrae nada. */
+export interface AnalysisDraft {
+  summary: boolean;
+  instructions: string;
+  fields: FieldDraft[];
+  outcomes: OutcomeDraft[];
 }
 
 /** Un parametro de generacion enviado al LLM (app/llm/params.py), agregado por el usuario. */
@@ -150,7 +167,6 @@ export interface Draft {
   id: string;
   version: number | null;
   name: string;
-  role: string;
   language: string;
   /** '' = la predeterminada (VLLM_TTS_VOICE). */
   voice: string;
@@ -164,16 +180,18 @@ export interface Draft {
    * otra en limpio (ventana de contexto temporal). null = el default global del servidor
    * (WA_SESSION_HOURS, 1440 min = 24 hs). */
   waSessionMinutes: number | null;
-  objective: string;
-  opening: string;
-  /** Llamadas: la apertura se sintetiza entera al guardar y se reproduce ese audio. */
-  openingAudio: boolean;
+  /** Lo que va al LLM tal cual, con sus {{variables}} (Workflow.prompt). */
+  prompt: string;
+  /** Lo primero que dice en las llamadas (Workflow.first_message). */
+  firstMessage: string;
+  /** Llamadas: el primer mensaje se sintetiza entero al guardar y se reproduce ese audio. */
+  firstMessageAudio: boolean;
   /** Llamadas: espera antes de que el agente hable, en ms. */
-  openingDelayMs: number;
-  rules: RuleDraft[];
-  knowledge: string;
-  fields: FieldDraft[];
-  outcomes: OutcomeDraft[];
+  firstMessageDelayMs: number;
+  /** Variables declaradas con su default, en el orden en que se agregaron. */
+  variables: VariableDraft[];
+  /** Analisis al terminar. */
+  analysis: AnalysisDraft;
   /** Herramientas del cliente (no con tu propio agente). */
   clientTools: ClientToolGrantDraft[];
   /** Tope de vueltas con herramientas por turno; null = el default del servidor (3). */
@@ -291,9 +309,6 @@ export interface LlmDraft {
 
 export const MAX_LLM_STAGES = 3;
 
-/** Default de conversation.opening_delay_ms (app/conversation/models.py). */
-export const OPENING_DELAY_MS = 200;
-
 export const blankStage = (fromTurn: number): LlmStageDraft => ({
   key: newKey(),
   fromTurn,
@@ -388,61 +403,78 @@ function fromConditions(conditions: ConditionDraft[]): Record<string, ConditionV
   return out;
 }
 
+function toVariables(raw: unknown): VariableDraft[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r) => {
+    const v = obj(r);
+    const value = v.default;
+    return {
+      key: newKey(),
+      name: str(v.name),
+      // El default conserva su tipo (número o booleano) hasta que se edita.
+      default: typeof value === 'number' || typeof value === 'boolean' ? value : str(value),
+      description: str(v.description),
+    };
+  });
+}
+
+function toFields(raw: unknown): FieldDraft[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r) => {
+    const f = obj(r);
+    return {
+      key: newKey(),
+      name: str(f.name),
+      label: str(f.label),
+      // Un tipo que esta version de la UI no conoce se conserva: pasarlo a 'string' lo pisaba al guardar
+      // (una pestana abierta antes de un deploy guardo el telefono como texto, 20-oct-2026).
+      type: (str(f.type) || 'string') as FieldType,
+      options: Array.isArray(f.options) ? f.options.map(str) : [],
+      description: str(f.description),
+    };
+  });
+}
+
+function toOutcomes(raw: unknown): OutcomeDraft[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r) => {
+    const o = obj(r);
+    return {
+      key: newKey(),
+      id: str(o.id),
+      label: str(o.label),
+      goal: o.goal === true,
+      noContact: o.no_contact === true,
+      conditions: toConditions(o.when),
+    };
+  });
+}
+
 export function toDraft(d: Definition): Draft {
   const agent = obj(d.agent);
-  const conv = obj(d.conversation);
-  const fields = Object.entries(obj(d.fields))
-    .map(([name, raw]): FieldDraft => {
-      const f = obj(raw);
-      const type = str(f.type);
-      const requiredIf = toConditions(f.required_if);
-      return {
-        key: newKey(),
-        name,
-        label: str(f.label),
-        // Un tipo que esta version de la UI no conoce se conserva: pasarlo a 'string' lo pisaba al guardar
-        // (una pestana abierta antes de un deploy guardo el telefono como texto, 20-oct-2026).
-        type: (type || 'string') as FieldType,
-        options: Array.isArray(f.options) ? f.options.map(str) : [],
-        description: str(f.description),
-        question: str(f.question),
-        requirement: requiredIf.length ? 'if' : f.required === true ? 'yes' : 'no',
-        conditions: requiredIf,
-        priority: typeof f.priority === 'number' ? f.priority : 0,
-      };
-    })
-    .sort((a, b) => a.priority - b.priority);
-  const outcomes = Array.isArray(obj(d.completion).outcomes) ? (obj(d.completion).outcomes as unknown[]) : [];
+  const analysis = d.analysis != null && typeof d.analysis === 'object' ? obj(d.analysis) : {};
   return {
     id: str(d.id),
     version: typeof d.version === 'number' ? d.version : null,
     name: str(agent.name),
-    role: str(agent.role),
     language: str(agent.language),
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
     recordingNotice: d.recording_notice === true,
     callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
-    objective: str(obj(d.objective).description),
-    opening: str(conv.opening),
-    openingAudio: conv.opening_audio === true,
-    openingDelayMs: typeof conv.opening_delay_ms === 'number' ? conv.opening_delay_ms : OPENING_DELAY_MS,
-    rules: (Array.isArray(conv.rules) ? conv.rules : []).map((r) => ({ key: newKey(), text: str(r) })),
-    knowledge: str(d.knowledge),
-    fields,
-    outcomes: outcomes.map((raw) => {
-      const o = obj(raw);
-      return {
-        key: newKey(),
-        id: str(o.id),
-        label: str(o.label),
-        goal: o.goal === true,
-        noContact: o.no_contact === true,
-        message: str(o.message),
-        conditions: toConditions(o.when),
-      };
-    }),
+    prompt: str(d.prompt),
+    firstMessage: str(d.first_message),
+    firstMessageAudio: d.first_message_audio === true,
+    firstMessageDelayMs:
+      typeof d.first_message_delay_ms === 'number' ? d.first_message_delay_ms : FIRST_MESSAGE_DELAY_MS,
+    variables: toVariables(d.variables),
+    analysis: {
+      summary: analysis.summary !== false,
+      instructions: str(analysis.instructions),
+      fields: toFields(analysis.fields),
+      outcomes: toOutcomes(analysis.outcomes),
+    },
     // Las entradas viejas de apps ({app, tools}) no tienen tool: se descartan, como en el servidor.
     clientTools: (Array.isArray(d.tools) ? d.tools : [])
       .filter((raw) => obj(raw).tool != null)
@@ -460,22 +492,31 @@ export function toDraft(d: Definition): Draft {
   };
 }
 
+/** Sin datos, instrucciones ni resultados no hay analisis: el agente no extrae nada al terminar. */
+export function hasAnalysis(a: AnalysisDraft): boolean {
+  return a.fields.length > 0 || a.outcomes.length > 0 || a.instructions.trim() !== '';
+}
+
+/** Los datos del analisis como van a la definicion, en el orden de las filas. */
+function fromFields(fields: FieldDraft[]): Record<string, unknown>[] {
+  return fields.map((f) => ({
+    name: f.name,
+    ...(f.label.trim() ? { label: f.label } : {}),
+    description: f.description,
+    type: f.type,
+    ...(f.type === 'choice' ? { options: f.options } : {}),
+  }));
+}
+
+/** La lista de variables declaradas; '' en el nombre (una fila a medio completar) no se guarda. */
+function fromVariables(variables: VariableDraft[]): Record<string, unknown>[] {
+  return variables
+    .filter((v) => v.name.trim())
+    .map((v) => ({ name: v.name.trim(), default: v.default, description: v.description }));
+}
+
 export function fromDraft(draft: Draft): Definition {
-  const fields: Record<string, unknown> = {};
-  for (const f of draft.fields) {
-    const requiredIf = f.requirement === 'if' ? fromConditions(f.conditions) : {};
-    fields[f.name] = {
-      priority: f.priority,
-      ...(f.label.trim() ? { label: f.label } : {}),
-      description: f.description,
-      type: f.type,
-      ...(f.type === 'choice' ? { options: f.options } : {}),
-      required: f.requirement === 'yes',
-      ...(Object.keys(requiredIf).length ? { required_if: requiredIf } : {}),
-      question: f.question,
-    };
-  }
-  const last = draft.outcomes.length - 1;
+  const last = draft.analysis.outcomes.length - 1;
   const handoff = fromHandoffDraft(draft.handoff);
   const workflows = fromWorkflowsDraft(draft.workflows);
   const external = draft.external;
@@ -496,32 +537,34 @@ export function fromDraft(draft: Draft): Definition {
     ...(external ? { external: fromExternalDraft(external) } : {}),
     agent: {
       name: draft.name,
-      role: draft.role,
       language: draft.language,
       ...(draft.voice ? { voice: draft.voice } : {}),
     },
-    objective: { description: draft.objective },
-    conversation: {
-      opening: draft.opening,
-      ...(draft.openingAudio ? { opening_audio: true } : {}),
-      ...(draft.openingDelayMs !== OPENING_DELAY_MS ? { opening_delay_ms: draft.openingDelayMs } : {}),
-      rules: draft.rules.map((r) => r.text).filter((t) => t.trim()),
-    },
-    knowledge: draft.knowledge,
-    fields,
-    completion: {
-      when: 'all_required_fields_completed',
-      outcomes: draft.outcomes.map((o, i) => ({
-        id: o.id,
-        label: o.label,
-        // El ultimo es el resultado por defecto: sin condiciones.
-        when: i === last ? {} : fromConditions(o.conditions),
-        message: o.message,
-        goal: o.goal,
-        // Solo si esta marcado: las definiciones sin la bandera quedan igual.
-        ...(o.noContact ? { no_contact: true } : {}),
-      })),
-    },
+    prompt: draft.prompt,
+    first_message: draft.firstMessage,
+    ...(draft.firstMessageAudio ? { first_message_audio: true } : {}),
+    ...(draft.firstMessageDelayMs !== FIRST_MESSAGE_DELAY_MS
+      ? { first_message_delay_ms: draft.firstMessageDelayMs }
+      : {}),
+    ...(draft.variables.length ? { variables: fromVariables(draft.variables) } : {}),
+    ...(hasAnalysis(draft.analysis)
+      ? {
+          analysis: {
+            summary: draft.analysis.summary,
+            instructions: draft.analysis.instructions,
+            fields: fromFields(draft.analysis.fields),
+            outcomes: draft.analysis.outcomes.map((o, i) => ({
+              id: o.id,
+              label: o.label,
+              // El ultimo es el resultado por defecto: sin condiciones.
+              when: i === last ? {} : fromConditions(o.conditions),
+              goal: o.goal,
+              // Solo si esta marcado: las definiciones sin la bandera quedan igual.
+              ...(o.noContact ? { no_contact: true } : {}),
+            })),
+          },
+        }
+      : {}),
     // Con tu propio agente, las herramientas son las suyas (el servidor rechaza tools con external).
     ...(!external && draft.clientTools.length ? { tools: toolEntries(draft).map((e) => e.value) } : {}),
     ...(!external && Object.keys(toolSettings).length ? { tool_settings: toolSettings } : {}),
@@ -551,11 +594,6 @@ export function stableJson(x: unknown): string {
   return JSON.stringify(x);
 }
 
-/** Prioridades 10, 20, ... en el orden de la lista. */
-export function renumber(fields: FieldDraft[]): FieldDraft[] {
-  return fields.map((f, i) => ({ ...f, priority: (i + 1) * 10 }));
-}
-
 export function newField(fields: FieldDraft[]): FieldDraft {
   const names = new Set(fields.map((f) => f.name));
   let n = fields.length + 1;
@@ -567,34 +605,36 @@ export function newField(fields: FieldDraft[]): FieldDraft {
     type: 'string',
     options: [],
     description: '',
-    question: '',
-    requirement: 'yes',
-    conditions: [],
-    priority: Math.max(0, ...fields.map((f) => f.priority)) + 10,
   };
 }
 
-/** Tiene un dato de tipo phone: en las llamadas con número se completa solo; por el link, el agente lo pide. */
-export function hasPhoneField(draft: Draft): boolean {
-  return draft.fields.some((f) => f.type === 'phone');
+export function newVariable(variables: VariableDraft[]): VariableDraft {
+  const names = new Set(variables.map((v) => v.name));
+  let n = variables.length + 1;
+  while (names.has(`variable_${n}`)) n++;
+  return { key: newKey(), name: `variable_${n}`, default: '', description: '' };
 }
 
-/** Prender el resumen por email: el email lleva el teléfono, así que el agente necesita un dato de tipo
+/** Tiene un campo del analisis de tipo phone: el email del resumen lleva el teléfono. */
+export function hasPhoneField(draft: Draft): boolean {
+  return draft.analysis.fields.some((f) => f.type === 'phone');
+}
+
+/** Prender el resumen por email: el email lleva el teléfono, así que el análisis necesita un dato de tipo
  * phone (por el link no hay número y lo tiene que pedir). Si no lo tiene, se agrega al final. */
 export function withPhoneField(draft: Draft): Draft {
   if (draft.external || hasPhoneField(draft)) return draft;
-  const names = new Set(draft.fields.map((f) => f.name));
+  const names = new Set(draft.analysis.fields.map((f) => f.name));
   let name = 'telefono';
   for (let n = 2; names.has(name); n++) name = `telefono_${n}`;
   const field: FieldDraft = {
-    ...newField(draft.fields),
+    ...newField(draft.analysis.fields),
     name,
     label: 'Teléfono',
     type: 'phone',
     description: 'Teléfono de contacto de quien llama.',
-    question: '¿A qué número te podemos llamar?',
   };
-  return { ...draft, fields: [...draft.fields, field] };
+  return { ...draft, analysis: { ...draft.analysis, fields: [...draft.analysis.fields, field] } };
 }
 
 export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
@@ -607,22 +647,22 @@ export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
     label: '',
     goal: false,
     noContact: false,
-    message: '',
     conditions: [],
   };
 }
 
-/** Renombra un dato y lo que lo nombra (condiciones de otros datos y de los resultados). */
+/** Renombra un dato del analisis y lo que lo nombra (las condiciones de los resultados). */
 export function renameField(draft: Draft, index: number, name: string): Draft {
-  const old = draft.fields[index]?.name;
+  const old = draft.analysis.fields[index]?.name;
   if (old === undefined) return draft;
   const fix = (cs: ConditionDraft[]) => cs.map((c) => (c.field === old ? { ...c, field: name } : c));
   return {
     ...draft,
-    fields: draft.fields.map((f, i) =>
-      i === index ? { ...f, name } : { ...f, conditions: fix(f.conditions) },
-    ),
-    outcomes: draft.outcomes.map((o) => ({ ...o, conditions: fix(o.conditions) })),
+    analysis: {
+      ...draft.analysis,
+      fields: draft.analysis.fields.map((f, i) => (i === index ? { ...f, name } : f)),
+      outcomes: draft.analysis.outcomes.map((o) => ({ ...o, conditions: fix(o.conditions) })),
+    },
   };
 }
 
@@ -634,6 +674,48 @@ export function move<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
+/** Conserva las claves de las filas ya abiertas después de guardar (la definición vuelve del servidor). */
+export function keepKeys(draft: Draft, fresh: Draft): Draft {
+  const keep = <T extends { key: string }>(old: T[], next: T[], id: (x: T) => string): T[] =>
+    next.map((x) => {
+      const prev = old.find((y) => id(y) === id(x));
+      return prev ? { ...x, key: prev.key } : x;
+    });
+  return {
+    ...fresh,
+    variables: keep(draft.variables, fresh.variables, (v) => v.name),
+    analysis: {
+      ...fresh.analysis,
+      fields: keep(draft.analysis.fields, fresh.analysis.fields, (f) => f.name),
+      outcomes: keep(draft.analysis.outcomes, fresh.analysis.outcomes, (o) => o.id),
+    },
+  };
+}
+
+// ---------- variables ----------
+
+/** Por qué `name` no sirve como variable (como el backend, app/conversation/variables.py), o null. */
+export function variableNameError(
+  name: string,
+  catalog: { name_pattern?: string; reserved?: string[]; reserved_prefixes?: string[] } | undefined,
+  taken: string[] = [],
+  index = -1,
+): string | null {
+  const n = name.trim();
+  if (!n) return 'Ponele un nombre.';
+  if (catalog?.reserved?.includes(n)) return `${n} es del sistema.`;
+  if (catalog?.reserved_prefixes?.some((p) => n.startsWith(p))) return `${n} es del sistema.`;
+  let re = /^[a-z][a-z0-9_]{0,63}$/;
+  try {
+    if (catalog?.name_pattern) re = new RegExp(catalog.name_pattern);
+  } catch {
+    // un catálogo raro no rompe el formulario: se valida con la regla de siempre.
+  }
+  if (!re.test(n)) return 'Minúsculas, números y _; empieza con una letra (hasta 64).';
+  if (taken.some((t, i) => i !== index && t.trim() === n)) return 'Repetida.';
+  return null;
+}
+
 // ---------- errores del servidor ----------
 
 /** Seccion del formulario donde va un error de validacion (ruta de pydantic). */
@@ -643,23 +725,30 @@ export type ErrorTarget =
         | 'agente'
         | 'voz'
         | 'modelo'
-        | 'objetivo'
-        | 'reglas'
-        | 'conocimiento'
-        | 'datos'
-        | 'resultados'
+        | 'prompt'
+        | 'primer_mensaje'
+        | 'variables'
+        | 'analisis'
         | 'herramientas'
         | 'derivacion'
         | 'automaticas'
         | 'externo';
     }
+  | { section: 'variable'; key: string }
   | { section: 'dato'; key: string }
   | { section: 'resultado'; key: string };
 
-/** Resultado de una ruta de error: por indice (pydantic) o por id (validaciones propias). */
+/** El resultado de una ruta: por indice (pydantic) o por id (validaciones propias). */
 function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefined {
   if (seg === undefined) return undefined;
-  return /^\d+$/.test(seg) ? draft.outcomes[Number(seg)] : draft.outcomes.find((o) => o.id === seg);
+  const list = draft.analysis.outcomes;
+  return /^\d+$/.test(seg) ? list[Number(seg)] : list.find((o) => o.id === seg);
+}
+
+/** La fila de una lista por indice (las dos son listas en la definicion). */
+function at<T>(list: T[], seg: string | undefined): T | undefined {
+  if (seg === undefined || !/^\d+$/.test(seg)) return undefined;
+  return list[Number(seg)];
 }
 
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
@@ -672,26 +761,29 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   )
     return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
-  if (head === 'objective') return { section: 'objetivo' };
-  if (head === 'conversation') {
-    if (second === 'rules') return { section: 'reglas' };
-    // La apertura pregenerada y la espera son de la voz, no del prompt.
-    if (second === 'opening_audio' || second === 'opening_delay_ms') return { section: 'voz' };
-    return { section: 'objetivo' };
+  if (head === 'prompt') return { section: 'prompt' };
+  // La espera y el audio pregenerado son del primer mensaje.
+  if (head === 'first_message' || head === 'first_message_audio' || head === 'first_message_delay_ms')
+    return { section: 'primer_mensaje' };
+  if (head === 'variables') {
+    const v = at(draft.variables, second);
+    return v ? { section: 'variable', key: v.key } : { section: 'variables' };
   }
-  if (head === 'knowledge') return { section: 'conocimiento' };
   if (head === 'tools' || head === 'tool_settings') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'handoff') return { section: 'derivacion' };
   if (head === 'workflows') return { section: 'automaticas' };
   if (head === 'external') return { section: 'externo' };
-  if (head === 'fields') {
-    const f = draft.fields.find((x) => x.name === second);
-    return f ? { section: 'dato', key: f.key } : { section: 'datos' };
-  }
-  if (head === 'completion') {
-    const o = second === 'outcomes' ? outcomeAt(draft, third) : undefined;
-    return o ? { section: 'resultado', key: o.key } : { section: 'resultados' };
+  if (head === 'analysis') {
+    if (second === 'fields') {
+      const f = at(draft.analysis.fields, third);
+      return f ? { section: 'dato', key: f.key } : { section: 'analisis' };
+    }
+    if (second === 'outcomes') {
+      const o = outcomeAt(draft, third);
+      return o ? { section: 'resultado', key: o.key } : { section: 'analisis' };
+    }
+    return { section: 'analisis' };
   }
   return null;
 }
@@ -699,34 +791,29 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
 const PATH_WORDS: Record<string, string> = {
   agent: 'Agente',
   name: 'nombre',
-  role: 'rol',
   language: 'idioma',
   voice: 'voz',
   record_audio: 'grabar audio',
   recording_notice: 'avisar que se graba',
   call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
-  objective: 'Objetivo',
-  conversation: 'Conversación',
-  opening: 'apertura',
-  opening_audio: 'apertura pregenerada',
-  opening_delay_ms: 'espera antes de la apertura',
-  rules: 'reglas',
-  knowledge: 'Base de conocimiento',
-  fields: 'Datos',
-  priority: 'orden',
-  label: 'etiqueta',
+  prompt: 'Prompt',
+  first_message: 'Primer mensaje',
+  first_message_audio: 'audio pregenerado',
+  first_message_delay_ms: 'espera antes del primer mensaje',
+  variables: 'Variables',
+  default: 'valor por defecto',
   description: 'descripción',
+  analysis: 'Análisis al terminar',
+  summary: 'resumen',
+  instructions: 'instrucciones',
+  fields: 'Datos',
+  label: 'etiqueta',
   type: 'tipo',
   options: 'opciones',
-  required: 'obligatorio',
-  required_if: 'condición',
-  question: 'pregunta',
-  completion: 'Resultados',
   outcomes: '',
   id: 'ID',
   when: 'condiciones',
-  message: 'mensaje',
   goal: 'objetivo cumplido',
   no_contact: 'no volver a llamar',
   tools: 'Herramientas',
@@ -762,20 +849,23 @@ const PATH_WORDS: Record<string, string> = {
   volume: 'volumen',
 };
 
-/** "fields.contacto.question" -> "Datos › contacto › pregunta". */
+/** "analysis.fields.0.description" -> "Análisis al terminar › Datos › contacto › descripción". */
 export function pathLabel(draft: Draft, path: string): string {
   const parts = path.split('.');
   const out: string[] = [];
   parts.forEach((p, i) => {
-    if (parts[i - 1] === 'fields') out.push(p);
-    else if (parts[i - 1] === 'outcomes') {
+    const prev = parts[i - 1];
+    if (prev === 'variables' && /^\d+$/.test(p))
+      out.push(draft.variables[Number(p)]?.name || `variable ${Number(p) + 1}`);
+    else if (prev === 'fields' && /^\d+$/.test(p))
+      out.push(draft.analysis.fields[Number(p)]?.name || `dato ${Number(p) + 1}`);
+    else if (prev === 'outcomes') {
       const o = outcomeAt(draft, p);
       out.push(o?.label || o?.id || p);
-    } else if (parts[i - 1] === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
-    else if (parts[i - 1] === 'stages' && /^\d+$/.test(p)) out.push(`etapa ${Number(p) + 1}`);
-    else if (parts[i - 1] === 'areas' && /^\d+$/.test(p)) out.push(`área ${Number(p) + 1}`);
-    else if (p === 'tools' && i > 0) out.push('herramientas');
-    else if (parts[i - 1] === 'tools' && /^\d+$/.test(p))
+    } else if (prev === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
+    else if (prev === 'stages' && /^\d+$/.test(p)) out.push(`etapa ${Number(p) + 1}`);
+    else if (prev === 'areas' && /^\d+$/.test(p)) out.push(`área ${Number(p) + 1}`);
+    else if (prev === 'tools' && /^\d+$/.test(p))
       out.push(toolEntries(draft)[Number(p)]?.name || `herramienta ${Number(p) + 1}`);
     else if (PATH_WORDS[p] !== '') out.push(PATH_WORDS[p] ?? p);
   });

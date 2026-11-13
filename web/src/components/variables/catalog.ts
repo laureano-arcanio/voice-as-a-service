@@ -105,6 +105,15 @@ export function variableOptions({
   return out;
 }
 
+/** El nombre es de una variable del sistema (no se declara ni se manda en un pedido). */
+export function isSystemVariable(name: string, catalog: VariableCatalog | null | undefined): boolean {
+  return (catalog?.system ?? []).some((v) =>
+    PLACEHOLDER.test(v.name)
+      ? name.startsWith(prefixOf(v.name)) && name.length > prefixOf(v.name).length
+      : v.name === name,
+  );
+}
+
 export interface Resolved {
   kind: 'system' | 'declared' | 'unknown';
   description: string;

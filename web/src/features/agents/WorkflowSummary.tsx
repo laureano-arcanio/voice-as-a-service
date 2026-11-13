@@ -1,9 +1,9 @@
 import { Card, List, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import type { Definition } from '@/api/types';
-import { OutcomeBadge } from '@/components/Badges';
+import { Dash, OutcomeBadge } from '@/components/Badges';
 import { useLlmConnections } from '@/features/llm/api';
 import { LOCAL_LABEL } from '@/features/llm/labels';
-import { conditionLabel, readWorkflow, requiredLabel } from './definition';
+import { conditionLabel, firstLines, readWorkflow } from './definition';
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -36,14 +36,8 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
   return (
     <Stack gap="md">
       <Card>
-        <Text size="xs" c="dimmed" mb="sm">
-          Las preguntas son sugeridas: el agente las reformula y completa los datos en el orden que surjan.
-        </Text>
         <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="md">
-          <Item label="Agente">
-            {w.agent.name}
-            {w.agent.role && ` (${w.agent.role})`}
-          </Item>
+          <Item label="Agente">{w.agent.name}</Item>
           <Item label="Idioma">{w.agent.language}</Item>
           <Item label="Versión">{w.version != null ? `v${w.version}` : '–'}</Item>
           <Item label="Voz">{w.agent.voice ?? 'La predeterminada'}</Item>
@@ -55,45 +49,59 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
           </Item>
         </SimpleGrid>
         <Title order={5} mt="lg" mb={4}>
-          Objetivo
+          Prompt
         </Title>
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-          {w.objective || '–'}
+          {firstLines(w.prompt) || '–'}
         </Text>
         <Title order={5} mt="md" mb={4}>
-          Apertura
+          Primer mensaje
         </Title>
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-          {w.opening || '–'}
+          {w.firstMessage || '–'}
         </Text>
         <Text size="xs" c="dimmed" mt={4}>
-          {w.openingAudio ? 'Audio pregenerado' : 'Sintetizada en vivo'}, tras {w.openingDelayMs} ms
+          {w.firstMessageAudio ? 'Audio pregenerado' : 'Sintetizado en vivo'}, tras {w.firstMessageDelayMs} ms
         </Text>
-        <Title order={5} mt="md" mb={4}>
-          Reglas
-        </Title>
-        {w.rules.length ? (
-          <List size="sm" spacing={4}>
-            {w.rules.map((r, i) => (
-              <List.Item key={i}>{r}</List.Item>
-            ))}
-          </List>
-        ) : (
-          <Text size="sm" c="dimmed">
-            Sin reglas.
-          </Text>
-        )}
-        {w.knowledge && (
-          <>
-            <Title order={5} mt="md" mb={4}>
-              Conocimiento
-            </Title>
-            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-              {w.knowledge}
-            </Text>
-          </>
-        )}
       </Card>
+
+      {w.variables.length > 0 && (
+        <Card>
+          <Title order={4} mb="sm">
+            Variables
+          </Title>
+          <Table.ScrollContainer minWidth={640}>
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Variable</Table.Th>
+                  <Table.Th>Valor por defecto</Table.Th>
+                  <Table.Th>Descripción</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {w.variables.map((v) => (
+                  <Table.Tr key={v.name}>
+                    <Table.Td>
+                      <Text size="sm" className="mono">
+                        {`{{${v.name}}}`}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" className="mono">
+                        {v.default || <Dash />}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{v.description || <Dash />}</Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </Card>
+      )}
 
       {w.clientTools.length > 0 && (
         <Card>
@@ -115,36 +123,51 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
         </Card>
       )}
 
-      {!w.external && (
-        <Card>
-          <Title order={4} mb="sm">
-            Datos a obtener
-          </Title>
+      <Card>
+        <Title order={4} mb="sm">
+          Análisis al terminar
+        </Title>
+        {!w.external && (
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mb={w.analysisInstructions ? 'md' : 0}>
+            <Item label="Resumen">{w.summary ? 'Sí, un párrafo' : 'No'}</Item>
+            <Item label="Datos">{w.fields.length ? `${w.fields.length}` : 'Ninguno'}</Item>
+          </SimpleGrid>
+        )}
+        {w.external && (
+          <Text size="xs" c="dimmed" mb="sm">
+            Con tu propio agente el análisis lo hace tu agente: acá solo se eligen los resultados que puede
+            devolver al llamar a end_call.
+          </Text>
+        )}
+        {w.analysisInstructions && (
+          <>
+            <Title order={5} mt="md" mb={4}>
+              Instrucciones
+            </Title>
+            <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+              {w.analysisInstructions}
+            </Text>
+          </>
+        )}
+        {!w.external && (
           <Table.ScrollContainer minWidth={760}>
-            <Table>
+            <Table mt="md">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th w={60} ta="right">
-                    Orden
-                  </Table.Th>
                   <Table.Th>Dato</Table.Th>
                   <Table.Th>Tipo</Table.Th>
-                  <Table.Th>Obligatorio</Table.Th>
-                  <Table.Th>Pregunta sugerida</Table.Th>
+                  <Table.Th>Descripción</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {w.fields.map(([name, f]) => (
-                  <Table.Tr key={name}>
-                    <Table.Td ta="right" className="mono">
-                      {f.priority}
-                    </Table.Td>
+                {w.fields.map((f) => (
+                  <Table.Tr key={f.name}>
                     <Table.Td>
                       <Text size="sm" fw={600}>
-                        {name}
+                        {f.label || f.name}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        {f.description}
+                      <Text size="xs" c="dimmed" className="mono">
+                        {f.name}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -155,25 +178,21 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
                         </Text>
                       )}
                     </Table.Td>
-                    <Table.Td>{requiredLabel(f)}</Table.Td>
                     <Table.Td>
-                      <Text size="sm">{f.question}</Text>
+                      <Text size="sm">{f.description}</Text>
                     </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
             </Table>
           </Table.ScrollContainer>
-        </Card>
-      )}
-
-      <Card>
-        <Title order={4} mb={4}>
+        )}
+        <Title order={5} mt="md" mb={4}>
           Resultados
         </Title>
         <Text size="xs" c="dimmed" mb="sm">
-          Clasifican la llamada al terminar (el primero cuyas condiciones se cumplen). El mensaje es una guía
-          para el LLM.
+          Clasifican la conversación al terminar (el primero cuyas condiciones se cumplen); el último es el de
+          por defecto.
         </Text>
         <Table.ScrollContainer minWidth={640}>
           <Table>
@@ -181,7 +200,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
               <Table.Tr>
                 <Table.Th>Resultado</Table.Th>
                 <Table.Th>Cuándo</Table.Th>
-                <Table.Th>Mensaje de cierre</Table.Th>
+                <Table.Th>No volver a llamar</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -198,9 +217,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
                   <Table.Td>
                     <Text size="sm">{conditionLabel(o.when)}</Text>
                   </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{o.message}</Text>
-                  </Table.Td>
+                  <Table.Td>{o.noContact ? 'Sí' : <Dash />}</Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

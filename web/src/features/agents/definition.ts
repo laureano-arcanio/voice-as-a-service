@@ -3,22 +3,25 @@ import type { Definition } from '@/api/types';
 // Vista tipada (y tolerante) de la definicion de un agente: app/conversation/models.py, clase Workflow.
 
 export interface FieldSpec {
-  priority: number;
+  name: string;
+  label: string;
   description: string;
   type: string;
-  options?: string[] | null;
-  required: boolean;
-  required_if?: Record<string, unknown> | null;
-  question: string;
+  options: string[] | null;
 }
 
 export interface Outcome {
   id: string;
   label: string;
   when: Record<string, unknown>;
-  message: string;
   goal: boolean;
   noContact: boolean;
+}
+
+export interface VariableSpec {
+  name: string;
+  default: string;
+  description: string;
 }
 
 export interface WorkflowView {
@@ -26,7 +29,7 @@ export interface WorkflowView {
   version: number | null;
   /** Tu propio agente (definition.external). */
   external: boolean;
-  agent: { name: string; role: string; language: string; voice: string | null };
+  agent: { name: string; language: string; voice: string | null };
   recordAudio: boolean;
   /** Llamadas: resumen por email al cliente al terminar. */
   callSummaryEmail: boolean;
@@ -35,13 +38,16 @@ export interface WorkflowView {
   waSessionMinutes: number | null;
   /** Etapas del LLM (workflow.llm); vacio = siempre el servidor propio. */
   llm: { fromTurn: number; connection: string | null; model: string }[];
-  objective: string;
-  opening: string;
-  openingAudio: boolean;
-  openingDelayMs: number;
-  rules: string[];
-  knowledge: string;
-  fields: [string, FieldSpec][];
+  /** Lo que va al LLM tal cual, con sus {{variables}}. */
+  prompt: string;
+  firstMessage: string;
+  firstMessageAudio: boolean;
+  firstMessageDelayMs: number;
+  /** Variables declaradas, en el orden en que se guardaron. */
+  variables: VariableSpec[];
+  summary: boolean;
+  analysisInstructions: string;
+  fields: FieldSpec[];
   outcomes: Outcome[];
   /** Herramientas del cliente (APIs y codigo), por slug. */
   clientTools: { tool: string }[];
@@ -51,34 +57,29 @@ const obj = (x: unknown): Record<string, unknown> =>
   x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
 const str = (x: unknown): string => (typeof x === 'string' ? x : x == null ? '' : String(x));
 
+/** Un default de variable tal como se editó: número o booleano se muestran igual. */
+const value = (x: unknown): string =>
+  typeof x === 'string' ? x : typeof x === 'number' || typeof x === 'boolean' ? String(x) : '';
+
 export function readWorkflow(d: Definition): WorkflowView {
   const agent = obj(d.agent);
-  const conv = obj(d.conversation);
-  const fields = Object.entries(obj(d.fields)).map(([name, raw]): [string, FieldSpec] => {
+  const analysis = obj(d.analysis);
+  const fields = (Array.isArray(analysis.fields) ? analysis.fields : []).map((raw): FieldSpec => {
     const f = obj(raw);
-    return [
-      name,
-      {
-        priority: typeof f.priority === 'number' ? f.priority : 0,
-        description: str(f.description),
-        type: str(f.type) || 'string',
-        options: Array.isArray(f.options) ? f.options.map(str) : null,
-        required: f.required === true,
-        required_if: f.required_if ? obj(f.required_if) : null,
-        question: str(f.question),
-      },
-    ];
+    return {
+      name: str(f.name),
+      label: str(f.label),
+      description: str(f.description),
+      type: str(f.type) || 'string',
+      options: Array.isArray(f.options) ? f.options.map(str) : null,
+    };
   });
-  fields.sort((a, b) => a[1].priority - b[1].priority);
-  const outcomes = (
-    Array.isArray(obj(d.completion).outcomes) ? (obj(d.completion).outcomes as unknown[]) : []
-  ).map((raw) => {
+  const outcomes = (Array.isArray(analysis.outcomes) ? analysis.outcomes : []).map((raw) => {
     const o = obj(raw);
     return {
       id: str(o.id),
       label: str(o.label),
       when: obj(o.when),
-      message: str(o.message),
       goal: o.goal === true,
       noContact: o.no_contact === true,
     };
@@ -89,7 +90,6 @@ export function readWorkflow(d: Definition): WorkflowView {
     external: d.external != null && typeof d.external === 'object',
     agent: {
       name: str(agent.name),
-      role: str(agent.role),
       language: str(agent.language),
       voice: agent.voice ? str(agent.voice) : null,
     },
@@ -104,12 +104,16 @@ export function readWorkflow(d: Definition): WorkflowView {
         model: str(st.model),
       };
     }),
-    objective: str(obj(d.objective).description).trim(),
-    opening: str(conv.opening).trim(),
-    openingAudio: conv.opening_audio === true,
-    openingDelayMs: typeof conv.opening_delay_ms === 'number' ? conv.opening_delay_ms : 200,
-    rules: Array.isArray(conv.rules) ? conv.rules.map(str) : [],
-    knowledge: str(d.knowledge).trim(),
+    prompt: str(d.prompt),
+    firstMessage: str(d.first_message),
+    firstMessageAudio: d.first_message_audio === true,
+    firstMessageDelayMs: typeof d.first_message_delay_ms === 'number' ? d.first_message_delay_ms : 200,
+    variables: (Array.isArray(d.variables) ? d.variables : []).map((raw): VariableSpec => {
+      const v = obj(raw);
+      return { name: str(v.name), default: value(v.default), description: str(v.description) };
+    }),
+    summary: analysis.summary !== false,
+    analysisInstructions: str(analysis.instructions),
     fields,
     outcomes,
     clientTools: (Array.isArray(d.tools) ? d.tools : [])
@@ -118,14 +122,9 @@ export function readWorkflow(d: Definition): WorkflowView {
   };
 }
 
-/** "Sí", "No" o "Si a = x y b = y". */
-export function requiredLabel(f: FieldSpec): string {
-  if (f.required_if && Object.keys(f.required_if).length) {
-    return `Si ${Object.entries(f.required_if)
-      .map(([k, v]) => `${k} = ${String(v)}`)
-      .join(' y ')}`;
-  }
-  return f.required ? 'Sí' : 'No';
+/** Las primeras `lines` líneas de un texto, para la vista en limpio. */
+export function firstLines(text: string, lines = 6): string {
+  return text.split('\n').slice(0, lines).join('\n').trim();
 }
 
 export function conditionLabel(when: Record<string, unknown>): string {
@@ -140,7 +139,7 @@ export function toJsonText(d: unknown): string {
 }
 
 /**
- * Posicion aproximada de una ruta de error (ej. "fields.zone.question") en el texto
+ * Posicion aproximada de una ruta de error (ej. "analysis.fields.0.description") en el texto
  * JSON: busca cada clave en orden. Indices de listas se saltean. -1 si no la encuentra.
  */
 export function findPathOffset(text: string, path: string): number {

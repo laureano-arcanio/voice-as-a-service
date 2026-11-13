@@ -131,13 +131,27 @@ export function useCloseWhatsApp(conversationId: string) {
 
 // ---- Conversacion por texto (sin llamada) ----
 
-/** `callerPhone` y `workflows` son solo de las pruebas del panel (la API key recibe 403 `panel_test_only`). */
+/** `callerPhone` y `workflows` son solo de las pruebas del panel (la API key recibe 403 `panel_test_only`);
+ * `variables` son los valores de prueba (y, en una llamada real, los datos de la conversación). */
 export function useStartConversation() {
   return useMutation({
-    mutationFn: ({ agentId, callerPhone }: { agentId: string; callerPhone?: string }) =>
+    mutationFn: ({
+      agentId,
+      callerPhone,
+      variables,
+    }: {
+      agentId: string;
+      callerPhone?: string;
+      variables?: Record<string, string>;
+    }) =>
       unwrap(
         api.POST('/api/v1/conversations', {
-          body: { agent_id: agentId, ...(callerPhone ? { caller_phone: callerPhone } : {}), workflows: true },
+          body: {
+            agent_id: agentId,
+            ...(callerPhone ? { caller_phone: callerPhone } : {}),
+            ...(variables && Object.keys(variables).length ? { variables } : {}),
+            workflows: true,
+          },
         }),
       ),
   });
@@ -158,14 +172,15 @@ export function useSendTurn() {
 // ---- Llamada de prueba por el navegador ----
 
 /** POST /calls sin teléfono (modo prueba) y las credenciales para entrar. Desde el panel de prueba lleva el
- * número simulado y `workflows`; Inicio no manda ninguno. */
+ * número simulado, `workflows` y los valores de prueba (`variables`); Inicio no manda ninguno. */
 export async function startBrowserCall(
   agentId: string,
-  opts: { callerPhone?: string; workflows?: boolean } = {},
+  opts: { callerPhone?: string; workflows?: boolean; variables?: Record<string, string> } = {},
 ) {
   const body: CallIn = { agent_id: agentId };
   if (opts.callerPhone) body.caller_phone = opts.callerPhone;
   if (opts.workflows) body.workflows = true;
+  if (opts.variables && Object.keys(opts.variables).length) body.variables = opts.variables;
   const started = await unwrap(api.POST('/api/v1/calls', { body }));
   const creds = await unwrap(
     api.POST('/api/v1/calls/{conversation_id}/join', {

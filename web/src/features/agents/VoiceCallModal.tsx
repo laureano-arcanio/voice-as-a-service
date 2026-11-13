@@ -47,13 +47,15 @@ interface Props {
   callerPhone?: string;
   /** Corre el pre-call y el post-call del agente (las pruebas del panel; Inicio no). */
   workflows?: boolean;
+  /** Valores de prueba que ve el agente ({{x}}). */
+  variables?: Record<string, string>;
 }
 
 /**
  * Hablar con el agente desde el navegador, sin salir del panel: llamada de prueba (POST /calls sin teléfono,
  * modo prueba) con el micrófono y los subtítulos en vivo. Al terminar, link a la conversación.
  */
-export function VoiceCallModal({ agent, opened, onClose, callerPhone, workflows }: Props) {
+export function VoiceCallModal({ agent, opened, onClose, callerPhone, workflows, variables }: Props) {
   const qc = useQueryClient();
   const [phase, setPhase] = useState<Phase>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export function VoiceCallModal({ agent, opened, onClose, callerPhone, workflows 
       const { Room, RoomEvent, Track, createLocalAudioTrack } = await livekit();
       const mic = await openMic(createLocalAudioTrack);
       if (g !== gen.current) return mic.stop();
-      const call = await startBrowserCall(agent.id, { callerPhone, workflows });
+      const call = await startBrowserCall(agent.id, { callerPhone, workflows, variables });
       if (g !== gen.current) {
         mic.stop();
         return void hangUpCall(call.conversationId).catch(() => undefined);
@@ -146,7 +148,7 @@ export function VoiceCallModal({ agent, opened, onClose, callerPhone, workflows 
       setPhase('failed');
       void room.current?.disconnect();
     }
-  }, [agent.id, callerPhone, workflows, qc, showLine]);
+  }, [agent.id, callerPhone, workflows, variables, qc, showLine]);
 
   const retry = () => {
     setPhase('connecting');

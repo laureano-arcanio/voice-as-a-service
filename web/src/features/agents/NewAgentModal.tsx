@@ -105,7 +105,7 @@ export function NewAgentModal({ opened, onClose }: { opened: boolean; onClose: (
                 </Choice>
               ))}
               <Choice value={BLANK} title="En blanco">
-                Solo lo mínimo para que sea válido: un dato a obtener y el resultado por defecto.
+                Un prompt con los títulos para completar y un primer mensaje; sin análisis.
               </Choice>
             </SimpleGrid>
           </Radio.Group>
