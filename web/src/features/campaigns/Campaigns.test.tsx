@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Campaign, CampaignPlan, WaAccount } from '@/api/types';
+import { CATALOG } from '@/components/variables/fixtures';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { CampaignDetailPage } from './CampaignDetailPage';
 import { CampaignsPage } from './CampaignsPage';
@@ -433,10 +434,25 @@ describe('campañas: detalle de llamadas', () => {
 });
 
 describe('campañas: alta de llamadas', () => {
-  const routes = (plan: CampaignPlan = PLAN) => ({
+  const routes = (plan: CampaignPlan = PLAN, detail: object = { prompt: '', variables: [] }) => ({
     'GET /api/v1/campaigns/plan': () => jsonResponse(plan),
     'GET /api/v1/agents': () =>
       jsonResponse([{ id: 'ag-2', client_id: 'c-1', name: 'Cobranzas', archived: false }]),
+    'GET /api/v1/agents/ag-2': () =>
+      jsonResponse({
+        id: 'ag-2',
+        client_id: 'c-1',
+        name: 'Cobranzas',
+        slug: 'cobranzas',
+        description: '',
+        version: 1,
+        archived: false,
+        voice: null,
+        created_at: '2026-10-01T12:00:00Z',
+        updated_at: '2026-10-01T12:00:00Z',
+        definition: detail,
+      }),
+    'GET /api/v1/variables/catalog': () => jsonResponse(CATALOG),
     'GET /api/v1/phone-numbers': () =>
       jsonResponse([{ id: 'n-1', e164: '+5493515559999', label: 'Cobranzas', client_id: 'c-1' }]),
     'GET /api/v1/voices': () => jsonResponse([{ nombre: 'sofia', genero: 'mujer', wer: null, car_s: null }]),
@@ -496,8 +512,42 @@ describe('campañas: alta de llamadas', () => {
     expect(screen.getByRole('button', { name: 'Ver campaña' })).toBeInTheDocument();
   });
 
-  it('en paralelo, con tope del plan, inicio programado y webhook', async () => {
-    const calls = mockApi(routes());
+  it('mapea las columnas del CSV a las variables del agente y avisa la que no tiene valor', async () => {
+    const calls = mockApi(
+      routes(PLAN, {
+        prompt: 'Hablá con {{nombre_cliente}} por la deuda de {{deuda}}.',
+        variables: [
+          { name: 'nombre_cliente', default: '', description: 'Cómo se llama' },
+          { name: 'deuda', default: '', description: 'Lo que debe' },
+        ],
+      }),
+    );
+    renderWithProviders(<VoiceCampaignModal onClose={() => {}} />, { me: CLIENT_USER });
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'Cobranza');
+    await userEvent.click(screen.getByRole('textbox', { name: 'Agente que llama' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Cobranzas', hidden: true }));
+    await userEvent.click(screen.getByRole('tab', { name: /^CSV/ }));
+    await userEvent.type(
+      screen.getByLabelText('Contactos (CSV)'),
+      'telefono,Nombre Cliente\n3515551234,Ana',
+    );
+
+    expect(await screen.findByText('Variables que espera el agente')).toBeInTheDocument();
+    // La columna que coincide con el nombre normalizado queda elegida sola.
+    expect(screen.getByRole('textbox', { name: 'Columna para nombre_cliente' })).toHaveValue(
+      'Nombre Cliente',
+    );
+    // La que no tiene columna avisa que llega vacía.
+    expect(screen.getByRole('textbox', { name: 'Columna para deuda' })).toHaveValue('Vacía (sin dato)');
+    expect(screen.getByText(/«deuda»/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+    const body = calls.find((c) => c.method === 'POST')?.body as { csv?: string };
+    expect(body.csv).toBe('telefono,nombre_cliente\n3515551234,Ana');
+  });
+
+  it('en paralelo, con tope del plan, inicio programado y webhook', async () => {    const calls = mockApi(routes());
     renderWithProviders(<VoiceCampaignModal onClose={() => {}} />, { me: CLIENT_USER });
     await fillBasics();
     expect(screen.getByText(/hasta 4 llamadas a la vez/)).toBeInTheDocument();

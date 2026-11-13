@@ -23,11 +23,21 @@ const headerKey = (h: string) =>
   strip(h)
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '');
-function delimiter(text: string): string {
+/** Separador del CSV: el que más aparece en la primera fila (coma, punto y coma o tab). */
+export function csvDelimiter(text: string): string {
   const first = text.split(/\r?\n/, 1)[0] ?? '';
   const count = (d: string) => first.split(d).length - 1;
   const best = [',', ';', '\t'].reduce((a, b) => (count(b) > count(a) ? b : a), ',');
   return count(best) > 0 ? best : ',';
+}
+
+const delimiter = csvDelimiter;
+
+/** Filas a texto CSV con ese separador, con las comillas que hacen falta. */
+export function formatRows(rows: string[][], sep: string): string {
+  const cell = (v: string) =>
+    v.includes(sep) || /["\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  return `${rows.map((r) => r.map(cell).join(sep)).join('\n')}\n`;
 }
 
 /** Filas de un CSV (con comillas). Sin librerias: alcanza para mostrar la vista previa. */

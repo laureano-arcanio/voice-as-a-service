@@ -470,14 +470,16 @@ alcanza. En la navegación, arriba de todo.
 
 - El agente llama a un contacto o a un número.
 - **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
-  suelto en formato +549…), número de origen y **Llamar**. Con un contacto, su nombre y email también le
-  llegan al agente (como en una campaña: `{{nombre}}` en la apertura). Sin motivo ni modo prueba desde el
-  27-oct-2026 (la API sigue aceptando `context`; para probar un agente, la pestaña Probar).
+  suelto en formato +549…), número de origen, **Valores de prueba** y **Llamar**. Con un contacto, su nombre y
+  email también le llegan al agente (como en una campaña: `{{nombre}}`). Al elegir el agente aparecen sus variables
+  declaradas o usadas en el prompt, prellenas con su default, y la fila `motivo`, que el agente lee si su prompt
+  dice `{{motivo}}`; viajan como `variables` de la llamada (una fila vacía no se manda). Para probar un agente sin
+  llamar, la pestaña Probar.
 - Un número en la lista de bajas de voz del cliente (Tus clientes, Bajas) no se llama (409).
 - **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. Si nadie atendió o estaba ocupado, la llamada queda igual en la lista (y en Conversaciones) con la marca **No atendida**. El resultado sale
   de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
   email, al cortar le llega al equipo, con el motivo.
-- El detalle de la llamada muestra el motivo en "Motivo del llamado".
+- El detalle de la llamada muestra el motivo entre las variables de la conversación, con fuente "pedido de la llamada".
 - Acá llama el agente. Para llamar vos, hablando desde el navegador, está **Teléfono del equipo** (abajo).
 
 ### Teléfono del equipo (`/telefono`)
@@ -532,13 +534,17 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
 
 ### Detalle de una llamada (`/calls/<id>`)
 
+- **Resumen:** arriba de todo, el resumen del análisis si el agente lo tiene prendido.
 - **Cabecera:** contacto, empresa, origen, número del cliente, fecha, estado, duración, motivo de fin,
   datos obtenidos, resultado, y agente con versión. En una llamada del equipo (sin agente) no hay datos ni
   resultado: en lugar del agente dice **Llamó** o **Atendió** con la persona, la conversación ocupa todo el ancho
   y, si se llamó a un contacto que había pedido no recibir llamadas, un aviso amarillo dice quién lo confirmó.
   Cada frase trae su audio (la grabación es siempre) y el chat rotula "Contacto" o "Quien llamó".
-- **Estado:** cada dato a obtener, con su valor, si está pendiente o no aplica, y los valores
-  rechazados. Los recién obtenidos se resaltan unos segundos.
+- **Variables:** nombre, valor (las ocultas, `•••`) y fuente en palabras: "del sistema", "valor por defecto",
+  "contacto o campaña", "pedido de la llamada", "pre-call (slug)" o "herramienta (slug)". Una conversación vieja
+  sin variables no muestra la tabla.
+- **Estado:** cada dato del análisis, en su orden, con su valor (o `–`) y "Obtenido" en los capturados; los valores
+  rechazados se muestran en rojo. Los recién obtenidos se resaltan unos segundos.
 - **Conversación:** el chat. Con **Salida del LLM** se despliega lo que devolvió el LLM en cada turno
   (conversación y extracción, con su tiempo y razonamiento); si el agente tiene **Grabar audio**
   prendido, cada mensaje trae el reproductor de su WAV. En una llamada derivada, el tramo con la persona del
@@ -834,6 +840,12 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
    - **Finalidad:** comercial, cobranza, turnos o aviso. Una **comercial** exige marcar "Confirmo que filtré la
      lista contra el Registro No Llame" (Ley 26.951; es responsabilidad del cliente).
    - **Destinatarios:** contactos elegidos de la agenda o un CSV (que también los carga en la agenda).
+   - **Variables:** al elegir agente y CSV, la tabla **Variables que espera el agente** elige de qué columna del
+     CSV sale cada variable (la que coincide con el nombre normalizado viene elegida). Lo que no se elige usa el
+     default del agente (o llega vacío) y la columna que ya tenía ese nombre se quita del CSV para que valga el
+     default. Avisa, sin bloquear: la variable sin default ni columna, las columnas que no van a ninguna variable
+     (llegan igual con su nombre normalizado) y las que la API ignora (nombre inválido, repetidas o más de 30). Los
+     contactos de la agenda solo traen nombre, teléfono y email.
    - **Horario:** desde, hasta, días y, opcional, **Inicio programado** y **Termina como máximo**. Fuera de
      horario (o en un feriado de `CAMPAIGN_HOLIDAYS`) no llama.
    - **Llamadas:** de a una, o en paralelo hasta el tope del plan; intentos por contacto, minutos entre intentos
@@ -843,8 +855,9 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
    - **Webhook:** URL https pública. Si no se carga un secreto se genera y **se muestra una sola vez**.
 2. Queda en **Borrador**: **Iniciar**, **Pausar**, **Retomar** y **Cancelar** (los pendientes no se llaman). **Editar** en
    el borrador y la pausada.
-3. **Variables:** los datos del contacto se usan en la apertura del agente (`{{nombre}}`, `{{deuda}}`; si falta
-   un dato, el texto se acomoda sin él) y los que se llaman como un campo del agente lo cargan ya completo.
+3. **Variables:** las columnas del CSV que no son teléfono, nombre, email ni notas llegan a la llamada como
+   variables con su nombre normalizado (`Nombre Cliente` → `nombre_cliente`), igual que el nombre, el teléfono y el
+   email del contacto. El mapeo de la tabla de arriba decide qué columna alimenta cada variable del agente.
 4. **Detalle:** barra de avance, ritmo y tiempo estimado; tarjetas por resultado (atendió, no atendió,
    ocupado, contestador, número inválido, rechazó, falló); indicadores (tasa de contacto, objetivo cumplido,
    duración, minutos) y atendidas por hora del día, para elegir el horario; seguimiento; y la tabla de

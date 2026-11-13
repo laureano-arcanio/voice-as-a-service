@@ -20,7 +20,7 @@ const CALL: CallSummary = {
   outcome: 'Turno agendado',
   goal: true,
   captured: 3,
-  required: 3,
+  total: 3,
   mode: 'saliente',
   phone: '+5491155551234',
   status: 'finalizada',

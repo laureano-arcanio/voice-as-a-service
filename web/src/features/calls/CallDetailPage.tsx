@@ -25,7 +25,7 @@ import {
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
-import type { CallDetail, CallInfo, FieldValue } from '@/api/types';
+import type { CallDetail, CallInfo } from '@/api/types';
 import {
   CallStatusBadge,
   Dash,
@@ -55,6 +55,7 @@ import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { useFreshFields } from './useFreshFields';
 import { asLatency } from './types';
+import { variableSourceLabel } from './variables';
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -96,21 +97,63 @@ function fieldValue(c: CallDetail, name: string): string {
   return formatValue(c.fields.find((f) => f.name === name)?.value);
 }
 
-function FieldBadge({ f }: { f: FieldValue }) {
-  if (f.value != null) return <Badge color="green">Obtenido</Badge>;
-  return <Badge color={f.required ? 'yellow' : 'gray'}>{f.required ? 'Pendiente' : 'Opcional'}</Badge>;
-}
-
-/** Llamada desde la pantalla Llamadas: el motivo con que llamó el agente. */
-function ContextCard({ context }: { context: string }) {
+/** El resumen del análisis, arriba de todo. */
+function SummaryCard({ summary }: { summary: string }) {
   return (
     <Card>
       <Title order={4} mb="xs">
-        Motivo del llamado
+        Resumen
       </Title>
       <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-        {context}
+        {summary}
       </Text>
+    </Card>
+  );
+}
+
+/** Las variables de la conversación con su fuente. Las ocultas llegan enmascaradas de la API. */
+function VariablesCard({ variables }: { variables: NonNullable<CallDetail['variables']> }) {
+  return (
+    <Card>
+      <Title order={4} mb="sm">
+        Variables
+      </Title>
+      <Table.ScrollContainer minWidth={360}>
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Variable</Table.Th>
+              <Table.Th>Valor</Table.Th>
+              <Table.Th>Fuente</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {variables.map((v) => (
+              <Table.Tr key={v.name}>
+                <Table.Td>
+                  <Text size="sm" className="mono">
+                    {v.name}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  {formatValue(v.value) ? (
+                    <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+                      {formatValue(v.value)}
+                    </Text>
+                  ) : (
+                    <Dash />
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" c="dimmed">
+                    {variableSourceLabel(v.source)}
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
     </Card>
   );
 }
@@ -136,7 +179,7 @@ function FieldsCard({ c }: { c: CallDetail }) {
               <Table.Tr key={f.name} className={fresh.has(f.name) ? 'just-set' : undefined}>
                 <Table.Td>
                   <Text size="sm" fw={600}>
-                    {f.name}
+                    {f.label || f.name}
                   </Text>
                   <Text size="xs" c="dimmed">
                     {f.description}
@@ -151,7 +194,7 @@ function FieldsCard({ c }: { c: CallDetail }) {
                   )}
                 </Table.Td>
                 <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                  <FieldBadge f={f} />
+                  {f.value != null && <Badge color="green">Obtenido</Badge>}
                 </Table.Td>
               </Table.Tr>
             ))}
@@ -175,8 +218,8 @@ function CallHeader({ c }: { c: CallDetail }) {
   const { enter } = useSupportSwitch();
   const call = c.call;
   const wa = c.whatsapp;
-  const required = c.fields.filter((f) => f.required);
-  const captured = required.filter((f) => f.value != null).length;
+  const total = c.fields.length;
+  const captured = c.fields.filter((f) => f.value != null).length;
   // Directa o entrante del equipo: no hay agente, ni datos que obtener, ni resultado.
   const person = call ? callPerson(call) : null;
   const agentless = isPersonOnly(c);
@@ -238,7 +281,7 @@ function CallHeader({ c }: { c: CallDetail }) {
         {!agentless && (
           <>
             <Item label="Datos obtenidos">
-              {captured} de {required.length}
+              {captured} de {total}
             </Item>
             <Item label="Resultado">
               {c.outcome ? <OutcomeBadge label={c.outcome.label} goal={c.outcome.goal} /> : '–'}
@@ -535,15 +578,16 @@ export function CallDetailPage() {
       <QueryState query={query}>
         {(c) => (
           <Stack gap="md">
+            {c.summary && <SummaryCard summary={c.summary} />}
             <CallHeader c={c} />
-            {isPersonOnly(c) && !c.context ? (
+            {isPersonOnly(c) ? (
               // Sin agente no hay datos que obtener: la conversación ocupa todo el ancho.
               <ChatCard c={c} live={live} />
             ) : (
               <Grid gutter="md">
                 <Grid.Col span={{ base: 12, lg: 5 }}>
                   <Stack gap="md">
-                    {c.context && <ContextCard context={c.context} />}
+                    {!!c.variables?.length && <VariablesCard variables={c.variables} />}
                     {!isPersonOnly(c) && <FieldsCard c={c} />}
                   </Stack>
                 </Grid.Col>

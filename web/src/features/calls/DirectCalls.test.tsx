@@ -22,7 +22,7 @@ const BASE: CallSummary = {
   outcome: null,
   goal: false,
   captured: 2,
-  required: 3,
+  total: 3,
   mode: 'entrante',
   phone: '+5493515551234',
   status: 'finalizada',
@@ -43,7 +43,7 @@ const DIRECT: CallSummary = {
   agent_version: null,
   workflow_status: 'active',
   captured: 0,
-  required: 0,
+  total: 0,
   mode: 'directa',
   user_id: 'u-1',
   user_name: 'Ana',
@@ -167,7 +167,6 @@ const DETAIL: CallDetail = {
     { role: 'assistant', text: 'Hola, te llamo por el turno.', person: 'Ana', recording: 0 },
     { role: 'user', text: 'Hola, sí, decime.', recording: 1 },
   ],
-  context: null,
   recordings: [0, 1],
   call: {
     mode: 'directa',
@@ -320,5 +319,54 @@ describe('detalle de una llamada directa', () => {
     expect(await screen.findByText('Datos obtenidos')).toBeInTheDocument();
     expect(screen.getByText('Ventas')).toBeInTheDocument();
     expect(screen.getByText('Interesado')).toBeInTheDocument();
+  });
+});
+
+describe('detalle de una conversación con agente: resumen y variables', () => {
+  const AGENT: CallDetail = {
+    ...DETAIL,
+    agent_id: 'ag-1',
+    agent_name: 'Cobranzas',
+    agent_version: 3,
+    workflow_status: 'completed',
+    summary: 'La persona confirmó la deuda y pidió pagar el viernes.',
+    fields: [
+      { name: 'acuerdo', label: 'Acuerdo de pago', description: '', value: 'viernes' },
+      { name: 'monto', label: 'Monto', description: '', value: null },
+    ],
+    variables: [
+      { name: 'deuda', value: '125000', source: 'request' },
+      { name: 'token_crm', value: '•••', source: 'tool:consultar_deuda', hidden: true },
+      { name: 'call.phone', value: '+5493515551234', source: 'system' },
+    ],
+    call: { ...DETAIL.call!, mode: 'saliente', answered_by: 'agent', user_id: null, user_name: null },
+    messages: [{ role: 'assistant', text: 'Hola, te llamo de Cobranzas.' }],
+  };
+
+  it('muestra el resumen arriba, la variable oculta enmascarada y la fuente en palabras', async () => {
+    renderDetail(AGENT);
+    expect(await screen.findByText('Resumen')).toBeInTheDocument();
+    expect(screen.getByText(/confirmó la deuda/)).toBeInTheDocument();
+    expect(screen.getByText('Variables')).toBeInTheDocument();
+    const row = (name: string) =>
+      screen.getAllByRole('row').find((r) => within(r).queryByText(name, { exact: true })) as HTMLElement;
+    expect(within(row('deuda')).getByText('125000')).toBeInTheDocument();
+    expect(within(row('deuda')).getByText('pedido de la llamada')).toBeInTheDocument();
+    expect(within(row('token_crm')).getByText('•••')).toBeInTheDocument();
+    expect(within(row('token_crm')).getByText('herramienta (consultar_deuda)')).toBeInTheDocument();
+    expect(within(row('call.phone')).getByText('del sistema')).toBeInTheDocument();
+    // Los datos no dicen "Pendiente" ni "Opcional"; el que tiene valor, "Obtenido".
+    expect(screen.queryByText('Pendiente')).not.toBeInTheDocument();
+    expect(screen.queryByText('Opcional')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /Monto/ })).queryByText('Obtenido')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Obtenido')).toHaveLength(1);
+    expect(screen.getByText('1 de 2')).toBeInTheDocument();
+  });
+
+  it('una conversación vieja sin variables no muestra la tabla', async () => {
+    const { variables: _omit, ...old } = AGENT;
+    renderDetail(old);
+    await screen.findByText('Resumen');
+    expect(screen.queryByText('Variables')).not.toBeInTheDocument();
   });
 });

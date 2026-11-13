@@ -15,11 +15,13 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { CampaignCreated, CampaignIn } from '@/api/types';
+import { useVariableCatalog } from '@/components/variables';
 import { CopyIcon } from '@/components/Copy';
-import { useAgents } from '@/features/agents/api';
+import { useAgent, useAgents } from '@/features/agents/api';
+import { readWorkflow } from '@/features/agents/definition';
 import { RejectedTable } from '@/features/contacts/ContactModals';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { useVoices } from '@/features/voices/api';
@@ -28,7 +30,14 @@ import { placeholderNumbers, templateBody } from '@/features/whatsapp/templates'
 import { notifyError } from '@/lib/notify';
 import { useCreateCampaign, usePlan } from './api';
 import { fieldApi, scheduleBody, scheduleDefaults, scheduleErrors, voiceRunDefaults } from './campaignForm';
-import { ScheduleFields, VoiceRunFields, WebhookFields } from './CampaignFields';
+import {
+  applyMapping,
+  csvColumns,
+  defaultMapping,
+  mappingAlerts,
+  variableMapping,
+} from './campaignVariables';
+import { ScheduleFields, VariableMappingFields, VoiceRunFields, WebhookFields } from './CampaignFields';
 import { CONTACT_RESULT, PURPOSE } from './labels';
 import { RecipientsPicker } from './RecipientsPicker';
 import { EMPTY_RECIPIENTS, type Recipients, recipientsCount, recipientsEmpty } from './recipients';
@@ -136,6 +145,28 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
   const template = approved.find((t) => `${t.name}|${t.language}` === v.f_template);
   const placeholders = template ? placeholderNumbers(templateBody(template.components ?? [])) : [];
 
+  // Variables del agente elegido: el CSV trae una columna por dato y acá se elige de dónde sale cada una.
+  const detail = useAgent(v.agent_id || undefined);
+  const catalog = useVariableCatalog();
+  const workflow = detail.data ? readWorkflow(detail.data.definition) : null;
+  const expectedVars = (workflow?.variables ?? []).filter((x) => x.name);
+  const expectedNames = expectedVars.map((x) => x.name);
+  const columns = useMemo(() => csvColumns(recipients.csv, catalog.data), [recipients.csv, catalog.data]);
+  const defaults = defaultMapping(expectedVars, columns);
+  // Lo elegido se guarda por agente y CSV: cambiar cualquiera vuelve a la preselección.
+  const [overrides, setOverrides] = useState<Record<string, Record<string, number | null>>>({});
+  const sig = `${v.agent_id}\u0000${recipients.csv}`;
+  const mapping = variableMapping(expectedNames, defaults, overrides[sig] ?? {});
+  const choose = (name: string, index: number | null) =>
+    setOverrides((prev) => ({ ...prev, [sig]: { ...(prev[sig] ?? {}), [name]: index } }));
+  const alerts = mappingAlerts({
+    variables: expectedVars,
+    columns,
+    mapping,
+    contactIds: recipients.contactIds,
+    catalog: catalog.data,
+  });
+
   const p = plan.data;
   const hasVoice = !p || p.channels.includes('voice');
   const cap = p?.max_campaign_concurrency ?? null;
@@ -197,7 +228,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
           callback_url: values.callback_url.trim() || null,
           callback_secret: values.callback_secret.trim() || null,
           contact_ids: recipients.contactIds,
-          csv: recipients.csv.trim() || null,
+          csv: applyMapping(recipients.csv, columns, mapping, expectedNames).trim() || null,
           start,
         },
         { onSuccess: setCreated, onError: (e) => notifyError(e, 'No se pudo crear la campaña') },
@@ -295,6 +326,19 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
               Tu plan permite {p?.max_campaign_contacts} contactos por campaña: lo que sobre queda afuera o no
               se podrá iniciar.
             </Alert>
+          )}
+
+          {expectedVars.length > 0 && (
+            <>
+              <Divider label="Variables" labelPosition="left" mt="xs" />
+              <VariableMappingFields
+                variables={expectedVars}
+                columns={columns}
+                mapping={mapping}
+                onChange={choose}
+                alerts={alerts}
+              />
+            </>
           )}
 
           <Divider label="Horario" labelPosition="left" mt="xs" />

@@ -17,7 +17,7 @@ Modelos en `app/models/campaigns.py` (migración 0017; `contacts.notes` en la 00
 | `contacts` | `client_id`, `phone` (E.164, **único por cliente**, lo único obligatorio), `name`, `email`, `notes` (nota libre), `source` (`manual`, `csv`, `api`, `campaign`, `inbound`), `archived_at` (NULL = activo; no se borran) |
 | `contact_optouts` | PK `(client_id, phone, channel)`; `channel` `whatsapp`, `voice` o `all`; `source` `keyword`, `outcome`, `manual`. Aparte de `contacts`: la baja es del teléfono, sigue aunque se archive y se carga sin ficha |
 | `campaigns` | Comunes: `client_id`, `agent_id` (NULL en WhatsApp = el del número), `name`, `channel`, `status` (`draft`, `scheduled`, `running`, `paused`, `done`, `cancelled`), `status_reason`, `rate_per_minute`, `window_start`/`window_end` (horas locales de `BILLING_TIMEZONE`, default 9–20), `weekdays` (0 = lunes; NULL = todos), `starts_at`/`ends_at`, `purpose` (`comercial`, `cobranza`, `turnos`, `aviso`), `no_call_confirmed_at`, `callback_url`, `callback_secret` (cifrado). WhatsApp: `account_id`, `template_name`/`language`/`category`/`body`/`params`, `template_param_names`. Voz: `from_number_id`, `voice`, `concurrency` (1 = secuencial), `max_attempts`, `retry_minutes`, `retry_on`, `followup` (JSON; NULL = apagado). Un `CHECK` por canal exige sus campos |
-| `campaign_contacts` | `campaign_id`, `contact_id` (único por par), `vars` (copia de nombre, teléfono y email al agregarlo, más `params`), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result`, `error`, `conversation_id`. WhatsApp: `wamid`, `sent_at`, `replied_at`. Voz: `attempts`, `next_attempt_at`, `last_attempt_at`, `followup_status`/`wamid`/`sent_at`/`error`/`conversation_id` |
+| `campaign_contacts` | `campaign_id`, `contact_id` (único por par), `vars` (copia de nombre, teléfono y email al agregarlo, las columnas de datos del CSV de una campaña de voz y `params` de WhatsApp), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result`, `error`, `conversation_id`. WhatsApp: `wamid`, `sent_at`, `replied_at`. Voz: `attempts`, `next_attempt_at`, `last_attempt_at`, `followup_status`/`wamid`/`sent_at`/`error`/`conversation_id` |
 | `campaign_callbacks` | Cola del webhook: `event`, `status` (`pending`, `sent`, `failed`), `attempts`, `next_attempt_at`, `last_status_code` |
 | `call_logs` | `campaign_contact_id` (cada intento de voz es una `CallRow`) y `sip_status` |
 
@@ -79,8 +79,9 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
 ### Contactos
 
 - **Carga:** a mano, CSV o API; *upsert* por teléfono (lo que no viene no se pisa). CSV con encabezado: una
-  columna de teléfono (`telefono`, `celular`, `phone`, `whatsapp`), `nombre`, `email` y `notas` opcionales; las demás
-  se ignoran; separador coma, punto y coma o tab.
+  columna de teléfono (`telefono`, `celular`, `phone`, `whatsapp`), `nombre`, `email` y `notas` opcionales; en una
+  campaña de voz las demás columnas son variables de la llamada (ver Voz) y al cargar la agenda se ignoran;
+  separador coma, punto y coma o tab.
 - **Teléfono:** `app/services/phones.py` normaliza a E.164. Un argentino sin el 9 se toma como celular (`+549`);
   no se detectan fijos. El `wa_id` de Meta es el E.164 sin `+`.
 - **Archivar:** no se puede agregar a una campaña nueva; sus intentos pendientes en campañas abiertas pasan a
@@ -130,11 +131,20 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
    sin llamada activa vuelven a `retry`.
 
 - **Variables en la conversación** (`app/conversation/variables.py`): la copia de datos del contacto de la campaña
-  (`campaign_contacts.vars` sin `params`: `nombre`, `telefono`, `email`) son variables con fuente `contact`, también
-  en la conversación de WhatsApp que abre la respuesta a una plantilla o a un seguimiento. `{{nombre}}`,
-  `{{telefono}}`, `{{email}}` se reemplazan (sin importar mayúsculas ni acentos) donde el primer mensaje, el prompt o
-  una herramienta los nombran; una que falta queda vacía y el texto se acomoda. Nada se agrega solo al prompt ni
-  precarga datos del análisis. Las demás columnas del CSV se ignoran al cargar la agenda: no llegan como variables.
+  (`campaign_contacts.vars` sin `params`) son variables con fuente `contact`, también en la conversación de
+  WhatsApp que abre la respuesta a una plantilla o a un seguimiento. En una campaña de voz, además de `nombre`,
+  `telefono` y `email`, van las columnas del CSV que no son de un rol (`contacts.parse_csv` con
+  `data_columns=True`): nombre normalizado con `variables.key` (`Nombre Cliente` → `nombre_cliente`), sin las
+  celdas vacías (vale el default), ignorando las que no pasan `variables.name_error` o son
+  `nombre`/`telefono`/`email`/`params` y las repetidas después de normalizar (gana la primera); más de 30
+  columnas de datos rechaza el CSV entero y una celda de más de 2.000 caracteres deja la fila en `skipped`. Un
+  contacto de la agenda elegido por `contact_ids` solo trae nombre, teléfono y email. En la UI, la tabla "Variables
+  que espera el agente" del alta elige de qué columna sale cada variable y reescribe la fila de encabezados antes
+  de crear la campaña (`features/campaigns/campaignVariables.ts`): la columna mapeada toma el nombre de su
+  variable y la que ya caía en una variable sin columna elegida se quita, para que valga su default. `{{nombre}}`,
+  `{{telefono}}`, `{{email}}` y las demás se reemplazan (sin importar mayúsculas ni acentos) donde el primer
+  mensaje, el prompt o una herramienta las nombran; una que falta queda vacía y el texto se acomoda. Nada se
+  agrega solo al prompt ni precarga datos del análisis.
 - **Contestador** (`app/campaigns/voicemail.py`): lista de frases ("deje su mensaje", "buzón", "después de la
   señal"…) sobre las primeras 4 transcripciones del que atendió; si matchea, `voicemail`, corta y reintenta.
 - **Baja por voz:** un resultado del agente con `no_contact` ("No volver a llamar" en el editor) agrega

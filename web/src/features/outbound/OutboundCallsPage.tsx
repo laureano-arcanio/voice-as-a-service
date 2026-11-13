@@ -24,7 +24,9 @@ import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { agentOptions } from '@/features/agents/options';
-import { useAgents } from '@/features/agents/api';
+import { useAgent, useAgents } from '@/features/agents/api';
+import { TestVariables } from '@/features/agents/TestVariables';
+import { useTestVariables } from '@/features/agents/testVariables';
 import { useCalls, useStartCall } from '@/features/calls/api';
 import { CallError, CallStartedAlert } from '@/features/calls/CallAlerts';
 import { useContacts } from '@/features/contacts/api';
@@ -32,6 +34,9 @@ import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDateTime, formatDuration, formatValue } from '@/lib/format';
 
 const RECENT = 10;
+
+/** El motivo es siempre una variable de la llamada, la use el prompt del agente o no. */
+const MOTIVO = [{ name: 'motivo', description: 'Por qué se llama' }];
 
 type Target = 'contact' | 'phone';
 
@@ -176,6 +181,11 @@ export function OutboundCallsPage() {
   }));
   // Caller ID: el elegido, o el número que atiende ese agente (así devuelve el llamado desde "su" línea).
   const from = fromNumber ?? clientNumbers.find((n) => n.agent_id === agent?.id)?.id ?? null;
+  // Las variables del agente (declaradas y usadas) con sus defaults, y el motivo siempre presente.
+  const detail = useAgent(agent?.id);
+  const test = useTestVariables(agent?.id ?? '', detail.data?.definition ?? {}, MOTIVO);
+  // Una fila vacía no viaja: así el dato del contacto o el default del agente no se pisan con "".
+  const testValues = Object.fromEntries(Object.entries(test.variables).filter(([, v]) => v.trim()));
 
   const submit = () => {
     if (!agent) return setAgentError('Elegí el agente que va a llamar.');
@@ -192,6 +202,7 @@ export function OutboundCallsPage() {
         phone: target === 'phone' ? p : null,
         from_number_id: from,
         loadtest: false,
+        variables: testValues,
       },
       {
         onSuccess: () => {
@@ -282,6 +293,14 @@ export function OutboundCallsPage() {
               allowDeselect={false}
               disabled={!fromOptions.length}
             />
+            {agent && (
+              <TestVariables
+                rows={test.rows}
+                onChange={test.setRows}
+                fixedNames={[...test.names.map((n) => n.name), ...MOTIVO.map((m) => m.name)]}
+                description="Lo que el agente ve en esta llamada: las variables que declara o usa en su prompt y el motivo. El motivo lo lee si su prompt dice {{motivo}}. Se recuerdan en esta pestaña."
+              />
+            )}
           </Stack>
           <Group gap="sm" align="center" mt="md">
             <Button

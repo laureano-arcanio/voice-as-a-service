@@ -1,14 +1,20 @@
 import {
+  Alert,
   Checkbox,
   Chip,
   Group,
   NumberInput,
   SegmentedControl,
+  Select,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   TextInput,
 } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import type { VariableSpec } from '@/features/agents/definition';
+import type { CsvColumn, MappingAlerts } from './campaignVariables';
 import type { FieldApi, VoiceRunValues } from './campaignForm';
 import { CONTACT_RESULT, RETRY_RESULTS, WEEKDAYS } from './labels';
 
@@ -164,5 +170,126 @@ export function WebhookFields({ api, hasSecret = false }: { api: FieldApi; hasSe
         {...api.props('callback_secret')}
       />
     </SimpleGrid>
+  );
+}
+
+/**
+ * De qué columna del CSV sale cada variable del agente. Lo que no se mapea usa su default (o llega vacío), y las
+ * demás columnas llegan igual con su nombre normalizado. Los avisos no bloquean la creación.
+ */
+export function VariableMappingFields({
+  variables,
+  columns,
+  mapping,
+  onChange,
+  alerts,
+}: {
+  variables: VariableSpec[];
+  columns: CsvColumn[];
+  mapping: Record<string, number>;
+  onChange: (name: string, index: number | null) => void;
+  alerts: MappingAlerts;
+}) {
+  const data = columns.filter((c) => c.data);
+  const others = (name: string) =>
+    new Set(
+      Object.entries(mapping)
+        .filter(([n]) => n !== name)
+        .map(([, i]) => i),
+    );
+  return (
+    <Stack gap="sm">
+      <Text size="sm" fw={600}>
+        Variables que espera el agente
+      </Text>
+      {data.length === 0 ? (
+        <Text size="xs" c="dimmed">
+          El CSV no trae columnas de datos: se usan los valores por defecto del agente.
+        </Text>
+      ) : (
+        <>
+          <Text size="xs" c="dimmed">
+            De qué columna del CSV sale cada variable. Lo que no se elige usa su valor por defecto; la columna
+            que ya tenía ese nombre se quita del CSV.
+          </Text>
+          <Table.ScrollContainer minWidth={480}>
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Variable</Table.Th>
+                  <Table.Th>Columna del CSV</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {variables.map((x) => {
+                  const used = others(x.name);
+                  return (
+                    <Table.Tr key={x.name}>
+                      <Table.Td>
+                        <Text size="sm" className="mono">
+                          {x.name}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Select
+                          size="xs"
+                          aria-label={`Columna para ${x.name}`}
+                          allowDeselect={false}
+                          data={[
+                            {
+                              value: '',
+                              label: x.default.trim()
+                                ? `Usar el default: ${x.default}`
+                                : 'Vacía (sin dato)',
+                            },
+                            ...data.map((c) => ({
+                              value: String(c.index),
+                              label: c.header || c.name,
+                              disabled: used.has(c.index),
+                            })),
+                          ]}
+                          value={mapping[x.name] != null ? String(mapping[x.name]) : ''}
+                          onChange={(v) => onChange(x.name, v ? Number(v) : null)}
+                        />
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </>
+      )}
+      {alerts.overLimit != null && (
+        <Alert color="yellow" icon={<IconInfoCircle size={18} />}>
+          El CSV trae {alerts.overLimit} columnas de datos: la API acepta hasta 30 y lo rechaza entero.
+        </Alert>
+      )}
+      {alerts.empty.length > 0 && (
+        <Alert color="yellow" icon={<IconInfoCircle size={18} />} title="Variables sin valor">
+          {alerts.empty.map((n) => `«${n}»`).join(', ')}{' '}
+          {alerts.empty.length === 1 ? 'no tiene' : 'no tienen'} default ni columna: en esas llamadas{' '}
+          {alerts.empty.length === 1 ? 'llega vacía' : 'llegan vacías'}.
+        </Alert>
+      )}
+      {alerts.agendaMissing.length > 0 && (
+        <Text size="xs" c="dimmed">
+          Los contactos de la agenda solo traen nombre, teléfono y email: «
+          {alerts.agendaMissing.join('», «')}» llegan vacías (o con su default) en esas llamadas.
+        </Text>
+      )}
+      {alerts.columnsLeft.length > 0 && (
+        <Text size="xs" c="dimmed">
+          Estas columnas no van a ninguna variable y llegan igual con su nombre normalizado:{' '}
+          {alerts.columnsLeft.map((c) => `${c.header} → ${c.name}`).join(', ')}.
+        </Text>
+      )}
+      {alerts.ignored.length > 0 && (
+        <Text size="xs" c="dimmed">
+          El backend ignora estas columnas:{' '}
+          {alerts.ignored.map((c) => `${c.header || '(sin nombre)'} (${c.problem})`).join(', ')}.
+        </Text>
+      )}
+    </Stack>
   );
 }

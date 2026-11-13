@@ -354,10 +354,10 @@ export function CallsTable({
                   </Table.Td>
                   <Table.Td>
                     <OutcomeBadge label={c.outcome} goal={c.goal} />
-                    {!!(c.agent_id || c.required) && (
+                    {!!(c.agent_id || c.total) && (
                       <Text size="xs" c="dimmed">
                         <span className="mono">
-                          {c.captured}/{c.required}
+                          {c.captured}/{c.total}
                         </span>{' '}
                         datos
                       </Text>

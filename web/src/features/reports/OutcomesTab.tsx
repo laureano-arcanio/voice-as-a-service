@@ -166,8 +166,8 @@ export function OutcomesTab({ query }: { query: ReportQuery }) {
               rowKey={(x) => `${x.agent_id}-${x.outcome}`}
             />
             <TableCard
-              title="Datos obtenidos"
-              description="En qué porcentaje de las consultas se obtuvo cada dato requerido: muestra qué pregunta se pierde."
+              title="Datos capturados"
+              description="En qué porcentaje de las consultas se capturó cada dato del análisis: muestra qué pregunta se pierde."
               rows={r.fields}
               columns={FIELD_COLS}
               rowKey={(x) => `${x.agent_id}-${x.field}`}
