@@ -195,11 +195,11 @@ def test_converse_transfer_call_with_areas(state):
 
 def test_extract_returns_fields(state):
     workflow = load_reference("sales_discovery")
-    names = list(workflow.fields)
-    payload = json.dumps({n: None for n in names} | {"contact_name": "Juan"})
+    names = list(workflow.analysis_fields)
+    payload = json.dumps({"fields": {n: None for n in names} | {"contact_name": "Juan"}, "summary": "Juan, de Acme."})
     client, _ = client_with(reply(payload))
     result = asyncio.run(client.extract(workflow, state))
-    assert result.fields["contact_name"] == "Juan"
+    assert result.fields["contact_name"] == "Juan" and result.summary == "Juan, de Acme."
 
 
 # --- Conexion y resolver -------------------------------------------------------------------

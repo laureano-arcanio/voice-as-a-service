@@ -143,8 +143,8 @@ def test_agent_without_workflows_behaves_as_today(api, admin, client, monkeypatc
     h.on_pre_call(monkeypatch)
     asyncio.run(h.run({}, attributes=inbound_attributes()))
     conversation_id = inbound_id(api)
-    # La apertura tal cual, y ninguna marca del post-call.
-    assert "pre_call" not in h.order and h.order[-1] == "say:Hola {{nombre}}, soy Ana."
+    # El primer mensaje renderizado (sin valor, {{nombre}} queda vacio), y ninguna marca del post-call.
+    assert "pre_call" not in h.order and h.order[-1] == "say:Hola, soy Ana."
     conv = row(api, conversation_id)
     assert (conv.post_call_status, conv.post_call_attempts, conv.post_call_next_at) == (None, 0, None)
     assert conv.agent_id == agent["id"]
@@ -163,7 +163,7 @@ def test_opening_is_rendered_empty_when_the_tool_fails(api, admin, client, mock_
     conversation_id = inbound_id(api)
     assert h.order[-1] == "say:Hola, soy Ana."      # no se lee "{{nombre}}"
     state = api.engine.store.get(conversation_id)
-    assert state.messages[0].text == "Hola, soy Ana." and state.progress.tool_vars == {}
+    assert state.messages[0].text == "Hola, soy Ana." and state.progress.variables == {}
     with api.sessions() as s:
         run = s.scalars(select(ToolRun).where(ToolRun.conversation_id == conversation_id)).one()
     assert (run.ok, run.status_code, run.slug) == (False, 503, "buscar_ficha")
@@ -184,7 +184,7 @@ def test_slow_pre_call_expires_and_its_late_result_is_ignored(api, admin, client
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
     conversation_id = inbound_id(api)
     assert state_at_start["say"] == "say:Hola, soy Ana."
-    assert api.engine.store.get(conversation_id).progress.tool_vars == {}
+    assert api.engine.store.get(conversation_id).progress.variables == {}
     with api.sessions() as s:
         assert s.scalars(select(ToolRun).where(ToolRun.conversation_id == conversation_id)).one().ok is True
 
@@ -200,18 +200,23 @@ def test_team_fallback_rewrites_the_opening_not_what_was_said(api, agent, monkey
 
 def test_campaign_keeps_its_opening_and_data(api, admin, client, agent, monkeypatch):
     with api.sessions() as s:
-        state, text = api.engine.new_conversation(agent["id"], client["id"], session=s, phone=PHONE,
-                                                  contact={"nombre": "Pedro", "deuda": "100"})
+        state, text = api.engine.new_conversation(agent["id"], client["id"], session=s,
+                                                  variables={"contact": {"nombre": "Pedro", "deuda": "100"}},
+                                                  call={"phone": PHONE, "to": PHONE, "direction": "outbound",
+                                                        "mode": "saliente"})
         api.engine.store.add(s, state)
         s.flush()
         s.add(CallRow(conversation_id=state.conversation_id, client_id=client["id"], mode=CallMode.saliente, phone=PHONE))
         s.commit()
-    assert text == "Hola Pedro, soy Ana."
+    # Con pre-call, el primer mensaje espera sus datos para renderizarse.
+    assert text == "Hola {{nombre}}, soy Ana."
     h = Harness(api, monkeypatch)
     asyncio.run(h.run({"conversation_id": state.conversation_id, "phone": PHONE}))
-    assert h.order[-1] == "say:Hola Pedro, soy Ana."
-    contact = api.engine.store.get(state.conversation_id).progress.contact
-    assert contact["nombre"] == "Pedro" and contact["deuda"] == "100" and contact["situacion"] == "single"
+    # El pre-call pisa al contacto (nombre); lo demas del contacto sigue.
+    assert h.order[-1] == "say:Hola María Gómez, soy Ana."
+    progress = api.engine.store.get(state.conversation_id).progress
+    assert progress.variables["nombre"] == "María Gómez" and progress.variables["deuda"] == "100"
+    assert progress.variables["situacion"] == "single" and progress.variable_sources["deuda"] == "contact"
 
 
 # --- Corte durante el pre-call --------------------------------------------------------------------

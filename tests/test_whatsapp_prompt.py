@@ -1,5 +1,5 @@
 """El canal en los prompts: la misma definicion atiende llamadas y WhatsApp; el canal solo cambia el formato
-del medio (CHANNEL), la apertura como guia si el usuario escribe primero y las marcas de las notas de voz."""
+del medio (CHANNEL) y las marcas de las notas de voz."""
 from types import SimpleNamespace
 
 from app.agents.templates import load_reference
@@ -28,14 +28,14 @@ def test_voice_prompt_says_the_channel_and_nothing_else():
     system = build_system_prompt(wf)
     assert CHANNEL["voice"] in system and CHANNEL["whatsapp"] not in system
     assert "APERTURA" not in system
-    assert "llamada telefónica" in extraction_prompt() and "OBJETIVO:" in build_extraction_prompt(wf, state_with(wf))
+    assert "llamada telefónica" in extraction_prompt() and "OBJETIVO:" not in build_extraction_prompt(wf, state_with(wf))
 
 
 def test_whatsapp_extractor_names_the_channel():
     wf = load_reference("berlin_signup")
     assert "WhatsApp" in extraction_prompt("whatsapp") and "telefónica" not in extraction_prompt("whatsapp")
     user = build_extraction_prompt(wf, on_whatsapp(state_with(wf)))
-    assert "OBJETIVO:" in user
+    assert "AGENTE: " in user and "CAMPOS:" in user
 
 
 def test_whatsapp_without_opening_starts_with_the_user():
@@ -46,9 +46,8 @@ def test_whatsapp_without_opening_starts_with_the_user():
     assert [m["role"] for m in messages] == ["system", "user"]
     system = messages[0]["content"]
     assert CHANNEL["whatsapp"] in system and "telefónica" not in system
-    assert "APERTURA" in system and system.endswith(wf.conversation.opening.strip())
-    # Las reglas del agente van tal cual: el canal no agrega reglas de comportamiento.
-    assert all(rule in system for rule in wf.conversation.rules)
+    # Sin guia de apertura: el prompt del agente va despues del canal, con sus {{variables}} ya sustituidas.
+    assert "APERTURA" not in system and system.startswith(f"{CHANNEL['whatsapp']}\n\n# Identidad") and "{{" not in system
 
 
 def test_whatsapp_keeps_the_history_as_messages():
@@ -83,7 +82,8 @@ async def test_the_client_picks_the_extraction_prompt_by_the_state_channel():
     llm, calls = fake_client("{}")
     await llm.extract(wf, voice)
     await llm.extract(wf, whatsapp)
-    assert [r["messages"][0]["content"] for r in calls.requests] == [extraction_prompt(), extraction_prompt("whatsapp")]
+    assert [r["messages"][0]["content"] for r in calls.requests] == [extraction_prompt(summary=True),
+                                                                      extraction_prompt("whatsapp", summary=True)]
     # La salida es siempre guiada por el esquema de los campos.
     assert all(r["response_format"]["type"] == "json_schema" for r in calls.requests)
 

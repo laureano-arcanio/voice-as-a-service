@@ -550,3 +550,78 @@ def test_contact_campaigns(api, voice, admin):  # noqa: F811
     assert user.get(f"{V1}/contacts/{rows[1]['id']}/campaigns").json() == []
     other = client_user(api, admin, make_client(admin, slug="otro"), email="o@x.com")
     assert other.get(f"{V1}/contacts/{rows[0]['id']}/campaigns").status_code == 404
+
+
+# ---------- datos de cada contacto como variables de la llamada (voz) ----------
+
+def test_voice_campaign_csv_columns_are_variables(api, voice):
+    user, agent, _ = voice
+    csv = ("telefono,Nombre,Deuda Total,2do,params,channel\n351 555-2001,Eva,125000,x,p,c\n"
+           "351 555-2002,Luis,,x,p,c\n351 555-2003,Mal,1,x,p,c\n555,Mala,1,x,p,c\n")
+    r = user.post(f"{V1}/campaigns", json=voice_body(agent, csv=csv))
+    assert r.status_code == 201, r.text
+    out = r.json()
+    assert out["added"] == 3 and [(x["phone"], x["line"]) for x in out["skipped"]] == [("555", 5)]
+    items = user.get(f"{V1}/campaigns/{out['campaign']['id']}/contacts").json()["items"]
+    by_phone = {i["phone"]: i["vars"] for i in items}
+    assert by_phone["+5493515552001"] == {"nombre": "Eva", "telefono": "+5493515552001", "deuda_total": "125000"}
+    assert by_phone["+5493515552002"] == {"nombre": "Luis", "telefono": "+5493515552002"}
+    # La agenda no guarda las columnas.
+    eva = next(c for c in user.get(f"{V1}/contacts", params={"q": "Eva"}).json()["items"])
+    assert "deuda_total" not in str(eva) and "vars" not in eva
+
+
+def test_voice_campaign_csv_limits(api, voice):
+    user, agent, _ = voice
+    wide = "telefono," + ",".join(f"c{i}" for i in range(31)) + "\n351 555-2001\n"
+    assert user.post(f"{V1}/campaigns", json=voice_body(agent, csv=wide)).status_code == 422
+    r = user.post(f"{V1}/campaigns", json=voice_body(
+        agent, csv=f"telefono,deuda\n351 555-2001,{'9' * 2001}\n351 555-2002,5\n"))
+    assert r.status_code == 201, r.text
+    out = r.json()
+    assert out["added"] == 1 and [(x["phone"], x["line"]) for x in out["skipped"]] == [("351 555-2001", 2)]
+    assert "deuda" in out["skipped"][0]["reason"]
+    # Una fila rechazada no entra a la agenda.
+    assert [c["phone"] for c in user.get(f"{V1}/contacts").json()["items"]] == ["+5493515552002"]
+
+
+def test_voice_campaign_contacts_variables(api, voice):
+    user, agent, _ = voice
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent)).json()["campaign"]
+    url = f"{V1}/campaigns/{camp['id']}/contacts"
+    r = user.post(url, json={"contacts": [
+        {"phone": "351 555-3001", "name": "Eva", "variables": {"deuda": "125000", "vence": 5, "nombre": "Pisa", "x": None}},
+        {"phone": "351 555-3002"}]})
+    assert r.status_code == 200, r.text
+    assert r.json()["added"] == 2
+    items = {i["phone"]: i["vars"] for i in user.get(url).json()["items"]}
+    # `variables` no pisa nombre, telefono ni email.
+    assert items["+5493515553001"] == {"deuda": "125000", "vence": 5, "nombre": "Eva", "telefono": "+5493515553001"}
+    assert items["+5493515553002"] == {"telefono": "+5493515553002"}
+    for bad in ({"channel": "x"}, {"call.id": "x"}, {"Deuda": "1"}, {"a": {"b": 1}}, {"a": "x" * 2001},
+                {f"v{i}": i for i in range(31)}):
+        r = user.post(url, json={"contacts": [{"phone": "351 555-3009"}, {"phone": "351 555-3003", "variables": bad}]})
+        assert r.status_code == 422, (bad, r.text)
+        assert r.json()["errors"][0]["path"].startswith("contacts.1.variables"), r.text
+    assert user.post(url, json={"contacts": [{"phone": "351 555-3004", "variables": []}]}).status_code == 422
+    # Nada de lo rechazado quedó cargado.
+    assert len(user.get(url).json()["items"]) == 2
+
+
+def test_whatsapp_campaign_rejects_contact_variables_and_ignores_csv_columns(api, account):  # noqa: F811
+    user, acc, _ = account
+    r = user.post(f"{V1}/campaigns", json=wa_body(acc, param_names=["nombre"], contacts=[
+        {"phone": "351 555-3001", "name": "Eva", "variables": {"deuda": "1"}}]))
+    assert r.status_code == 422 and "contacts.0.variables" in r.text
+    r = user.post(f"{V1}/campaigns", json=wa_body(
+        acc, param_names=["nombre"], csv="telefono,nombre,deuda\n351 555-3001,Eva,1\n"))
+    assert r.status_code == 201, r.text
+    item = user.get(f"{V1}/campaigns/{r.json()['campaign']['id']}/contacts").json()["items"][0]
+    assert "deuda" not in item["vars"] and item["vars"]["params"] == ["Eva"]
+
+
+def test_contacts_import_ignores_extra_columns(api, voice):
+    user, _, _ = voice
+    wide = "telefono,nombre," + ",".join(f"c{i}" for i in range(40)) + "\n351 555-4001,Ana\n"
+    r = user.post(f"{V1}/contacts/import", json={"csv": wide})
+    assert r.status_code == 200 and r.json()["created"] == 1

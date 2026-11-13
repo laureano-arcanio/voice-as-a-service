@@ -20,24 +20,23 @@ from .test_whatsapp_service import make_wa, send
 from .tools_mock import mock_api_url, mock_server  # noqa: F401  (fixtures)
 
 
-def state_of(status="active", outcome=None, preloaded=(), **fields) -> ConversationState:
+def state_of(status="active", outcome=None, **fields) -> ConversationState:
     return ConversationState(conversation_id="c", agent_id="sales_discovery", status=status, fields=fields,
-                             progress=Progress(outcome=outcome, preloaded=list(preloaded)))
+                             progress=Progress(outcome=outcome))
 
 
 def test_conversion(workflow):
     assert conversion(workflow, state_of()) == "empty"
-    # Los precargados (el telefono de la llamada) no son datos capturados.
-    assert conversion(workflow, state_of(preloaded=["contact_name"], contact_name="Juan")) == "empty"
     assert conversion(workflow, state_of(contact_name="Juan", company_name="")) == "partial"
     full = {**BASE, "wants_demo": False}
+    # Completa: el agente termino la conversacion, con los datos que sean.
     assert conversion(workflow, state_of("completed", "no_demo", **full)) == "complete"
-    # Activa, o terminada incompleta o fuera de tema: no es completa aunque tenga todos los datos.
+    assert conversion(workflow, state_of("completed", "no_demo", contact_name="Juan")) == "complete"
+    assert conversion(workflow, state_of("completed", None)) == "complete"
+    # Activa, o terminada fuera de tema (o incompleta, de las guardadas): no es completa.
     assert conversion(workflow, state_of("active", None, **full)) == "partial"
     assert conversion(workflow, state_of("completed", "incompleta", **full)) == "partial"
     assert conversion(workflow, state_of("completed", "fuera_de_tema")) == "empty"
-    # Con un resultado que no es el de los datos pero faltan obligatorios: parcial.
-    assert conversion(workflow, state_of("completed", "no_demo", contact_name="Juan")) == "partial"
     assert outcome_goal(workflow, "demo") is True and outcome_goal(workflow, "no_demo") is False
     assert outcome_goal(workflow, "incompleta") is False and outcome_goal(workflow, None) is None
 
@@ -75,8 +74,9 @@ async def test_incomplete_and_empty_conversation(store):
     cid = start_with(engine)
     await turn_and_extract(engine, cid, "Número equivocado.")
     r = row(store, cid)
-    # Sin datos el resultado es el default (no_demo) y no cumple el objetivo; sin usage del proveedor, 0 tokens.
-    assert (r.outcome, r.goal, r.conversion, r.llm_input_tokens) == ("no_demo", False, "empty", 0)
+    # Sin datos el resultado es el default (no_demo) y no cumple el objetivo, pero el agente la termino: completa.
+    # Sin usage del proveedor, 0 tokens.
+    assert (r.outcome, r.goal, r.conversion, r.llm_input_tokens) == ("no_demo", False, "complete", 0)
 
 
 async def test_openai_stream_usage(store):

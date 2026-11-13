@@ -1,4 +1,4 @@
-"""Apertura pregenerada (`conversation.opening_audio` en la definicion del agente).
+"""Primer mensaje pregenerado (`first_message_audio` en la definicion del agente).
 
 En la llamada, el TTS de LiveKit parte el texto en frases y sintetiza cada una por separado: la
 entonacion de cada frase no ve las otras. Con la bandera, al guardar el agente la app sintetiza
@@ -9,8 +9,8 @@ la apertura entera en un solo pedido y el worker de voz reproduce ese audio al a
   que se regenera al guardar y una llamada en curso sigue con el de su version.
 - Lo genera `app` al crear o guardar el agente (en segundo plano, despues de responder) y lo
   lee `agent`: `storage/` esta montado en los dos.
-- Si no esta (fallo el TTS, todavia se genera, la llamada eligio otra voz, la apertura tiene
-  `{{variables}}` de una campaña), la apertura se sintetiza en vivo como siempre.
+- Si no esta (fallo el TTS, todavia se genera, la llamada eligio otra voz, el primer mensaje tiene
+  `{{variables}}`), se sintetiza en vivo como siempre.
 - Al cambiar el checkpoint del TTS los WAV quedan con la voz vieja: borrar el directorio (o
   volver a guardar los agentes).
 """
@@ -43,9 +43,9 @@ def path_for(agent_id: str, version: int, voice: str) -> Path:
 
 
 def wanted(workflow: Workflow) -> bool:
-    """La bandera y una apertura fija: con `{{variables}}` el texto cambia por contacto."""
-    text = workflow.conversation.opening.strip()
-    return workflow.conversation.opening_audio and bool(text) and "{{" not in text
+    """La bandera y un primer mensaje fijo: con `{{variables}}` el texto cambia por conversacion."""
+    text = workflow.first_message.strip()
+    return workflow.first_message_audio and bool(text) and "{{" not in text
 
 
 async def generate(agent_id: str, workflow: Workflow) -> Path | None:
@@ -59,7 +59,7 @@ async def generate(agent_id: str, workflow: Workflow) -> Path | None:
     if path.exists():
         return path
     body = {"model": settings.vllm_tts_model, "voice": voice,
-            "input": to_speech(workflow.conversation.opening.strip(), workflow.agent.language),
+            "input": to_speech(workflow.first_message.strip(), workflow.agent.language),
             "response_format": "pcm"}
     try:
         async with httpx.AsyncClient(timeout=TTS_TIMEOUT) as client:
@@ -82,7 +82,7 @@ async def generate(agent_id: str, workflow: Workflow) -> Path | None:
 
 def load_pcm(agent_id: str, workflow: Workflow, voice: str, text: str) -> bytes | None:
     """PCM (24 kHz, mono) de la apertura pregenerada, si esta y corresponde a lo que va a sonar."""
-    if not wanted(workflow) or text != workflow.conversation.opening:
+    if not wanted(workflow) or text != workflow.first_message:
         return None
     path = path_for(agent_id, workflow.version, voice)
     try:

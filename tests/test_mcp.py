@@ -253,7 +253,7 @@ def test_build_and_test_an_agent(api, full):
     bad = ok(mcp.call("validate_agent_definition", definition={"conversation": "nope"}))
     assert bad["valid"] is False and bad["errors"]
     agent = ok(mcp.call("create_agent", name="Turnos", definition=definition))
-    definition["conversation"]["opening"] = "Hola, te habla Sofía de la peluquería."
+    definition["first_message"] = "Hola, te habla Sofía de la peluquería."
     updated = ok(mcp.call("update_agent_definition", agent_id=agent["id"], definition=definition))
     assert updated["version"] == 2
     api.llm.turns = [AgentTurn(assistant_message="¿En qué te ayudo?")]

@@ -14,17 +14,16 @@ import json
 import logging
 import threading
 import time
-from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import httpx
 from openai import AsyncOpenAI
-from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from ..conversation import variables
 from ..conversation.models import AgentTurn, ConversationState, Workflow
-from ..models import CallRow, Client, LlmConnection, PhoneNumber
+from ..models import Client, LlmConnection
 from ..services import limits as limits_service
 from ..whatsapp import crypto
 from . import platform_tools
@@ -33,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_SECONDS = 30          # una conexion revocada o un plan que ya no la incluye dejan de usarse en a lo sumo esto
 TURN_TIMEOUT = 30           # un turno entero (el primer token tiene su propio tope, ExternalConfig)
-HEADER_MAX = 2000           # contacto y motivo en headers: recortados, para no pasar el limite del servidor
-CONTEXTS_MAX = 1024         # datos de llamada cacheados por conversacion
+HEADER_MAX = 2000           # variables en el header: hasta esto, para no pasar el limite del servidor
 
 
 class ExternalError(Exception):
@@ -73,6 +71,24 @@ def build_messages(workflow: Workflow, state: ConversationState, user_message: s
     return messages
 
 
+def variables_header(values: dict) -> str:
+    """X-Atentina-Variables: JSON ASCII de hasta HEADER_MAX, siempre valido. Las que no entran se dejan afuera; un
+    texto que no entra, recortado."""
+    def size(d: dict) -> int:
+        return len(json.dumps(d, ensure_ascii=True))
+
+    out: dict = {}
+    for name, value in values.items():
+        if size({**out, name: value}) > HEADER_MAX and isinstance(value, str):
+            while value and (excess := size({**out, name: value}) - HEADER_MAX) > 0:
+                value = value[:-max(1, excess // 6)]    # un caracter escapado ocupa hasta 6 (\uXXXX)
+            if not value:
+                continue
+        if size({**out, name: value}) <= HEADER_MAX:
+            out[name] = value
+    return json.dumps(out, ensure_ascii=True)
+
+
 def _ascii(value: str, limit: int = 256) -> str:
     """Un header tiene que ser ASCII: JSON con escapes para lo que no lo es."""
     text = json.dumps(value, ensure_ascii=True)[1:-1] if not value.isascii() else value
@@ -87,7 +103,6 @@ class ExternalAgents:
         self._lock = threading.Lock()
         self._targets: dict[tuple[str, str], tuple[float, Target | None, str]] = {}
         self._clients: dict[tuple[str, float], AsyncOpenAI] = {}
-        self._contexts: OrderedDict[str, dict] = OrderedDict()
 
     def target(self, workflow: Workflow, client_id: str | None) -> Target:
         """La conexion del agente, si es de su cliente, esta vigente y el plan incluye la funcion.
@@ -133,50 +148,30 @@ class ExternalAgents:
                         timeout=httpx.Timeout(TURN_TIMEOUT, connect=5))
             return Target(row.id, row.default_model or "agent", http), ""
 
-    def context(self, state: ConversationState, actor: str | None) -> dict:
-        """Los datos de la llamada para los headers, una vez por conversacion: modo, numeros y la campaña."""
-        with self._lock:
-            if (cached := self._contexts.get(state.conversation_id)) is not None:
-                return cached
-        ctx = {"mode": state.channel if state.channel == "whatsapp" else "", "from": "", "to": ""}
-        if state.channel == "whatsapp" and actor and actor.startswith("wa:"):
-            ctx["from"] = "+" + actor[3:].lstrip("+")
-        elif state.channel == "voice":
-            with self.sessions() as s:
-                call = s.get(CallRow, state.conversation_id)
-                if call is not None:
-                    ours = (s.scalar(select(PhoneNumber.e164).where(PhoneNumber.id == call.phone_number_id))
-                            if call.phone_number_id else None) or ""
-                    ctx["mode"] = call.mode
-                    # Entrante: llama `phone` a un numero nuestro; saliente: al reves.
-                    ctx["from"], ctx["to"] = ((ours, call.phone or "") if call.mode in ("saliente", "celular")
-                                              else (call.phone or "", ours))
-                elif state.progress.caller_phone:   # prueba por texto con numero simulado (POST /conversations)
-                    ctx["from"] = state.progress.caller_phone
-        with self._lock:
-            self._contexts[state.conversation_id] = ctx
-            while len(self._contexts) > CONTEXTS_MAX:
-                self._contexts.popitem(last=False)
-        return ctx
-
     def headers(self, workflow: Workflow, state: ConversationState, actor: str | None) -> dict[str, str]:
-        ctx = self.context(state, actor)
+        """Los datos de la llamada (progress.call, los fija quien crea la conversacion) y las variables visibles:
+        las ocultas y los secretos nunca salen."""
+        call = state.progress.call or {}
+        # Sin numero en progress.call: el simulado de una prueba por texto, o el WhatsApp de quien escribe.
+        caller = state.progress.caller_phone or (
+            "+" + actor[3:].lstrip("+") if state.channel == "whatsapp" and actor and actor.startswith("wa:") else "")
         turn = 1 + sum(m.role == "user" for m in state.messages)
         headers = {"X-Atentina-Conversation-Id": state.conversation_id, "X-Atentina-Channel": state.channel,
-                   "X-Atentina-Mode": ctx["mode"], "X-Atentina-From": ctx["from"], "X-Atentina-To": ctx["to"],
+                   "X-Atentina-Mode": call.get("mode") or (state.channel if state.channel == "whatsapp" else ""),
+                   "X-Atentina-Direction": call.get("direction") or "",
+                   "X-Atentina-From": call.get("from") or caller, "X-Atentina-To": call.get("to") or "",
                    "X-Atentina-Agent": _ascii(workflow.id), "X-Atentina-Turn": str(turn)}
-        if state.progress.contact:
-            headers["X-Atentina-Contact"] = json.dumps(state.progress.contact, ensure_ascii=True)[:HEADER_MAX]
-        if state.progress.context:
-            headers["X-Atentina-Context"] = _ascii(state.progress.context, HEADER_MAX)
-        return {k: v for k, v in headers.items() if v}
+        if visible := variables.visible(state):
+            headers["X-Atentina-Variables"] = variables_header(visible)
+        return {k: _ascii(v) if k in ("X-Atentina-From", "X-Atentina-To", "X-Atentina-Mode") else v
+                for k, v in headers.items() if v}
 
     async def turn(self, workflow: Workflow, state: ConversationState, user_message: str,
                    on_message: Callable[[str], None] | None, actor: str | None) -> ExternalResult:
         """El turno del agente del cliente. ExternalError si no contesta (nada se dijo todavia); si se corta
         despues de empezar a hablar, queda lo dicho y el error en la traza."""
         target = self.target(workflow, state.client_id)
-        tools = platform_tools.tools_for(state, [o.id for o in workflow.completion.outcomes])
+        tools = platform_tools.tools_for(state, [o.id for o in workflow.outcomes] or None)
         request = dict(model=target.model, messages=build_messages(workflow, state, user_message), tools=tools,
                        stream=True, user=state.conversation_id,
                        extra_headers=self.headers(workflow, state, actor))

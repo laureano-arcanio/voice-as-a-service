@@ -1,6 +1,6 @@
-"""Campañas de voz, fase 3 (docs/features/CAMPANAS.md): datos del contacto en la
-conversacion (apertura con {{variable}}, campos precargados, prompt), el reporte por contacto
-(report.csv), los indicadores y el filtro por campaña de las llamadas."""
+"""Campañas de voz, fase 3 (docs/features/CAMPANAS.md): datos del contacto como variables de la
+conversacion ({{variable}} en el primer mensaje y en el prompt), el reporte por contacto (report.csv), los
+indicadores y el filtro por campaña de las llamadas."""
 import csv
 import datetime
 import io
@@ -10,12 +10,12 @@ from sqlalchemy import select
 
 from app.agents.definitions import DbDefinitions
 from app.agents.templates import load_reference, reference_data
-from app.conversation import contact as contact_data
+from app.conversation import variables
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import ConversationState
 from app.llm.prompt import (
-    build_turn_messages,
     build_system_prompt,
+    build_turn_messages,
 )
 from app.models import CallRow, Campaign, CampaignContact
 from app.services import campaign_reports
@@ -42,90 +42,73 @@ from .test_whatsapp_service import (
 )
 
 CAMPAIGN_OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}}, al {{telefono}}?"
-OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}} por la deuda de ${{deuda}}?"
 
 
-# ---------- variables en la apertura ----------
+# ---------- variables en el primer mensaje ----------
 
-def test_render_template_replaces_by_name():
-    vars = {"nombre": "Ana", "deuda": 15000.0, "Fecha Vence": "2026-11-01", "params": ["x"]}
-    assert contact_data.render_template("{{nombre}} debe ${{ deuda }}", vars) == "Ana debe $15000"
+def test_render_matches_contact_names():
+    state = ConversationState(conversation_id="c", agent_id="a", fields={})
+    variables.merge(state, {"nombre": "Ana", "deuda": 15000.0, "Fecha Vence": "2026-11-01", "params": ["x"]}, "contact")
+    assert variables.render("{{nombre}} debe ${{ deuda }}", state) == "Ana debe $15000"
     # Sin importar mayusculas ni acentos, como los atributos del contacto.
-    assert contact_data.render_template("Vence el {{fecha_vence}}. {{NOMBRE}}", vars) == "Vence el 2026-11-01. Ana"
-    assert contact_data.render_template("Hola.", vars) == "Hola."
+    assert variables.render("Vence el {{fecha_vence}}. {{NOMBRE}}", state) == "Vence el 2026-11-01. Ana"
+    assert variables.render("Hola.", state) == "Hola."
 
 
-def test_render_template_missing_variable_is_empty_and_tidy():
-    assert contact_data.render_template("Hola {{nombre}}, soy Valentina.", {}) == "Hola, soy Valentina."
-    assert contact_data.render_template("Hola {{nombre}}! ¿Cómo estás?", {"nombre": ""}) == "Hola! ¿Cómo estás?"
+def test_render_missing_variable_is_empty_and_tidy():
+    state = ConversationState(conversation_id="c", agent_id="a", fields={})
+    assert variables.render("Hola {{nombre}}, soy Valentina.", state) == "Hola, soy Valentina."
+    variables.merge(state, {"nombre": ""}, "contact")
+    assert variables.render("Hola {{nombre}}! ¿Cómo estás?", state) == "Hola! ¿Cómo estás?"
     # Los valores posicionales de WhatsApp no son variables del contacto.
-    assert contact_data.render_template("{{params}}|{{1}}", {"params": ["x"]}) == "|"
+    variables.merge(state, {"params": ["x"]}, "contact")
+    assert variables.render("{{params}}|{{1}}", state) == "|"
     # Sin variables faltantes el texto no se toca.
-    assert contact_data.render_template("Hola  {{nombre}} , soy", {"nombre": "Ana"}) == "Hola  Ana , soy"
-
-
-# ---------- campos precargados ----------
-
-def test_preload_matches_workflow_fields_and_keeps_the_rest():
-    wf = load_reference("eval_cobranza")     # cuotas: integer, promesa: choice
-    fields, rest = contact_data.preload(wf, {"nombre": "Ana", "Cuotas": "3", "promesa": "cuotas", "deuda": 15000,
-                                             "motivo": "", "params": ["x"]})
-    assert fields == {"cuotas": 3, "promesa": "cuotas"}
-    assert rest == {"nombre": "Ana", "deuda": 15000}      # sin vacios ni params
-    # Un valor que el tipo del campo no acepta no se precarga: queda como dato del contacto.
-    fields, rest = contact_data.preload(wf, {"cuotas": "muchas", "promesa": "nunca"})
-    assert fields == {} and rest == {"cuotas": "muchas", "promesa": "nunca"}
+    variables.merge(state, {"nombre": "Ana"}, "contact")
+    assert variables.render("Hola  {{nombre}} , soy", state) == "Hola  Ana , soy"
 
 
 def test_new_conversation_with_contact(store):
+    """Los datos del contacto son variables (fuente contact); no precargan campos del analisis."""
     engine = ConversationEngine(FakeLLM(), store)
-    wf = reference_data("eval_cobranza")
-    state, text = engine.new_conversation("eval_cobranza", contact={"nombre": "Ana", "titular": "true", "deuda": 100})
-    assert text == wf["conversation"]["opening"] == state.messages[0].text      # sin variables: igual
-    assert state.fields["titular"] is True and state.progress.preloaded == ["titular"]
-    assert state.progress.contact == {"nombre": "Ana", "deuda": 100}
-    # Sin contact (llamada entrante o de prueba) nada cambia.
-    state, _ = engine.new_conversation("eval_cobranza")
-    assert state.progress.contact == {} and state.progress.preloaded == []
+    wf = load_reference("eval_cobranza")
+    state, text = engine.new_conversation("eval_cobranza", variables={"contact": {"nombre": "Ana", "titular": "true", "deuda": 100}})
+    assert text == wf.first_message == state.messages[0].text      # sin variables: igual
     assert all(v is None for v in state.fields.values())
+    assert state.progress.variables == {"nombre": "Ana", "titular": "true", "deuda": 100}
+    assert set(state.progress.variable_sources.values()) == {"contact"}
+    state, _ = engine.new_conversation("eval_cobranza")
+    assert state.progress.variables == {}
 
 
-def test_new_conversation_opening_text_is_rendered_only_with_contact(store):
+def test_new_conversation_opening_text_is_rendered(store):
     engine = ConversationEngine(FakeLLM(), store)
-    _, text = engine.new_conversation("eval_cobranza", opening="Hola {{nombre}}", contact={"nombre": "Ana"})
+    _, text = engine.new_conversation("eval_cobranza", opening="Hola {{nombre}}", variables={"contact": {"nombre": "Ana"}})
     assert text == "Hola Ana"
     _, text = engine.new_conversation("eval_cobranza", opening="Hola {{nombre}}")
-    assert text == "Hola {{nombre}}"
-    state, text = engine.new_conversation("eval_cobranza", opening=False, contact={"nombre": "Ana"})
-    assert text == "" and state.messages == [] and state.progress.contact == {"nombre": "Ana"}
+    assert text == "Hola"
+    state, text = engine.new_conversation("eval_cobranza", opening=False, variables={"contact": {"nombre": "Ana"}})
+    assert text == "" and state.messages == [] and state.progress.variables == {"nombre": "Ana"}
 
 
 def test_contact_survives_the_store(store):
     engine = ConversationEngine(FakeLLM(), store)
-    state, _ = engine.start_conversation("eval_cobranza", contact={"nombre": "Ana", "cuotas": 3})
+    state, _ = engine.start_conversation("eval_cobranza", variables={"contact": {"nombre": "Ana", "cuotas": 3}})
     again = store.get(state.conversation_id)
-    assert again.progress.contact == {"nombre": "Ana"} and again.progress.preloaded == ["cuotas"]
-    assert again.fields["cuotas"] == 3
+    assert again.progress.variables == {"nombre": "Ana", "cuotas": 3}
+    assert again.progress.variable_sources == {"nombre": "contact", "cuotas": "contact"}
 
 
-# ---------- el prompt, en los tres motores ----------
-
-def _state(wf, **kw) -> ConversationState:
-    return ConversationState(conversation_id="c", agent_id=wf.id, fields={n: None for n in wf.fields}, **kw)
-
-
-def test_classic_prompt_has_the_contact_data_only_when_there_is():
+def test_contact_data_reaches_the_prompt_only_where_named():
+    """Nada se agrega solo: sin {{x}} en el prompt, los datos del contacto no aparecen."""
     wf = load_reference("eval_cobranza")
-    plain = build_system_prompt(wf, "voice", _state(wf))
-    assert plain == build_system_prompt(wf) and "DATOS DEL CONTACTO" not in plain
-    state = _state(wf)
-    state.progress.contact = {"nombre": "Ana", "deuda": 15000}
-    state.progress.preloaded = ["cuotas"]
-    state.fields["cuotas"] = 3
+    state = ConversationState(conversation_id="c", agent_id=wf.id, fields={n: None for n in wf.analysis_fields})
+    variables.merge(state, {"nombre": "Ana", "deuda": 15000}, "contact")
     system = build_system_prompt(wf, "voice", state)
-    assert "DATOS DEL CONTACTO" in system and "- nombre: Ana" in system and "- deuda: 15000" in system
-    assert "DATOS YA CONOCIDOS" in system and "- cuotas: 3" in system
-    assert build_turn_messages(wf, state, "Hola")[0]["content"] == system
+    assert "15000" not in system and "DATOS DEL CONTACTO" not in system
+    named = wf.model_copy(update={"prompt": wf.prompt + "\nDeuda de {{nombre}}: {{deuda}}."})
+    assert build_system_prompt(named, "voice", state).endswith("Deuda de Ana: 15000.")
+    assert build_turn_messages(named, state, "Hola")[0]["content"] == build_system_prompt(named, "voice", state)
 
 
 # ---------- la llamada de una campaña ----------
@@ -135,7 +118,7 @@ def cobranza(api, admin):  # noqa: F811
     """Un cliente con campañas de voz y un agente de cobranza con {{variables}} en la apertura."""
     c = make_client(admin, slug="cobra", campaign_channels=["voice"])
     definition = reference_data("eval_cobranza")
-    definition["conversation"]["opening"] = CAMPAIGN_OPENING
+    definition["first_message"] = CAMPAIGN_OPENING
     agent = make_agent(admin, c, definition=definition)
     return client_user(api, admin, c, email="cobra@x.com"), agent, c
 
@@ -159,13 +142,12 @@ async def test_the_call_carries_the_contact_data(api, cobranza):
     ana, sin_datos = members(api, camp["id"])
     state = api.engine.store.get(ana.conversation_id)
     assert state.messages[0].text == "Hola Ana, te habla Valentina de Fibranet. ¿Hablo con Ana, al +5493515551001?"
-    # Los datos del contacto van al prompt; la nota no es una variable.
-    assert state.progress.contact == {"nombre": "Ana", "telefono": "+5493515551001", "email": "ana@x.com"}
+    # Los datos del contacto son variables; la nota no es una variable.
+    assert state.progress.variables == {"nombre": "Ana", "telefono": "+5493515551001", "email": "ana@x.com"}
     # Un contacto sin nombre: las variables quedan vacias y el texto, acomodado.
     other = api.engine.store.get(sin_datos.conversation_id)
     assert other.messages[0].text == "Hola, te habla Valentina de Fibranet. ¿Hablo con, al +5493515551002?"
-    assert other.progress.preloaded == []
-    assert other.progress.contact == {"telefono": "+5493515551002"}
+    assert other.progress.variables == {"telefono": "+5493515551002"}
 
 
 # ---------- reporte e indicadores ----------
@@ -294,3 +276,18 @@ async def test_whatsapp_campaign_report_and_stats(sessions):
     assert first["conversation_id"] == conv.id and first["link"].endswith(f"/calls/{conv.id}")
     assert (second["resultado"], second["conversation_id"], second["link"]) == ("sent", "", "")
     assert recipients(sessions, cid)[0].replied_at is not None
+
+
+async def test_csv_columns_reach_the_call_as_contact_variables(api, cobranza):
+    """Una columna del CSV (Deuda Total) llega a la llamada del discador como `deuda_total`, fuente `contact`."""
+    user, agent, _ = cobranza
+    csv = "telefono,Nombre,Deuda Total\n351 555-1001,Ana,125000\n351 555-1002,Juan,\n"
+    body = voice_body(agent, csv=csv, window_start=0, window_end=24, rate_per_minute=600, concurrency=2)
+    camp = user.post(f"{V1}/campaigns", json=body).json()["campaign"]
+    assert user.post(f"{V1}/campaigns/{camp['id']}/start").status_code == 200
+    assert await dialer_for(api).tick() == 2
+    ana, juan = members(api, camp["id"])
+    state = api.engine.store.get(ana.conversation_id)
+    assert state.progress.variables["deuda_total"] == "125000"
+    assert state.progress.variable_sources["deuda_total"] == "contact"
+    assert "deuda_total" not in api.engine.store.get(juan.conversation_id).progress.variables

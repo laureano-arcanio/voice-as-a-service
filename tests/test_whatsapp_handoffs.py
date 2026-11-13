@@ -298,7 +298,7 @@ async def test_pre_call_only_on_new_conversation_and_webhook_not_delayed(h):
     await h.service.drain()
     assert h.tools.calls == [("pre_call", f"wa:{WA_ID}")]
     state = h.engine.store.get(thread_of(h).conversation_id)
-    assert state.progress.tool_vars["nombre"] == "María Gómez"
+    assert state.progress.variables["nombre"] == "María Gómez"
     await send(h, text_payload("sigo", "wamid.2"))
     assert len(h.tools.calls) == 1
 

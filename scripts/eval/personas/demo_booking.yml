@@ -126,7 +126,7 @@ personas:
       fields:
         contact: null
         contact_name: null
-      outcome: [no_pitch, no_interest, sin_terminar, incompleta]
+      outcome: [no_pitch, no_interest, sin_terminar]
     turnos_max: 5
     guion:
       - "Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos"

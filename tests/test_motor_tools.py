@@ -133,7 +133,9 @@ async def test_classic_calls_the_tool_and_answers_with_the_result(api, admin, mo
     assert [t["kind"] for t in trace] == ["turno", "herramienta"]
     assert trace[1]["tool"]["slug"] == "consultar_turnos" and trace[1]["tool"]["ok"] is True
     assert mock_api.TOKEN not in json.dumps(trace)
-    assert state.progress.tool_vars == {"sucursal_nombre": "Sucursal Centro"}
+    # Con las declaradas por el agente (nombre y motivo, vacias por defecto).
+    assert state.progress.variables == {"nombre": "", "motivo": "", "sucursal_nombre": "Sucursal Centro"}
+    assert state.progress.variable_sources["sucursal_nombre"] == "tool:consultar_turnos"
 
 
 async def test_the_model_speaking_first_skips_the_start_phrase(api, admin, mock_api_url):

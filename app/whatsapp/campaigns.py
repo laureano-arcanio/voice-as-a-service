@@ -476,6 +476,7 @@ class ReplyTarget:
     agent_id: str | None
     opening: str
     sent_at: datetime.datetime | None = None
+    vars: dict | None = None        # los datos del contacto de la campaña: variables de la conversacion
 
 
 def _followup_sent(s: Session, account_id: str, wa_id: str, since: datetime.datetime | None = None,
@@ -511,14 +512,15 @@ def reply_target(s: Session, account_id: str, wa_id: str, now: datetime.datetime
     if row is not None:
         recipient, campaign = row
         target = ReplyTarget(recipient_id=recipient.id, campaign_id=campaign.id, agent_id=campaign.agent_id,
-                             opening=render(campaign.template_body, recipient.params), sent_at=recipient.sent_at)
+                             opening=render(campaign.template_body, recipient.params), sent_at=recipient.sent_at,
+                             vars=recipient.vars)
     for recipient, campaign in _followup_sent(s, account_id, wa_id, since, unanswered=True)[:1]:
         if target is None or recipient.followup_sent_at > target.sent_at:
             f = campaign.followup or {}
             target = ReplyTarget(recipient_id=recipient.id, campaign_id=campaign.id,
                                  agent_id=f.get("agent_id") or campaign.agent_id,
                                  opening=render(f.get("template_body") or "", followup_values(campaign, recipient)),
-                                 sent_at=recipient.followup_sent_at)
+                                 sent_at=recipient.followup_sent_at, vars=recipient.vars)
     return target
 
 

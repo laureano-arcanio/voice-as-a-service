@@ -112,7 +112,7 @@ async def test_tool(client_id: str, slug: str, body: ToolTestIn, p: CurrentPrinc
     row = svc.get_tool(db, client.id, slug)
     result = await svc.test_tool(lambda: nullcontext(db), client.id, row.type, row.definition, body.args,
                                  slug=row.slug, revision=row.revision, agent_id=body.agent_id,
-                                 secrets=body.secrets, call=body.call)
+                                 secrets=body.secrets, call=body.call, variables=body.variables)
     svc.record_test(db, row, result)
     db.commit()
     return _test_out(result)
@@ -124,7 +124,8 @@ async def test_draft(client_id: str, body: ToolDraftTestIn, p: CurrentPrincipal,
     client = get_client(db, p, client_id)
     svc.check_plan(db, client.id, body.type)
     result = await svc.test_tool(lambda: nullcontext(db), client.id, body.type, body.definition, body.args,
-                                 agent_id=body.agent_id, secrets=body.secrets, call=body.call)
+                                 agent_id=body.agent_id, secrets=body.secrets, call=body.call,
+                                 variables=body.variables)
     return _test_out(result)
 
 

@@ -61,7 +61,7 @@ def test_first_agent_from_industry_and_voice(api, ana):
     assert r.status_code == 201, r.text
     agent = r.json()
     assert agent["name"] == "Lucas · atención" and agent["voice"] == "lucas"
-    assert "Acme" in agent["definition"]["conversation"]["opening"]
+    assert "Acme" in agent["definition"]["first_message"]
     status = user.get(f"{V1}/onboarding").json()
     assert status["has_agents"] is True and status["industry"] == "gimnasio" and status["website"] == "https://acme.com"
     # Otra vez el mismo rubro y voz (archivo el primero): slug distinto.

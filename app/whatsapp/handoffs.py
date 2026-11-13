@@ -41,7 +41,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..conversation import workflows
+from ..conversation import variables, workflows
 from ..conversation.models import AgentTurn, ConversationState, Message
 from ..db import utcnow
 from ..llm.prompt import render_conversation
@@ -171,10 +171,11 @@ class TextHandoffs:
     # --- Valores de mensajes y plantillas ---
 
     def _variables(self, conversation_id: str) -> dict:
-        """Las del pre-call, sin las reservadas."""
+        """Las de la conversacion (ocultas incluidas: van al equipo, no al LLM) sin las reservadas, y las del
+        sistema."""
         state = self.engine.store.get(conversation_id)
-        tool_vars = state.progress.tool_vars if state is not None else {}
-        return {k: "" if v is None else v for k, v in tool_vars.items() if k not in RESERVED_VARS}
+        values = variables.message_values(state, self.engine.workflow(state) if state is not None else None)
+        return {k: "" if v is None else v for k, v in values.items() if k not in RESERVED_VARS}
 
     def _template_values(self, thread: WaThread, *, contact: bool) -> dict:
         """Para los params de una plantilla. contact: el aviso, que lleva el telefono; en la rotacion no sale antes de

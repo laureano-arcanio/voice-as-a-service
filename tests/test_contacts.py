@@ -166,6 +166,28 @@ def test_parse_csv():
     assert contacts.parse_csv("  ") == []
 
 
+def test_parse_csv_data_columns():
+    """Para una campaña de voz, las columnas sin rol son variables: nombre normalizado, sin vacías ni repetidas."""
+    text = ("telefono,Nombre,Deuda Total,2do,params,channel,deuda_total,Fecha de vencimiento,Notas\n"
+            "351 555-1234,Ana,125000,x,p,c,otra,2026-11-01,nota\n"
+            "351 555-0000,Juan,,x,p,c,,,\n")
+    ana, juan = contacts.parse_csv(text, data_columns=True)
+    assert ana.vars == {"deuda_total": "125000", "fecha_de_vencimiento": "2026-11-01"} and ana.error is None
+    assert juan.vars == {} and (ana.name, ana.notes) == ("Ana", "nota")
+    # La agenda no las toma.
+    assert [r.vars for r in contacts.parse_csv(text)] == [{}, {}]
+
+
+def test_parse_csv_data_columns_limits():
+    cols = lambda n: ",".join(f"c{i}" for i in range(n))   # noqa: E731
+    contacts.parse_csv(f"telefono,{cols(30)}\n3515551234\n", data_columns=True)
+    with pytest.raises(Invalid, match="31 columnas"):
+        contacts.parse_csv(f"telefono,{cols(31)}\n3515551234\n", data_columns=True)
+    contacts.parse_csv(f"telefono,{cols(31)}\n3515551234\n")     # la agenda no cuenta
+    ok, long = contacts.parse_csv(f"telefono,deuda\n3515551234,{'x' * 2000}\n3515550000,{'x' * 2001}\n", data_columns=True)
+    assert ok.error is None and long.vars == {} and "deuda" in long.error and "2000" in long.error
+
+
 def test_optouts_by_channel(sessions, client_id):
     with sessions() as s:
         contacts.add_optout(s, client_id, "+5493515550001", "whatsapp", "keyword")

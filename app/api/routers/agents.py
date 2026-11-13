@@ -1,7 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import select
 
-from ...agents.templates import fill_template, template_data, template_ids
+from ...agents.templates import (
+    fill_template,
+    objective_of,
+    prompt_objective,
+    template_data,
+    template_ids,
+)
 from ...conversation import opening_audio
 from ...conversation.models import Workflow
 from ...llm.prompt import build_system_prompt
@@ -32,7 +38,7 @@ def _out(agent: Agent, detail: bool = False, call_link_url: str | None = None) -
     data = {"id": agent.id, "client_id": agent.client_id, "name": agent.name, "slug": agent.slug,
             "description": agent.description, "version": agent.version, "archived": agent.archived_at is not None,
             "own_agent": bool(d.get("external")), "voice": (d.get("agent") or {}).get("voice"),
-            "objective": (d.get("objective") or {}).get("description") or "", "call_link_url": call_link_url,
+            "objective": objective_of(d), "call_link_url": call_link_url,
             "created_at": agent.created_at, "updated_at": agent.updated_at}
     return AgentDetail(**data, definition=d) if detail else AgentOut(**data)
 
@@ -75,8 +81,7 @@ def list_templates(_: CurrentPrincipal):
     out = []
     for tid in template_ids():
         w = Workflow.model_validate(fill_template(template_data(tid), "la empresa"))
-        out.append(TemplateOut(id=tid, agent=f"{w.agent.name}, {w.agent.role}", voice=w.agent.voice,
-                               objective=w.objective.description.strip()))
+        out.append(TemplateOut(id=tid, agent=w.agent.name, voice=w.agent.voice, objective=prompt_objective(w.prompt)))
     return out
 
 
@@ -144,7 +149,7 @@ def update_definition(agent_id: str, body: DefinitionIn, p: CurrentPrincipal, db
 
 
 def _pregenerate_opening(background: BackgroundTasks, agent: Agent) -> None:
-    """conversation.opening_audio: sintetiza la apertura de la version vigente despues de responder
+    """first_message_audio: sintetiza el primer mensaje de la version vigente despues de responder
     (hasta que este, las llamadas la sintetizan en vivo)."""
     workflow = Workflow.model_validate(agent.definition)
     if opening_audio.wanted(workflow):

@@ -67,7 +67,7 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
     outcome = reports.outcome(workflow, conv)
     agent = s.get(Agent, conv.agent_id) if conv.agent_id else None
     number = s.get(PhoneNumber, call.phone_number_id) if call.phone_number_id else None
-    specs = sorted(workflow.fields.items(), key=lambda kv: kv[1].priority) if workflow else []
+    specs = list(workflow.analysis_fields.items()) if workflow else []
     # El telefono: el de la llamada o, en las del link (sin numero), el que dio la persona (dato tipo phone).
     phone = call.phone or next((conv.fields[name] for name, spec in specs
                                 if spec.type == "phone" and conv.fields.get(name)), None)
@@ -92,7 +92,7 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
         phone=phone, client_number=number.e164 if number else None,
         started_at=call.started_at or call.created_at, duration_seconds=call.duration_seconds,
         outcome=outcome.label if outcome else None, fields=fields, transcript=transcript, truncated=truncated,
-        context=(conv.progress or {}).get("context"),
+        context=((conv.progress or {}).get("variables") or {}).get("motivo"),
         call_url=f"{settings.app_url.rstrip('/')}/calls/{conv.id}")
 
 

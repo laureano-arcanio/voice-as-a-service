@@ -15,7 +15,7 @@ from ..agents.templates import load_reference
 from ..config import settings
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.recordings import full_recording_path
-from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, is_required, outcome_for
+from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, outcome_for
 from ..models import (
     ACTIVE_CALL_STATUSES,
     Agent,
@@ -157,7 +157,7 @@ class Reports:
         if workflow is None or conv.status != "completed":
             return None
         progress = Progress.model_validate(conv.progress or {})
-        outcomes = [*workflow.completion.outcomes, INCOMPLETE, OFF_TOPIC]
+        outcomes = [*workflow.outcomes, INCOMPLETE, OFF_TOPIC]
         outcome = next((o for o in outcomes if o.id == progress.outcome), None)
         if outcome is None:
             outcome = outcome_for(workflow, ConversationState(
@@ -168,7 +168,7 @@ class Reports:
                 client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
         workflow = self.workflow(conv)
         f = conv.fields
-        required = [n for n, spec in workflow.fields.items() if is_required(spec, f)] if workflow else list(f)
+        required = list(workflow.analysis_fields) if workflow else list(f)
         outcome = self.outcome(workflow, conv)
         lat = (call.latency or {}).get("stats", {}).get("total") if call else None
         if conv.channel == "whatsapp":
@@ -236,9 +236,8 @@ class Reports:
         workflow = self.workflow(conv)
         progress = Progress.model_validate(conv.progress or {})
         if workflow:
-            specs = sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)
             fields = [{"name": n, "description": spec.description.strip(), "value": conv.fields.get(n),
-                       "required": is_required(spec, conv.fields)} for n, spec in specs]
+                       "required": False} for n, spec in workflow.analysis_fields.items()]
         else:
             fields = [{"name": n, "description": n, "value": v, "required": True} for n, v in conv.fields.items()]
         for f in fields:
@@ -256,7 +255,7 @@ class Reports:
             "workflow_status": conv.status, "fields": fields,
             "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
             "messages": conv.messages,
-            "context": progress.context,
+            "context": progress.variables.get("motivo") or None,
             "recordings": recordings,
             # Grabacion completa (Asterisk, app/services/line_recordings.py): GET /calls/{id}/recording.
             "full_recording": full_recording_path(conv.id).is_file(),

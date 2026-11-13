@@ -93,7 +93,8 @@ finalizada. `livekit-client` (~550 KB) se descarga recién al llamar. El micróf
 `atentina`): la home ofrece `atentina_comercial` (el mismo de la línea 0800-220-1233 y el WhatsApp), con botón a
 WhatsApp y link a las verticales; las verticales usan `turnos`, `cobranzas` y `reclamos`, sin línea propia. Otro
 agente de `atentina` da 404. El seed los crea desde `app/agents/reference/`; después se editan por UI o API
-(versión nueva por cambio). El 0800 va en formato nacional (`tel:08002201233`): con +54 no lo enrutan todas las
+(versión nueva por cambio). Si cambia la referencia, los ya creados toman el texto nuevo con `make agents-reference`
+([`ARQUITECTURA.md`](../ARQUITECTURA.md), "Agentes de referencia"). El 0800 va en formato nacional (`tel:08002201233`): con +54 no lo enrutan todas las
 compañías.
 
 **Demo de voces en streaming:** `voices.ts` pide `format: "pcm"` y reproduce con Web Audio (`pcm-player.ts`). El

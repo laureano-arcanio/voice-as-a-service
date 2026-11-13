@@ -47,7 +47,8 @@ app/
   config.py          Settings (pydantic-settings, .env)
   db.py              Base, jsonb, engine y sessionmaker
   runtime.py         ConversationEngine compartido por API y worker
-  cli.py             seed (tier Interno, cliente atentina, agentes de referencia, número de Anura), create-admin, create-api-key
+  cli.py             seed (tier Interno, cliente atentina, agentes de referencia, número de Anura), create-admin, create-api-key,
+                     agents-reference (pasa a los agentes de atentina su referencia reescrita)
   api/
     deps.py          sesión de base, Principal (usuario, API key, OAuth, soporte), require_admin, require_not_support,
                      scoped_client_id, client_ip, rate_limit, inference_access
@@ -85,10 +86,11 @@ app/
     errors.py        NotFound, Forbidden, Conflict, Invalid, QuotaExceeded, Upstream
   models/            ORM SQLAlchemy 2: tenancy, agents, conversations, calls, campaigns, handoff, whatsapp, tools,
                      llm, oauth, billing, legal, call_links, contact
-  conversation/      el motor: engine, models (Workflow = definición), workflow (validación), store, contact
-                     (datos de campaña y motivo), opening_audio, recordings, workflows (post-call durable)
+  conversation/      el motor: engine, models (Workflow = definición), workflow (validación y resultado), store,
+                     variables ({{x}} de la conversación), legacy (conversión de definiciones viejas), opening_audio,
+                     recordings, workflows (post-call durable)
   agents/            templates/*.json (asistente y una por rubro), reference/*.json (agentes de referencia),
-                     definitions.py (DbDefinitions), templates.py (GENERIC_RULES, en blanco, referencia)
+                     definitions.py (DbDefinitions), templates.py (en blanco, objetivo del prompt, referencia)
   llm/               client.py (OpenAI, tools nativos, streaming), anthropic_client.py, resolver.py (qué LLM por turno),
                      prompt.py, params.py (hiperparámetros), platform_tools.py (end_call, transfer_call), external.py (tu propio agente)
   tools/             herramientas del cliente: schema, runtime (http, code, SSRF), conversation (el turno con herramientas)
@@ -225,30 +227,57 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
 {
   "id": "ventas", "version": 3, "record_audio": false,
   "generation": {"params": {"temperature": 0.5, "enable_thinking": false}},
-  "agent": {"name": "Sofía", "role": "asesora comercial", "language": "es-AR", "voice": "sofia"},
-  "objective": {"description": "…"},
-  "conversation": {"opening": "Hola, te habla Sofía…", "rules": ["…"]},
-  "knowledge": "…",
-  "fields": {
-    "contact_name": {"priority": 10, "description": "Nombre", "type": "string", "required": true,
-                     "question": "¿Con quién hablo?"},
-    "wants_demo": {"priority": 20, "description": "Quiere una demo", "type": "boolean", "required": true,
-                   "question": "¿Te interesa ver una demo?"}
-  },
-  "completion": {"outcomes": [
-    {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "message": "…", "goal": true},
-    {"id": "otro", "label": "Sin demo", "message": "…"}
-  ]}
+  "agent": {"name": "Sofía", "language": "es-AR", "voice": "sofia"},
+  "prompt": "# Identidad\nSos Sofía, asesora de Acme…\n\n# Objetivo\n…\n\nDeuda: {{deuda}}. Hoy es {{today}}.",
+  "first_message": "Hola {{nombre}}, te habla Sofía…",
+  "variables": [{"name": "deuda", "default": "", "description": "Lo que debe, del pre-call"}],
+  "analysis": {
+    "summary": true, "instructions": "…",
+    "fields": [
+      {"name": "contact_name", "label": "Nombre", "description": "Nombre", "type": "string"},
+      {"name": "wants_demo", "description": "Quiere una demo", "type": "boolean"}
+    ],
+    "outcomes": [
+      {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "goal": true},
+      {"id": "otro", "label": "Sin demo"}
+    ]
+  }
 }
 ```
 
 - `id` y `version` los fija la app (slug y número de versión).
-- **`fields`:** `type` `string`, `integer`, `boolean`, `email`, `email_or_phone`, `choice` (con `options`),
-  `digits` o `phone`; `required` o `required_if` (solo igualdades); `question` es una pregunta sugerida;
-  `label` (opcional) es el nombre para mostrar y no va al prompt. Un dato `phone` se precarga con el número de la
-  otra punta en las entrantes y salientes (`progress.preloaded`) y el agente no lo pregunta.
-- **`completion.outcomes`:** gana el primero cuyo `when` se cumple; el último va sin `when` (default);
-  `goal: true` marca el objetivo; `message` es un cierre sugerido al LLM.
+- **`variables` y `analysis.fields` son listas con `name`**, no mapas: `agents.definition` es `jsonb`, que no conserva
+  el orden de las claves de un objeto, y su orden es el del análisis, el editor y el detalle. La forma mapa da 422
+  ("debe ser una lista"). En el código, `Workflow.variable_specs` y `Workflow.analysis_fields` dan `{nombre: spec}`
+  en ese orden.
+- **`prompt`** (hasta 40.000 caracteres): va tal cual al LLM, después de la línea del canal. Los títulos `#` son
+  convención de las plantillas (`# Objetivo` da `AgentOut.objective`), no los lee el motor. **`first_message`**
+  (hasta 1.000): lo primero que dice el agente en una llamada; por WhatsApp entrante escribe primero la persona.
+- **Variables** (`app/conversation/variables.py`): `{{x}}` se sustituye en `prompt`, `first_message`,
+  `analysis.instructions`, descripciones de campos, mensajes de derivación y herramientas; nada se agrega solo. Un espacio por conversación en
+  `progress.variables` (texto, número o booleano; hasta 30 y 2.000 caracteres por valor), con `hidden_variables` y
+  `variable_sources`. Fuentes, de menor a mayor: `default` de `variables` < `contact` (agenda o columnas de la
+  campaña, nombre normalizado sin acentos ni mayúsculas) < `request` (`variables` de `POST /calls` y
+  `POST /conversations`) < `pre_call:<slug>` < `tool:<slug>` (siempre pisa). Del sistema, no pisables: `call.id`,
+  `call.from`, `call.to`, `call.phone` (la otra punta), `call.direction`, `call.mode`, `channel`, `agent.slug`,
+  `agent.version`, `today` y `now` (los de la hora de inicio, `AGENT_TIMEZONE`). Nombres de usuario
+  `[a-z][a-z0-9_]{0,63}` salvo `channel`, `today` y `now`. Una sola pasada (un valor con `{{y}}` no se vuelve a
+  renderizar); lo que no tiene valor queda vacío y el texto se acomoda. Las ocultas (`hide` del `assign`) van a
+  herramientas y a los mensajes de derivación, nunca al LLM (prompt, análisis, headers del agente externo). `call.*` sale
+  de `progress.call`, que arma quien crea la conversación (`new_conversation(variables=, call=)`): saliente y
+  celular, `from` nuestro número y `to`/`phone` el de la persona, `outbound`; entrante, `from`/`phone` quien llama y
+  `to` el número marcado, `inbound`; WhatsApp, `+wa_id` y el número de la cuenta (`outbound` si responde a una
+  campaña, con los datos de su contacto); prueba, link y `POST /conversations` (`mode` `api`), `inbound` con el
+  número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos).
+- **`analysis`** (opcional; sin él no hay extracción ni resultado, salvo fuera de tema): `fields` en el orden de la
+  lista, `type` `string`, `integer`, `boolean`, `email`, `email_or_phone`, `choice` (con `options`) o `phone`;
+  `label` es el nombre para mostrar. `outcomes`: gana el primero cuyo `when` (igualdades sobre campos) se cumple; si
+  hay, el último va sin `when`; `goal: true` marca el objetivo. `summary: true` pide un resumen
+  (`progress.summary`); `instructions` va al extractor.
+- **Definiciones viejas** (`objective`, `conversation`, `knowledge`, `fields`, `completion`, `agent.role`):
+  `Workflow` las convierte al leer con `app/conversation/legacy.py` (congelado): un prompt con títulos (`# Identidad`,
+  `# Objetivo`, `# Datos a pedir`, `# Cómo conversar`, `# Información`, `# Cierres`), la apertura a `first_message`
+  y los datos y resultados a `analysis`. Lo que se guarda por la API queda en la forma actual.
 - **`generation`** (opcional) y **`llm`** (LLM por etapa, desde el turno N): hiperparámetros del catálogo
   `app/llm/params.py` (temperatura, `top_p`/`top_k`/`min_p`, razonamiento y su tope, `max_tokens`, esfuerzo), con
   override por etapa; cada proveedor manda los que soporta. Sin `generation` rigen `LLM_THINKING`,
@@ -265,12 +294,11 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   `transfer_call` ([`features/EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)).
 - **`workflows`:** herramientas automáticas, ocultas al modelo: `pre_call` (`tool`, `timeout_ms` 200 a 5000, 1500) y
   `post_call` (`tool`, `when` `handoff_accepted` o `always`). Se validan al guardar ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
-  Con `external`, el pre-call llega al endpoint del cliente por el header `X-Atentina-Contact`, no como prompt.
+  Con `external`, las variables visibles llegan al endpoint del cliente por el header `X-Atentina-Variables`, no
+  como prompt.
 - **`wa_session_minutes`:** ventana de contexto de WhatsApp del agente (NULL = `WA_SESSION_HOURS`).
-- **`{{today}}` y `{{now}}`:** la fecha no se inyecta; el agente la tiene si sus reglas, su base de conocimiento o
-  su objetivo usan esas variables.
-- **`conversation.opening_audio`** (default `false`) y **`opening_delay_ms`** (200): al guardar, `app` sintetiza
-  la apertura entera en un pedido (en segundo plano) y la deja en
+- **`first_message_audio`** (default `false`) y **`first_message_delay_ms`** (200): al guardar, `app` sintetiza
+  el primer mensaje entero en un pedido (en segundo plano) y lo deja en
   `storage/openings/<agent_id>/<versión>-<voz>.wav` (`OPENING_AUDIO_DIR`); el worker la reproduce si coinciden
   versión, voz y texto, y si no (otra voz, `{{variables}}`, falló el TTS) la sintetiza en vivo frase por frase. Al
   cambiar el checkpoint del TTS, borrar `storage/openings/` o volver a guardar los agentes
@@ -282,8 +310,7 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   10 min, 1 h; `Idempotency-Key` por llamada y destino). El cliente lo apaga o elige destinos en
   `GET/PUT /clients/{id}/call-emails` (vacío = sus usuarios activos). Estados: `sent`, `disabled` (sin
   `RESEND_API_KEY`), `skipped`, `failed`. Al prenderlo en el editor se agrega un dato `telefono` si no hay uno de
-  tipo `phone`. Medido con Gemma 4 26B sin recordatorio en el prompt: pide el teléfono al cierre 0 de 10 si la
-  definición no lo tiene como dato.
+  tipo `phone`; pedirlo es cosa del prompt.
 - **`record_audio`** (default `false`): un WAV mono de 16 kHz por mensaje en
   `storage/recordings/<conversation_id>/NNN.wav` (`CALL_RECORDINGS_DIR`, `app/conversation/recordings.py`), con su
   número en `Message.recording`. En llamadas, cliente y agente por separado; el del cliente recortado a lo que el
@@ -296,30 +323,33 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md#grabación-completa)).
 - **`recording_notice`** (default `false`): con `record_audio`, "Esta llamada está siendo grabada." antes de la
   apertura (`RECORDING_NOTICE` en `app/voice/worker.py`), fuera del contexto del LLM; no aplica a WhatsApp.
-- **Validación al guardar:** nombres de campo en minúsculas, `choice` con `options`, `required_if` y `when` sobre
-  campos existentes, ids de resultado únicos, el último sin `when`, `agent.voice` en el catálogo y nunca
-  `default` (tumba el TTS), conexiones y áreas del mismo cliente.
+- **Validación al guardar:** nombres de campo en minúsculas y sin repetir (error en `analysis.fields.<i>.name`), `choice` con `options`, `when` sobre campos de
+  `analysis`, ids de resultado únicos, el último sin `when`; nombres de `variables` válidos, no reservados y sin repetir (`variables.<i>.name`), hasta
+  30, `default` hasta 2.000 y `description` hasta 300 caracteres; `{{secrets.X}}`, `{{fields.x}}` o
+  `{{call.summary}}` en `prompt`, `first_message` o `analysis` dan 422 con esa ruta (solo valen en herramientas); una
+  `{{x}}` sin declarar es válida. `agent.voice` en el catálogo y nunca `default` (tumba el TTS), conexiones y áreas
+  del mismo cliente.
 - **Versionado:** `PUT /agents/{id}/definition` crea la versión N+1 si cambió algo (con lock del agente). La
   conversación guarda `agent_version` y el motor carga siempre esa (`DbDefinitions`, cacheada por
   `(agent_id, version)`): editar no afecta las llamadas en curso ni el historial.
-- **Alta:** en blanco (un dato y el resultado por defecto) o desde una plantilla de `app/agents/templates/`
-  (`asistente` y una por rubro: `salud`, `gimnasio`, `inmobiliaria`, `gastronomia`, `cobranzas`; `[EMPRESA]` y
-  `[AGENTE]` se completan al crear, con la voz opcional de `AgentCreate.voice`), con las reglas genéricas de comportamiento
-  (`GENERIC_RULES` en `app/agents/templates.py`: una pregunta por turno, no inventar, cuándo cortar o derivar),
-  editables como cualquier regla. La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
-  `draft.ts`), con el JSON como alternativa.
+- **Alta:** en blanco (un prompt corto con los títulos y sin análisis) o desde una plantilla de
+  `app/agents/templates/` (`asistente` y una por rubro: `salud`, `gimnasio`, `inmobiliaria`, `gastronomia`,
+  `cobranzas`; `[EMPRESA]` y `[AGENTE]` se completan al crear, con la voz opcional de `AgentCreate.voice`). Las
+  reglas de comportamiento son texto del prompt, editables. La UI la edita por formulario
+  (`web/src/features/agents/DefinitionForm.tsx`, `draft.ts`), con el JSON como alternativa.
 - **Quién los crea:** un usuario o API key de un cliente, en el suyo; el admin, entrando como el cliente. Todo
   pedido sobre un agente pasa por `get_agent`: el de otro cliente responde 404. `POST /agents/prompt` devuelve el
-  prompt armado sin guardar, para cualquiera con acceso al agente.
+  prompt armado sin guardar y sin renderizar las variables, para cualquiera con acceso al agente.
 
 ## Motor conversacional
 
 Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, WhatsApp y texto.
 
-- **Turno:** sin estado por turno. El prompt de sistema se arma de la definición (agente, objetivo, reglas,
-  datos con su pregunta y condición, base de conocimiento, mensajes de cierre) y del protocolo de la plataforma
-  (herramientas y su resultado), sin frases de comportamiento en el código (`app/llm/prompt.py`). La
-  conversación va como mensajes multiturno; el LLM responde texto en streaming (`on_message` en
+- **Turno:** el prompt de sistema es la línea del canal (`CHANNEL` en `app/llm/prompt.py`) y el `prompt` del agente
+  con sus variables, sin frases de comportamiento en el código. Se renderiza una vez, en el primer turno (ya corrió
+  el pre-call), y queda en `progress.system_prompt`: lo que asigne una herramienta después no lo cambia (va a las
+  herramientas siguientes) y el prompt es igual en todos los turnos, para el prefix cache de vLLM (`{{today}}` de un
+  chat de días es el del primer mensaje). La conversación va como mensajes multiturno; el LLM responde texto en streaming (`on_message` en
   `app/llm/client.py`): el TTS empieza con la primera frase. Antes del TTS cada frase pasa por el normalizador
   `app/voice/speech_text.py` (números, horas, fechas, plata, emails, teléfonos y códigos a palabras, es-AR).
 - **Herramientas:** function calling nativo (OpenAI y Anthropic). El modelo ve las del cliente y las de la
@@ -329,10 +359,13 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   le devuelve el resultado; tope de rondas por turno en `tool_settings`.
 - **Qué LLM:** `app/llm/resolver.py` elige por turno entre la inferencia propia (default y respaldo) y una
   conexión del cliente según `Workflow.llm`.
-- **Extracción:** una llamada aparte al LLM, con prompt y esquema JSON armados desde los `fields` y la
-  conversación completa; una sola vez, al terminar (`end_call`) o al cortar (`ConversationEngine.finish`).
-  La app solo valida los datos (campos inexistentes o de tipo inválido no se guardan) y calcula el resultado con
-  `completion.outcomes`; si sería el objetivo pero faltan obligatorios, es `incompleta`.
+- **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`
+  (`summary` si se pide) y un prompt con el nombre del agente, `analysis.instructions`, los campos, las variables
+  visibles y la conversación completa; una vez, al terminar (`end_call`) o al cortar (`ConversationEngine.finish`).
+  `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
+  inexistentes o de tipo inválido no se guardan) y calcula el resultado con `analysis.outcomes` (sin resultados,
+  ninguno). `conversion`: `complete` si el agente terminó la conversación y no fue fuera de tema, `partial` con algún
+  dato capturado, `empty` el resto; `incompleta` ya no se asigna (las guardadas lo conservan).
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`
@@ -348,8 +381,11 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   de Anura y lo usa el test de capacidad),
   `landing_turnos`, `landing_cobranzas` y `landing_reclamos` (la demo de la landing, sin el prefijo),
   `sales_discovery` y `berlin_signup` (tests) y `eval_*` (eval del LLM y de herramientas).
-  Editarlos no cambia los agentes ya creados.
-- **Probar por texto:** `POST /api/v1/conversations {"agent_id"}` y `POST /conversations/{id}/turns {"message"}`
+  Editarlos no cambia los agentes ya creados: `make agents-reference` (`SLUG=`, `APPLY=1`; sin `APPLY` muestra el diff) deja
+  en los de `atentina` el `prompt`, `first_message`, `variables` y `analysis` de la referencia en una versión nueva y conserva el
+  resto de la vigente (herramientas, derivación, `workflows`, `llm`, `generation`, grabación, email, voz). Idempotente;
+  avisa si el agente tiene herramientas que el prompt nuevo no nombra. Vuelta atrás: activar la versión anterior.
+- **Probar por texto:** `POST /api/v1/conversations {"agent_id", "variables"?}` y `POST /conversations/{id}/turns {"message"}`
   (en la UI, la pestaña "Probar" del agente); aparecen con origen "API". **Por voz:**
   `POST /api/v1/calls {"agent_id"}` devuelve el `join_url` de la prueba (`POST /calls/{id}/join` da el token); con
   `"phone"` marca por la troncal. Solo con la sesión del panel (API key u OAuth: 403 `panel_test_only`; el MCP no los
@@ -369,9 +405,12 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 1. `services/calls.prepare_call` (en un thread: la base es bloqueante) valida el agente (visible y no archivado),
    el teléfono E.164 y la voz, y elige el caller ID (el pedido o el primero del cliente). Con `contact_id`, el
    contacto tiene que ser del cliente y estar activo; sus datos van como `vars`. Un teléfono en las bajas de voz da
-   409 `opted_out` (salvo en campañas, que filtran antes).
-2. `engine.new_conversation(session=s)` arma el estado con la versión vigente. `context` (el motivo, hasta 2000
-   caracteres) va al prompt y a la extracción como "MOTIVO DEL LLAMADO" (`conversation/contact.py`).
+   409 `opted_out` (salvo en campañas, que filtran antes). `variables` (objeto plano, hasta 30 de hasta 2.000
+   caracteres, sin nombres del sistema) se valida antes: 422 `invalid_variables` con `errors[].path`
+   `variables.<nombre>`. Un `context` se ignora.
+2. `engine.new_conversation(session=s, variables=, call=)` arma el estado con la versión vigente, sus variables (los
+   datos del contacto o de la campaña, fuente `contact`; las del pedido, `request`) y los datos de la llamada
+   (`conversation/variables.py`).
 3. `quota.admit(s, client, mode)` toma el lock del cliente (`SELECT … FOR NO KEY UPDATE OF clients`) y verifica
    cliente activo, simultáneas, topes de llamadas por hora, día y mes (cuenta `call_logs` sin las `rechazada`) y
    minutos de esa modalidad. Devuelve los segundos que quedan.
@@ -664,6 +703,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
 | `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
+| `variables.py` | `GET /variables/catalog` (reglas de nombres, topes y variables del sistema con `applies_to`) | "Definición de un agente" |
 | `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `phone_numbers.py`, `blocked_numbers.py` | `/phone-numbers` (carga, `bulk`, `assign`, `release`, quién atiende), `/blocked-numbers` | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
 | `handoff.py` | `/team`, `/handoff-areas` (y `defaults`, con los mensajes de antes de aceptar y sus variables), `/hold-music`, `/events` | ídem |

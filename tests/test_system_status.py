@@ -200,7 +200,8 @@ def test_internal_metrics_needs_token_and_no_tunnel(api, admin, monkeypatch):
     lines = r.text.splitlines()
     assert 'atentina_calls_active{mode="entrante"} 1' in lines
     assert 'atentina_calls_active{mode="saliente"} 1' in lines
-    assert "atentina_anura_channels_busy 2" in lines and "atentina_anura_channels_total 10" in lines
+    assert "atentina_anura_channels_busy 2" in lines
+    assert f"atentina_anura_channels_total {settings.anura_channels}" in lines
     assert "atentina_turn_latency_p95_seconds 3.850" in lines
 
 

@@ -48,7 +48,7 @@ DAY_NAMES = {"mon": "lunes", "tue": "martes", "wed": "miércoles", "thu": "jueve
 DEFAULT_TZ = "America/Argentina/Buenos_Aires"
 
 # Mensajes por defecto (plan 4.7); cada area cambia los que quiera. Variables: {{area}}, {{persona}}, {{cliente}},
-# {{resumen}}, {{horario}}, {{nombre}} y las que traiga el pre-call del agente.
+# {{resumen}}, {{horario}}, {{nombre}}, las de la conversacion (sin las ocultas) y las del sistema.
 DEFAULT_MESSAGES = {
     "transfer": "Te paso con {{area}}, un momento por favor.",
     "whisper": "Derivación de {{area}}: {{resumen}}. Marcá 1 para atender.",
@@ -76,7 +76,7 @@ DEFAULT_MESSAGES = {
 PRE_ACCEPT_MESSAGES = ("operator_ack", "tap_wait", "tap_taken", "tap_closed")
 PRE_ACCEPT_VARIABLES = ("area", "persona", "horario")
 MESSAGE_MAX = 500
-_VAR = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+_VAR = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")     # tambien las del sistema ({{call.phone}})
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 # Nombre de un parametro de plantilla: area, persona, cliente, resumen, horario o una variable del pre-call.
 _TEMPLATE_PARAM = re.compile(r"[a-z][a-z0-9_]*")

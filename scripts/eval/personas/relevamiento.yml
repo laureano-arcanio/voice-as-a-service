@@ -152,5 +152,5 @@ personas:
         acepta: false
         puntualidad: null
         funcionamiento: null
-      outcome: [rechaza, sin_terminar, incompleta]
+      outcome: [rechaza, sin_terminar]
     turnos_max: 6

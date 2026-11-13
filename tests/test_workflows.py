@@ -119,15 +119,17 @@ def run_post_call(api, conversation_id, **kw):
 # --- Pre-call: que se hace con la respuesta -------------------------------------------------------
 
 def test_pre_call_splits_visible_and_hidden(api, admin, client, http):  # noqa: F811
-    agent = pre_call_agent(admin, client)
+    agent = pre_call_agent(admin, client, prompt="Ficha de {{nombre}} ({{situacion}}). {{al_dia}} {{ficha}} "
+                                                    "{{nota_operador}}")
     conversation_id = seed_call(api, agent["id"], client["id"], CallMode.entrante, PHONE)
     http.replies = [REPLY]
     assert asyncio.run(api.engine.run_pre_call(conversation_id)) == "Hola María Gómez, soy Ana."
     state = api.engine.store.get(conversation_id)
-    # Todas, para herramientas, whisper y plantillas; al prompt, solo las visibles.
-    assert state.progress.tool_vars == {"situacion": "single", "nombre": "María Gómez", "al_dia": True,
+    # Todas, para herramientas, whisper y plantillas; al prompt, solo las visibles y donde se nombran.
+    assert state.progress.variables == {"situacion": "single", "nombre": "María Gómez", "al_dia": True,
                                         "ficha": REPLY["record"], "nota_operador": REPLY["operator_note"]}
-    assert state.progress.contact == {"situacion": "single", "nombre": "María Gómez"}
+    assert set(state.progress.hidden_variables) == {"al_dia", "ficha", "nota_operador"}
+    assert set(state.progress.variable_sources.values()) == {"pre_call:buscar_ficha"}
     prompt = build_system_prompt(api.engine.workflow(state), "voice", state)
     assert "María Gómez" in prompt and "single" in prompt
     for hidden in ("Ficha:", "al día", "fichas.test", "no se asigna"):
@@ -137,13 +139,15 @@ def test_pre_call_splits_visible_and_hidden(api, admin, client, http):  # noqa: 
     assert "dato_clinico" not in state.model_dump_json()
 
 
-def test_pre_call_precarga_un_campo_y_no_pisa_lo_que_estaba(api, admin, client, http):  # noqa: F811
+def test_pre_call_pisa_al_contacto_y_no_precarga_campos(api, admin, client, http):  # noqa: F811
     tool = identify_tool(BASE)
     tool["definition"]["assign"] = [{"var": "contact_name", "path": "name"}, {"var": "company_name", "path": "status"}]
     agent = pre_call_agent(admin, client, tool=tool)
     with api.sessions() as s:
-        state, _ = api.engine.new_conversation(agent["id"], client["id"], session=s, phone=PHONE,
-                                               contact={"company_name": "De la campaña", "deuda": 5})
+        state, _ = api.engine.new_conversation(agent["id"], client["id"], session=s,
+                                               variables={"contact": {"company_name": "De la campaña", "deuda": 5}},
+                                               call={"phone": PHONE, "to": PHONE, "direction": "outbound",
+                                                     "mode": "saliente"})
         api.engine.store.add(s, state)
         s.flush()
         s.add(CallRow(conversation_id=state.conversation_id, client_id=client["id"], mode=CallMode.saliente, phone=PHONE))
@@ -151,9 +155,10 @@ def test_pre_call_precarga_un_campo_y_no_pisa_lo_que_estaba(api, admin, client, 
     http.replies = [REPLY]
     asyncio.run(api.engine.run_pre_call(state.conversation_id))
     state = api.engine.store.get(state.conversation_id)
-    assert state.fields["contact_name"] == "María Gómez" and state.fields["company_name"] == "De la campaña"
-    assert set(state.progress.preloaded) == {"company_name", "contact_name"}
-    assert state.progress.contact == {"deuda": 5}
+    assert state.fields["contact_name"] is None and state.fields["company_name"] is None
+    assert state.progress.variables == {"company_name": "single", "deuda": 5, "contact_name": "María Gómez"}
+    assert state.progress.variable_sources == {"company_name": "pre_call:buscar_ficha", "deuda": "contact",
+                                               "contact_name": "pre_call:buscar_ficha"}
 
 
 def test_pre_call_failure_leaves_a_run_and_no_data(api, admin, client, http):  # noqa: F811
@@ -162,7 +167,7 @@ def test_pre_call_failure_leaves_a_run_and_no_data(api, admin, client, http):  #
     http.replies = [503]
     assert asyncio.run(api.engine.run_pre_call(conversation_id)) == "Hola, soy Ana."
     state = api.engine.store.get(conversation_id)
-    assert state.progress.tool_vars == {} and state.progress.contact == {}
+    assert state.progress.variables == {}
     with api.sessions() as s:
         run = s.scalars(select(ToolRun).where(ToolRun.conversation_id == conversation_id)).one()
         event = s.scalars(select(Event).where(Event.type == "workflow.pre_call")).one()
@@ -213,16 +218,17 @@ def test_phone_is_the_other_end_on_whatsapp_and_outbound(api, admin, client, htt
     assert http.requests[-1]["headers"]["Idempotency-Key"] == f"{outbound}:pre_call"
 
 
-def test_whatsapp_pre_call_goes_to_the_prompt_guide(api, admin, client, http):  # noqa: F811
-    agent = pre_call_agent(admin, client)
+def test_whatsapp_pre_call_goes_to_the_prompt_variables(api, admin, client, http):  # noqa: F811
+    """Sin guia de apertura: el prompt dice como saludar con las variables del pre-call."""
+    agent = pre_call_agent(admin, client, prompt="Saludá a {{nombre}} por su nombre.")
     state, _ = api.engine.start_conversation(agent["id"], client["id"], channel="whatsapp", opening=False)
     assert state.messages == []
     http.replies = [REPLY]
     assert asyncio.run(api.engine.run_pre_call(state.conversation_id, actor="wa:549351")) is None     # sin IndexError
     state = api.engine.store.get(state.conversation_id)
-    assert state.messages == [] and state.progress.opening_guide == "Hola María Gómez, soy Ana."
+    assert state.messages == [] and state.progress.variables["nombre"] == "María Gómez"
     prompt = build_system_prompt(api.engine.workflow(state), "whatsapp", state)
-    assert "Hola María Gómez, soy Ana." in prompt and "{{nombre}}" not in prompt
+    assert "Saludá a María Gómez por su nombre." in prompt and "APERTURA" not in prompt
 
 
 def test_whatsapp_failed_pre_call_does_not_read_the_variable(api, admin, client, http):  # noqa: F811

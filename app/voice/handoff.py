@@ -138,13 +138,15 @@ def _uses_summary(template_cfg: dict | None) -> bool:
 class Transfer:
     """Una transferencia de la llamada `conversation_id` a un area. on_message(role, text, person, leg, pcm)
     agrega a la conversacion; hang_up(reason) corta la llamada (el area se despide al cortar la persona).
-    get_vars() da las variables del pre-call, leidas en cada area; spawn_notice(coro) corre un aviso en una tarea que
-    sobrevive a la derivacion y que el worker espera al cerrar."""
+    get_vars() da las variables para el equipo (whisper y plantillas: ocultas incluidas) y get_contact_vars() las de
+    los mensajes al contacto, que quedan en la conversacion que lee el LLM (sin las ocultas); las dos con las del
+    sistema, leidas en cada area. Sin get_contact_vars, los mensajes al contacto van sin variables. spawn_notice(coro) corre un aviso en una tarea que sobrevive a la derivacion y que el worker espera al cerrar."""
 
     def __init__(self, *, sessions, line: Line | None, conversation_id: str, client_id: str, areas: list[dict],
                  customer: str, caller: str = "", summary=None, on_message=None, hang_up=None,
                  hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
-                 on_connected=None, limit=None, get_vars=None, spawn_notice=None, on_progress=None,
+                 on_connected=None, limit=None, get_vars=None, get_contact_vars=None, spawn_notice=None,
+                 on_progress=None,
                  progress_names: bool = True, progress_id: int = 1):
         self.sessions = sessions
         self.line = line
@@ -166,6 +168,8 @@ class Transfer:
         self.attempt = first_attempt
         self._open_leg: str | None = None
         self.get_vars = get_vars
+        self.get_contact_vars = get_contact_vars
+        self._team_vars: dict = {}           # las del equipo del area en curso (con ocultas): whisper y plantillas
         self.spawn_notice = spawn_notice or self._own_task
         self._tasks: list[asyncio.Task] = []
         self._summary_task: asyncio.Task | None = None
@@ -293,19 +297,22 @@ class Transfer:
 
     # ---------- flujo ----------
 
-    def _variables(self) -> dict:
-        """Las del pre-call, sin las reservadas. Una falla aca no frena la derivacion: se oye sin ese dato."""
-        if self.get_vars is None:
+    def _variables(self, team: bool) -> dict:
+        """Las de la conversacion, sin las reservadas: team, para el equipo (con ocultas); si no, para el contacto. Una
+        falla aca no frena la derivacion: se oye sin ese dato."""
+        get = self.get_vars if team else self.get_contact_vars
+        if get is None:
             return {}
         try:
-            return {k: "" if v is None else v for k, v in (self.get_vars() or {}).items() if k not in RESERVED_VARS}
+            return {k: "" if v is None else v for k, v in (get() or {}).items() if k not in RESERVED_VARS}
         except Exception:
             logger.exception("derivacion %s: sin variables", self.conversation_id)
             return {}
 
     def _load(self, area_id: str | None, area_name: str) -> _Step:
         """Lee un area y dice si se puede usar ahora."""
-        variables = self._variables()
+        variables = self._variables(team=False)
+        self._team_vars = self._variables(team=True)
         with self.sessions() as s:
             area = s.get(HandoffArea, area_id) if area_id else None
             if area is not None and area.client_id != self.client_id:
@@ -521,13 +528,15 @@ class Transfer:
         if _uses_summary((area.whatsapp or {}).get("template")):
             self._summary_shared = True
             values = values | {"resumen": await self._shared_summary()}
-        return await team_notify.notify_area(self.sessions, self.client_id, area.id, values, self.conversation_id)
+        return await team_notify.notify_area(self.sessions, self.client_id, area.id, self._team(values),
+                                             self.conversation_id)
 
     async def _complement(self, area: HandoffArea, member: TeamMember, template_cfg: dict, values: dict,
                           summary: asyncio.Task) -> None:
         if _uses_summary(template_cfg):
             values = values | {"resumen": await summary}
-        await team_notify.send(self.sessions, self.client_id, area, member, template_cfg, values, self.conversation_id)
+        await team_notify.send(self.sessions, self.client_id, area, member, template_cfg, self._team(values),
+                               self.conversation_id)
 
     def _spawn_complement(self, area: HandoffArea | TeamRing, member: TeamMember, values: dict,
                           summary: asyncio.Task) -> None:
@@ -668,7 +677,7 @@ class Transfer:
         detector = VoicemailDetector()
         machine = asyncio.create_task(self.line.first_words(identity, MACHINE_WINDOW_SECONDS))
         await self.line.listen(identity)
-        text = handoff.render(texts["whisper"], **(values | {"resumen": await summary}))
+        text = handoff.render(texts["whisper"], **(self._team(values) | {"resumen": await summary}))
         self._phase_to("whisper")
         whisper = asyncio.create_task(self.line.whisper(identity, text))
         waiting = [True]   # al terminar el susurro empieza la espera del 1, si no se decidio antes
@@ -782,6 +791,10 @@ class Transfer:
             return ended
         await self._back(texts["resume"], values)
         return ended
+
+    def _team(self, values: dict) -> dict:
+        """Los valores de un mensaje al equipo: las de la conversacion con ocultas; lo de la derivacion gana."""
+        return {**self._team_vars, **values}
 
     async def _say(self, text: str, interruptible: bool = False) -> None:
         self.on_message("assistant", text)

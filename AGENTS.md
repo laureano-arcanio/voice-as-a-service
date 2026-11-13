@@ -132,8 +132,8 @@ Medido el 5-nov-2026 sobre las primeras 36 corridas del ciclo: la implementació
   cliente en la definición de su agente. Sí son de la plataforma: el protocolo (herramientas y su resultado), los
   límites de recursos (topes, timeouts), la seguridad (SSRF, secretos, sandbox) y el formato del canal (normalizar
   el texto para el TTS).
-- **El prompt del motor solo lleva la definición del agente y el protocolo.** Las instrucciones de comportamiento
-  van en la plantilla (`app/agents/templates/asistente.json`, `GENERIC_RULES`) y en los agentes de referencia
+- **El prompt del motor solo lleva el canal y el `prompt` del agente.** Las instrucciones de comportamiento
+  van en el prompt de las plantillas (`app/agents/templates/`) y de los agentes de referencia
   (`app/agents/reference/`), a la vista y editables. Nada de un cliente en el código.
 - **Tests sin modelo real.** `make test` usa un LLM falso con respuestas grabadas; ningún test depende de un servicio
   real ni valida lo que contesta un modelo.

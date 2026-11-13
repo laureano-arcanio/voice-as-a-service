@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from ..conversation import variables
 from ..db import utcnow
 from ..models import (
     Campaign,
@@ -54,6 +55,10 @@ class ContactRow:
     email: str | None = None
     notes: str | None = None
     line: int | None = None     # fila del CSV (1 = encabezado)
+    # Solo de una campaña de voz: las columnas del CSV sin rol, como variables de la llamada.
+    vars: dict = field(default_factory=dict)
+    # Por qué la fila no sirve (la detecta parse_csv); sale en `invalid` sin tocar la agenda.
+    error: str | None = None
 
 
 @dataclass
@@ -100,6 +105,8 @@ def _email(value: str | None) -> str | None:
 
 def _clean(row: ContactRow) -> tuple[str, dict]:
     """(telefono E.164, campos validados). ValueError con el motivo si la fila no sirve."""
+    if row.error:
+        raise ValueError(row.error)
     phone = phones.normalize_phone(row.phone)
     return phone, {"name": _text(row.name, 128, "nombre"), "email": _email(row.email),
                    "notes": _text(row.notes, MAX_NOTES, "notas")}
@@ -114,10 +121,32 @@ def sniff_delimiter(text: str) -> str:
         return ","
 
 
-def parse_csv(text: str) -> list[ContactRow]:
+# Encabezados que no son una variable: los roles de la agenda y `params` (valores de WhatsApp).
+NOT_VARIABLE = {"nombre", "telefono", "email", "params"}
+
+
+def _data_columns(header: list[str], keys: list[str]) -> dict[int, str]:
+    """{indice: nombre de la variable} de las columnas sin rol: nombre normalizado con `variables.key`; se ignoran
+    las que no pasan `variables.name_error` y las repetidas (gana la primera). Invalid si pasan del tope."""
+    roles = PHONE_COLUMNS | NAME_COLUMNS | EMAIL_COLUMNS | NOTES_COLUMNS
+    columns: dict[int, str] = {}
+    for i, h in enumerate(header):
+        name = variables.key(h)
+        if (keys[i] in roles or name in NOT_VARIABLE or variables.name_error(name)
+                or name in columns.values()):
+            continue
+        columns[i] = name
+    if len(columns) > variables.MAX_VARIABLES:
+        raise Invalid(f"El CSV tiene {len(columns)} columnas de datos: hasta {variables.MAX_VARIABLES}")
+    return columns
+
+
+def parse_csv(text: str, data_columns: bool = False) -> list[ContactRow]:
     """CSV con encabezado: una columna de telefono (telefono, celular, phone...); nombre, email
-    y notas opcionales; las demas columnas se ignoran. Separador coma, punto y coma o tab. Invalid si no hay
-    columna de telefono."""
+    y notas opcionales. Separador coma, punto y coma o tab. Invalid si no hay columna de telefono.
+    Las demas columnas se ignoran, salvo con `data_columns` (campaña de voz): van a `ContactRow.vars`
+    con el nombre normalizado, sin las celdas vacias; una celda de mas de MAX_VALUE_CHARS deja la
+    fila con `error`."""
     text = (text or "").lstrip("﻿")
     if not text.strip():
         return []
@@ -130,6 +159,7 @@ def parse_csv(text: str) -> list[ContactRow]:
         roles[role] = next((i for i, k in enumerate(keys) if k in names), None)
     if roles["phone"] is None:
         raise Invalid("El CSV necesita un encabezado con una columna telefono (o celular, phone, whatsapp)")
+    columns = _data_columns(header, keys) if data_columns else {}
     rows = []
     for line, values in enumerate(reader, start=2):
         if not any(v.strip() for v in values):
@@ -138,9 +168,12 @@ def parse_csv(text: str) -> list[ContactRow]:
         def cell(i: int | None, values: list[str] = values) -> str:
             return values[i].strip() if i is not None and i < len(values) else ""
 
+        extra = {name: cell(i) for i, name in columns.items() if cell(i)}
+        long = next((n for n, v in extra.items() if len(v) > variables.MAX_VALUE_CHARS), None)
         rows.append(ContactRow(
             phone=cell(roles["phone"]), name=cell(roles["name"]) or None, email=cell(roles["email"]) or None,
-            notes=cell(roles["notes"]) or None, line=line))
+            notes=cell(roles["notes"]) or None, line=line, vars={} if long else extra,
+            error=f"{long}: más de {variables.MAX_VALUE_CHARS} caracteres" if long else None))
     return rows
 
 

@@ -3,7 +3,7 @@ estado por turno y una sola extraccion al final."""
 from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
-from app.llm.prompt import build_turn_messages, build_system_prompt
+from app.llm.prompt import build_system_prompt, build_turn_messages
 
 from .helpers import FakeLLM, turn_and_extract
 
@@ -11,10 +11,10 @@ from .helpers import FakeLLM, turn_and_extract
 def test_the_system_prompt_comes_from_the_yaml():
     wf = load_reference("berlin_signup")
     system = build_system_prompt(wf)
-    assert wf.conversation.rules[0] in system
+    assert system.endswith(wf.prompt.strip())
     assert "Live Running Team" in system                                  # base de conocimiento
     assert "¿Qué actividad te gustaría hacer, o qué estás buscando?" in system
-    assert "contact (obligatorio si same_number = false)" in system
+    assert "Otro número de WhatsApp o un mail donde mandarle el link (obligatorio si prefiere otro)" in system
     # Terminar es una herramienta (end_call), no una marca en el texto.
     assert "[FIN]" not in system
 
@@ -69,14 +69,14 @@ async def test_finish_after_completed_does_not_extract_again(store):
 
 def _with_phone():
     wf = load_reference("berlin_signup").model_copy(deep=True)   # la de referencia esta en cache
-    from app.conversation.models import FieldSpec
-    wf.fields["telefono"] = FieldSpec(priority=1, description="Teléfono de contacto", type="phone", required=True,
-                                      question="¿A qué número te llamamos?")
+    from app.conversation.models import AnalysisField
+    wf.analysis.fields.append(AnalysisField(name="telefono", description="Teléfono de contacto", type="phone"))
+    wf.prompt += "\n- telefono: Teléfono de contacto. Pregunta sugerida: ¿A qué número te llamamos?"
     return wf
 
 
 def _state(wf, **fields):
-    return ConversationState(conversation_id="c", agent_id=wf.id, fields={n: None for n in wf.fields} | fields,
+    return ConversationState(conversation_id="c", agent_id=wf.id, fields={n: None for n in wf.analysis_fields} | fields,
                              messages=[Message(role="assistant", text="Hola.")])
 
 
@@ -85,6 +85,6 @@ def test_phone_is_one_more_field():
     wf = _with_phone()
     messages = build_turn_messages(wf, _state(wf), "Quiero anotarme.")
     assert messages[-1]["content"] == "Quiero anotarme."
-    assert "- telefono (obligatorio): Teléfono de contacto. Pregunta sugerida: ¿A qué número te llamamos?" \
+    assert "- telefono: Teléfono de contacto. Pregunta sugerida: ¿A qué número te llamamos?" \
         in messages[0]["content"]
     assert "Antes de despedirte" not in messages[0]["content"]

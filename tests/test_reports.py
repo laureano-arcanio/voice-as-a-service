@@ -318,7 +318,8 @@ def test_outcomes_report(api, data):
     fields = {f["field"]: f for f in out["fields"]}
     assert (fields["contact_name"]["captured"], fields["contact_name"]["total"], fields["contact_name"]["pct"]) == (
         2, 5, 40.0)
-    assert fields["company_name"]["captured"] == 1 and "email" not in fields     # email no es obligatorio
+    # Todos los datos del analisis (la definicion guardada ya es de la forma actual), en su orden.
+    assert fields["company_name"]["captured"] == 1 and "email" in fields
     assert out["by_version"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "version": 1, "total": 5,
                                   "conversion_pct": 40.0, "goal_pct": 20.0}]
 

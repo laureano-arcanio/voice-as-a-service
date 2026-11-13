@@ -462,15 +462,22 @@ def calls(s: Session, flt: ReportFilter) -> dict:
 def _outcome_defs(definition: dict | None) -> dict[str, dict]:
     from ..conversation.workflow import INCOMPLETE, OFF_TOPIC
     defs = {o.id: {"label": o.label, "goal": o.goal} for o in (INCOMPLETE, OFF_TOPIC)}
-    for o in ((definition or {}).get("completion") or {}).get("outcomes") or []:
+    definition = definition or {}
+    # Forma actual (analysis) o la vieja (completion), hasta que se conviertan las guardadas.
+    for o in ((definition.get("analysis") or definition.get("completion") or {}).get("outcomes") or []):
         if isinstance(o, dict) and o.get("id"):
             defs[o["id"]] = {"label": o.get("label") or o["id"], "goal": bool(o.get("goal"))}
     return defs
 
 
 def _required_fields(definition: dict | None) -> list[tuple[str, str]]:
-    """Los datos obligatorios (required) de la definicion, por prioridad: (nombre, etiqueta)."""
-    fields = (definition or {}).get("fields") or {}
+    """Los datos obligatorios (required) de la definicion vieja, por prioridad, o todos los del analisis en su orden:
+    (nombre, etiqueta)."""
+    definition = definition or {}
+    if isinstance((definition.get("analysis") or {}).get("fields"), list):
+        return [(f["name"], f.get("label") or f["name"]) for f in definition["analysis"]["fields"]
+                if isinstance(f, dict) and f.get("name")]
+    fields = definition.get("fields") or {}
     specs = sorted(((n, f) for n, f in fields.items() if isinstance(f, dict) and f.get("required")),
                    key=lambda kv: kv[1].get("priority", 0))
     return [(n, f.get("label") or n) for n, f in specs]

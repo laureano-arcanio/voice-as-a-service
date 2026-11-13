@@ -4,17 +4,16 @@ Sin reglas de comportamiento (como preguntar, cuando cortar, como decir los nume
 en su definicion, a la vista y editables (AGENTS.md, "Reglas de desarrollo"). El texto para la voz lo
 normaliza la plataforma antes del TTS (app/voice/speech_text.py); terminar y derivar son herramientas
 (app/llm/platform_tools.py)."""
-import datetime
 import json
-from zoneinfo import ZoneInfo
 
 import yaml
 
-from app.config import settings
-from app.conversation.contact import prompt_block
+from app.conversation import variables
 from app.conversation.models import ConversationState, Message, Workflow
 
 EXTRACTION_PROMPT = """Sos el extractor de datos de {where}. No hablás con nadie: leés la conversación entre el agente y el usuario y devolvés, para cada campo, el valor que dio el usuario, o null si no lo dio. Cada campo con su tipo y su descripción. KNOWN FIELDS son los datos ya guardados."""
+# Se suma si el agente pide resumen (analysis.summary).
+SUMMARY_PROMPT = " En summary, un resumen breve de la conversación: qué quería la persona y cómo terminó."
 
 # Marca de los mensajes del usuario que llegaron como audio (WhatsApp): son una transcripcion.
 VOICE_NOTE_TAG = "[nota de voz transcripta]"
@@ -29,12 +28,9 @@ CHANNEL = {
                  f"{VOICE_NOTE_TAG}. No recibís imágenes."),
 }
 
-WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
-
-
-def extraction_prompt(channel: str = "voice") -> str:
+def extraction_prompt(channel: str = "voice", summary: bool = False) -> str:
     return EXTRACTION_PROMPT.format(where="una conversación por WhatsApp" if channel == "whatsapp"
-                                    else "una llamada telefónica")
+                                    else "una llamada telefónica") + (SUMMARY_PROMPT if summary else "")
 
 
 def render_workflow(workflow: Workflow) -> str:
@@ -62,23 +58,29 @@ def _one_line(text: str) -> str:
     return " / ".join(line.strip() for line in text.splitlines() if line.strip())
 
 
-def render_fields(workflow: Workflow) -> str:
-    """Los campos tal como los define el agente."""
-    fields = {name: spec.model_dump(include={"type", "options", "description"}, exclude_none=True)
-              for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)}
+def render_fields(workflow: Workflow, state: ConversationState | None = None) -> str:
+    """Los campos del analisis tal como los define el agente, en su orden (las descripciones, con sus variables)."""
+    fields = {}
+    for name, spec in workflow.analysis_fields.items():
+        data = spec.model_dump(include={"type", "options", "description"}, exclude_none=True)
+        data["description"] = variables.render(data["description"], state, workflow)
+        fields[name] = data
     return yaml.safe_dump(fields, allow_unicode=True, sort_keys=False, width=1000)
 
 
 def build_extraction_prompt(workflow: Workflow, state: ConversationState) -> str:
+    """El analisis: el agente, sus instrucciones, los campos, las variables visibles como contexto y la
+    conversacion."""
     known = {k: v for k, v in state.fields.items() if v is not None}
-    # Llamada suelta: lo que el contacto escribio antes de la llamada.
-    motive = f"MOTIVO DEL LLAMADO (escrito antes de la llamada):\n{state.progress.context}\n\n" \
-        if state.progress.context else ""
+    instructions = workflow.analysis.instructions.strip() if workflow.analysis else ""
+    instructions = f"INSTRUCCIONES:\n{variables.render(instructions, state, workflow)}\n\n" if instructions else ""
+    context = variables.visible(state)
+    context = f"VARIABLES:\n{json.dumps(context, ensure_ascii=False)}\n\n" if context else ""
     return (
-        f"AGENTE: {workflow.agent.name}, {workflow.agent.role}.\n"
-        f"OBJETIVO: {workflow.objective.description.strip()}\n\n"
-        f"CAMPOS:\n{render_fields(workflow)}\n"
-        f"{motive}"
+        f"AGENTE: {workflow.agent.name}.\n\n"
+        f"{instructions}"
+        f"CAMPOS:\n{render_fields(workflow, state)}\n"
+        f"{context}"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
         f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}"
     )
@@ -91,54 +93,10 @@ def handoff_enabled(state: ConversationState | None) -> bool:
     return bool(state and state.channel == "voice" and state.progress.handoff_areas)
 
 
-def describe_condition(when: dict) -> str:
-    return " y ".join(f"{k} = {json.dumps(v, ensure_ascii=False)}" for k, v in when.items())
-
-
-def render_variables(text: str) -> str:
-    """{{today}} y {{now}} en las reglas, el objetivo y la base de conocimiento del agente (zona AGENT_TIMEZONE)."""
-    if "{{" not in text:
-        return text
-    now = datetime.datetime.now(ZoneInfo(settings.agent_timezone))
-    return (text.replace("{{today}}", f"{WEEKDAYS[now.weekday()]} {now:%Y-%m-%d}")
-            .replace("{{now}}", f"{WEEKDAYS[now.weekday()]} {now:%Y-%m-%d %H:%M}"))
-
-
 def build_system_prompt(workflow: Workflow, channel: str = "voice", state: ConversationState | None = None) -> str:
-    """El agente en un prompt de sistema, sacado de su definicion: quien es, el canal, el objetivo, los datos,
-    sus reglas, la base de conocimiento y los cierres. Con el estado de una llamada de campaña suma los datos del
-    contacto y los campos que ya vienen cargados."""
-    whatsapp = channel == "whatsapp"
-    fields = []
-    for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority):
-        need = ("obligatorio" if spec.required else
-                f"obligatorio si {describe_condition(spec.required_if)}" if spec.required_if else "opcional")
-        description = " ".join(spec.description.split()).rstrip(".") + "."
-        options = f" Opciones: {', '.join(spec.options)}." if spec.options else ""
-        question = f" Pregunta sugerida: {spec.question.strip()}" if spec.question and spec.question.strip() else ""
-        fields.append(f"- {name} ({need}): {description}{options}{question}")
-    outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
-                f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
-    rules = "\n".join(f"- {render_variables(r)}" for r in workflow.conversation.rules)
-    campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
-    # Con pre-call, la guia ya renderizada con sus variables (engine.run_pre_call).
-    guide = state.progress.opening_guide if state is not None else None
-    greeting = (f"\n\nAPERTURA (la persona escribe primero; guía para tu primer mensaje):\n"
-                f"{(workflow.conversation.opening if guide is None else guide).strip()}" if whatsapp else "")
-    data = f"\n\nDATOS A OBTENER (los nombres son internos):\n{chr(10).join(fields)}" if fields else ""
-    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. Idioma: {workflow.agent.language}. {CHANNEL[channel]}
-
-OBJETIVO:
-{render_variables(workflow.objective.description.strip())}{campaign}{data}
-
-REGLAS:
-{rules}
-
-BASE DE CONOCIMIENTO:
-{render_variables(workflow.knowledge.strip())}
-
-CIERRES (mensaje de despedida según el resultado):
-{chr(10).join(outcomes)}{greeting}"""
+    """El canal y el prompt del agente tal cual, con sus {{variables}} sustituidas (app/conversation/variables.py).
+    Sin estado (la vista previa del editor), el prompt sin renderizar."""
+    return f"{CHANNEL[channel]}\n\n{variables.render(workflow.prompt.strip(), state, workflow)}"
 
 
 def build_turn_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
@@ -146,7 +104,9 @@ def build_turn_messages(workflow: Workflow, state: ConversationState, user_messa
     whatsapp = state.channel == "whatsapp"
     media = state.media if whatsapp else None
     content = _turn_text(user_message, bool(media and media.user_voice_note))
-    return [{"role": "system", "content": build_system_prompt(workflow, state.channel, state)},
+    # El del primer turno (progress.system_prompt): igual en toda la conversacion, para el prefix cache.
+    system = state.progress.system_prompt or build_system_prompt(workflow, state.channel, state)
+    return [{"role": "system", "content": system},
             *classic_history(state.messages, whatsapp), {"role": "user", "content": content}]
 
 

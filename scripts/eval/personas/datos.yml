@@ -142,7 +142,7 @@ personas:
         email: "{email}"
         celular: "{telefono}"
         dni: null
-      outcome: [incompleta, sin_terminar]
+      outcome: [sin_terminar]
     turnos_max: 12
 
   tercero:

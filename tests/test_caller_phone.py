@@ -1,6 +1,6 @@
 """Pruebas del panel con número de quien llama simulado y herramientas automáticas (`caller_phone` y `workflows` en
-`POST /calls` y `POST /conversations`): solo con la sesión del panel, el número llega a la llamada, a los campos de
-teléfono y a las herramientas ({{call.phone}}), y nunca a la metadata del worker (no se marca)."""
+`POST /calls` y `POST /conversations`): solo con la sesión del panel, el número llega a la llamada, al prompt y a las
+herramientas ({{call.phone}}), y nunca a la metadata del worker (no se marca)."""
 import json
 
 import pytest
@@ -9,6 +9,7 @@ from cryptography.fernet import Fernet
 from app.agents.templates import reference_data
 from app.api.deps import MCP_INTERNAL_HEADER, MCP_INTERNAL_SECRET
 from app.config import settings
+from app.conversation import variables
 from app.models import CallRow
 from app.tools import runtime
 
@@ -19,8 +20,7 @@ from .voice_harness import add_agent, add_tool, identify_tool, new_client
 
 PHONE = "+5493514440000"
 BASE = "https://fichas.test"
-PHONE_FIELD = {"phone": {"priority": 5, "description": "Teléfono de contacto", "type": "phone", "required": False,
-                         "question": "¿Un teléfono?"}}
+PHONE_FIELD = {"name": "phone", "description": "Teléfono de contacto", "type": "phone"}
 
 
 class Http:
@@ -49,7 +49,7 @@ def token_key(monkeypatch):
 
 def phone_agent(admin, client):  # noqa: F811
     definition = reference_data("sales_discovery")
-    definition["fields"] = {**PHONE_FIELD, **definition["fields"]}
+    definition["analysis"]["fields"] = [PHONE_FIELD, *definition["analysis"]["fields"]]
     return make_agent(admin, client, definition=definition)
 
 
@@ -75,7 +75,8 @@ def test_voice_test_call_with_simulated_number_does_not_dial(api, admin):  # noq
         call = s.get(CallRow, out["conversation_id"])
         assert (call.mode, call.phone, call.phone_number_id) == ("prueba", PHONE, None)
     state = api.engine.store.get(out["conversation_id"])
-    assert state.fields["phone"] == PHONE and "phone" in state.progress.preloaded
+    # Sin precarga: el dato queda para el analisis; el numero es {{call.phone}}.
+    assert state.fields["phone"] is None and variables.render("{{call.phone}}", state) == PHONE
     assert state.progress.test_workflows is True and state.progress.caller_phone is None
     detail = admin.get(f"{V1}/calls/{out['conversation_id']}").json()["call"]
     assert detail["mode"] == "prueba" and detail["phone"] == PHONE
@@ -185,13 +186,14 @@ def test_text_conversation_with_simulated_number(api, admin):  # noqa: F811
     r = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"], "caller_phone": "+54 9 351 444 0000"})
     assert r.status_code == 201, r.text
     out = r.json()
-    assert out["state"]["fields"]["phone"] == PHONE
+    assert out["state"]["fields"]["phone"] is None
     state = api.engine.store.get(out["conversation_id"])
+    assert variables.render("{{call.phone}}", state) == PHONE
     assert state.progress.caller_phone == PHONE and state.progress.test_workflows is False
     with api.sessions() as s:
         assert s.get(CallRow, out["conversation_id"]) is None    # el texto no crea llamada
     ctx = api.engine.tools.context(api.engine.workflow(state), state, None)
-    assert (ctx.mode, ctx.phone, ctx.from_, ctx.to) == ("", PHONE, PHONE, None)
+    assert (ctx.mode, ctx.phone, ctx.from_, ctx.to, ctx.direction) == ("api", PHONE, PHONE, None, "inbound")
 
 
 def test_text_without_number_has_no_phone(api, admin):  # noqa: F811
@@ -230,5 +232,7 @@ def test_external_agent_gets_the_simulated_number(api, admin):  # noqa: F811
     agent = make_agent(admin, c)
     out = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"], "caller_phone": PHONE}).json()
     state = api.engine.store.get(out["conversation_id"])
-    ext = ExternalAgents(api.sessions)
-    assert ext.context(state, None) == {"mode": "", "from": PHONE, "to": ""}
+    headers = ExternalAgents(api.sessions).headers(api.engine.workflow(state), state, None)
+    assert (headers["X-Atentina-Mode"], headers["X-Atentina-From"], headers["X-Atentina-Direction"]) == \
+        ("api", PHONE, "inbound")
+    assert "X-Atentina-To" not in headers

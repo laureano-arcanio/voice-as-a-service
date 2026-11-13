@@ -15,7 +15,7 @@ FINISHED, OFF_TOPIC_REASON = "terminada", OFF_TOPIC.id
 
 
 def end_call_tool(outcomes: list[str] | None = None) -> dict:
-    """outcomes: con tu propio agente, los ids de completion.outcomes (el resultado lo elige el agente). Sin
+    """outcomes: con tu propio agente, los ids de analysis.outcomes (el resultado lo elige el agente). Sin
     outcomes, el motivo: terminada (el resultado sale de los datos) o fuera de tema."""
     if outcomes is not None:
         param = {"outcome": {"type": "string", "enum": outcomes,

@@ -678,7 +678,7 @@ class WhatsAppService:
                 # una campaña, la apertura es la plantilla que recibio, con el agente de la campaña.
                 target = campaigns.reply_target(s, info.id, wa_id, now)
                 try:
-                    state = self._new_conversation(s, info, target)
+                    state = self._new_conversation(s, info, target, wa_id, account)
                 except KeyError:
                     store.set_inbound(s, wamids, status="ignored")
                     s.commit()
@@ -773,19 +773,24 @@ class WhatsAppService:
         state.progress.handoff_areas = handoff_service.call_areas(s, state.client_id, workflow.handoff,
                                                                   channel="whatsapp")
 
-    def _new_conversation(self, s: Session, info: AccountInfo,
-                          target: campaigns.ReplyTarget | None) -> ConversationState:
-        """KeyError si el agente no existe o esta archivado. El de la campaña archivado: el del numero."""
+    def _new_conversation(self, s: Session, info: AccountInfo, target: campaigns.ReplyTarget | None,
+                          wa_id: str, account: WaAccount) -> ConversationState:
+        """KeyError si el agente no existe o esta archivado. El de la campaña archivado: el del numero. La
+        respuesta a una campaña lleva los datos del contacto de la campaña (fuente contact) y queda como saliente."""
+        phone = "+" + wa_id.lstrip("+")
+        call = {"from": phone, "to": account.display_phone_number, "phone": phone,
+                "direction": "outbound" if target is not None else "inbound", "mode": "whatsapp"}
+        values = {"contact": target.vars} if target is not None else None
         if target is not None and target.agent_id:
             try:
                 return self.engine.new_conversation(target.agent_id, info.client_id, session=s, channel="whatsapp",
-                                                    opening=target.opening)[0]
+                                                    opening=target.opening, variables=values, call=call)[0]
             except KeyError:
                 logger.warning("wa: el agente de la campaña %s esta archivado: responde el del numero",
                                target.campaign_id)
         opening = target.opening if target is not None else False
         return self.engine.new_conversation(info.agent_id, info.client_id, session=s, channel="whatsapp",
-                                            opening=opening)[0]
+                                            opening=opening, variables=values, call=call)[0]
 
     def _auth_failed(self, info: AccountInfo, e: GraphError) -> bool:
         """Meta rechazo el token (190 o 401). Si es del cliente, la cuenta queda desconectada

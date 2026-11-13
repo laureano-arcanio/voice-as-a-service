@@ -24,7 +24,7 @@ from livekit import api, rtc
 
 from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
-from ..conversation import opening_audio, recordings, workflows
+from ..conversation import opening_audio, recordings, variables, workflows
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Message, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
@@ -734,9 +734,14 @@ async def entrypoint(ctx: JobContext):
         llm = engine.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in st.messages), st.client_id)
         return await transfer.summarize(llm, render_conversation(st))
 
-    def tool_vars() -> dict:
+    def team_vars() -> dict:
+        # Whisper y plantillas al equipo: con las ocultas (la ficha para quien atiende) y las del sistema.
+        return variables.message_values(engine.store.get(conversation_id), workflow)
+
+    def contact_vars() -> dict:
+        # Mensajes al contacto: quedan en la conversacion que lee el LLM, sin las ocultas.
         st = engine.store.get(conversation_id)
-        return dict(st.progress.tool_vars) if st is not None else {}
+        return {**variables.visible(st), **variables.system_values(st, workflow)} if st is not None else {}
 
     def spawn_notice(coro) -> asyncio.Task:
         task = asyncio.create_task(coro)
@@ -751,8 +756,8 @@ async def entrypoint(ctx: JobContext):
             # Ya corto: no hay a quien conectar, pero un aviso sale igual.
             spawn_notice(transfer.Transfer(
                 sessions=sessions, line=None, conversation_id=conversation_id, client_id=state.client_id, areas=areas,
-                customer="", caller=caller_number, summary=handoff_summary, get_vars=tool_vars,
-                spawn_notice=spawn_notice).notify_only(area_name))
+                customer="", caller=caller_number, summary=handoff_summary, get_vars=team_vars,
+                get_contact_vars=contact_vars, spawn_notice=spawn_notice).notify_only(area_name))
             return
         session.input.set_audio_enabled(False)   # el agente no le contesta al cliente mientras espera
         agent_keys.close()     # un grupo a medio marcar no llega al agente: desde aca las teclas son de la linea
@@ -771,7 +776,8 @@ async def entrypoint(ctx: JobContext):
                 sessions=sessions, line=line, conversation_id=conversation_id, client_id=state.client_id,
                 areas=areas, customer=customer, caller=caller_number, summary=handoff_summary,
                 on_message=add_message, hang_up=hang_up, hold_music=handoff_cfg.hold_music.enabled,
-                first_attempt=current["attempts"], get_vars=tool_vars, spawn_notice=spawn_notice,
+                first_attempt=current["attempts"], get_vars=team_vars, get_contact_vars=contact_vars,
+                spawn_notice=spawn_notice,
                 on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow),
                 on_progress=on_progress, progress_names=progress_mode == "names", progress_id=current["handoffs"])
             # Las teclas de quien llama durante la derivacion, con el tramo si esta hablando con la persona.
@@ -927,9 +933,9 @@ async def entrypoint(ctx: JobContext):
     if not phone and metadata.get("max_duration_seconds"):
         # La de prueba y la del link (web, que ademas tiene el corte por minutos del tier).
         watchdogs.append(asyncio.create_task(duration_limit(metadata["max_duration_seconds"])))
-    # Pausa antes de hablar (conversation.opening_delay_ms): sin ella el saludo arranca apenas
+    # Pausa antes de hablar (first_message_delay_ms): sin ella el saludo arranca apenas
     # se conecta el audio y se puede perder el principio.
-    if delay_ms := workflow.conversation.opening_delay_ms:
+    if delay_ms := workflow.first_message_delay_ms:
         await asyncio.sleep(delay_ms / 1000)
     if workflow.record_audio and workflow.recording_notice:
         await session.say(RECORDING_NOTICE, add_to_chat_ctx=False)

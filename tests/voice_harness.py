@@ -196,7 +196,10 @@ def inbound_attributes(wa_id: str | None = None) -> dict:
 def seed_call(api, agent_id: str, client_id: str, mode: CallMode, phone: str | None = None) -> str:
     """Una llamada ya admitida, como la deja la API antes de despachar el worker (services/calls.py)."""
     with api.sessions() as s:
-        state, _ = api.engine.new_conversation(agent_id, client_id, session=s, phone=phone)
+        outbound = mode in (CallMode.saliente, CallMode.celular)
+        state, _ = api.engine.new_conversation(agent_id, client_id, session=s, call={
+            "phone": phone, "direction": "outbound" if outbound else "inbound", "mode": str(mode),
+            **({"to": phone} if outbound else {"from": phone})})
         api.engine.store.add(s, state)
         s.flush()
         s.add(CallRow(conversation_id=state.conversation_id, client_id=client_id, mode=mode, phone=phone))
@@ -270,7 +273,7 @@ def add_agent(admin, client: dict, *, workflows: dict | None = None, opening: st
               area: str | None = None, slug: str = "ana", **extra) -> dict:
     """Agente del cliente con esa apertura, que atiende DID (si el numero todavia esta libre)."""
     definition = reference_data("sales_discovery")
-    definition["conversation"]["opening"] = opening
+    definition["first_message"] = opening
     if workflows:
         definition["workflows"] = workflows
     if area:

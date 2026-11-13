@@ -7,8 +7,9 @@ Dos tipos, con el mismo encabezado (descripcion, confirmacion, frases de voz y r
 - code: una funcion `export default async function ({ args, secrets, call, vars })` en JavaScript,
   que corre en el sandbox (tools-runner). `parameters` es el JSON Schema de args.
 
-Templates en los valores fijos: {{secrets.NOMBRE}}, {{call.id|channel|mode|from|to|phone}}, {{agent.slug|version}},
-{{now}}, {{today}}, {{fields.x}}, {{contact.x}}, {{vars.x}}.
+Templates en los valores fijos: {{x}} (una variable de la conversacion, app/conversation/variables.py),
+{{secrets.NOMBRE}}, {{call.id|channel|mode|direction|from|to|phone|summary}}, {{agent.slug|version}}, {{channel}},
+{{now}}, {{today}} y {{fields.x}}. El host de la URL nunca lleva templates (SSRF).
 """
 import re
 from typing import Any, Literal
@@ -21,16 +22,20 @@ SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 SECRET_RE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 HEADER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-_]{0,63}$")
 PARAM_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,63}$")
-TEMPLATE_RE = re.compile(r"\{\{\s*([a-z]+)(?:\.([A-Za-z0-9_]+))?\s*\}\}")
+TEMPLATE_RE = re.compile(r"\{\{\s*([a-z][a-z0-9_]*)(?:\.([A-Za-z0-9_]+))?\s*\}\}")
 # {variable} de la ruta, sin confundirla con un template {{...}}.
 PATH_VAR_RE = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_]*)\}(?!\})")
 HOST_RE = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+(:\d{1,5})?$")
 
 # Los nombres de las herramientas de la plataforma: el cliente no los puede usar.
 RESERVED = {"end_call", "transfer_call"}
-CALL_KEYS = {"id", "channel", "mode", "from", "to", "phone"}
+CALL_KEYS = {"id", "channel", "mode", "direction", "from", "to", "phone", "summary"}
 AGENT_KEYS = {"slug", "version"}
-NAMESPACES = {"secrets", "call", "agent", "fields", "contact", "vars", "now", "today"}
+# Con nombre ({{ns.x}}) y sin nombre; cualquier otro {{x}} es una variable de la conversacion.
+NAMESPACES = {"secrets", "call", "agent", "fields"}
+BARE = {"now", "today", "channel"}
+# Los espacios que reemplazo {{x}}: se rechazan para que no queden vacios sin aviso.
+OLD_NAMESPACES = {"contact", "vars"}
 # Headers que arma el cliente HTTP o la plataforma.
 FORBIDDEN_HEADERS = {"host", "content-length", "transfer-encoding", "connection", "user-agent",
                      "idempotency-key", "x-atentina-signature", "x-atentina-conversation-id", "x-atentina-tool"}
@@ -43,21 +48,34 @@ def templates(text: str) -> list[tuple[str, str | None]]:
     return [(m.group(1), m.group(2)) for m in TEMPLATE_RE.finditer(text)]
 
 
+def _valid() -> str:
+    """Las variables validas, del catalogo (GET /variables/catalog), para el mensaje de error."""
+    from ..conversation.variables import SYSTEM_VARIABLES
+    names = [v["name"] for v in SYSTEM_VARIABLES if "tool" in v["applies_to"]]
+    return "{{nombre}} de una variable, " + ", ".join(f"{{{{{n}}}}}" for n in names)
+
+
 def check_template(text: str, where: str) -> None:
+    from ..conversation.variables import name_error
     for ns, key in templates(text):
-        if ns not in NAMESPACES:
-            raise ValueError(f"{where}: variable desconocida {{{{{ns}}}}} (usá secrets, call, agent, fields, contact, "
-                             "vars, now o today)")
-        if ns in ("now", "today"):
+        if ns in OLD_NAMESPACES and key is not None:
+            raise ValueError(f"{where}: {{{{{ns}.{key}}}}} ya no existe: usá {{{{{key}}}}}")
+        if ns in BARE:
             if key is not None:
                 raise ValueError(f"{where}: {{{{{ns}}}}} va sin punto")
+            continue
+        if ns not in NAMESPACES:
+            if key is not None:
+                raise ValueError(f"{where}: variable desconocida {{{{{ns}.{key}}}}} (valen {_valid()})")
+            if msg := name_error(ns):
+                raise ValueError(f"{where}: {{{{{ns}}}}}: {msg}")
             continue
         if key is None:
             raise ValueError(f"{where}: {{{{{ns}}}}} necesita un nombre ({{{{{ns}.nombre}}}})")
         if ns == "secrets" and not SECRET_RE.fullmatch(key):
             raise ValueError(f"{where}: secreto {key!r}: mayúsculas, números y _ (ej. CRM_TOKEN)")
         if ns == "call" and key not in CALL_KEYS:
-            raise ValueError(f"{where}: {{{{call.{key}}}}} no existe (id, channel, mode, from, to, phone)")
+            raise ValueError(f"{where}: {{{{call.{key}}}}} no existe ({', '.join(sorted(CALL_KEYS))})")
         if ns == "agent" and key not in AGENT_KEYS:
             raise ValueError(f"{where}: {{{{agent.{key}}}}} no existe (slug, version)")
 
@@ -125,12 +143,21 @@ class ResponseConfig(BaseModel):
 
 
 class Assign(BaseModel):
-    """Guarda un valor del resultado en vars, para otras herramientas ({{vars.x}})."""
+    """Guarda un valor del resultado en una variable de la conversacion ({{x}}), para el resto de la conversacion
+    y las herramientas siguientes."""
     model_config = {"extra": "forbid"}
     var: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
     path: str = Field(min_length=1, max_length=200)
-    # Se guarda pero no va al modelo.
+    # Va a las herramientas, nunca al modelo (prompt, analisis, derivacion, headers del agente externo).
     hide: bool = False
+
+    @field_validator("var")
+    @classmethod
+    def _not_reserved(cls, value: str) -> str:
+        from ..conversation.variables import name_error
+        if msg := name_error(value):
+            raise ValueError(f"assign.var: {msg}")
+        return value
 
 
 AUTH_TYPES = ("bearer", "api_key", "basic", "oauth2_client_credentials")
@@ -297,6 +324,10 @@ class HttpConfig(BaseModel):
             if name.lower() in FORBIDDEN_HEADERS:
                 raise ValueError(f"http.headers.{name}: lo pone la plataforma")
             check_template(value, f"http.headers.{name}")
+            fixed = TEMPLATE_RE.sub("", value)
+            if not fixed.isascii() or re.search(r"[\x00-\x1f\x7f]", fixed):
+                raise ValueError(f"http.headers.{name}: un header no lleva tildes, ñ ni saltos de línea (mandá ese dato "
+                                 "en la query o en el cuerpo)")
         if (auth_header := self.auth.header_name()) and auth_header.lower() in {h.lower() for h in self.headers}:
             raise ValueError(f"http.headers.{auth_header}: ya lo pone auth")
         if self.body is not None:

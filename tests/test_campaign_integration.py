@@ -246,17 +246,17 @@ class StubDefinitions:
 def flagged_workflow(no_contact=True):
     """El resultado "no_llamar" se elige por el id guardado en la conversacion; su `when` no se cumple solo."""
     wf = load_reference("sales_discovery").model_copy(deep=True)
-    wf.completion.outcomes.insert(0, Outcome(id="no_llamar", label="No llamar", when={"baja": True}, message="Listo",
-                                             no_contact=no_contact))
+    wf.analysis.outcomes.insert(0, Outcome(id="no_llamar", label="No llamar", when={"baja": True},
+                                           no_contact=no_contact))
     return wf
 
 
 def test_outcome_flag_is_part_of_the_definition():
-    assert Outcome(id="x", label="X", message="m").no_contact is False
+    assert Outcome(id="x", label="X").no_contact is False
     wf = load_reference("sales_discovery").model_dump()
-    wf["completion"]["outcomes"][-1:] = [{"id": "baja", "label": "Baja", "when": {}, "message": "ok", "no_contact": True}]
+    wf["analysis"]["outcomes"][-1:] = [{"id": "baja", "label": "Baja", "when": {}, "no_contact": True}]
     from app.conversation.models import Workflow
-    assert Workflow.model_validate(wf).completion.outcomes[-1].no_contact is True
+    assert Workflow.model_validate(wf).outcomes[-1].no_contact is True
 
 
 async def test_no_contact_outcome_adds_a_voice_optout(api, voice):  # noqa: F811
@@ -268,7 +268,7 @@ async def test_no_contact_outcome_adds_a_voice_optout(api, voice):  # noqa: F811
         close(api, m.id, "answered")
     # La primera conversacion termino en el resultado "no contactar"; la segunda, en uno comun.
     with api.sessions() as s:
-        for m, outcome in ((first, "no_llamar"), (second, flagged_workflow().completion.outcomes[-1].id)):
+        for m, outcome in ((first, "no_llamar"), (second, flagged_workflow().outcomes[-1].id)):
             conv = s.get(ConversationRow, m.conversation_id)
             conv.status, conv.progress = "completed", {"outcome": outcome}
         s.commit()

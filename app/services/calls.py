@@ -11,6 +11,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..conversation import variables
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import ConversationState
 from ..db import utcnow
@@ -96,8 +97,7 @@ class CallRequest:
     # DEMO_HANDOFF; el loadtest y las campañas no derivan nunca.
     handoff: bool = True
     # Intento de una campaña de voz (app/campaigns/dialer.py): el contacto de la campaña, con los datos
-    # (`vars`) que la conversacion usa en la apertura, en los campos precargados y en el prompt
-    # (app/conversation/contact.py).
+    # (`vars`), que son variables de la conversacion (app/conversation/variables.py).
     campaign_contact_id: str | None = None
     vars: dict | None = None
     # Llamada por el link publico de un agente (app/services/call_links.py): modo web, consume minutos
@@ -105,9 +105,9 @@ class CallRequest:
     call_link_id: str | None = None
     link_max_concurrent: int | None = None
     # Llamada suelta desde la pantalla Llamadas: un contacto de la agenda (su telefono y sus datos, como en una
-    # campaña) y el motivo en texto libre, que va al prompt (app/conversation/contact.py).
+    # campaña, fuente contact) y las variables del pedido (fuente request; app/conversation/variables.py).
     contact_id: str | None = None
-    context: str | None = None
+    variables: dict | None = None
     # Prueba desde el panel (panel_test): el numero de quien llama, simulado. Va a la llamada y a las
     # herramientas ({{call.phone}}), nunca a la metadata del worker: no se marca.
     caller_phone: str | None = None
@@ -146,6 +146,9 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     if (simulated or req.workflows) and (req.phone or req.contact_id or req.trial or req.loadtest or req.call_link_id
                                          or req.campaign_contact_id):
         raise Invalid("caller_phone y workflows son solo para llamadas de prueba (sin teléfono)")
+    request_vars, errors = variables.check_request(req.variables)
+    if errors:
+        raise Invalid(f"{errors[0]['path']}: {errors[0]['message']}", "invalid_variables", details=errors)
     vars = req.vars
     if req.contact_id:
         contact = s.get(Contact, req.contact_id)
@@ -157,8 +160,6 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
             raise Invalid("contact_id es solo para llamadas sueltas")
         vars = contact_vars(contact)
         req.phone = req.phone or contact.phone
-    elif req.context and vars is None:
-        vars = {}   # sin contacto, la apertura igual se limpia de {{variables}}
     phone = normalize_e164(req.phone) if req.phone else None
     if phone and not req.campaign_contact_id and is_opted_out(s, agent.client_id, phone, "voice"):
         raise Conflict("El número pidió no recibir llamadas de este cliente (Contactos, Bajas)", "opted_out")
@@ -181,9 +182,14 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     mode = (CallMode.celular if req.trial else CallMode.saliente if phone else CallMode.loadtest if req.loadtest
             else CallMode.web if req.call_link_id else CallMode.prueba)
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
+    # {{call.*}}: una saliente va de nuestro numero al de la persona; el resto la atiende el agente (la prueba,
+    # con el numero simulado de quien llama).
+    call = ({"from": caller_id.e164 if caller_id else None, "to": phone, "phone": phone, "direction": "outbound"}
+            if phone else {"from": simulated, "phone": simulated, "direction": "inbound"})
     try:
-        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=vars,
-                                           phone=phone or simulated, context=req.context)
+        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s,
+                                           variables={"contact": vars, "request": request_vars},
+                                           call={**call, "mode": str(mode)})
     except KeyError:
         raise NotFound("Agente inexistente") from None
     state.progress.test_workflows = req.workflows
@@ -380,7 +386,10 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
                                            client_id=number.client_id, channel="voice", fields={}), ""
     else:
         try:
-            state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s, phone=caller)
+            state, opening = engine.new_conversation(
+                agent_id, client_id=number.client_id, session=s,
+                call={"from": caller, "to": number.e164, "phone": caller, "direction": "inbound",
+                      "mode": str(CallMode.entrante)})
         except KeyError:
             raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,

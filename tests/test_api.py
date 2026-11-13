@@ -135,12 +135,12 @@ def test_client_user_manages_its_own_agents(api, admin):
 
     renamed = user.patch(f"{V1}/agents/{agent['id']}", json={"name": "Recepción 2", "description": "Atiende"})
     assert renamed.status_code == 200 and renamed.json()["name"] == "Recepción 2"
-    definition = {**agent["definition"], "knowledge": "Atendemos de 9 a 18."}
+    definition = {**agent["definition"], "prompt": agent["definition"]["prompt"] + "\nAtendemos de 9 a 18."}
     v2 = user.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
     assert v2.status_code == 200 and v2.json()["version"] == 2
     versions = user.get(f"{V1}/agents/{agent['id']}/versions").json()
     assert [v["version"] for v in versions] == [2, 1] and versions[0]["created_by_email"] == "ana@acme.com"
-    bad = user.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": {**definition, "fields": {}}})
+    bad = user.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": {**definition, "prompt": "x" * 40_001}})
     assert bad.status_code == 422
 
     assert user.patch(f"{V1}/agents/{agent['id']}", json={"archived": True}).json()["archived"] is True
@@ -234,7 +234,7 @@ def test_agent_from_template_and_versions(api, admin):
     assert agent["definition"]["id"] == "ventas" and agent["voice"] == "sofia"
 
     definition = agent["definition"]
-    definition["conversation"]["opening"] = "Hola, soy Sofía."
+    definition["first_message"] = "Hola, soy Sofía."
     v2 = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition}).json()
     assert v2["version"] == 2 and v2["definition"]["version"] == 2
     # Sin cambios no crea version.
@@ -243,21 +243,23 @@ def test_agent_from_template_and_versions(api, admin):
     versions = admin.get(f"{V1}/agents/{agent['id']}/versions").json()
     assert [v["version"] for v in versions] == [2, 1]
     v1 = admin.get(f"{V1}/agents/{agent['id']}/versions/1").json()
-    assert v1["definition"]["conversation"]["opening"] != "Hola, soy Sofía."
+    assert v1["definition"]["first_message"] != "Hola, soy Sofía."
 
 
 def test_invalid_definition_reports_paths(api, admin):
     c = make_client(admin)
     agent = make_agent(admin, c)
-    bad = {**agent["definition"], "fields": {"Mal Nombre": {"priority": 1, "description": "x", "question": "?"}}}
+    analysis = agent["definition"]["analysis"]
+    bad = {**agent["definition"], "analysis": {**analysis, "fields": [{"name": "Mal Nombre", "description": "x"}], "outcomes": []}}
     r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": bad})
     assert r.status_code == 422 and r.json()["code"] == "invalid_definition"
-    assert r.json()["errors"] == [{"path": "fields.Mal Nombre", "message": "usar minusculas, numeros y _ (ej. contact_name)"}]
-    no_default = {**agent["definition"]}
-    no_default["completion"] = {"outcomes": [{"id": "a", "label": "A", "when": {"contact_name": "x"}, "message": "m"}]}
+    assert r.json()["errors"] == [{"path": "analysis.fields.0.name",
+                                   "message": "Mal Nombre: usar minusculas, numeros y _ (ej. contact_name)"}]
+    no_default = {**agent["definition"], "analysis": {**analysis, "outcomes": [
+        {"id": "a", "label": "A", "when": {"contact_name": "x"}}]}}
     check = admin.post(f"{V1}/agents/validate", json={"definition": no_default}).json()
     assert check["valid"] is False and "default" in check["errors"][0]["message"]
-    assert check["errors"][0]["path"] == "completion.outcomes"
+    assert check["errors"][0]["path"] == "analysis.outcomes"
     wrong_voice = {**agent["definition"], "agent": {**agent["definition"]["agent"], "voice": "no_existe"}}
     r = admin.post(f"{V1}/agents/validate", json={"definition": wrong_voice}).json()
     assert r["errors"][0]["path"] == "agent.voice"
@@ -290,7 +292,8 @@ def test_templates_and_schema(api, admin):
     assert all("[AGENTE]" not in t["agent"] for t in templates)   # las marcas se completan
     assert admin.get(f"{V1}/agent-templates/asistente").json()["id"] == "asistente"
     assert admin.get(f"{V1}/agent-templates/demo_booking").status_code == 404
-    assert "fields" in admin.get(f"{V1}/agents/schema").json()["properties"]
+    props = admin.get(f"{V1}/agents/schema").json()["properties"]
+    assert {"prompt", "first_message", "variables", "analysis"} <= set(props) and "objective" not in props
 
 
 def test_create_agent_blank_or_template(api, admin):
@@ -309,7 +312,7 @@ def test_create_agent_blank_or_template(api, admin):
     salud = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Turnos", "template_id": "salud",
                                              "voice": "tomas"}).json()
     assert salud["voice"] == "tomas" and salud["definition"]["agent"]["name"] == "Tomás"
-    assert c["name"] in salud["definition"]["conversation"]["opening"] and "[EMPRESA]" not in str(salud["definition"])
+    assert c["name"] in salud["definition"]["first_message"] and "[EMPRESA]" not in str(salud["definition"])
     assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "y", "voice": "tomas"}).status_code == 422
     assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "z", "template_id": "salud",
                                             "voice": "nadie"}).status_code == 422
@@ -318,7 +321,7 @@ def test_create_agent_blank_or_template(api, admin):
 def test_prompt_preview_comes_from_definition(api, admin):
     c = make_client(admin)
     agent = make_agent(admin, c, template="demo_booking")
-    d = {**agent["definition"], "objective": {"description": "Objetivo de prueba."}}
+    d = {**agent["definition"], "prompt": "# Objetivo\nObjetivo de prueba."}
     classic = admin.post(f"{V1}/agents/prompt", json={"definition": d}).json()
     assert "Objetivo de prueba." in classic["system"] and set(classic) == {"system"}
     whatsapp = admin.post(f"{V1}/agents/prompt", json={"definition": d, "channel": "whatsapp"}).json()
@@ -330,7 +333,7 @@ def test_prompt_preview_comes_from_definition(api, admin):
     own = admin.post(f"{V1}/agents/prompt", json={"definition": {
         **d, "external": {"connection": "c", "system": "Sos el agente de Acme."}}}).json()
     assert own["system"] == "Sos el agente de Acme."
-    bad = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "completion": {"outcomes": []}}})
+    bad = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "prompt": "{{secrets.X}}"}})
     assert bad.status_code == 422 and bad.json()["code"] == "invalid_definition"
 
 
@@ -542,7 +545,7 @@ def test_conversation_keeps_its_agent_version(api, admin):
     agent = make_agent(admin, c)
     started = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()
     definition = agent["definition"]
-    definition["fields"]["extra"] = {"priority": 999, "description": "Dato nuevo", "question": "¿?", "required": True}
+    definition["analysis"]["fields"].append({"name": "extra", "description": "Dato nuevo"})
     admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
     detail = admin.get(f"{V1}/calls/{started['conversation_id']}").json()
     assert detail["agent_version"] == 1 and "extra" not in {f["name"] for f in detail["fields"]}

@@ -864,7 +864,7 @@ class AgentOut(ORM):
     own_agent: bool = Field(default=False, description="Tu propio agente: contesta el endpoint del cliente "
                                                        "(definition.external)")
     voice: str | None
-    # Objetivo de la definicion (`objective.description`), para elegir el agente en "Probar agentes".
+    # Primer parrafo de "# Objetivo" del prompt (agents/templates.prompt_objective), para elegir el agente en "Probar agentes".
     objective: str = ""
     # URL del link para llamar activo; solo en la lista (GET /agents).
     call_link_url: str | None = None
@@ -1036,7 +1036,9 @@ class ToolTestIn(BaseModel):
     secrets: dict[str, str] | None = Field(default=None, description="Secretos para esta prueba (no se guardan; "
                                                                      "pisan los del cliente y los del agente)")
     call: dict[str, Any] | None = Field(default=None, description="Datos de llamada de ejemplo: id, channel, mode, "
-                                                                  "from, to, phone")
+                                                                  "direction, from, to, phone, summary")
+    variables: dict[str, Any] | None = Field(default=None, description="Valores de ejemplo de las variables ({{x}}), "
+                                                                       "con las reglas de POST /calls")
 
 
 class ToolDraftTestIn(ToolTestIn):
@@ -1193,6 +1195,11 @@ class ApiKeyCreated(ApiKeyOut):
 CALLER_PHONE_DESC = ("Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a "
                      "las herramientas como {{call.phone}}.")
 TEST_WORKFLOWS_DESC = "Solo pruebas desde el panel: corre el pre-call y el post-call del agente."
+VARIABLES_DESC = ("Variables de la conversación ({{nombre}} en el prompt, el primer mensaje y las herramientas): objeto "
+                  "plano de texto, número o booleano; hasta 30, de hasta 2.000 caracteres. Pisan a los default del "
+                  "agente y a los datos del contacto; el pre-call y las herramientas las pisan a ellas. Las del "
+                  "sistema (GET /variables/catalog) no se pueden mandar. 422 invalid_variables con el `path` "
+                  "variables.<nombre>; un null se ignora.")
 
 
 class CallIn(BaseModel):
@@ -1203,9 +1210,8 @@ class CallIn(BaseModel):
     loadtest: bool = False
     contact_id: str | None = Field(default=None, description="Contacto de la agenda: sin `phone`, marca el suyo, y "
                                                               "sus datos van a la conversacion como en una campaña")
-    context: str | None = Field(default=None, max_length=2000,
-                                description="Motivo del llamado en texto libre (lo que el contacto dejo en la web): "
-                                            "el agente llama con ese contexto")
+    variables: dict[str, Any] | None = Field(default=None, description=VARIABLES_DESC,
+                                             examples=[{"motivo": "Pidió presupuesto", "nombre": "Ana"}])
     caller_phone: str | None = Field(default=None, max_length=32, description=CALLER_PHONE_DESC)
     workflows: bool = Field(default=False, description=TEST_WORKFLOWS_DESC)
 
@@ -1458,6 +1464,8 @@ class CallDetail(BaseModel):
 
 class ConversationIn(BaseModel):
     agent_id: str
+    variables: dict[str, Any] | None = Field(default=None, description=VARIABLES_DESC,
+                                             examples=[{"deuda": "125000"}])
     caller_phone: str | None = Field(default=None, max_length=32, description=CALLER_PHONE_DESC)
     workflows: bool = Field(default=False, description=TEST_WORKFLOWS_DESC)
 
@@ -1486,6 +1494,30 @@ class TurnOut(BaseModel):
     message: str
     state: ConversationStateOut
     status: Literal["active", "completed"]
+
+
+# ---------- variables (app/conversation/variables.py) ----------
+
+class SystemVariableOut(BaseModel):
+    name: str = Field(examples=["call.phone"])
+    description: str
+    example: str = Field(examples=["+5491155550000"])
+    applies_to: list[Literal["prompt", "first_message", "analysis", "handoff", "tool"]] = Field(
+        description="Dónde se puede usar: prompt, first_message, analysis, handoff (mensajes de derivación) o tool")
+
+
+class VariableLimitsOut(BaseModel):
+    max_variables: int = Field(examples=[30])
+    max_value_chars: int = Field(examples=[2000])
+
+
+class VariableCatalogOut(BaseModel):
+    """Reglas de las variables de usuario ({{nombre}}) y las del sistema."""
+    name_pattern: str = Field(examples=["^[a-z][a-z0-9_]{0,63}$"])
+    reserved: list[str] = Field(examples=[["channel", "today", "now"]])
+    reserved_prefixes: list[str] = Field(examples=[["call.", "agent.", "secrets.", "fields."]])
+    limits: VariableLimitsOut
+    system: list[SystemVariableOut]
 
 
 # ---------- voces ----------
@@ -2032,7 +2064,7 @@ class ContactIn(BaseModel):
 
 class ContactImportIn(BaseModel):
     """CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email
-    y notas opcionales; las demas columnas se ignoran."""
+    y notas opcionales; las demas columnas se ignoran (en una campaña de voz son variables de la llamada)."""
     csv: str = Field(min_length=1, max_length=900_000)
 
 
@@ -2138,12 +2170,22 @@ class CampaignStartIn(BaseModel):
         default=False, description="Una campaña comercial se inicia confirmando que la lista se filtro contra el Registro No Llame")
 
 
+class CampaignContactIn(ContactIn):
+    """Un contacto de la campaña de voz, con sus datos para la llamada."""
+    variables: dict[str, Any] | None = Field(
+        default=None, examples=[{"deuda": "125000"}],
+        description="Solo voz: valores de {{nombre}} para la llamada de este contacto (hasta 30, texto, numero o "
+                    "booleano, 2.000 caracteres). No se guardan en la agenda; nombre, telefono, email y params no se pisan")
+
+
 class CampaignContactsIn(BaseModel):
     """Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien
     se cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:
-    vuelven en `skipped`."""
+    vuelven en `skipped`. En voz, las columnas del `csv` que no son telefono, nombre, email ni notas son
+    variables de la llamada: el encabezado es el nombre (`Deuda Total` es `{{deuda_total}}`), hasta 30
+    columnas y 2.000 caracteres por celda."""
     contact_ids: list[str] = Field(default=[], max_length=10_000, description="Contactos de la agenda")
-    contacts: list[ContactIn] = Field(default=[], max_length=10_000, description="Contactos nuevos o a actualizar")
+    contacts: list[CampaignContactIn] = Field(default=[], max_length=10_000, description="Contactos nuevos o a actualizar")
     csv: str | None = Field(default=None, max_length=900_000, description="CSV de contactos: como /contacts/import")
     recipients: list[WaRecipientIn] = Field(
         default=[], max_length=10_000,

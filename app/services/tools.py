@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..conversation import variables as conversation_variables
 from ..conversation.models import ToolGrant, Workflow
 from ..db import utcnow
 from ..models import (
@@ -685,9 +686,13 @@ def check_agent_tools(s: Session, client_id: str, agent_id: str | None, normaliz
 
 async def test_tool(s_factory, client_id: str, tool_type: str, definition: dict, args: dict, *,
                     slug: str = "prueba", revision: int = 0, agent_id: str | None = None,
-                    secrets: dict[str, str] | None = None, call: dict | None = None) -> ToolResult:
+                    secrets: dict[str, str] | None = None, call: dict | None = None,
+                    variables: dict | None = None) -> ToolResult:
     """Ejecuta una definicion (guardada o no) con los secretos del cliente, pisados por los del agente (si viene
-    agent_id) y por los del pedido (no se guardan)."""
+    agent_id) y por los del pedido (no se guardan). variables: los valores de ejemplo de {{x}}."""
+    values_in, errors = conversation_variables.check_request(variables)
+    if errors:
+        raise Invalid(f"{errors[0]['path']}: {errors[0]['message']}", "invalid_variables", details=errors)
     tool = parse(tool_type, definition)
     agent_slug = ""
     with s_factory() as s:
@@ -703,7 +708,8 @@ async def test_tool(s_factory, client_id: str, tool_type: str, definition: dict,
     call = call or {}
     ctx = ToolContext(conversation_id=str(call.get("id") or "prueba"), channel=call.get("channel") or "voice",
                       mode=call.get("mode") or "prueba", from_=call.get("from"), to=call.get("to"),
-                      phone=call.get("phone"), agent_slug=agent_slug, secrets=values)
+                      phone=call.get("phone"), direction=call.get("direction"), summary=call.get("summary"),
+                      agent_slug=agent_slug, vars=values_in, secrets=values)
     spec = ToolSpec(slug=slug, type=tool_type, revision=revision, tool=tool)
     return await run(spec, args, ctx)
 

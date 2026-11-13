@@ -3523,7 +3523,7 @@
      "conversations"
     ],
     "summary": "Start Conversation",
-    "description": "Con `caller_phone` o `workflows` (solo pruebas del panel; 403 panel_test_only con API key o el MCP): el\nnumero simulado precarga los campos de telefono y llega a las herramientas; `workflows` corre el pre-call.",
+    "description": "`variables`: valores de `{{nombre}}` para el prompt, el primer mensaje y las herramientas (422\ninvalid_variables con el `path` de la que no vale). Con `caller_phone` o `workflows` (solo pruebas del panel;\n403 panel_test_only con API key o el MCP): el numero simulado es {{call.phone}} y llega a las herramientas;\n`workflows` corre el pre-call.",
     "operationId": "start_conversation_api_v1_conversations_post",
     "requestBody": {
      "content": {
@@ -14754,6 +14754,33 @@
     ]
    }
   },
+  "/api/v1/variables/catalog": {
+   "get": {
+    "tags": [
+     "variables"
+    ],
+    "summary": "Variable Catalog",
+    "description": "Reglas de nombres de las variables de usuario, topes y las variables del sistema con donde se pueden usar\n(`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente.",
+    "operationId": "variable_catalog_api_v1_variables_catalog_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/VariableCatalogOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -16782,18 +16809,24 @@
       "title": "Contact Id",
       "description": "Contacto de la agenda: sin `phone`, marca el suyo, y sus datos van a la conversacion como en una campaña"
      },
-     "context": {
+     "variables": {
       "anyOf": [
        {
-        "type": "string",
-        "maxLength": 2000
+        "additionalProperties": true,
+        "type": "object"
        },
        {
         "type": "null"
        }
       ],
-      "title": "Context",
-      "description": "Motivo del llamado en texto libre (lo que el contacto dejo en la web): el agente llama con ese contexto"
+      "title": "Variables",
+      "description": "Variables de la conversación ({{nombre}} en el prompt, el primer mensaje y las herramientas): objeto plano de texto, número o booleano; hasta 30, de hasta 2.000 caracteres. Pisan a los default del agente y a los datos del contacto; el pre-call y las herramientas las pisan a ellas. Las del sistema (GET /variables/catalog) no se pueden mandar. 422 invalid_variables con el `path` variables.<nombre>; un null se ignora.",
+      "examples": [
+       {
+        "motivo": "Pidió presupuesto",
+        "nombre": "Ana"
+       }
+      ]
      },
      "caller_phone": {
       "anyOf": [
@@ -17681,6 +17714,81 @@
     ],
     "title": "CallsUsageOut"
    },
+   "CampaignContactIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone",
+      "examples": [
+       "+54 9 351 555-1234",
+       "3515551234"
+      ]
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 254
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes",
+      "description": "Nota libre sobre el contacto"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Variables",
+      "description": "Solo voz: valores de {{nombre}} para la llamada de este contacto (hasta 30, texto, numero o booleano, 2.000 caracteres). No se guardan en la agenda; nombre, telefono, email y params no se pisan",
+      "examples": [
+       {
+        "deuda": "125000"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "CampaignContactIn",
+    "description": "Un contacto de la campaña de voz, con sus datos para la llamada."
+   },
    "CampaignContactOut": {
     "properties": {
      "id": {
@@ -17878,7 +17986,7 @@
      },
      "contacts": {
       "items": {
-       "$ref": "#/components/schemas/ContactIn"
+       "$ref": "#/components/schemas/CampaignContactIn"
       },
       "type": "array",
       "maxItems": 10000,
@@ -17912,7 +18020,7 @@
     },
     "type": "object",
     "title": "CampaignContactsIn",
-    "description": "Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien\nse cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:\nvuelven en `skipped`."
+    "description": "Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien\nse cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:\nvuelven en `skipped`. En voz, las columnas del `csv` que no son telefono, nombre, email ni notas son\nvariables de la llamada: el encabezado es el nombre (`Deuda Total` es `{{deuda_total}}`), hasta 30\ncolumnas y 2.000 caracteres por celda."
    },
    "CampaignCreated": {
     "properties": {
@@ -17981,7 +18089,7 @@
      },
      "contacts": {
       "items": {
-       "$ref": "#/components/schemas/ContactIn"
+       "$ref": "#/components/schemas/CampaignContactIn"
       },
       "type": "array",
       "maxItems": 10000,
@@ -20196,7 +20304,7 @@
      "csv"
     ],
     "title": "ContactImportIn",
-    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email\ny notas opcionales; las demas columnas se ignoran."
+    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email\ny notas opcionales; las demas columnas se ignoran (en una campaña de voz son variables de la llamada)."
    },
    "ContactIn": {
     "properties": {
@@ -20592,6 +20700,24 @@
      "agent_id": {
       "type": "string",
       "title": "Agent Id"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Variables",
+      "description": "Variables de la conversación ({{nombre}} en el prompt, el primer mensaje y las herramientas): objeto plano de texto, número o booleano; hasta 30, de hasta 2.000 caracteres. Pisan a los default del agente y a los datos del contacto; el pre-call y las herramientas las pisan a ellas. Las del sistema (GET /variables/catalog) no se pueden mandar. 422 invalid_variables con el `path` variables.<nombre>; un null se ignora.",
+      "examples": [
+       {
+        "deuda": "125000"
+       }
+      ]
      },
      "caller_phone": {
       "anyOf": [
@@ -30310,6 +30436,51 @@
     ],
     "title": "SystemSmartOut"
    },
+   "SystemVariableOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name",
+      "examples": [
+       "call.phone"
+      ]
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "example": {
+      "type": "string",
+      "title": "Example",
+      "examples": [
+       "+5491155550000"
+      ]
+     },
+     "applies_to": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "prompt",
+        "first_message",
+        "analysis",
+        "handoff",
+        "tool"
+       ]
+      },
+      "type": "array",
+      "title": "Applies To",
+      "description": "Dónde se puede usar: prompt, first_message, analysis, handoff (mensajes de derivación) o tool"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "description",
+     "example",
+     "applies_to"
+    ],
+    "title": "SystemVariableOut"
+   },
    "TeamMemberIn": {
     "properties": {
      "name": {
@@ -31794,7 +31965,20 @@
        }
       ],
       "title": "Call",
-      "description": "Datos de llamada de ejemplo: id, channel, mode, from, to, phone"
+      "description": "Datos de llamada de ejemplo: id, channel, mode, direction, from, to, phone, summary"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Variables",
+      "description": "Valores de ejemplo de las variables ({{x}}), con las reglas de POST /calls"
      },
      "type": {
       "type": "string",
@@ -32025,7 +32209,20 @@
        }
       ],
       "title": "Call",
-      "description": "Datos de llamada de ejemplo: id, channel, mode, from, to, phone"
+      "description": "Datos de llamada de ejemplo: id, channel, mode, direction, from, to, phone, summary"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Variables",
+      "description": "Valores de ejemplo de las variables ({{x}}), con las reglas de POST /calls"
      }
     },
     "type": "object",
@@ -32594,6 +32791,90 @@
      "valid"
     ],
     "title": "ValidationOut"
+   },
+   "VariableCatalogOut": {
+    "properties": {
+     "name_pattern": {
+      "type": "string",
+      "title": "Name Pattern",
+      "examples": [
+       "^[a-z][a-z0-9_]{0,63}$"
+      ]
+     },
+     "reserved": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Reserved",
+      "examples": [
+       [
+        "channel",
+        "today",
+        "now"
+       ]
+      ]
+     },
+     "reserved_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Reserved Prefixes",
+      "examples": [
+       [
+        "call.",
+        "agent.",
+        "secrets.",
+        "fields."
+       ]
+      ]
+     },
+     "limits": {
+      "$ref": "#/components/schemas/VariableLimitsOut"
+     },
+     "system": {
+      "items": {
+       "$ref": "#/components/schemas/SystemVariableOut"
+      },
+      "type": "array",
+      "title": "System"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name_pattern",
+     "reserved",
+     "reserved_prefixes",
+     "limits",
+     "system"
+    ],
+    "title": "VariableCatalogOut",
+    "description": "Reglas de las variables de usuario ({{nombre}}) y las del sistema."
+   },
+   "VariableLimitsOut": {
+    "properties": {
+     "max_variables": {
+      "type": "integer",
+      "title": "Max Variables",
+      "examples": [
+       30
+      ]
+     },
+     "max_value_chars": {
+      "type": "integer",
+      "title": "Max Value Chars",
+      "examples": [
+       2000
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "max_variables",
+     "max_value_chars"
+    ],
+    "title": "VariableLimitsOut"
    },
    "VoiceOut": {
     "properties": {

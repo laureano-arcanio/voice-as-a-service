@@ -44,17 +44,24 @@ class ToolContext:
     from_: str | None = None
     to: str | None = None
     phone: str | None = None             # la otra punta: en una saliente, from_ es el numero de la empresa
+    direction: str | None = None         # inbound u outbound
+    summary: str | None = None           # resumen del analisis (post-call)
     agent_slug: str = ""
     agent_version: int | None = None
     fields: dict[str, Any] = field(default_factory=dict)
-    contact: dict[str, Any] = field(default_factory=dict)
+    # Las variables de la conversacion ({{x}}), ocultas incluidas: las herramientas las ven todas.
     vars: dict[str, Any] = field(default_factory=dict)
+    hidden: set[str] = field(default_factory=set)    # las ocultas: se tachan como un secreto en lo que ve el modelo
     secrets: dict[str, str] = field(default_factory=dict)
     timezone: str = "America/Argentina/Buenos_Aires"
 
+    def hidden_values(self) -> dict[str, str]:
+        return {f"variable {n}": v for n in self.hidden if isinstance(v := self.vars.get(n), str)}
+
     def call(self) -> dict:
-        return {"id": self.conversation_id, "channel": self.channel, "mode": self.mode, "from": self.from_,
-                "to": self.to, "phone": self.phone, "agent": self.agent_slug}
+        return {"id": self.conversation_id, "channel": self.channel, "mode": self.mode,
+                "direction": self.direction, "from": self.from_, "to": self.to, "phone": self.phone,
+                "summary": self.summary, "agent": self.agent_slug}
 
 
 @dataclass
@@ -112,8 +119,12 @@ def _lookup(ctx: ToolContext, ns: str, key: str | None) -> Any:
         return ctx.call().get(key)
     if ns == "agent":
         return ctx.agent_slug if key == "slug" else ctx.agent_version
-    if ns in ("fields", "contact", "vars"):
-        return getattr(ctx, ns).get(key)
+    if ns == "fields":
+        return ctx.fields.get(key)
+    if ns == "channel":
+        return ctx.channel
+    if ns not in ("now", "today"):      # {{x}}: una variable de la conversacion
+        return ctx.vars.get(ns)
     now = datetime.datetime.now(datetime.UTC)
     try:
         from zoneinfo import ZoneInfo
@@ -123,13 +134,24 @@ def _lookup(ctx: ToolContext, ns: str, key: str | None) -> Any:
     return now.date().isoformat() if ns == "today" else now.isoformat(timespec="seconds")
 
 
-def render(text: str, ctx: ToolContext) -> str:
+def render(text: str, ctx: ToolContext, *, encode: bool = False) -> str:
+    """encode: en la URL cada valor va codificado (quote sin `safe`): `../`, `?`, `&` o `#` de un valor no cambian
+    la ruta ni la query."""
     def one(m: re.Match) -> str:
         value = _lookup(ctx, m.group(1), m.group(2))
         if value is None:
             return ""
-        return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        return quote(text, safe="") if encode else text
     return S.TEMPLATE_RE.sub(one, text)
+
+
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def header_problem(value: str) -> bool:
+    """Un header solo lleva ASCII imprimible: httpcore rechaza el resto y h11 los saltos de linea."""
+    return not value.isascii() or bool(_CONTROL_RE.search(value))
 
 
 def _fixed(value: Any, ctx: ToolContext) -> Any:
@@ -235,6 +257,10 @@ def finish(spec: ToolSpec, result: ToolResult, ctx: ToolContext, redactor: Redac
             if value is not None:
                 result.assigned[a.var] = value
                 ctx.vars[a.var] = value
+                if a.hide:
+                    ctx.hidden.add(a.var)
+                    if isinstance(value, str):
+                        redactor.add(f"variable {a.var}", value)
         if any(a.hide for a in tool.assign):
             data = json.loads(json.dumps(data))
             for a in tool.assign:
@@ -417,7 +443,7 @@ class Built:
 async def build_request(tool: S.HttpTool, args: dict, ctx: ToolContext, client: SafeHttp,
                         call_id: str, refresh_token: bool = False) -> Built:
     h = tool.http
-    url = render(h.url, ctx)
+    url = render(h.url, ctx, encode=True)
     for name, p in h.path.items():
         value = args.get(name) if p.by_llm else _fixed(p.value, ctx)
         if value in (None, ""):
@@ -477,6 +503,10 @@ async def build_request(tool: S.HttpTool, args: dict, ctx: ToolContext, client: 
         headers["Idempotency-Key"] = f"{ctx.conversation_id or 'prueba'}:{call_id}"
     if h.sign:
         headers["X-Atentina-Signature"] = sign(_lookup(ctx, "secrets", S.SIGNING_SECRET), body or b"")
+    for name, value in headers.items():
+        if header_problem(value):
+            raise ToolFailure("invalid_header", f"El header {name} lleva tildes, ñ o saltos de línea: mandá ese dato "
+                                                "en la query o en el cuerpo")
     return Built(h.method, url, headers, body)
 
 
@@ -595,7 +625,8 @@ async def run_code(spec: ToolSpec, args: dict, ctx: ToolContext, redactor: Redac
 async def run(spec: ToolSpec, args: Any, ctx: ToolContext, call_id: str | None = None) -> ToolResult:
     """Valida los argumentos, ejecuta y arma lo que ve el modelo. No lanza: un error vuelve como ok=False."""
     started = time.perf_counter()
-    redactor = Redactor(ctx.secrets)
+    # Los secretos y las variables ocultas no llegan al modelo ni a la traza, aunque la API los devuelva.
+    redactor = Redactor(ctx.secrets, ctx.hidden_values())
     call_id = call_id or uuid.uuid4().hex[:12]
     if (problem := S.validate_args(spec.tool, args)) is not None:
         result = ToolResult(ok=False, error=f"argumentos inválidos: {problem}", code="invalid_args")

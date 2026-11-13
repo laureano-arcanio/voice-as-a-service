@@ -20,6 +20,7 @@ y el admin. Volver a verlos: `make dev-login`. Es **http://192.168.1.99:8211** (
 | `make dev-web` | UI con recarga al instante en `:5173`, contra la API local |
 | `make dev-restart S=agent` | Toma cambios en el worker de voz. La API (`app/`) se recarga sola |
 | `make dev-migrate` | Migraciones y seed |
+| `make dev-agents-reference` | Como `make agents-reference` (agentes de `atentina` con la referencia reescrita) sobre la base local: `SLUG=`, `APPLY=1` |
 | `make dev-health`, `dev-ps`, `dev-logs S=app`, `dev-psql` | Estado y diagnóstico |
 | `make dev-down`, `make dev-reset` | Para el stack; borra base y audios |
 | `make test`, `make web-check` | Tests sin modelo real, como siempre |

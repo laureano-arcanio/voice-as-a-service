@@ -5,7 +5,7 @@
     python -m app.cli create-api-key CLIENTE_SLUG NOMBRE
     python -m app.cli wa-account PHONE_NUMBER_ID --waba WABA --display "+1 555 145 6632" \
         --client atentina --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
-    python -m app.cli agent-rules [--apply]      # suma las reglas generales a los agentes vigentes (idempotente)
+    python -m app.cli agents-reference [--slug SLUG] [--apply]  # pasa a los agentes de Atentina la version reescrita de la referencia
     python -m app.cli reports-backfill [--batch N]  # resultado y conversion de las conversaciones anteriores (idempotente)
 
 seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea lo que falta):
@@ -18,7 +18,9 @@ seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea l
 - el admin ADMIN_EMAIL / ADMIN_PASSWORD si no existe.
 """
 import argparse
+import difflib
 import getpass
+import json
 import os
 import sys
 
@@ -81,7 +83,7 @@ def _ensure_agents(s: Session, client: Client, agents: dict[str, str]) -> None:
             continue
         w = load_reference(rid)
         agent_service.create_agent(s, client, name=slug.capitalize() if rid != slug else slug, slug=slug,
-                                   description=f"{w.agent.name}, {w.agent.role}", definition=reference_data(rid),
+                                   description=w.agent.name, definition=reference_data(rid),
                                    template_id=None, user_id=None)
         _log(f"agente {slug} de {client.slug} creado")
     s.flush()
@@ -175,30 +177,93 @@ def wa_account(s: Session, phone_number_id: str, waba_id: str, display: str, cli
     s.commit()
 
 
-def agent_rules(s: Session, apply: bool) -> None:
-    """Las reglas de comportamiento que hasta el 26-oct-2026 estaban en el prompt del motor (GENERIC_RULES) pasan a
-    ser reglas del agente (AGENTS.md): se suman al final de las de cada agente vigente que no las tenga,
-    como version nueva. Sin --apply solo lista lo que haria. Tu propio agente no las usa: no se toca."""
-    from .agents.templates import GENERIC_RULES
+# Lo que la referencia pisa de un agente ya sembrado; el resto de la version vigente (herramientas, derivacion,
+# workflows, llm, generation, grabacion, email, voz, audio del primer mensaje) queda como esta.
+REFERENCE_KEYS = ("prompt", "first_message", "variables", "analysis")
+
+
+def _reference_slugs() -> dict[str, str]:
+    """slug del agente de atentina -> agente de referencia, los mismos que crea el seed."""
+    slugs = {rid: rid for rid in SEED_AGENTS}
+    slugs.update({rid.removeprefix(DEMO_PREFIX): rid for rid in reference_ids() if rid.startswith(DEMO_PREFIX)})
+    return slugs
+
+
+def _view(definition: dict) -> list[str]:
+    """La definicion en lineas para el diff, con las claves ordenadas (jsonb no guarda el orden) y los textos largos
+    en una linea por renglon."""
+    out = []
+    for key, value in sorted(definition.items()):
+        if isinstance(value, str):
+            out += [f"{key}:", *(f"    {line}" for line in value.splitlines())]
+        else:
+            out += json.dumps({key: value}, ensure_ascii=False, indent=2, sort_keys=True).splitlines()
+    return out
+
+
+def reference_merge(current: dict, reference: dict) -> dict:
+    """La definicion vigente con el prompt, el primer mensaje, las variables y el analisis de la referencia.
+    La voz es la de la base; el audio y la espera del primer mensaje, solo si la referencia los define."""
+    merged = {k: v for k, v in current.items() if k not in REFERENCE_KEYS}
+    merged["agent"] = {**reference["agent"], **({"voice": v} if (v := current.get("agent", {}).get("voice")) else {})}
+    for key in ("first_message_audio", "first_message_delay_ms"):
+        if key in reference:
+            merged[key] = reference[key]
+    for key in REFERENCE_KEYS:
+        if key in reference:
+            merged[key] = reference[key]
+    return merged
+
+
+def agents_reference(s: Session, apply: bool, slug: str | None = None, client_slug: str = INTERNAL_CLIENT) -> int:
+    """Los agentes ya sembrados en `atentina` no toman solos el JSON de app/agents/reference/ (el seed solo crea los
+    que faltan). Por cada agente vigente que es una referencia, deja el prompt, el primer mensaje, las variables y el
+    analisis de la referencia y conserva el resto de su version vigente. Sin --apply muestra el diff; con --apply
+    guarda una version nueva (mismas validaciones que la UI; la vuelta atras es activar la anterior). Idempotente.
+    Devuelve cuantos agentes cambian (o cambiaron)."""
     from .services.errors import ServiceError
-    for agent in s.scalars(select(Agent).where(Agent.archived_at.is_(None)).order_by(Agent.client_id, Agent.slug)):
-        definition = agent.definition
-        if definition.get("external"):
+    client = s.scalar(select(Client).where(Client.slug == client_slug))
+    if client is None:
+        sys.exit(f"cliente inexistente: {client_slug}")
+    mapping = _reference_slugs()
+    if slug is not None and slug not in mapping:
+        sys.exit(f"{slug} no es un agente de referencia: {', '.join(sorted(mapping))}")
+    changed = 0
+    agents = s.scalars(select(Agent).where(Agent.client_id == client.id, Agent.archived_at.is_(None),
+                                           Agent.slug.in_([slug] if slug else list(mapping))).order_by(Agent.slug))
+    for agent in agents:
+        reference = reference_data(mapping[agent.slug])
+        try:
+            current = {k: v for k, v in agent.definition.items() if k != "version"}
+            new = agent_service.normalize_definition(reference_merge(current, reference), agent.slug, agent.version)
+        except ServiceError as e:
+            _log(f"{agent.slug}: no se pudo ({e.message} {e.details})")
             continue
-        rules = list((definition.get("conversation") or {}).get("rules") or [])
-        missing = [r for r in GENERIC_RULES if r not in rules]
-        if not missing:
+        new = {k: v for k, v in new.items() if k != "version"}
+        if new == current:
+            _log(f"{agent.slug} (v{agent.version}): ya es igual a la referencia")
             continue
-        _log(f"{agent.slug} (v{agent.version}): {len(missing)} reglas{'' if apply else ' (sin --apply)'}")
+        changed += 1
+        if not apply:
+            diff = difflib.unified_diff(_view(current), _view(new), f"{agent.slug} v{agent.version}", "referencia",
+                                        lineterm="", n=1)
+            _log("\n".join(diff))
+        for grant in current.get("tools", []):
+            if grant["tool"] not in new["prompt"]:
+                _log(f"  aviso: {agent.slug} tiene la herramienta {grant['tool']} y el prompt nuevo no la nombra")
         if apply:
-            new = {**definition, "conversation": {**definition["conversation"], "rules": rules + missing}}
             try:
                 agent_service.update_definition(s, agent, new, None)
             except ServiceError as e:
-                _log(f"  no se pudo: {e.message} {e.details}")
+                _log(f"{agent.slug}: no se pudo ({e.message} {e.details})")
+                changed -= 1
                 continue
+            _log(f"{agent.slug}: version {agent.version} creada")
     if apply:
         s.commit()
+    elif changed:
+        _log(f"{changed} agentes con cambios (sin --apply no se guardó nada)")
+    return changed
 
 
 def reports_backfill(s: Session, batch: int = 500, definitions=None) -> int:
@@ -255,8 +320,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--client", default=INTERNAL_CLIENT, help="slug del cliente")
     p.add_argument("--agent", required=True, help="slug del agente que atiende")
     p.add_argument("--name", default=None)
-    p = sub.add_parser("agent-rules", help="suma las reglas generales a los agentes vigentes (idempotente)")
-    p.add_argument("--apply", action="store_true", help="sin esto solo lista")
+    p = sub.add_parser("agents-reference", help="pasa a los agentes de atentina la version reescrita de la referencia")
+    p.add_argument("--slug", default=None, help="solo ese agente")
+    p.add_argument("--apply", action="store_true", help="sin esto solo muestra el diff")
     p = sub.add_parser("reports-backfill", help="resultado y conversion de las conversaciones anteriores (idempotente)")
     p.add_argument("--batch", type=int, default=500)
     args = parser.parse_args(argv)
@@ -270,8 +336,8 @@ def main(argv: list[str] | None = None) -> None:
             create_api_key(s, args.client_slug, args.name)
         elif args.cmd == "wa-account":
             wa_account(s, args.phone_number_id, args.waba, args.display, args.client, args.agent, args.name)
-        elif args.cmd == "agent-rules":
-            agent_rules(s, args.apply)
+        elif args.cmd == "agents-reference":
+            agents_reference(s, args.apply, args.slug)
         elif args.cmd == "reports-backfill":
             reports_backfill(s, args.batch)
 

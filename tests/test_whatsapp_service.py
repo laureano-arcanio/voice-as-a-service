@@ -189,6 +189,10 @@ async def test_text_gets_a_reply(sessions):
     assert [m["role"] for m in conv.messages] == ["user", "assistant"]
     assert conv.messages[0]["text"] == "hola, quiero un turno"
     assert w.engine.store.get(conv.id).channel == "whatsapp"
+    # {{call.*}}: el que escribe es la otra punta; el numero de la cuenta, el nuestro.
+    assert w.engine.store.get(conv.id).progress.call == {"id": conv.id, "from": "+" + WA_ID, "to": "+15550000000",
+                                                          "phone": "+" + WA_ID, "direction": "inbound",
+                                                          "mode": "whatsapp"}
     (inb,) = messages(sessions, direction="in")
     assert (inb.wamid, inb.status, inb.type, inb.conversation_id) == ("wamid.in1", "answered", "text", conv.id)
     (out,) = messages(sessions, direction="out")
@@ -312,7 +316,7 @@ async def test_closed_conversation_starts_a_new_one_with_the_current_version(ses
     await send(w, text_payload("hola", "wamid.1"))
     with sessions() as s:
         agent = s.get(Agent, w.agent_id)
-        agent_service.update_definition(s, agent, {**agent.definition, "knowledge": "Otra base."}, None)
+        agent_service.update_definition(s, agent, {**agent.definition, "prompt": "Otra base."}, None)
         store.close_thread(s, s.scalar(select(WaThread)))
         s.commit()
     await send(w, text_payload("hola de nuevo", "wamid.2"))

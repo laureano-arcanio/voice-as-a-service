@@ -371,6 +371,10 @@ async def test_recover_marks_inflight_as_failed(sessions):
 async def test_reply_opens_conversation_with_the_template(sessions):
     w = make_wa(sessions, llm=FakeLLM(reply("¡Genial! ¿Querés que te llame?")), graph=CampaignGraph())
     cid = make_campaign(w, WA_ID)
+    with sessions() as s:     # una columna de la campaña: variable de la conversacion (fuente contact)
+        r = s.scalar(select(CampaignContact).where(CampaignContact.campaign_id == cid))
+        r.vars = {**r.vars, "nombre": "Ana0", "Deuda Total": "100"}
+        s.commit()
     await sender_for(w).tick()
     await send(w, status_payload("status_read.json", "wamid.tpl1"))
     await send(w, text_payload("sí, contame", "wamid.in1"))
@@ -380,6 +384,10 @@ async def test_reply_opens_conversation_with_the_template(sessions):
         ("assistant", "Hola Ana0, probá gratis nuestro agente de voz."), ("user", "sí, contame")]
     (r,) = recipients(sessions, cid)
     assert r.conversation_id == conv.id and r.replied_at is not None
+    p = w.engine.store.get(conv.id).progress
+    assert (p.variables["nombre"], p.variables["deuda_total"]) == ("Ana0", "100")
+    assert p.variable_sources["nombre"] == p.variable_sources["deuda_total"] == "contact"
+    assert (p.call["direction"], p.call["mode"], p.call["phone"]) == ("outbound", "whatsapp", "+" + WA_ID)
     with sessions() as s:
         st = campaigns.stats(s, [cid])[cid]
     assert (st["sent"], st["delivered"], st["read"], st["replied"]) == (1, 1, 1, 1)

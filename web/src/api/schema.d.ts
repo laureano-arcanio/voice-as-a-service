@@ -1088,8 +1088,10 @@ export interface paths {
         put?: never;
         /**
          * Start Conversation
-         * @description Con `caller_phone` o `workflows` (solo pruebas del panel; 403 panel_test_only con API key o el MCP): el
-         *     numero simulado precarga los campos de telefono y llega a las herramientas; `workflows` corre el pre-call.
+         * @description `variables`: valores de `{{nombre}}` para el prompt, el primer mensaje y las herramientas (422
+         *     invalid_variables con el `path` de la que no vale). Con `caller_phone` o `workflows` (solo pruebas del panel;
+         *     403 panel_test_only con API key o el MCP): el numero simulado es {{call.phone}} y llega a las herramientas;
+         *     `workflows` corre el pre-call.
          */
         post: operations["start_conversation_api_v1_conversations_post"];
         delete?: never;
@@ -4094,6 +4096,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/variables/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Variable Catalog
+         * @description Reglas de nombres de las variables de usuario, topes y las variables del sistema con donde se pueden usar
+         *     (`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente.
+         */
+        get: operations["variable_catalog_api_v1_variables_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -4909,10 +4932,16 @@ export interface components {
              */
             contact_id?: string | null;
             /**
-             * Context
-             * @description Motivo del llamado en texto libre (lo que el contacto dejo en la web): el agente llama con ese contexto
+             * Variables
+             * @description Variables de la conversación ({{nombre}} en el prompt, el primer mensaje y las herramientas): objeto plano de texto, número o booleano; hasta 30, de hasta 2.000 caracteres. Pisan a los default del agente y a los datos del contacto; el pre-call y las herramientas las pisan a ellas. Las del sistema (GET /variables/catalog) no se pueden mandar. 422 invalid_variables con el `path` variables.<nombre>; un null se ignora.
+             * @example {
+             *       "motivo": "Pidió presupuesto",
+             *       "nombre": "Ana"
+             *     }
              */
-            context?: string | null;
+            variables?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Caller Phone
              * @description Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a las herramientas como {{call.phone}}.
@@ -5200,6 +5229,37 @@ export interface components {
             /** Limit */
             limit: number | null;
         };
+        /**
+         * CampaignContactIn
+         * @description Un contacto de la campaña de voz, con sus datos para la llamada.
+         */
+        CampaignContactIn: {
+            /**
+             * Phone
+             * @example +54 9 351 555-1234
+             * @example 3515551234
+             */
+            phone: string;
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Notes
+             * @description Nota libre sobre el contacto
+             */
+            notes?: string | null;
+            /**
+             * Variables
+             * @description Solo voz: valores de {{nombre}} para la llamada de este contacto (hasta 30, texto, numero o booleano, 2.000 caracteres). No se guardan en la agenda; nombre, telefono, email y params no se pisan
+             * @example {
+             *       "deuda": "125000"
+             *     }
+             */
+            variables?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** CampaignContactOut */
         CampaignContactOut: {
             /** Id */
@@ -5259,7 +5319,9 @@ export interface components {
          * CampaignContactsIn
          * @description Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien
          *     se cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:
-         *     vuelven en `skipped`.
+         *     vuelven en `skipped`. En voz, las columnas del `csv` que no son telefono, nombre, email ni notas son
+         *     variables de la llamada: el encabezado es el nombre (`Deuda Total` es `{{deuda_total}}`), hasta 30
+         *     columnas y 2.000 caracteres por celda.
          */
         CampaignContactsIn: {
             /**
@@ -5273,7 +5335,7 @@ export interface components {
              * @description Contactos nuevos o a actualizar
              * @default []
              */
-            contacts?: components["schemas"]["ContactIn"][];
+            contacts?: components["schemas"]["CampaignContactIn"][];
             /**
              * Csv
              * @description CSV de contactos: como /contacts/import
@@ -5330,7 +5392,7 @@ export interface components {
              * @description Contactos nuevos o a actualizar
              * @default []
              */
-            contacts?: components["schemas"]["ContactIn"][];
+            contacts?: components["schemas"]["CampaignContactIn"][];
             /**
              * Csv
              * @description CSV de contactos: como /contacts/import
@@ -6173,7 +6235,7 @@ export interface components {
         /**
          * ContactImportIn
          * @description CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email
-         *     y notas opcionales; las demas columnas se ignoran.
+         *     y notas opcionales; las demas columnas se ignoran (en una campaña de voz son variables de la llamada).
          */
         ContactImportIn: {
             /** Csv */
@@ -6330,6 +6392,16 @@ export interface components {
         ConversationIn: {
             /** Agent Id */
             agent_id: string;
+            /**
+             * Variables
+             * @description Variables de la conversación ({{nombre}} en el prompt, el primer mensaje y las herramientas): objeto plano de texto, número o booleano; hasta 30, de hasta 2.000 caracteres. Pisan a los default del agente y a los datos del contacto; el pre-call y las herramientas las pisan a ellas. Las del sistema (GET /variables/catalog) no se pueden mandar. 422 invalid_variables con el `path` variables.<nombre>; un null se ignora.
+             * @example {
+             *       "deuda": "125000"
+             *     }
+             */
+            variables?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Caller Phone
              * @description Solo pruebas desde el panel: el número de quien llama, simulado (E.164). No se marca; llega a las herramientas como {{call.phone}}.
@@ -9988,6 +10060,26 @@ export interface components {
             /** Temperature C */
             temperature_c: number | null;
         };
+        /** SystemVariableOut */
+        SystemVariableOut: {
+            /**
+             * Name
+             * @example call.phone
+             */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Example
+             * @example +5491155550000
+             */
+            example: string;
+            /**
+             * Applies To
+             * @description Dónde se puede usar: prompt, first_message, analysis, handoff (mensajes de derivación) o tool
+             */
+            applies_to: ("prompt" | "first_message" | "analysis" | "handoff" | "tool")[];
+        };
         /** TeamMemberIn */
         TeamMemberIn: {
             /** Name */
@@ -10465,9 +10557,16 @@ export interface components {
             } | null;
             /**
              * Call
-             * @description Datos de llamada de ejemplo: id, channel, mode, from, to, phone
+             * @description Datos de llamada de ejemplo: id, channel, mode, direction, from, to, phone, summary
              */
             call?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Variables
+             * @description Valores de ejemplo de las variables ({{x}}), con las reglas de POST /calls
+             */
+            variables?: {
                 [key: string]: unknown;
             } | null;
             /**
@@ -10584,9 +10683,16 @@ export interface components {
             } | null;
             /**
              * Call
-             * @description Datos de llamada de ejemplo: id, channel, mode, from, to, phone
+             * @description Datos de llamada de ejemplo: id, channel, mode, direction, from, to, phone, summary
              */
             call?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Variables
+             * @description Valores de ejemplo de las variables ({{x}}), con las reglas de POST /calls
+             */
+            variables?: {
                 [key: string]: unknown;
             } | null;
         };
@@ -10820,6 +10926,52 @@ export interface components {
             errors?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * VariableCatalogOut
+         * @description Reglas de las variables de usuario ({{nombre}}) y las del sistema.
+         */
+        VariableCatalogOut: {
+            /**
+             * Name Pattern
+             * @example ^[a-z][a-z0-9_]{0,63}$
+             */
+            name_pattern: string;
+            /**
+             * Reserved
+             * @example [
+             *       "channel",
+             *       "today",
+             *       "now"
+             *     ]
+             */
+            reserved: string[];
+            /**
+             * Reserved Prefixes
+             * @example [
+             *       "call.",
+             *       "agent.",
+             *       "secrets.",
+             *       "fields."
+             *     ]
+             */
+            reserved_prefixes: string[];
+            limits: components["schemas"]["VariableLimitsOut"];
+            /** System */
+            system: components["schemas"]["SystemVariableOut"][];
+        };
+        /** VariableLimitsOut */
+        VariableLimitsOut: {
+            /**
+             * Max Variables
+             * @example 30
+             */
+            max_variables: number;
+            /**
+             * Max Value Chars
+             * @example 2000
+             */
+            max_value_chars: number;
         };
         /** VoiceOut */
         VoiceOut: {
@@ -20111,6 +20263,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    variable_catalog_api_v1_variables_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableCatalogOut"];
+                };
             };
         };
     };

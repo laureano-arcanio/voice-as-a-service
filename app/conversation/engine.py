@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from ..llm.resolver import LLMResolver
 from ..tools.conversation import ConversationTools
-from . import contact as contact_data
+from . import variables
 from .models import (
     AgentTurn,
     Channel,
@@ -22,7 +22,6 @@ from .workflow import (
     OFF_TOPIC,
     OFF_TOPIC_REASON,
     check_updates,
-    normalize_phone,
     outcome_for,
 )
 
@@ -30,6 +29,8 @@ if TYPE_CHECKING:
     from ..agents.definitions import DefinitionSource
 
 logger = logging.getLogger(__name__)
+# El modulo, con otro nombre donde el parametro `variables` lo tapa (new_conversation).
+_vars = variables
 
 
 def _llm_info(llm) -> dict:
@@ -88,17 +89,19 @@ class ConversationEngine:
         return self.definitions.get(state.agent_id, state.agent_version)
 
     def start_conversation(self, agent_id: str, client_id: str | None = None, *, channel: Channel = "voice",
-                           opening: bool | str = True, contact: dict | None = None) -> tuple[ConversationState, str]:
+                           opening: bool | str = True, variables: dict[str, dict] | None = None,
+                           call: dict | None = None) -> tuple[ConversationState, str]:
         """Crea y guarda la conversacion con la version vigente del agente. KeyError si
         no existe o esta archivado."""
-        state, text = self.new_conversation(agent_id, client_id, channel=channel, opening=opening, contact=contact)
+        state, text = self.new_conversation(agent_id, client_id, channel=channel, opening=opening,
+                                            variables=variables, call=call)
         self.store.save(state)
         return state, text
 
     def new_conversation(self, agent_id: str, client_id: str | None = None, session=None, *,
                          channel: Channel = "voice", opening: bool | str = True,
-                         contact: dict | None = None, phone: str | None = None,
-                         context: str | None = None) -> tuple[ConversationState, str]:
+                         variables: dict[str, dict] | None = None,
+                         call: dict | None = None) -> tuple[ConversationState, str]:
         """Como start_conversation pero sin guardarla: para guardarla en la misma
         transaccion que la llamada (services/calls.py, store.add). session: la del que
         llama, para leer el agente sin pedir otra conexion.
@@ -107,37 +110,22 @@ class ConversationEngine:
         llamada); False, sin apertura (WhatsApp entrante: el cliente escribe primero y su
         mensaje es el turno 1); un texto, esa apertura (plantilla saliente).
 
-        contact: los datos del contacto de una campaña de voz (`vars`; app/conversation/contact.py):
-        reemplazan los `{{variable}}` de la apertura, precargan los campos del workflow que se llaman
-        igual y el resto va al prompt. Con `{}` (una campaña sin datos) la apertura igual se limpia de
-        variables; sin contact (None) no se toca.
-
-        phone: el numero de la otra punta de la llamada (entrante o saliente). Precarga los campos de tipo
-        phone que el contacto no cargo: el agente no lo pregunta. Sin numero (link para llamar), lo pide.
-
-        context: el motivo de una llamada saliente suelta (texto libre); va al prompt (contact.prompt_block)."""
+        variables: los valores por fuente, `contact` (agenda o columnas de la campaña) y `request` (el pedido de
+        la API o del panel), app/conversation/variables.py. call: los datos de la llamada para {{call.*}}
+        (from, to, phone, direction, mode; el id lo pone el motor). El primer mensaje se renderiza con ellas; con
+        pre-call queda sin renderizar hasta que este traiga lo suyo (run_pre_call)."""
         version, workflow = self.definitions.current(agent_id, session)
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
             agent_id=agent_id, agent_version=version, client_id=client_id, channel=channel,
-            fields={name: None for name in workflow.fields},
+            fields={name: None for name in workflow.analysis_fields},
         )
-        if contact is not None:
-            preloaded, state.progress.contact = contact_data.preload(workflow, contact)
-            state.fields.update(preloaded)
-            state.progress.preloaded = list(preloaded)
-        if context and context.strip():
-            state.progress.context = context.strip()[:contact_data.MAX_CONTEXT_CHARS]
-        if phone and (number := normalize_phone(phone)):
-            for name, spec in workflow.fields.items():
-                if spec.type == "phone" and state.fields.get(name) is None:
-                    state.fields[name] = number
-                    state.progress.preloaded.append(name)
+        _vars.start(state, workflow, variables, call)
         if opening is False:
             return state, ""
-        text = workflow.conversation.opening if opening is True else opening
-        if contact is not None:
-            text = contact_data.render_template(text, contact)
+        text = workflow.first_message if opening is True else opening
+        if not (workflow.workflows and workflow.workflows.pre_call):
+            text = _vars.render(text, state, workflow)
         state.messages = [Message(role="assistant", text=text)]
         return state, text
 
@@ -171,27 +159,18 @@ class ConversationEngine:
             logger.error("pre-call: fallo despues del tope", exc_info=task.exception())
 
     def _apply_pre_call(self, conversation_id: str, workflow: Workflow, assigned: dict, hidden: set[str]) -> str | None:
-        """Suma lo que trajo el pre-call, sin pisar lo que ya estaba (datos de campaña, telefono precargado): todo a
-        tool_vars; lo visible, a los campos o a los datos del contacto (de ahi al prompt o, con tu propio agente, al
-        header X-Atentina-Contact). La apertura se renderiza siempre, tambien sin datos: no se lee "{{nombre}}"."""
+        """Suma lo que trajo el pre-call a las variables (fuente pre_call:<slug>, pisa al contacto y al pedido; las
+        ocultas solo para herramientas). En voz renderiza el primer mensaje, tambien sin datos: no se lee
+        "{{nombre}}"."""
         state = self.store.get(conversation_id)
-        visible = {k: v for k, v in assigned.items() if k not in hidden}
-        state.progress.tool_vars = {**state.progress.tool_vars, **assigned}
-        preloaded, rest = contact_data.preload(workflow, visible)
-        for name, value in preloaded.items():
-            if state.fields.get(name) is None:
-                state.fields[name] = value
-                if name not in state.progress.preloaded:
-                    state.progress.preloaded.append(name)
-        state.progress.contact = {**rest, **state.progress.contact}
+        slug = workflow.workflows.pre_call.tool if workflow.workflows and workflow.workflows.pre_call else "pre_call"
+        variables.merge(state, assigned, f"pre_call:{slug}", hidden)
         text = None
-        if state.channel == "whatsapp":
-            state.progress.opening_guide = contact_data.render_template(workflow.conversation.opening, visible)
-        else:
+        if state.channel != "whatsapp":
             # La ultima: en el respaldo de equipo a agente, la apertura va despues de lo hablado en la espera.
             message = next((m for m in reversed(state.messages) if m.role == "assistant"), None)
             if message is not None:
-                text = message.text = contact_data.render_template(message.text, visible)
+                text = message.text = variables.render(message.text, state, workflow)
         self.store.save(state)
         return text
 
@@ -217,6 +196,12 @@ class ConversationEngine:
             return await self._external_turn(workflow, state, user_message, media, on_message, actor, dtmf)
         # Turno del usuario (1 = su primer mensaje): elige la etapa de workflow.llm.
         llm = self.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in state.messages), state.client_id)
+        if state.progress.system_prompt is None:
+            # Una vez, en el primer turno (ya corrio el pre-call): lo que asigne una herramienta despues no lo
+            # cambia, y el prompt queda igual en todos los turnos (prefix cache de vLLM).
+            from ..llm.prompt import build_system_prompt
+            state.progress.system_prompt = build_system_prompt(workflow, state.channel, state)
+            self.store.save(state)
 
         turn_tools = self.tools.turn(workflow, state, actor)
         started = time.perf_counter()
@@ -239,7 +224,8 @@ class ConversationEngine:
         state.progress.outcome = OFF_TOPIC.id if result.end_reason == OFF_TOPIC_REASON else None
         state.progress.undo = undo
         if turn_tools:
-            state.progress.tool_vars = turn_tools.ctx.vars
+            for slug, values, hidden in turn_tools.assigned:
+                variables.merge(state, values, f"tool:{slug}", hidden)
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=result.assistant_message, llm=trace,
                                    handoff=result.handoff)]
@@ -247,7 +233,7 @@ class ConversationEngine:
 
         # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
         # (finish: el corte de la llamada, o el cierre o vencimiento del chat).
-        if result.status == "completed" and workflow.fields:
+        if result.status == "completed" and workflow.analysis is not None:
             self._launch_extraction(conversation_id, len(state.messages) - 1)
         return state, result
 
@@ -289,8 +275,7 @@ class ConversationEngine:
         state.progress.external_errors = errors
         state.status = turn.status
         _add_usage(state, turn)
-        if turn.status == "completed" and turn.end_reason is None:
-            ids = [o.id for o in workflow.completion.outcomes]
+        if turn.status == "completed" and turn.end_reason is None and (ids := [o.id for o in workflow.outcomes]):
             state.progress.outcome = outcome if outcome in ids else ids[-1]
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=turn.assistant_message, llm=[trace],
@@ -337,15 +322,30 @@ class ConversationEngine:
     async def finish(self, conversation_id: str, timeout: float = 10) -> None:
         """Al terminar la conversacion (corte de la llamada; cierre, tope o vencimiento de un
         chat de WhatsApp): espera la extraccion en curso y, si termino antes de la despedida,
-        hace ahora la extraccion final (sin datos a obtener o con tu propio agente, no hay)."""
+        hace ahora la extraccion final (sin analysis o con tu propio agente, no hay)."""
         await self.wait_extraction(conversation_id, timeout)
         state = self.store.get(conversation_id)
         if state is None or state.status == "completed" or len(state.messages) < 2:
             return
-        workflow = self.workflow(state)
-        if workflow.external is not None or not workflow.fields:
+        await self._analyze_now(state, timeout)
+
+    async def analyze(self, conversation_id: str, timeout: float = 10) -> None:
+        """El analisis sin terminar la conversacion (no cambia status): espera el que este en curso o lanza uno
+        y lo espera, hasta timeout. Para el post-call de WhatsApp, que corre antes de cerrar el chat."""
+        if self.extractions.get(conversation_id):
+            await self.wait_extraction(conversation_id, timeout)
             return
-        await asyncio.wait([self._launch_extraction(conversation_id, len(state.messages) - 1)], timeout=timeout)
+        state = self.store.get(conversation_id)
+        if state is None or len(state.messages) < 2:
+            return
+        await self._analyze_now(state, timeout)
+
+    async def _analyze_now(self, state: ConversationState, timeout: float) -> None:
+        workflow = self.workflow(state)
+        if workflow.external is not None or workflow.analysis is None:
+            return
+        await asyncio.wait([self._launch_extraction(state.conversation_id, len(state.messages) - 1)],
+                           timeout=timeout)
 
     def _forget(self, conversation_id: str, task: asyncio.Task) -> None:
         tasks = self.extractions.get(conversation_id, [])
@@ -375,7 +375,8 @@ class ConversationEngine:
         finally:
             state = self.store.get(conversation_id)
             if state is not None and state.status == "completed" and state.progress.outcome != OFF_TOPIC.id:
-                state.progress.outcome = outcome_for(self.workflow(state), state).id
+                outcome = outcome_for(self.workflow(state), state)
+                state.progress.outcome = outcome.id if outcome else None
                 self.store.save(state)
 
     async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str) -> None:
@@ -391,6 +392,8 @@ class ConversationEngine:
         updates, rejected = check_updates(workflow, result.fields)
         state.fields.update(updates)
         state.progress.rejected = rejected
+        if result.summary:
+            state.progress.summary = result.summary
         _add_usage(state, result)
         message = state.messages[reply]
         message.llm = (message.llm or []) + [{"kind": kind, "input": "conversación completa", "ms": ms,

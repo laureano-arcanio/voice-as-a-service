@@ -37,6 +37,13 @@ conversaciones) tarda 10–15 min. Corridas en `scripts/eval/runs/<fecha>_<nombr
 | `turnos` | `eval_turnos` | Fechas relativas, no prometer horarios fuera de la base |
 | `demo_booking` | `demo_booking` | Venta: objeciones y preguntas fuera de la base |
 
+Los agentes `eval_*` llevan el `prompt` en markdown (`# Identidad`, `# Objetivo`, `# Cómo conversar`, `# Datos a
+pedir`, `# Cierre`, `# Información`, `# Límites`) y un `analysis` con los campos y resultados que usan `checks.py` y
+las personas. La plataforma ya no asigna `incompleta` (no hay datos obligatorios): las personas no la esperan.
+Con eso, `datos/evasivo` (acepta y no da el DNI) termina en `actualizado`, que sale de `acepta = true`: el `outcome`
+esperado `sin_terminar` no lo cubre, y el run lo marca. Un cambio de prompt de un `eval_*` es un cambio de agente: se
+compara con el run anterior (`--comparar`, `--pareado`).
+
 Personas por agente: **cooperativo** (piso), **apurado** (brevedad), **confuso** (reformular, volver al
 objetivo), **hostil** (tono, respetar "no me llamen más"), **evasivo** (alucinaciones, último valor dicho gana),
 **fuera de guion** (número equivocado, tercero, buzón). Cada una trae ficha (datos verdaderos, al azar por

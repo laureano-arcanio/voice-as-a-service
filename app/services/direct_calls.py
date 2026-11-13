@@ -473,8 +473,14 @@ def fallback_to_agent(s: Session, engine, conversation_id: str, agent_id: str | 
     row = s.get(ConversationRow, conversation_id)
     if not agent_id or row is None:
         return None
+    call = s.get(CallRow, conversation_id)
+    ours = s.get(PhoneNumber, call.phone_number_id) if call is not None and call.phone_number_id else None
+    caller = phone or (call.phone if call is not None else None)
     try:
-        fresh, opening = engine.new_conversation(agent_id, client_id=row.client_id, session=s, phone=phone)
+        fresh, opening = engine.new_conversation(
+            agent_id, client_id=row.client_id, session=s,
+            call={"from": caller, "to": ours.e164 if ours else None, "phone": caller, "direction": "inbound",
+                  "mode": str(CallMode.entrante)})
     except KeyError:
         return None
     previous = engine.store.get(conversation_id)
@@ -482,7 +488,7 @@ def fallback_to_agent(s: Session, engine, conversation_id: str, agent_id: str | 
     fresh.messages = [*(previous.messages if previous else []), *fresh.messages]
     row.agent_id, row.agent_version = agent_id, fresh.agent_version
     ConversationStore.add(s, fresh, engine.store.workflow(fresh, s))
-    if (call := s.get(CallRow, conversation_id)) is not None:
+    if call is not None:
         call.answered_by = "agent"
     s.commit()
     return opening

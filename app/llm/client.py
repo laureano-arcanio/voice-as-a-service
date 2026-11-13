@@ -14,7 +14,7 @@ from app.conversation.models import (
 )
 
 from . import platform_tools
-from .prompt import build_turn_messages, build_extraction_prompt, extraction_prompt
+from .prompt import build_extraction_prompt, build_turn_messages, extraction_prompt
 
 if TYPE_CHECKING:
     from app.tools.conversation import TurnTools
@@ -25,7 +25,6 @@ TYPE_SCHEMAS = {
     "boolean": {"type": "boolean"},
     "email": {"type": "string"},
     "email_or_phone": {"type": "string"},
-    "digits": {"type": "string"},
     "phone": {"type": "string"},
 }
 
@@ -36,13 +35,28 @@ def field_schema(spec) -> dict:
 
 
 def extraction_schema(workflow: Workflow) -> dict:
-    names = [n for n, _ in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)]
-    return {
-        "type": "object",
-        "properties": {n: field_schema(workflow.fields[n]) for n in names},
-        "required": names,
-        "additionalProperties": False,
-    }
+    """{"fields": {campo: valor o null}, "summary": "..."}; summary solo si el agente lo pide."""
+    specs = workflow.analysis_fields
+    fields = {"type": "object", "properties": {n: field_schema(spec) for n, spec in specs.items()},
+              "required": list(specs), "additionalProperties": False}
+    properties, required = {"fields": fields}, ["fields"]
+    if workflow.analysis is not None and workflow.analysis.summary:
+        properties["summary"] = {"type": "string"}
+        required.append("summary")
+    return {"type": "object", "properties": properties, "required": required, "additionalProperties": False}
+
+
+def parse_extraction(content: str, **extra) -> Extraction:
+    """La salida guiada del analisis como Extraction (fields y summary)."""
+    data = json.loads(content)
+    data = data if isinstance(data, dict) else {}
+    fields = data.get("fields") if isinstance(data.get("fields"), dict) else {}
+    summary = data.get("summary") if isinstance(data.get("summary"), str) else None
+    return Extraction(fields=fields, summary=(summary or "").strip() or None, raw=content, **extra)
+
+
+def wants_summary(workflow: Workflow) -> bool:
+    return workflow.analysis is not None and workflow.analysis.summary
 
 
 # Servidores (base_url) que rechazaron stream_options: se les pide sin usage (los tokens quedan en 0).
@@ -238,7 +252,7 @@ class LLMClient:
         """Los datos del usuario segun toda la conversacion."""
         response = await self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "system", "content": extraction_prompt(state.channel)},
+            messages=[{"role": "system", "content": extraction_prompt(state.channel, wants_summary(workflow))},
                       {"role": "user", "content": build_extraction_prompt(workflow, state)}],
             **self._guided("extraction", extraction_schema(workflow)), **self._limit(), **self.options,
             **self._affinity(state))
@@ -246,8 +260,7 @@ class LLMClient:
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
         content = message.content or ""
         tokens_in, tokens_out = usage_of(getattr(response, "usage", None))
-        return Extraction(fields=json.loads(content), raw=content, reasoning=reasoning,
-                          input_tokens=tokens_in, output_tokens=tokens_out)
+        return parse_extraction(content, reasoning=reasoning, input_tokens=tokens_in, output_tokens=tokens_out)
 
     async def structured(self, messages: list[dict], schema: dict, name: str = "step",
                          thinking: bool | None = None, budget: int | None = None,

@@ -5,11 +5,11 @@ import datetime
 import pytest
 
 from app.agents.templates import reference_data
+from app.conversation.models import Workflow
 from app.db import utcnow
 from app.mail import call_summary
 from app.mail.sender import SendResult
 from app.models import CallMode, CallRow, CallStatus, ConversationRow
-from app.conversation.models import Workflow
 
 from .test_api import V1, admin, client_user, make_agent, make_client  # noqa: F401  (admin: fixture)
 
@@ -188,14 +188,14 @@ def test_call_emails_api_permissions(api, admin):
 
 # ---------- telefono: precargado si la llamada tiene numero, pedido si es por el link ----------
 
-PHONE_FIELD = {"priority": 15, "label": "Teléfono", "description": "Teléfono de contacto", "type": "phone",
-               "required": True, "question": "¿A qué número te llamamos?"}
+PHONE_FIELD = {"name": "telefono", "label": "Teléfono", "description": "Teléfono de contacto", "type": "phone"}
 
 
 def agent_with_phone(admin, client):
-    d = reference_data("sales_discovery")
-    return make_agent(admin, client, definition={**d, "call_summary_email": True,
-                                                 "fields": {**d["fields"], "telefono": PHONE_FIELD}})
+    d = Workflow.model_validate(reference_data("sales_discovery")).model_dump(mode="json", exclude_none=True)
+    d["analysis"]["fields"].append(PHONE_FIELD)
+    d["prompt"] += "\n\nNúmero de quien llama: {{call.phone}}."
+    return make_agent(admin, client, definition={**d, "call_summary_email": True})
 
 
 def fields_of(api, conv_id) -> dict:
@@ -204,16 +204,18 @@ def fields_of(api, conv_id) -> dict:
 
 
 def test_phone_type_normalizes():
-    from app.conversation.models import FieldSpec
+    from app.conversation.models import AnalysisField
     from app.conversation.workflow import coerce_value
 
-    spec = FieldSpec.model_validate(PHONE_FIELD)
+    spec = AnalysisField.model_validate(PHONE_FIELD)
     assert coerce_value(spec, "+54 9 11 5555-1234") == "+5491155551234"
     assert coerce_value(spec, "351 555 1234") == "3515551234"
     assert coerce_value(spec, "no tengo") is None
 
 
-def test_phone_preloaded_on_inbound_and_outbound_not_on_web(api, admin):
+def test_phone_is_the_call_phone_variable_on_inbound_and_outbound_not_on_web(api, admin):
+    """Sin precarga: el telefono de la otra punta es {{call.phone}}; el campo del analisis queda para extraer."""
+    from app.conversation.variables import render
     from app.services import calls as call_service
 
     c = make_client(admin)
@@ -221,29 +223,14 @@ def test_phone_preloaded_on_inbound_and_outbound_not_on_web(api, admin):
     admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+541152630861", "agent_id": agent["id"]})
     with api.sessions() as s:
         inbound = call_service.start_inbound(s, api.engine, "+541152630861", "+5493515551234")
-    assert fields_of(api, inbound.conversation_id)["telefono"] == "+5493515551234"
-    with api.sessions() as s:   # numero oculto: lo pregunta
+    state = api.engine.store.get(inbound.conversation_id)
+    assert render("{{call.phone}}", state) == "+5493515551234" and state.fields["telefono"] is None
+    with api.sessions() as s:   # numero oculto: sin valor
         hidden = call_service.start_inbound(s, api.engine, "+541152630861", "anonymous")
-    assert fields_of(api, hidden.conversation_id)["telefono"] is None
+    assert render("Tel: {{call.phone}}.", api.engine.store.get(hidden.conversation_id)) == "Tel:."
 
     out = admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "+54 9 11 5555-1234"}).json()
-    assert fields_of(api, out["conversation_id"])["telefono"] == "+5491155551234"
-    state = api.engine.store.get(out["conversation_id"])
-    assert state.progress.preloaded == ["telefono"]
-
-    # Sin numero (prueba o link para llamar): queda para preguntar.
-    test = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()
-    assert fields_of(api, test["conversation_id"])["telefono"] is None
-
-
-def test_known_phone_goes_to_classic_prompt(api, admin):
-    from app.conversation.contact import prompt_block
-
-    c = make_client(admin)
-    agent = agent_with_phone(admin, c)
-    out = admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "+54 9 11 5555-1234"}).json()
-    block = prompt_block(api.engine.store.get(out["conversation_id"]))
-    assert "DATOS YA CONOCIDOS (no los preguntes" in block and "- telefono: +5491155551234" in block
+    assert render("{{call.phone}}", api.engine.store.get(out["conversation_id"])) == "+5491155551234"
 
 
 def test_summary_shows_phone_given_on_web_call(api, admin, resend):

@@ -32,6 +32,12 @@ precios, turnos) para que la prueba tenga sentido; el cliente los reemplaza por 
 `[AGENTE]`, que `fill_template` completa al crear el agente con el nombre del cliente y el de la voz (Sofía, Tomás).
 Las ofrece también "Nuevo agente" (`GET /agent-templates`), con voz opcional (`AgentCreate.voice`).
 
+Cada una es un `prompt` en markdown (`# Identidad`, `# Objetivo`, `# Cómo conversar`, `# Datos a pedir`, `# Cierre`,
+`# Información`, `# Límites`), un `first_message` y un `analysis` (resumen, los datos y los resultados del rubro). Las
+reglas de atención (una pregunta por turno, no inventar, fuera de tema, pasar a un área) están en el texto del prompt,
+a la vista del cliente. `cobranzas` declara `variables` (`nombre`, `monto`, `vencimiento`) con datos de ejemplo: una
+campaña las reemplaza con las columnas de su lista.
+
 ## API
 
 | Ruta | Qué hace |

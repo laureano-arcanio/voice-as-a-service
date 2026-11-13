@@ -144,6 +144,9 @@ def test_start_call_is_web_and_uses_inbound_minutes(links):
     with links.sessions() as s:
         row = s.query(CallRow).one()
         assert row.mode == CallMode.web and row.call_link_id == meta["call_link_id"]
+    # Sin numero: {{call.phone}} vacio, la atiende el agente.
+    assert links.engine.store.get(row.conversation_id).progress.call == {
+        "id": row.conversation_id, "direction": "inbound", "mode": "web"}
     assert quota.MINUTE_MODES[CallMode.web] == "inbound"
     assert quota.same_minutes(CallMode.entrante) == [CallMode.entrante, CallMode.web]
 

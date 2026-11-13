@@ -75,13 +75,18 @@ Los de `path` son siempre obligatorios; los de query, con `"required": true`; lo
 
 | Template | Valor |
 |---|---|
+| `{{x}}` | variable de la conversación (`progress.variables`, ocultas incluidas): default del agente, contacto o columna de la campaña, `variables` del pedido, pre-call o `assign` de otra herramienta ([ARQUITECTURA](../ARQUITECTURA.md#definición-de-un-agente)) |
 | `{{secrets.NOMBRE}}` | secreto del cliente o del agente |
-| `{{call.id}}`, `{{call.channel}}`, `{{call.mode}}`, `{{call.from}}`, `{{call.to}}`, `{{call.phone}}` | conversación, canal (`voice`, `whatsapp`, `web`), modo (`entrante`, `saliente`, `whatsapp`...), números E.164; `phone` es siempre la otra punta (el menú Variables lo ofrece y la prueba lo llena) |
+| `{{call.id}}`, `{{call.channel}}`, `{{call.mode}}`, `{{call.direction}}`, `{{call.from}}`, `{{call.to}}`, `{{call.phone}}` | conversación, canal, modo (`entrante`, `saliente`, `web`, `prueba`, `whatsapp`, `api`...), `inbound`/`outbound`, números E.164; `phone` es siempre la otra punta. Los fija quien crea la conversación (`progress.call`) |
+| `{{call.summary}}` | resumen del análisis (`progress.summary`; vacío si no hay) |
+| `{{channel}}` | `voice` o `whatsapp` |
 | `{{agent.slug}}`, `{{agent.version}}` | agente |
-| `{{now}}`, `{{today}}` | fecha y hora en `AGENT_TIMEZONE` |
-| `{{fields.x}}`, `{{contact.x}}`, `{{vars.x}}` | dato obtenido, contacto de campaña, valor guardado por otra herramienta (`assign`) |
+| `{{now}}`, `{{today}}` | fecha y hora en `AGENT_TIMEZONE`, al ejecutar |
+| `{{fields.x}}` | dato del análisis |
 
-El host de la URL no puede tener variables. Un parámetro de path o uno fijo obligatorio sin valor da
+`{{vars.x}}` y `{{contact.x}}` se rechazan al guardar (el error dice `usá {{x}}`); el mensaje de error de un template
+desconocido lista las válidas del catálogo (`GET /variables/catalog`). El host de la URL no puede tener variables:
+una columna de campaña o un pedido de la API no eligen a qué servidor se llama (SSRF). Un parámetro de path o uno fijo obligatorio sin valor da
 `missing_variable` sin llamar; un secreto que falta, `missing_secret`.
 
 **Autenticación** (`http.auth`):
@@ -108,8 +113,8 @@ secreto `ATENTINA_SIGNING_SECRET` (formato de Stripe). Es un secreto más: tiene
 1 MB.
 
 **Respuesta al modelo.** 2xx: `{"ok": true, "status": 200, "data": ...}`. Error: `{"ok": false, "status": 404,
-"error": "<cuerpo recortado a 500>"}` o `"error": "timeout"`. Orden: `assign` (guarda en `vars`; con `hide` se saca
-del resultado), `response.pick` (rutas con puntos y `[i]`), tachado de secretos y recorte a `response.max_chars`
+"error": "<cuerpo recortado a 500>"}` o `"error": "timeout"`. Orden: `assign` (guarda la variable `{{var}}`, fuente
+`tool:<slug>`; con `hide` se saca del resultado; `var` no puede ser `today`, `now` ni `channel`), `response.pick` (rutas con puntos y `[i]`), tachado de secretos y recorte a `response.max_chars`
 (200 a 15.000, default 4000).
 
 **Red (SSRF).** Solo https, puertos 443 u 8443. El host se resuelve y se conecta a esa misma IP, validada como
@@ -132,7 +137,8 @@ hay configuración para habilitarlo).
 ```
 
 - Módulo ES (JavaScript o TypeScript, hasta 20.000 caracteres) con `export default async function`. Recibe `args`
-  (validados contra `parameters`), `secrets` (solo los declarados en `secrets`), `call` y `vars`. La plantilla sale de
+  (validados contra `parameters`), `secrets` (solo los declarados en `secrets`), `call` (`id`, `channel`, `mode`,
+  `direction`, `from`, `to`, `phone`, `summary`, `agent`) y `vars` (todas las variables, ocultas incluidas). La plantilla sale de
   `GET /tools/code-template`.
 - Retorno: cualquier valor JSON → `{"ok": true, "data": ...}`. Una excepción o `return {ok: false, error}` →
   `{"ok": false, "error": ...}`. `console.*` va a la traza y a la prueba (hasta 200 líneas de 2000 caracteres), no al
@@ -194,7 +200,7 @@ reservados para los slugs del cliente.
 
 | Herramienta | Cuándo | Parámetros | Efecto |
 |---|---|---|---|
-| `end_call` | siempre | `motivo`: `terminada` \| `fuera_de_tema` (con tu propio agente, `outcome`: un id de `completion.outcomes`) | `status = completed`; `fuera_de_tema` → `ended_reason=off_topic` y resultado "Fuera de tema" |
+| `end_call` | siempre | `motivo`: `terminada` \| `fuera_de_tema` (con tu propio agente, `outcome`: un id de `analysis.outcomes`, si hay) | `status = completed`; `fuera_de_tema` → `ended_reason=off_topic` y resultado "Fuera de tema" |
 | `transfer_call` | llamada de voz con áreas de derivación (`progress.handoff_areas`), o WhatsApp de texto con áreas con plantilla | `area` (enum de las áreas; la descripción dice cuándo pasar a cada una y si atiende ahora) | `AgentTurn.handoff`; si también vino `end_call`, gana cortar |
 
 ## Workflows: antes y después de la conversación
@@ -229,17 +235,20 @@ del agente (versionada):
 - **Pruebas del panel con número simulado:** `caller_phone` (E.164) en `POST /calls` sin teléfono y en
   `POST /conversations`. En voz va a la llamada (`call_logs.phone`, modo `prueba`) y no a la metadata del worker: no
   se marca ni se miran las bajas. Por texto queda en `progress.caller_phone` (sin llamada); con «tu propio agente», en
-  `X-Atentina-From`. En los dos precarga los campos de tipo `phone`. `workflows: true` es el opt-in de las herramientas
+  `X-Atentina-From`. En los dos es `{{call.phone}}`. `workflows: true` es el opt-in de las herramientas
   automáticas en esas pruebas (`progress.test_workflows`). Los dos solo con la sesión del panel: con API key u OAuth
   (el MCP), 403 `panel_test_only`; el MCP no los ofrece. Con `phone`, `contact_id` o `loadtest`, 422. Una prueba con el
   número de un contacto aparece con su nombre en Conversaciones y en el filtro por teléfono.
 
-**Pre-call.** Reutiliza `assign`: cada valor va a `progress.tool_vars` (disponible para herramientas, mensajes del área y
-plantillas) y los de `hide: false` pasan por `contact.preload`: precargan un campo del agente con el mismo nombre y el
-resto llega al prompt como «Datos del contacto» (con «tu propio agente», en el header `X-Atentina-Contact`). Los de
-`hide: true` nunca llegan al modelo. **Suma, no pisa:** gana lo que ya estaba (datos de campaña, teléfono precargado). La
-apertura se renderiza con las variables visibles, también si el pre-call falló (no se lee `{{nombre}}`): en voz reemplaza
-la última apertura, y por WhatsApp (que no tiene apertura) va a la guía de apertura del prompt.
+**Pre-call.** Reutiliza `assign`: cada valor es una variable de la conversación (`progress.variables`, fuente
+`pre_call:<slug>`; [ARQUITECTURA](../ARQUITECTURA.md#definición-de-un-agente)), disponible para herramientas, mensajes
+del área y plantillas, y en el prompt donde se nombre `{{x}}` (con «tu propio agente», en el header
+`X-Atentina-Variables`). Los de `hide: true` nunca llegan al LLM (prompt, análisis, headers del agente externo); sí a
+las herramientas y a los mensajes de derivación y plantillas al equipo, que no pasan por el LLM. Pisa a los datos del contacto y del pedido. El primer
+mensaje se renderiza con las variables visibles, también si el pre-call falló (no se lee `{{nombre}}`); por WhatsApp
+no hay primer mensaje: el prompt dice cómo saludar con sus variables. Lo que asigna una herramienta durante la
+conversación (fuente `tool:<slug>`) llega a las herramientas siguientes, no al prompt, que ya se armó en el primer
+turno.
 
 | Canal | Cuándo corre | Quién espera |
 |---|---|---|
@@ -294,8 +303,8 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
 ## Flujo de un turno
 
 1. `ConversationTools.turn` (`app/tools/conversation.py`) lee las herramientas del agente de la base en cada turno
-   (con las credenciales resueltas), arma el contexto (`call.*` desde `CallRow` o el WhatsApp del que escribe, `fields`,
-   `contact`, `vars`, secretos) y devuelve un `TurnTools`.
+   (con las credenciales resueltas), arma el contexto (`call.*` de `progress.call`, `fields`, `progress.summary`,
+   las variables, secretos) y devuelve un `TurnTools`.
 2. El cliente del LLM (`app/llm/client.py` para OpenAI compatible y vLLM; `app/llm/anthropic_client.py` con
    `tool_use`/`tool_result`) manda `platform_tools.tools_for(state)` + las del cliente en formato OpenAI
    (`schema.openai_tool`: la descripción suma, si `confirm`, "Antes de usarla, confirmá con la persona..." y siempre
@@ -328,7 +337,7 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
 | `GET/POST /clients/{id}/tools` | listar (con `used_by`, última prueba) / crear |
 | `GET/PUT/DELETE /clients/{id}/tools/{slug}` | ver / reemplazar (sube `revision`, guarda en `tool_versions`) / borrar (409 si un agente la usa) |
 | `GET /clients/{id}/tools/{slug}/versions` | historial |
-| `POST /clients/{id}/tools/{slug}/test` | ejecutar con `{args, agent_id?, secrets?, call?}` → `{ok, status, ms, data, error, llm, request, logs, assigned}` (secretos tachados) |
+| `POST /clients/{id}/tools/{slug}/test` | ejecutar con `{args, agent_id?, secrets?, call?, variables?}` (`variables`: valores de ejemplo de `{{x}}`, con las reglas de `POST /calls`) → `{ok, status, ms, data, error, llm, request, logs, assigned}` (secretos tachados) |
 | `POST /clients/{id}/tools/test` | lo mismo con una definición sin guardar (`type`, `definition`) |
 | `GET/POST /clients/{id}/secrets`, `PATCH/DELETE /clients/{id}/secrets/{name}` | secretos del cliente |
 | `GET/POST /clients/{id}/credentials`, `GET/PUT/DELETE /clients/{id}/credentials/{slug}` | credenciales |

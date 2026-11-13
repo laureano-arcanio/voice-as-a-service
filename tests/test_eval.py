@@ -29,19 +29,20 @@ def _strings(obj):
 @pytest.mark.parametrize("wid", EVAL_WORKFLOWS)
 def test_eval_workflows_load(wid):
     wf = load_reference(wid)
-    assert wf.external is None and wf.completion.outcomes
+    assert wf.external is None and wf.outcomes
 
 
 def test_cobranza_outcomes():
     wf = load_reference("eval_cobranza")
 
     def outcome(**fields):
-        st = ConversationState(conversation_id="x", agent_id=wf.id, fields={**{f: None for f in wf.fields}, **fields})
+        st = ConversationState(conversation_id="x", agent_id=wf.id, fields={**{f: None for f in wf.analysis_fields}, **fields})
         return outcome_for(wf, st).id
 
     assert outcome(titular=False) == "tercero"
     assert outcome(titular=True, promesa="paga_total", fecha_pago="viernes") == "acuerdo_total"
-    assert outcome(titular=True, promesa="paga_total") == "incompleta"       # objetivo sin la fecha
+    # Sin datos obligatorios: el resultado sale solo de las condiciones (incompleta ya no se asigna).
+    assert outcome(titular=True, promesa="paga_total") == "acuerdo_total"
     assert outcome(titular=True, promesa="cuotas", cuotas=3) == "acuerdo_cuotas"
     assert outcome(titular=True, promesa="no_paga") == "sin_acuerdo"
 
@@ -55,7 +56,7 @@ def test_all_groups_have_filled_scenarios():
         load_reference(e.agente)
         for texto in _strings([e.estilo, e.ficha, e.esperado, e.guion or []]):
             assert "{" not in texto, f"{e.id}: variable sin rellenar en {texto[:80]}"
-        assert set(e.esperado["fields"]) <= set(load_reference(e.agente).fields), e.id
+        assert set(e.esperado["fields"]) <= set(load_reference(e.agente).analysis_fields), e.id
         assert e.esperado["outcome"]
     # Misma semilla, misma ficha; otra repeticion, otra ficha.
     assert generar(1, "datos", "cooperativo", 0) == generar(1, "datos", "cooperativo", 0)

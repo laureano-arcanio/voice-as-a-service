@@ -2,28 +2,12 @@ import re
 import unicodedata
 from typing import Any
 
-from .models import ConversationState, FieldSpec, Outcome, Workflow
+from .models import AnalysisField, ConversationState, Outcome, Workflow
 
 EMAIL_RE = re.compile(r"^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}$")
 
 
-def is_required(spec: FieldSpec, fields: dict[str, Any]) -> bool:
-    if spec.required_if:
-        return all(fields.get(k) == v for k, v in spec.required_if.items())
-    return spec.required
-
-
-def pending_fields(workflow: Workflow, state: ConversationState) -> list[str]:
-    """Obligatorios sin valor, por prioridad."""
-    ordered = sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)
-    return [name for name, spec in ordered if state.fields.get(name) is None and is_required(spec, state.fields)]
-
-
-def is_workflow_complete(workflow: Workflow, state: ConversationState) -> bool:
-    return not pending_fields(workflow, state)
-
-
-def coerce_value(spec: FieldSpec, value: Any) -> Any:
+def coerce_value(spec: AnalysisField, value: Any) -> Any:
     if value is None:
         return None
     if spec.type == "integer":
@@ -75,7 +59,7 @@ def check_updates(workflow: Workflow, updates: dict[str, Any]) -> tuple[dict[str
     reales con tipo invalido (quedan en progress.rejected, para el panel)."""
     valid, rejected = {}, {}
     for name, value in updates.items():
-        spec = workflow.fields.get(name)
+        spec = workflow.analysis_fields.get(name)
         if spec is None or value is None:
             continue
         coerced = coerce_value(spec, value)
@@ -90,38 +74,31 @@ def validate_updates(workflow: Workflow, updates: dict[str, Any]) -> dict[str, A
     return check_updates(workflow, updates)[0]
 
 
-# Cuando el resultado seria el objetivo pero faltan datos obligatorios. En la
-# llamada 80ac0e22 pidio el link y corto sin actividad ni contacto, y contaba como exito.
-INCOMPLETE = Outcome(id="incompleta", label="Incompleta", message="")
+# Resultado de las conversaciones guardadas cuando terminaban sin los datos obligatorios: ya no se asigna, se
+# conserva para leerlas (reportes).
+INCOMPLETE = Outcome(id="incompleta", label="Incompleta")
 
 # El agente corto porque la conversacion no tenia que ver con su objetivo (broma, burla, acoso,
 # numero equivocado; llamada 07381a4d): resultado propio, no el default del workflow, y
 # ended_reason OFF_TOPIC_REASON en la llamada.
-OFF_TOPIC = Outcome(id="fuera_de_tema", label="Fuera de tema", message="")
+OFF_TOPIC = Outcome(id="fuera_de_tema", label="Fuera de tema")
 OFF_TOPIC_REASON = "off_topic"
 
 
-def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome:
-    """El primer resultado cuyas condiciones se cumplen; el ultimo, sin when, es el default."""
-    outcome = next(o for o in workflow.completion.outcomes
-                   if all(state.fields.get(k) == v for k, v in o.when.items()))
-    if outcome.goal and not is_workflow_complete(workflow, state):
-        return INCOMPLETE
-    return outcome
+def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome | None:
+    """El primer resultado de analysis.outcomes cuyas condiciones se cumplen; sin resultados, None."""
+    return next((o for o in workflow.outcomes if all(state.fields.get(k) == v for k, v in o.when.items())), None)
 
 
 def conversion(workflow: Workflow | None, state: ConversationState) -> str:
-    """Para los reportes (docs/features/REPORTES.md). complete: termino con un resultado que no es incompleta ni
-    fuera de tema y sin datos obligatorios pendientes; partial: algun dato capturado; empty: ninguno. Los
-    precargados (el telefono de la llamada, los datos de la campaña) no cuentan como capturados. Sin la
-    definicion (workflow None), solo el resultado."""
+    """Para los reportes (docs/features/REPORTES.md). complete: el agente termino la conversacion y no fue fuera de
+    tema; partial: algun dato del analisis capturado; empty: ninguno. Sin la definicion (workflow None), los
+    campos guardados."""
     outcome = state.progress.outcome
-    if (state.status == "completed" and outcome and outcome not in (INCOMPLETE.id, OFF_TOPIC.id)
-            and (workflow is None or is_workflow_complete(workflow, state))):
+    if state.status == "completed" and outcome not in (INCOMPLETE.id, OFF_TOPIC.id):
         return "complete"
-    preloaded = set(state.progress.preloaded)
-    names = workflow.fields if workflow is not None else state.fields
-    if any(state.fields.get(n) not in (None, "") for n in names if n not in preloaded):
+    names = workflow.analysis_fields if workflow is not None else state.fields
+    if any(state.fields.get(n) not in (None, "") for n in names):
         return "partial"
     return "empty"
 
@@ -130,4 +107,4 @@ def outcome_goal(workflow: Workflow, outcome_id: str | None) -> bool | None:
     """Si el resultado cumple el objetivo del agente (None sin resultado; incompleta y fuera de tema, no)."""
     if outcome_id is None:
         return None
-    return any(o.goal for o in workflow.completion.outcomes if o.id == outcome_id)
+    return any(o.goal for o in workflow.outcomes if o.id == outcome_id)

@@ -129,10 +129,12 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
 6. **Recuperación:** al arrancar `app` y cada 60 s (sin tocar lo reclamado hace menos de 2 min), los `in_progress`
    sin llamada activa vuelven a `retry`.
 
-- **Variables en la conversación** (`app/conversation/contact.py`): la apertura reemplaza `{{nombre}}`,
-  `{{telefono}}`, `{{email}}` (sin importar mayúsculas ni acentos); una que falta queda vacía y el texto se acomoda.
-  Los datos que se llaman como un campo del agente lo precargan; el resto va al prompt como datos del contacto. Solo
-  en llamadas de campaña.
+- **Variables en la conversación** (`app/conversation/variables.py`): la copia de datos del contacto de la campaña
+  (`campaign_contacts.vars` sin `params`: `nombre`, `telefono`, `email`) son variables con fuente `contact`, también
+  en la conversación de WhatsApp que abre la respuesta a una plantilla o a un seguimiento. `{{nombre}}`,
+  `{{telefono}}`, `{{email}}` se reemplazan (sin importar mayúsculas ni acentos) donde el primer mensaje, el prompt o
+  una herramienta los nombran; una que falta queda vacía y el texto se acomoda. Nada se agrega solo al prompt ni
+  precarga datos del análisis. Las demás columnas del CSV se ignoran al cargar la agenda: no llegan como variables.
 - **Contestador** (`app/campaigns/voicemail.py`): lista de frases ("deje su mensaje", "buzón", "después de la
   señal"…) sobre las primeras 4 transcripciones del que atendió; si matchea, `voicemail`, corta y reintenta.
 - **Baja por voz:** un resultado del agente con `no_contact` ("No volver a llamar" en el editor) agrega

@@ -26,8 +26,8 @@ from app.conversation.models import (
 )
 
 from . import platform_tools
-from .client import extraction_schema
-from .prompt import build_turn_messages, build_extraction_prompt, extraction_prompt
+from .client import extraction_schema, parse_extraction, wants_summary
+from .prompt import build_extraction_prompt, build_turn_messages, extraction_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -196,10 +196,10 @@ class AnthropicClient:
 
     async def extract(self, workflow: Workflow, state: ConversationState) -> Extraction:
         content, message = await self._json_message(
-            [{"role": "system", "content": extraction_prompt(state.channel)},
+            [{"role": "system", "content": extraction_prompt(state.channel, wants_summary(workflow))},
              {"role": "user", "content": build_extraction_prompt(workflow, state)}], extraction_schema(workflow))
         tokens_in, tokens_out = usage_of(message)
-        return Extraction(fields=json.loads(content), raw=content, input_tokens=tokens_in, output_tokens=tokens_out)
+        return parse_extraction(content, input_tokens=tokens_in, output_tokens=tokens_out)
 
     async def structured(self, messages: list[dict], schema: dict, name: str = "step",
                          thinking: bool | None = None, budget: int | None = None,

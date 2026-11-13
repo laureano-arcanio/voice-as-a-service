@@ -159,9 +159,9 @@ para llamar (sin nombres); nunca por teléfono, celular, campañas, loadtest ni 
 - Una falla al publicar se loguea y la derivación sigue (`direct.DataSender`, sin esperar).
 
 Mensajes por área (`DEFAULT_MESSAGES` en `app/services/handoff.py`; variables `{{area}}`, `{{persona}}`,
-`{{cliente}}`, `{{resumen}}`, `{{horario}}`, `{{nombre}}` y las que traiga la herramienta de «Antes de la conversación»
-del agente, por su nombre; hasta 500 caracteres). Las de la derivación (`area`, `persona`, `cliente`, `resumen`,
-`horario`) no las pisa una variable del pre-call, una que falta queda vacía y `{{vars.x}}` no vale acá:
+`{{cliente}}`, `{{resumen}}`, `{{horario}}`, `{{nombre}}`, las variables de la conversación por su nombre (también
+las ocultas, que no pasan por el LLM) y las del sistema, como `{{call.phone}}`; hasta 500 caracteres). Las de la derivación (`area`, `persona`,
+`cliente`, `resumen`, `horario`) no las pisa una variable de la conversación y una que falta queda vacía:
 
 | Clave | Default |
 |---|---|

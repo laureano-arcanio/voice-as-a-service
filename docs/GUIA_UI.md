@@ -208,8 +208,8 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
 - **Probar:** hablarle o escribirle, antes de ponerlo a atender.
-  - **Número de quien llama (simulado):** opcional, E.164. Llega a las herramientas como `{{call.phone}}` y
-    precarga los campos de teléfono; no se llama a ese número. Vale para **Hablar** y para el chat. Un número
+  - **Número de quien llama (simulado):** opcional, E.164. Llega al prompt y a las herramientas como `{{call.phone}}`;
+    no se llama a ese número. Vale para **Hablar** y para el chat. Un número
     inválido muestra el error y no empieza la prueba.
   - **Aviso amarillo:** si el agente tiene herramienta automática antes o después de la conversación, avisa que
     las pruebas la ejecutan de verdad (si registra algo o cobra, lo hace); por texto, la de después corre al terminar

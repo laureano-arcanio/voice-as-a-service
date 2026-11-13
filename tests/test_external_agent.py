@@ -109,9 +109,13 @@ def test_definition_validation():
         Workflow.model_validate({**base, "tools": [{"tool": "consultar"}], "external": {"connection": "c"}})
     with pytest.raises(ValidationError, match="on_errors"):
         Workflow.model_validate({**base, "external": {"connection": "c", "on_errors": "transfer:a1"}})
-    w = Workflow.model_validate({**base, "engine": "external", "fields": {}, "completion": {"outcomes": [
-        {"id": "fin", "label": "Fin", "message": ""}]}, "external": {"connection": "c", "model": " "}})
-    assert w.fields == {} and w.external.model is None and w.external.on_errors == "hang_up"
+    w = Workflow.model_validate({**base, "engine": "external", "analysis": {"outcomes": [
+        {"id": "fin", "label": "Fin"}]}, "external": {"connection": "c", "model": " "}})
+    assert w.analysis_fields == {} and w.external.model is None and w.external.on_errors == "hang_up"
+    # Sin analysis, sin resultados: el agente no elige outcome.
+    bare = Workflow.model_validate({"id": "x", "version": 1, "agent": {"name": "A", "language": "es"},
+                                    "external": {"connection": "c"}})
+    assert bare.outcomes == [] and bare.analysis is None
 
 
 def test_create_requires_plan_and_openai_compatible_connection(api, admin):
@@ -162,7 +166,7 @@ async def test_turn_streams_text_and_sends_history_tools_and_headers(api, admin,
 
 async def test_end_call_completes_with_outcome(api, admin, endpoint):
     state = await start(api, admin)
-    outcomes = [o["id"] for o in reference_data("sales_discovery")["completion"]["outcomes"]]
+    outcomes = [o["id"] for o in reference_data("sales_discovery")["analysis"]["outcomes"]]
     endpoint.replies = [sse({"content": "Chau."}, {"tool_calls": [
         {"index": 0, "id": "c1", "type": "function", "function": {"name": "end_call", "arguments": ""}}]},
         {"tool_calls": [{"index": 0, "function": {"arguments": json.dumps({"outcome": outcomes[0]})}}]})]
@@ -292,7 +296,7 @@ def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint, monkeypatch):
 
 async def test_pre_call_reaches_the_external_agent_by_header_not_prompt(api, admin, endpoint, mock_api_url):  # noqa: F811
     """Tu propio agente no usa el prompt de la definicion: el pre-call corre igual, lo visible va en
-    X-Atentina-Contact (como los datos de campaña), lo oculto no sale, y la apertura se renderiza. La guia de
+    X-Atentina-Variables (como los datos de campaña), lo oculto no sale, y la apertura se renderiza. La guia de
     WhatsApp no aplica: el cuerpo lleva el system de la conexion, sin datos."""
     acme, conn, r = setup(admin, system="Sos el agente de Acme.")
     assert r.status_code == 201, r.text
@@ -302,7 +306,7 @@ async def test_pre_call_reaches_the_external_agent_by_header_not_prompt(api, adm
     add_tool(admin, acme, tool)
     agent = r.json()
     definition = {**agent["definition"], "workflows": {"pre_call": {"tool": "buscar_ficha"}}}
-    definition["conversation"] = {**definition["conversation"], "opening": "Hola {{nombre}}."}
+    definition["first_message"] = "Hola {{nombre}}."
     saved = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
     assert saved.status_code == 200, saved.text
 
@@ -311,8 +315,10 @@ async def test_pre_call_reaches_the_external_agent_by_header_not_prompt(api, adm
     endpoint.replies = [sse({"content": "Hola María."})]
     await api.engine.process_turn(state.conversation_id, "Buen día")
 
-    assert json.loads(endpoint.requests[-1].headers["x-atentina-contact"]) == {"nombre": "María Gómez"}
+    assert json.loads(endpoint.requests[-1].headers["x-atentina-variables"]) == {"nombre": "María Gómez"}
+    assert "x-atentina-contact" not in endpoint.requests[-1].headers
+    assert "x-atentina-context" not in endpoint.requests[-1].headers
     body = endpoint.body()
     assert body["messages"][0]["content"] == "Sos el agente de Acme."
-    assert "al día" not in json.dumps(body) and "al d" not in endpoint.requests[-1].headers["x-atentina-contact"]
-    assert api.engine.store.get(state.conversation_id).progress.tool_vars["nota"] == "María Gómez, al día"
+    assert "al día" not in json.dumps(body) and "al d" not in endpoint.requests[-1].headers["x-atentina-variables"]
+    assert api.engine.store.get(state.conversation_id).progress.variables["nota"] == "María Gómez, al día"

@@ -185,7 +185,7 @@ def call_result(s: Session, definitions: DefinitionSource, conversation_id: str,
     reports = Reports(s, definitions)
     workflow = reports.workflow(conv)
     outcome = reports.outcome(workflow, conv)
-    specs = sorted(workflow.fields.items(), key=lambda kv: kv[1].priority) if workflow else []
+    specs = list(workflow.analysis_fields.items()) if workflow else []
     return {
         "final": call.status not in ACTIVE_CALL_STATUSES,
         "status": call.status,

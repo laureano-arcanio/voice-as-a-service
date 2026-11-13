@@ -132,7 +132,7 @@ def check_conversations(w, agent_id: str) -> None:
     w.llm.replies = [("¿Te reservo el 5 a las 11:30?", []),
                      ("", [("reservar_turno", {"fecha": "2026-11-05", "hora": "11:30", "nombre": "Ana"})]),
                      ("Listo, reservado.", [("end_call", {"motivo": "terminada"})]),
-                     ('{"motivo": "turno"}', [])]          # la extraccion, al terminar
+                     ('{"fields": {"motivo": "turno"}, "summary": "Reservó un turno."}', [])]   # el analisis
     replies, state = converse(w, agent_id, ["Reservame el de las 11:30, soy Ana.", "Sí."])
     got = [r for r in mock_api.RECEIVED if r["path"] == "/reservas"]
     assert len(got) == 1 and got[0]["signature_ok"] is True
@@ -226,7 +226,8 @@ def test_workflows_by_api(world):
             "http": {"method": "POST", "url": w.base + path, "auth": bearer, "body": fixed}}})
         assert r.status_code == 201, r.text
     definition = {**reference_data("eval_tools"), "tools": []}
-    definition["conversation"]["opening"] = "Hola {{nombre}}."
+    definition["first_message"] = "Hola {{nombre}}."
+    definition["prompt"] += "\nAtendés a {{nombre}}."
     agent = w.admin.post(f"{V1}/agents", json={"client_id": w.client["id"], "name": "Sofía", "slug": "sofia",
                                                "definition": definition}).json()
     assert w.admin.post(f"{V1}/agents/{agent['id']}/secrets",
@@ -256,7 +257,7 @@ def test_workflows_by_api(world):
     with w.api.sessions() as s:
         assert s.get(ConversationRow, cid).post_call_status == "done"
 
-    # Lo visible llega al prompt; lo oculto, no.
+    # Lo visible llega al prompt donde se nombra; lo oculto, no.
     w.llm.replies = [("Hola.", [])]
     w.admin.post(f"{V1}/conversations/{cid}/turns", json={"message": "Hola"})
     system = w.llm.requests[-1]["messages"][0]["content"]

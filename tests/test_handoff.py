@@ -459,8 +459,9 @@ def test_new_messages_and_events(admin):
             "tap_wait", "tap_taken", "tap_closed"} <= set(defaults["messages"])
     assert {"workflow.pre_call", "workflow.post_call", "handoff.rerouted", "handoff.notified", "handoff.whatsapp_sent",
             "handoff.whatsapp_failed", "handoff.relay_failed"} <= events_service.TYPES
-    # Las variables del pre-call entran con el mismo reemplazo de siempre.
-    assert handoff.render("{{nota_operador}}. {{vars.x}}listo", nota_operador="Al día") == "Al día. {{vars.x}}listo"
+    # Las variables de la conversacion y las del sistema entran con el mismo reemplazo; una que no viene, vacia.
+    assert handoff.render("{{nota_operador}} {{call.phone}}. {{vars.x}}listo", nota_operador="Al día",
+                          **{"call.phone": "+54911"}) == "Al día +54911. listo"
 
 
 def test_pre_accept_message_error_marks_the_field(api, admin):
@@ -643,10 +644,12 @@ def test_tool_of_another_client_is_rejected(api, admin, flows):
     bad_path(r, "workflows.pre_call.tool")
 
 
-def test_opening_guide_defaults_to_none():
+def test_old_progress_keys_are_ignored():
+    """Las conversaciones guardadas con tool_vars, contact, context, preloaded u opening_guide se siguen leyendo."""
     from app.conversation.models import Progress
-    assert Progress().opening_guide is None
-    assert Progress.model_validate({"tool_vars": {}}).opening_guide is None
+    p = Progress.model_validate({"tool_vars": {"a": 1}, "contact": {"nombre": "Ana"}, "context": "x",
+                                 "preloaded": ["telefono"], "opening_guide": "Hola"})
+    assert p.variables == {} and not hasattr(p, "opening_guide")
 
 
 # ---------- migracion 0048 ----------

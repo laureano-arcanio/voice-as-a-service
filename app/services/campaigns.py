@@ -18,7 +18,7 @@ import datetime
 import logging
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -70,6 +70,7 @@ class Candidate:
     contact: Contact
     raw: str
     line: int | None = None
+    vars: dict = field(default_factory=dict)    # columnas del CSV / `variables` del pedido (solo voz)
 
 
 # --- Horario y programacion ---
@@ -405,7 +406,9 @@ def add_contacts(s: Session, campaign: Campaign, candidates: list[Candidate]) ->
         elif added >= room:
             skipped.append(Skipped(cand.raw, f"tope de {total + room} contactos por campaña", cand.line))
         else:
-            s.add(CampaignContact(campaign_id=campaign.id, contact=contact, vars=contact_vars(contact, params)))
+            data = {k: v for k, v in cand.vars.items() if k not in contacts_service.NOT_VARIABLE}
+            s.add(CampaignContact(campaign_id=campaign.id, contact=contact,
+                                  vars=data | contact_vars(contact, params)))
             existing.add(contact.id)
             added += 1
     if added and campaign.status == "done":
@@ -434,12 +437,14 @@ def contacts_from_rows(s: Session, client_id: str, rows: list[contacts_service.C
     skipped = [Skipped(x.phone, x.reason, x.line) for x in result.invalid]
     valid = []
     for row in rows:
+        if row.error:
+            continue
         try:
             valid.append((row, phones.normalize_phone(row.phone)))
         except ValueError:
             continue
     known = contacts_service.find(s, client_id, [phone for _, phone in valid])
-    return [Candidate(known[phone], row.phone, row.line) for row, phone in valid if phone in known], skipped
+    return [Candidate(known[phone], row.phone, row.line, row.vars) for row, phone in valid if phone in known], skipped
 
 
 # --- Estado ---

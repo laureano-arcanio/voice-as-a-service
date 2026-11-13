@@ -13,21 +13,11 @@ import re
 from functools import cache
 from pathlib import Path
 
+from ..conversation import legacy
 from ..conversation.models import Workflow
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 REFERENCE_DIR = Path(__file__).resolve().parent / "reference"
-# Reglas de comportamiento de un agente de atencion, a la vista y editables (antes estaban en el prompt del motor;
-# AGENTS.md, "Reglas de desarrollo"). Las trae la plantilla y un agente en blanco.
-GENERIC_RULES = (
-    "Pedir los datos a obtener en orden, salvo que la persona los dé antes; las preguntas sugeridas se reformulan para que la conversación sea natural.",
-    "No volver a preguntar lo que la persona ya respondió.",
-    "Hacer normalmente una pregunta por turno.",
-    "Nunca inventar datos de la persona ni información del producto.",
-    "Con los datos obligatorios, o si la persona no quiere seguir, despedirse con el mensaje del cierre que corresponda y terminar la conversación.",
-    "Si la conversación no tiene nada que ver con el objetivo (una broma, alguien que se burla, insulta o acosa, un número equivocado, o alguien que después de dos intentos sigue sin hablar del tema), despedirse en una frase amable que diga para qué es esta línea y terminar con el motivo fuera de tema. Un mensaje que no se entiende no es fuera de tema: pedir que lo repita.",
-    "Pasar la llamada a un área del equipo cuando la persona pide hablar con alguien o necesita algo que no se puede resolver; si el área está cerrada, decir cuándo atiende y tomar el mensaje. Si ya se intentó pasarla y no se pudo, no volver a intentarlo con esa área: tomar nombre, teléfono y qué necesita.",
-)
 ID_RE = re.compile(r"[a-z0-9_]+")
 
 
@@ -72,18 +62,26 @@ def fill_template(data: dict, company: str, voice: str | None = None) -> dict:
 
 
 def blank_definition(client_name: str) -> dict:
-    """Agente en blanco: lo minimo para que la definicion sea valida (un dato y el resultado
-    por defecto). Se completa desde el formulario de la UI."""
+    """Agente en blanco: un prompt corto con los titulos para completar desde la UI, sin analisis."""
     return {
-        "agent": {"name": "Asistente", "role": f"asistente virtual de {client_name}", "language": "es-AR"},
-        "objective": {"description": ""},
-        "conversation": {"opening": "Hola, ¿en qué te puedo ayudar?", "rules": list(GENERIC_RULES)},
-        "knowledge": "",
-        "fields": {"consulta": {"priority": 10, "label": "Consulta", "description": "Qué necesita la persona.",
-                                "type": "string", "required": True, "question": "¿En qué te puedo ayudar?"}},
-        "completion": {"outcomes": [{"id": "fin", "label": "Atendida", "when": {},
-                                     "message": "Gracias por comunicarte.", "goal": False}]},
+        "agent": {"name": "Asistente", "language": "es-AR"},
+        "prompt": (f"# Identidad\nSos Asistente, asistente virtual de {client_name}.\n\n"
+                   "# Objetivo\nQué tiene que lograr el agente en la conversación.\n\n"
+                   "# Cómo conversar\n- Tono, largo de las respuestas y reglas del negocio.\n\n"
+                   "# Información\nLo que el agente necesita saber para responder."),
+        "first_message": "Hola, ¿en qué te puedo ayudar?",
     }
+
+
+def prompt_objective(prompt: str) -> str:
+    """El primer parrafo bajo el titulo "# Objetivo" del prompt, o vacio."""
+    m = re.search(r"^#\s*Objetivo\s*$\n+(.+?)(?:\n\s*\n|\n#|\Z)", prompt or "", re.MULTILINE | re.DOTALL)
+    return " ".join(m.group(1).split()) if m else ""
+
+
+def objective_of(definition: dict) -> str:
+    """El objetivo de una definicion guardada, en la forma actual o la vieja."""
+    return prompt_objective(str(legacy.upgrade(definition or {}).get("prompt") or ""))
 
 
 # ---------- agentes de referencia ----------

@@ -38,7 +38,7 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 - Cambiar etapas o modelo es una versión nueva del agente; las conversaciones en curso siguen con la suya.
 - `external` (`ExternalConfig`): `model` vacío = `default_model` de la conexión; `system` (hasta 20.000) se antepone
   si está; `first_token_timeout_ms` 500 a 20.000; `max_errors` 1 a 10; `on_errors` `hang_up` o `transfer:<área>`
-  (el área tiene que estar en `handoff.areas`). Un agente con `external` no lleva `tools` del cliente. Sí lleva `workflows` (antes y después de la conversación; [HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): el pre-call llega al endpoint por `X-Atentina-Contact`, no como prompt, y el panel los conserva y edita.
+  (el área tiene que estar en `handoff.areas`). Un agente con `external` no lleva `tools` del cliente. Sí lleva `workflows` (antes y después de la conversación; [HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): el pre-call llega al endpoint por `X-Atentina-Variables`, no como prompt, y el panel los conserva y edita.
 
 ## API
 
@@ -121,14 +121,16 @@ canales que pasan por el motor (llamadas, WhatsApp, link para llamar, campañas,
 `stream: true`, `model`, `messages` (historial completo en cada turno, sin prompt nuestro salvo `external.system`;
 lo que dijo una persona del equipo va como `assistant` con `name`), `tools` y `user: <conversation_id>`.
 
-- Herramientas: `end_call` con `outcome` (enum de `completion.outcomes`; sin él, el último resultado de la lista) y,
+- Herramientas: `end_call` con `outcome` (enum de `analysis.outcomes`; sin él, el último resultado de la lista; sin
+  resultados, `motivo` como con el LLM de Atentina) y,
   en una llamada de voz con áreas (o un WhatsApp de texto con áreas con plantilla), `transfer_call` con `area`
   (`app/llm/platform_tools.py`).
 - Datos de la llamada **solo en headers** (el cuerpo lleva solo campos estándar: un endpoint que reenvía a OpenAI
-  rechazaría los desconocidos): `X-Atentina-Conversation-Id`, `-Channel`, `-Mode`, `-From`, `-To`, `-Agent`, `-Turn`
-  (1 = primer mensaje de la persona) y, si hay, `-Contact` (JSON de la campaña y los datos visibles que trajo el pre-call del agente) y `-Context` (motivo de
-  una saliente),
-  recortados a 2000. Lo no ASCII va con escapes JSON. Los vacíos no van.
+  rechazaría los desconocidos): `X-Atentina-Conversation-Id`, `-Channel`, `-Mode`, `-Direction` (`inbound` u
+  `outbound`), `-From`, `-To`, `-Agent`, `-Turn` (1 = primer mensaje de la persona) y, si hay, `-Variables`: JSON
+  ASCII de las variables visibles de la conversación (defaults, datos del contacto o de la campaña, `variables` del
+  pedido y lo que trajo el pre-call), siempre válido y de hasta 2000 caracteres (lo que no entra se deja afuera; un
+  texto largo, recortado). Las ocultas (`hide`) y los secretos nunca van. Los vacíos no van.
 
 **Respuesta** (cliente → Atentina): SSE de chat completions. `delta.content` va al TTS a medida que llega;
 `delta.tool_calls` con `end_call` corta después de decir lo escrito, con `transfer_call` deriva. Otras herramientas

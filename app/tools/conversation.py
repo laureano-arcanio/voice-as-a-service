@@ -1,5 +1,5 @@
 """Las herramientas del cliente en una conversacion (docs/features/HERRAMIENTAS.md): que herramientas tiene el
-agente, el contexto de la llamada (numeros, modo, secretos del agente, vars) y la ejecucion de lo que pide el
+agente, el contexto de la llamada (numeros, modo, secretos del agente, variables) y la ejecucion de lo que pide el
 modelo en un turno, con las frases de voz de cada herramienta. El modelo decide que llamar y cuando; la
 plataforma ejecuta y le devuelve el resultado, sin interpretar lo que dijo la persona."""
 import asyncio
@@ -7,7 +7,6 @@ import json
 import logging
 import threading
 import time
-from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -22,7 +21,6 @@ from .runtime import ToolContext, ToolResult, ToolSpec, run
 logger = logging.getLogger(__name__)
 
 SECRETS_TTL = 30.0          # segundos: rotar un secreto rige en el proximo turno pasado este tiempo
-CONTEXTS_MAX = 512
 
 
 NOT_EXECUTABLE = "not_executable"
@@ -71,7 +69,6 @@ class ConversationTools:
         self.sessions = sessions
         self._lock = threading.Lock()
         self._secrets: dict[str, tuple[float, dict[str, str]]] = {}
-        self._calls: OrderedDict[str, dict] = OrderedDict()
 
     def specs(self, workflow: Workflow, state: ConversationState) -> list[ToolSpec]:
         if not workflow.tools or self.sessions is None:
@@ -93,39 +90,20 @@ class ConversationTools:
             self._secrets[agent_id] = (now, values)
         return values
 
-    def _call(self, state: ConversationState, actor: str | None) -> dict:
-        """Modo y numeros de la llamada (o el WhatsApp del que escribe), una vez por conversacion."""
-        with self._lock:
-            if (cached := self._calls.get(state.conversation_id)) is not None:
-                return cached
-        out = {"mode": "whatsapp" if state.channel == "whatsapp" else "", "from": None, "to": None, "phone": None}
-        if state.channel == "whatsapp" and actor and actor.startswith("wa:"):
-            out["from"] = out["phone"] = "+" + actor[3:].lstrip("+")
-        elif state.channel == "voice":
-            from ..models import CallRow, PhoneNumber
-            with self.sessions() as s:
-                call = s.get(CallRow, state.conversation_id)
-                if call is not None:
-                    ours = (s.scalar(select(PhoneNumber.e164).where(PhoneNumber.id == call.phone_number_id))
-                            if call.phone_number_id else None)
-                    out["mode"] = str(call.mode.value if hasattr(call.mode, "value") else call.mode)
-                    out["from"], out["to"] = ((ours, call.phone) if out["mode"] in ("saliente", "celular") else (call.phone, ours))
-                    out["phone"] = call.phone
-                elif state.progress.caller_phone:   # prueba por texto con numero simulado (POST /conversations)
-                    out["from"] = out["phone"] = state.progress.caller_phone
-        with self._lock:
-            self._calls[state.conversation_id] = out
-            while len(self._calls) > CONTEXTS_MAX:
-                self._calls.popitem(last=False)
-        return out
-
     def context(self, workflow: Workflow, state: ConversationState, actor: str | None) -> ToolContext:
-        call = self._call(state, actor)
-        return ToolContext(conversation_id=state.conversation_id, channel=state.channel, mode=call["mode"],
-                           from_=call["from"], to=call["to"], phone=call["phone"], agent_slug=workflow.id,
-                           agent_version=workflow.version,
+        """Lo que leen los templates y el codigo: los datos de la llamada (progress.call, los fija quien crea la
+        conversacion), las variables (ocultas incluidas), los datos del analisis, el resumen y los secretos."""
+        call = state.progress.call or {}
+        # Sin numero en progress.call: el simulado de una prueba por texto, o el WhatsApp de quien escribe.
+        caller = state.progress.caller_phone or (
+            "+" + actor[3:].lstrip("+") if state.channel == "whatsapp" and actor and actor.startswith("wa:") else None)
+        mode = call.get("mode") or ("whatsapp" if state.channel == "whatsapp" else "")
+        return ToolContext(conversation_id=state.conversation_id, channel=state.channel, mode=mode,
+                           from_=call.get("from") or caller, to=call.get("to"), phone=call.get("phone") or caller,
+                           direction=call.get("direction"), summary=state.progress.summary,
+                           agent_slug=workflow.id, agent_version=workflow.version,
                            fields={k: v for k, v in state.fields.items() if v is not None},
-                           contact=dict(state.progress.contact), vars=dict(state.progress.tool_vars),
+                           vars=dict(state.progress.variables), hidden=set(state.progress.hidden_variables),
                            secrets=self._secret_values(state.agent_id), timezone=settings.agent_timezone)
 
     def turn(self, workflow: Workflow, state: ConversationState, actor: str | None) -> "TurnTools | None":
@@ -197,6 +175,8 @@ class TurnTools:
     voice: bool = True
     trace: list[dict] = field(default_factory=list)
     calls: int = 0              # herramientas ejecutadas en el turno (el respaldo de BYOK no repite el turno)
+    # Lo que guardo cada una con assign, en orden: (slug, valores, ocultas), para las variables de la conversacion.
+    assigned: list[tuple[str, dict, set[str]]] = field(default_factory=list)
     # Para registrar cada ejecucion en tool_runs (reportes del admin, docs/features/REPORTES.md).
     sessions: object = None
     client_id: str | None = None
@@ -233,6 +213,8 @@ class TurnTools:
                            "tool": {"slug": spec.slug, "type": spec.type, "revision": spec.revision,
                                     **result.trace()}})
         self._record(spec, result, ms)
+        if result.assigned:
+            self.assigned.append((spec.slug, dict(result.assigned), set(result.hidden)))
         return result.llm
 
     def _record(self, spec: ToolSpec, result: ToolResult, ms: int) -> None:

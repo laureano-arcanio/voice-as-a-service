@@ -19,6 +19,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 
 from ...config import settings
+from ...conversation import variables
 from ...models import Agent, Campaign, CampaignContact, Client, WaAccount, WaMessage
 from ...services import (
     campaign_callbacks,
@@ -32,6 +33,7 @@ from ...services.security import Principal
 from ...whatsapp import campaigns as wa
 from ..deps import DB, CurrentPrincipal, Definitions, scoped_client_id
 from ..schemas import (
+    CampaignContactIn,
     CampaignContactOut,
     CampaignContactPage,
     CampaignContactsAdded,
@@ -120,6 +122,22 @@ def _skipped(items: list[common.Skipped]) -> list[ContactRejected]:
     return [ContactRejected(phone=x.phone, reason=x.reason, line=x.line) for x in items]
 
 
+def _api_rows(c: Campaign, items: list[CampaignContactIn]) -> list[contacts.ContactRow]:
+    """Los `contacts` del pedido; su `variables` se valida y va a la llamada (solo voz)."""
+    rows = []
+    for i, x in enumerate(items):
+        fields = x.model_dump(exclude={"variables"})
+        if x.variables:
+            if c.channel != "voice":
+                raise Invalid(f"contacts.{i}.variables es solo de voz: en WhatsApp los datos van en recipients y param_names")
+            values, errors = variables.check_request(x.variables, path=f"contacts.{i}.variables")
+            if errors:
+                raise Invalid(f"{errors[0]['path']}: {errors[0]['message']}", "invalid_variables", details=errors)
+            fields["vars"] = values
+        rows.append(contacts.ContactRow(**fields))
+    return rows
+
+
 def _add(db, c: Campaign, body: CampaignContactsIn) -> tuple[int, list[common.Skipped]]:
     """Suma los contactos de todas las fuentes del pedido, en este orden: recipients (WhatsApp, con
     sus variables), contact_ids, contacts y csv (estos dos se cargan antes en la agenda)."""
@@ -136,8 +154,8 @@ def _add(db, c: Campaign, body: CampaignContactsIn) -> tuple[int, list[common.Sk
             skipped.append(item)
         else:
             candidates.append(item)
-    for rows, source in (([contacts.ContactRow(**x.model_dump()) for x in body.contacts], "api"),
-                         (contacts.parse_csv(body.csv) if body.csv else [], "csv")):
+    for rows, source in ((_api_rows(c, body.contacts), "api"),
+                         (contacts.parse_csv(body.csv, data_columns=c.channel == "voice") if body.csv else [], "csv")):
         if rows:
             cands, sk = common.contacts_from_rows(db, c.client_id, rows, source)
             candidates += cands

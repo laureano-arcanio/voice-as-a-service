@@ -6,11 +6,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..llm import params as llm_params
+from . import legacy, variables
 
 
 class AgentInfo(BaseModel):
     name: str
-    role: str
     language: str
     # Voz del TTS (nombre en tts/finetune/voces.tsv); sin voz, el agente usa VLLM_TTS_VOICE.
     voice: str | None = None
@@ -27,50 +27,60 @@ class AgentInfo(BaseModel):
         return v
 
 
-class Objective(BaseModel):
-    description: str
+class VariableSpec(BaseModel):
+    """Una variable dinamica declarada ({{nombre}}; app/conversation/variables.py): su valor por defecto."""
+    name: str
+    default: str | int | float | bool = ""
+    description: str = Field(default="", max_length=variables.MAX_DESCRIPTION_CHARS)
+
+    @field_validator("default")
+    @classmethod
+    def _default(cls, v):
+        if isinstance(v, str) and len(v) > variables.MAX_VALUE_CHARS:
+            raise ValueError(f"hasta {variables.MAX_VALUE_CHARS} caracteres")
+        return v
 
 
-class ConversationConfig(BaseModel):
-    opening: str
-    rules: list[str] = []
-    # Llamadas: la apertura se sintetiza entera al guardar el agente (suena mejor que frase por
-    # frase) y se reproduce ese audio (app/conversation/opening_audio.py).
-    opening_audio: bool = False
-    # Llamadas: espera desde que se conecta la llamada hasta que el agente empieza a hablar.
-    opening_delay_ms: int = Field(default=200, ge=0, le=10_000)
-
-
-class FieldSpec(BaseModel):
-    priority: int
+class AnalysisField(BaseModel):
+    """Un dato que saca el analisis de la conversacion (la extraccion, app/llm/prompt.py)."""
+    name: str
     label: str | None = None
     description: str
-    # digits: como string, pero el agente de voz espera mas de silencio antes de responder
-    # (DICTATED_TYPES en app/voice/worker.py), para no taparle el audio a quien lee numeros
-    # con pausas (ej. un codigo de verificacion leido por una locucion).
-    # phone: en las llamadas con numero (entrante, saliente, WhatsApp) se precarga con el de la otra
-    # punta y el agente no lo pregunta; en las del link para llamar lo pide (engine.new_conversation).
-    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice", "digits", "phone"] = "string"
+    # phone: telefono de 8 a 15 digitos; email_or_phone: cualquiera de los dos (app/conversation/workflow.py).
+    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice", "phone"] = "string"
     options: list[str] | None = None  # valores posibles de un campo choice
-    required: bool = False
-    required_if: dict[str, Any] | None = None
-    question: str
 
 
 class Outcome(BaseModel):
     id: str
     label: str                                    # para el dashboard
     when: dict[str, Any] = Field(default_factory=dict)  # igualdades sobre los campos; vacio = default
-    message: str                                  # cierre sugerido al LLM
-    goal: bool = False                            # cumple el objetivo del workflow
+    goal: bool = False                            # cumple el objetivo del agente
     # El contacto pidio que no lo llamen mas: en una llamada de campaña, el telefono queda en la lista
     # de bajas de voz del cliente (contact_optouts, source "outcome": campaign_calls.apply_outcome_optout).
     no_contact: bool = False
 
 
-class Completion(BaseModel):
-    when: Literal["all_required_fields_completed"] = "all_required_fields_completed"
-    outcomes: list[Outcome]
+class Analysis(BaseModel):
+    """Lo que se saca de la conversacion al terminar, en una llamada guiada: datos, resumen y resultado."""
+    summary: bool = True
+    instructions: str = Field(default="", max_length=4000)
+    # Lista y no mapa: jsonb no conserva el orden de las claves, y el orden es el del analisis y la UI.
+    fields: list[AnalysisField] = Field(default_factory=list)
+    # El primero cuyo `when` se cumple; si hay, el ultimo es el default, sin when.
+    outcomes: list[Outcome] = Field(default_factory=list)
+
+    @field_validator("fields", mode="before")
+    @classmethod
+    def _fields_list(cls, v):
+        return _as_list(v, "name, type, description")
+
+
+def _as_list(value: Any, keys: str) -> Any:
+    """Las listas con name de la definicion: la forma mapa no se acepta (su orden se pierde en jsonb)."""
+    if isinstance(value, dict):
+        raise ValueError(f"debe ser una lista [{{{keys}}}]")
+    return value
 
 
 class ToolGrant(BaseModel):
@@ -234,11 +244,20 @@ class Workflow(BaseModel):
     # Parametros de generacion por defecto del agente (todo el flujo); las etapas de llm los pisan.
     generation: Generation | None = None
     agent: AgentInfo
-    objective: Objective
-    conversation: ConversationConfig
-    knowledge: str = ""
-    fields: dict[str, FieldSpec] = Field(default_factory=dict)
-    completion: Completion
+    # Lo que va al LLM tal cual (despues del canal), con sus {{variables}} sustituidas al empezar.
+    prompt: str = Field(default="", max_length=40_000)
+    # Lo primero que dice el agente (llamadas); por WhatsApp entrante escribe primero la persona.
+    first_message: str = Field(default="", max_length=1000)
+    # Llamadas: el primer mensaje se sintetiza entero al guardar el agente (suena mejor que frase por
+    # frase) y se reproduce ese audio (app/conversation/opening_audio.py).
+    first_message_audio: bool = False
+    # Llamadas: espera desde que se conecta la llamada hasta que el agente empieza a hablar.
+    first_message_delay_ms: int = Field(default=200, ge=0, le=10_000)
+    # Variables declaradas con su default; las demas pueden venir del pedido, la campaña o una herramienta.
+    # Lista, como analysis.fields: el orden de la declaracion se conserva en jsonb.
+    variables: list[VariableSpec] = Field(default_factory=list)
+    # Analisis al terminar; sin el, no hay extraccion ni resultado (salvo fuera de tema).
+    analysis: Analysis | None = None
     # Herramientas del cliente que usa el agente (no con external: las tiene su propio agente).
     tools: list[ToolGrant] = Field(default_factory=list)
     # None: los defaults de ToolSettings (no se guarda, asi una definicion sin herramientas no cambia).
@@ -253,15 +272,19 @@ class Workflow(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _legacy(cls, data: Any) -> Any:
-        """Definiciones viejas: `engine` (classic, structured, assistant o external; desde el 26-oct-2026 hay un
-        solo motor y external es tener `external`) y herramientas de apps ({app, tools}, quitadas el 26-oct-2026)
-        se ignoran, asi las conversaciones guardadas se siguen leyendo."""
+        """Definiciones viejas: `engine` y herramientas de apps ({app, tools}) se ignoran; objective, conversation,
+        fields y completion se convierten (app/conversation/legacy.py)."""
         if not isinstance(data, dict):
             return data
-        data = {k: v for k, v in data.items() if k != "engine"}
+        data = legacy.upgrade({k: v for k, v in data.items() if k != "engine"})
         if isinstance(data.get("tools"), list):
             data["tools"] = [{"tool": g["tool"]} for g in data["tools"] if isinstance(g, dict) and g.get("tool")]
         return data
+
+    @field_validator("variables", mode="before")
+    @classmethod
+    def _variables_list(cls, v):
+        return _as_list(v, "name, default, description")
 
     @model_validator(mode="after")
     def _consistent(self) -> "Workflow":
@@ -271,24 +294,43 @@ class Workflow(BaseModel):
         slugs = [g.tool for g in self.tools]
         if len(set(slugs)) != len(slugs):
             raise ValueError("tools: una herramienta repetida")
-        for name, spec in self.fields.items():
-            if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
-                raise ValueError(f"fields.{name}: usar minusculas, numeros y _ (ej. contact_name)")
-            if spec.type == "choice" and not spec.options:
-                raise ValueError(f"fields.{name}: un campo choice necesita options")
-            for dep in spec.required_if or {}:
-                if dep not in self.fields:
-                    raise ValueError(f"fields.{name}.required_if: {dep} no es un campo")
-        outcomes = self.completion.outcomes
-        if not outcomes or outcomes[-1].when:
-            raise ValueError("completion.outcomes: el ultimo resultado tiene que ser el default, sin when")
-        ids = [o.id for o in outcomes]
-        if len(set(ids)) != len(ids):
-            raise ValueError("completion.outcomes: ids repetidos")
-        for o in outcomes:
-            for dep in o.when:
-                if dep not in self.fields:
-                    raise ValueError(f"completion.outcomes.{o.id}.when: {dep} no es un campo")
+        if len(self.variables) > variables.MAX_VARIABLES:
+            raise ValueError(f"variables: hasta {variables.MAX_VARIABLES}")
+        seen = set()
+        for i, var in enumerate(self.variables):
+            if msg := variables.name_error(var.name):
+                raise ValueError(f"variables.{i}.name: {var.name}: {msg}")
+            if var.name in seen:
+                raise ValueError(f"variables.{i}.name: {var.name} repetida")
+            seen.add(var.name)
+        texts = [("prompt", self.prompt), ("first_message", self.first_message)]
+        if self.analysis is not None:
+            texts.append(("analysis.instructions", self.analysis.instructions))
+            texts += [(f"analysis.fields.{i}.description", f.description) for i, f in enumerate(self.analysis.fields)]
+        for path, text in texts:
+            if bad := variables.forbidden_in_llm_text(text):
+                raise ValueError(f"{path}: {bad} no puede ir al LLM (solo en herramientas)")
+        if self.analysis is not None:
+            fields = set()
+            for i, spec in enumerate(self.analysis.fields):
+                name = spec.name
+                if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+                    raise ValueError(f"analysis.fields.{i}.name: {name}: usar minusculas, numeros y _ (ej. contact_name)")
+                if name in fields:
+                    raise ValueError(f"analysis.fields.{i}.name: {name} repetido")
+                if spec.type == "choice" and not spec.options:
+                    raise ValueError(f"analysis.fields.{i}.options: {name}: un campo choice necesita options")
+                fields.add(name)
+            outcomes = self.analysis.outcomes
+            if outcomes and outcomes[-1].when:
+                raise ValueError("analysis.outcomes: el ultimo resultado tiene que ser el default, sin when")
+            ids = [o.id for o in outcomes]
+            if len(set(ids)) != len(ids):
+                raise ValueError("analysis.outcomes: ids repetidos")
+            for o in outcomes:
+                for dep in o.when:
+                    if dep not in fields:
+                        raise ValueError(f"analysis.outcomes.{o.id}.when: {dep} no es un campo")
         if self.generation is not None and not self.generation.params:
             self.generation = None
         if self.handoff is not None and self.handoff.areas:
@@ -300,6 +342,20 @@ class Workflow(BaseModel):
             if area not in [a.area_id for a in (self.handoff.areas if self.handoff else [])]:
                 raise ValueError("external.on_errors: el area no esta entre las de handoff del agente")
         return self
+
+    @property
+    def analysis_fields(self) -> dict[str, AnalysisField]:
+        """Los datos del analisis {nombre: spec}, en el orden de la lista (vacio sin analysis)."""
+        return {f.name: f for f in self.analysis.fields} if self.analysis is not None else {}
+
+    @property
+    def variable_specs(self) -> dict[str, VariableSpec]:
+        """Las variables declaradas {nombre: spec}, en el orden de la lista."""
+        return {v.name: v for v in self.variables}
+
+    @property
+    def outcomes(self) -> list[Outcome]:
+        return self.analysis.outcomes if self.analysis is not None else []
 
 
 class Message(BaseModel):
@@ -341,22 +397,22 @@ class Progress(BaseModel):
     rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos de la ultima extraccion (para el panel)
     outcome: str | None = None                               # Outcome.id al completar (para el dashboard)
     undo: dict[str, Any] | None = None                       # estado previo al ultimo turno (retract_last_turn)
-    # Valores que guardaron las herramientas del cliente (assign) para las siguientes ({{vars.x}}).
-    tool_vars: dict[str, Any] = Field(default_factory=dict)
-    # Llamada de una campaña de voz (app/conversation/contact.py): los datos del contacto que van al prompt
-    # y los campos que la campaña ya cargo en `fields` (el agente no los pregunta). No cambian en la conversacion.
-    contact: dict[str, Any] = Field(default_factory=dict)
-    preloaded: list[str] = Field(default_factory=list)
-    # Llamada saliente suelta (pantalla Llamadas): el motivo, en texto libre (lo que el contacto dejo en la web, por
-    # ejemplo). Va al prompt como "MOTIVO DEL LLAMADO" y no cambia en la conversacion.
-    context: str | None = None
+    # Variables dinamicas (app/conversation/variables.py): valor, las ocultas al LLM y la fuente de cada una.
+    variables: dict[str, Any] = Field(default_factory=dict)
+    hidden_variables: list[str] = Field(default_factory=list)
+    variable_sources: dict[str, str] = Field(default_factory=dict)
+    # Datos de la llamada para {{call.*}} ({id, from, to, phone, direction, mode}) y hora de inicio ({{today}}).
+    call: dict[str, Any] = Field(default_factory=dict)
+    started_at: str | None = None
+    # El prompt de sistema, renderizado una vez en el primer turno: no cambia en la conversacion (prefix cache).
+    system_prompt: str | None = None
+    # Resumen del analisis (analysis.summary).
+    summary: str | None = None
     # Llamada con derivacion: las areas que puede usar el agente, como las ve el LLM ({id, name, when, schedule}).
     # Las fija el worker al empezar (app/voice/handoff.py) y no cambian en la llamada.
     handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
     # Tu propio agente: errores seguidos del endpoint del cliente (vuelve a 0 con un turno bueno).
     external_errors: int = 0
-    # WhatsApp con pre-call: la guia de apertura ya renderizada, que reemplaza a conversation.opening en el prompt.
-    opening_guide: str | None = None
     # Prueba por texto desde el panel: el numero de quien llama, simulado ({{call.phone}} sin llamada). No se marca.
     caller_phone: str | None = None
     # Prueba desde el panel que corre las herramientas automaticas del agente (pre-call y post-call).
@@ -406,8 +462,9 @@ class AgentTurn(BaseModel):
 
 
 class Extraction(BaseModel):
-    """Salida del LLM de extraccion: valor por campo, null si no hay dato."""
+    """Salida del LLM de extraccion: valor por campo, null si no hay dato, y el resumen si se pidio."""
     fields: dict[str, Any]
+    summary: str | None = None
     raw: str | None = None
     reasoning: str | None = None
     # Tokens del pedido (el usage del proveedor; 0 si no lo da).

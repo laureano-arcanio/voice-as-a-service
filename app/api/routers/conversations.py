@@ -5,10 +5,10 @@ import logging
 from fastapi import APIRouter, Depends
 
 from ...config import settings
-from ...conversation import workflows
+from ...conversation import variables, workflows
 from ...models import Agent
 from ...services import calls
-from ...services.errors import Conflict, NotFound, Upstream
+from ...services.errors import Conflict, Invalid, NotFound, Upstream
 from ...services.ratelimit import Limit
 from ..deps import DB, CurrentPrincipal, Engine, rate_limit
 from ..schemas import (
@@ -37,15 +37,22 @@ _turn_limit = rate_limit("turns", lambda: Limit(settings.rate_turns_per_hour, 36
 
 @router.post("", status_code=201, response_model=ConversationStartOut, dependencies=[Depends(_new_limit)])
 async def start_conversation(body: ConversationIn, p: CurrentPrincipal, db: DB, engine: Engine):
-    """Con `caller_phone` o `workflows` (solo pruebas del panel; 403 panel_test_only con API key o el MCP): el
-    numero simulado precarga los campos de telefono y llega a las herramientas; `workflows` corre el pre-call."""
+    """`variables`: valores de `{{nombre}}` para el prompt, el primer mensaje y las herramientas (422
+    invalid_variables con el `path` de la que no vale). Con `caller_phone` o `workflows` (solo pruebas del panel;
+    403 panel_test_only con API key o el MCP): el numero simulado es {{call.phone}} y llega a las herramientas;
+    `workflows` corre el pre-call."""
     def create():
         agent = db.get(Agent, body.agent_id)
         if agent is None or not p.can_access(agent.client_id):
             raise NotFound("Agente inexistente")
         simulated = calls.panel_test(p, body.caller_phone, body.workflows)
+        values, errors = variables.check_request(body.variables)
+        if errors:
+            raise Invalid(f"{errors[0]['path']}: {errors[0]['message']}", "invalid_variables", details=errors)
         try:
-            state, message = engine.new_conversation(agent.id, client_id=agent.client_id, phone=simulated)
+            state, message = engine.new_conversation(
+                agent.id, client_id=agent.client_id, variables={"request": values},
+                call={"from": simulated, "phone": simulated, "direction": "inbound", "mode": "api"})
         except KeyError:
             raise NotFound("Agente inexistente o archivado") from None
         state.progress.caller_phone = simulated

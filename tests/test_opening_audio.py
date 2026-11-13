@@ -1,4 +1,4 @@
-"""Apertura pregenerada (conversation.opening_audio): se sintetiza al guardar el agente y el worker la reproduce."""
+"""Primer mensaje pregenerado (first_message_audio): se sintetiza al guardar el agente y el worker la reproduce."""
 import asyncio
 import json
 
@@ -33,17 +33,15 @@ def tts_engine(monkeypatch, tmp_path):
 
 def workflow(opening="Hola, soy Sofía. ¿En qué te puedo ayudar?", flag=True, version=3, voice="sofia") -> Workflow:
     return Workflow.model_validate({
-        "id": "ventas", "version": version, "engine": "assistant",
-        "agent": {"name": "Sofía", "role": "ventas", "language": "es", "voice": voice},
-        "objective": {"description": "x"},
-        "conversation": {"opening": opening, "opening_audio": flag},
-        "completion": {"outcomes": [{"id": "fin", "label": "Fin", "message": "Chau"}]},
+        "id": "ventas", "version": version,
+        "agent": {"name": "Sofía", "language": "es", "voice": voice},
+        "prompt": "# Identidad\nSos Sofía, de ventas.", "first_message": opening, "first_message_audio": flag,
     })
 
 
 def test_defaults():
     w = workflow(flag=False)
-    assert w.conversation.opening_delay_ms == 200 and not opening_audio.wanted(w)
+    assert w.first_message_delay_ms == 200 and not opening_audio.wanted(w)
 
 
 def test_generate_and_load(tts_engine, tmp_path):
@@ -51,13 +49,13 @@ def test_generate_and_load(tts_engine, tmp_path):
     path = asyncio.run(opening_audio.generate("a1", w))
     assert path == tmp_path / "a1" / "3-sofia.wav"
     assert path.read_bytes() == tts.wav_from_pcm(PCM)
-    assert tts_engine[0]["input"] == w.conversation.opening and tts_engine[0]["voice"] == "sofia"
+    assert tts_engine[0]["input"] == w.first_message and tts_engine[0]["voice"] == "sofia"
     assert tts_engine[0]["response_format"] == "pcm"
-    assert opening_audio.load_pcm("a1", w, "sofia", w.conversation.opening) == PCM
+    assert opening_audio.load_pcm("a1", w, "sofia", w.first_message) == PCM
     # Otra voz, otro texto (variables de campaña) u otra version: en vivo.
-    assert opening_audio.load_pcm("a1", w, "martin", w.conversation.opening) is None
+    assert opening_audio.load_pcm("a1", w, "martin", w.first_message) is None
     assert opening_audio.load_pcm("a1", w, "sofia", "Hola Juan") is None
-    assert opening_audio.load_pcm("a1", workflow(version=4), "sofia", w.conversation.opening) is None
+    assert opening_audio.load_pcm("a1", workflow(version=4), "sofia", w.first_message) is None
     # Ya generada: no vuelve a pedirla.
     asyncio.run(opening_audio.generate("a1", w))
     assert len(tts_engine) == 1
@@ -82,9 +80,9 @@ def test_generated_on_save_and_deleted_with_agent(api, admin, tts_engine, tmp_pa
     agent = make_agent(admin, make_client(admin), template="demo_booking")
     assert tts_engine == []      # sin la bandera no se genera
     definition = agent["definition"]
-    definition["conversation"] |= {"opening_audio": True, "opening_delay_ms": 500}
+    definition |= {"first_message_audio": True, "first_message_delay_ms": 500}
     v2 = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition}).json()
-    assert v2["definition"]["conversation"]["opening_delay_ms"] == 500
+    assert v2["definition"]["first_message_delay_ms"] == 500
     assert (tmp_path / agent["id"] / f"2-{agent['voice']}.wav").exists()
     assert admin.delete(f"{V1}/agents/{agent['id']}").status_code == 204
     assert not (tmp_path / agent["id"]).exists()

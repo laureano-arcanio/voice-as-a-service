@@ -11,8 +11,8 @@ from .helpers import BASE, FakeLLM, start_with, turn_and_extract
 async def test_start_conversation(store, workflow):
     engine = ConversationEngine(FakeLLM(), store)
     state, opening = engine.start_conversation("sales_discovery")
-    assert opening == workflow.conversation.opening
-    assert set(state.fields) == set(workflow.fields)
+    assert opening == workflow.first_message
+    assert set(state.fields) == set(workflow.analysis_fields)
     assert all(v is None for v in state.fields.values())
     assert store.get(state.conversation_id).messages[0].text == opening
 
@@ -112,14 +112,14 @@ async def test_outcome_is_recorded_after_the_extraction(store):
     assert state.fields["email"] == "juan@acme.com" and state.progress.outcome == "demo"
 
 
-async def test_goal_with_missing_data_is_incomplete(store):
-    """80ac0e22: pidio el link y corto sin dar el resto; contaba como objetivo cumplido."""
+async def test_outcome_comes_only_from_the_conditions(store):
+    """Sin datos obligatorios: el resultado es el primero cuyo when se cumple (incompleta ya no se asigna)."""
     llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"),
                   extractions=[{"wants_demo": True}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
     state, _ = await turn_and_extract(engine, cid, "Sí, pero ahora tengo que cortar.")
-    assert state.progress.outcome == "incompleta"
+    assert state.progress.outcome == "demo"
 
 
 async def test_extracted_email_is_stored_if_valid(store):
