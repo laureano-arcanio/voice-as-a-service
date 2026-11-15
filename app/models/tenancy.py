@@ -137,6 +137,11 @@ class Client(IdMixin, TimestampMixin, Base):
     # Rubro y sitio que eligio en el asistente de primera vez (docs/features/PRIMERA_VEZ.md); "" = no dijo.
     industry: Mapped[str] = mapped_column(String(24), default="", server_default="")
     website: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    # Contenido de la API de inferencia y de las pruebas de voz en disco (app/services/api_content.py):
+    # si se guarda y cuantos dias (None = indefinido).
+    store_api_content: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    api_content_retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=30,
+                                                                   server_default="30")
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 
@@ -313,7 +318,8 @@ class ApiUsageDaily(Base):
 
 class ApiRequest(IdMixin, Base):
     """Un pedido a la API de inferencia (para la lista de pedidos del admin y del cliente). Solo
-    metadatos y consumo: ni prompts, ni audios, ni textos. Se anotan los que pasan el tope de
+    metadatos y consumo; el contenido (prompts, audios, textos) va a disco si el cliente lo guarda
+    (content_bytes, app/services/api_content.py). Se anotan los que pasan el tope de
     pedidos por minuto (los rechazados antes, como rate_limited, no tienen tope y no se guardan).
     status: ok, cut (stream cortado: se cobra lo entregado), error (el motor o el pedido) o
     rejected (cupo del mes agotado o motor fuera del plan)."""
@@ -340,6 +346,8 @@ class ApiRequest(IdMixin, Base):
     # api (la de inferencia) o una prueba de voz: voice_test_panel, voice_test_api (key o MCP),
     # voice_test_landing (en el cliente de la demo). Las pruebas no suman al cupo del plan.
     source: Mapped[str] = mapped_column(String(24), default="api", server_default="api")
+    # Bytes del contenido guardado en disco; None = no hay.
+    content_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class StudioItem(IdMixin, Base):

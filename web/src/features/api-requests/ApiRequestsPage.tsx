@@ -1,5 +1,6 @@
 import {
   Badge,
+  Button,
   Card,
   Group,
   Pagination,
@@ -12,6 +13,8 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { IconFileText } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { ApiRequest, ApiRequestPage } from '@/api/types';
 import { Dash } from '@/components/Badges';
@@ -21,6 +24,7 @@ import { useCurrentUser, useIsAdmin } from '@/features/auth/api';
 import { useApiKeys, useClients } from '@/features/clients/api';
 import { formatDate, formatDateTimeLong, formatMs, formatNumber, lastDays, toIsoDate } from '@/lib/format';
 import { API_KIND, API_REQUEST_STATUS, API_SOURCE } from '@/lib/labels';
+import { ApiRequestContentDrawer } from './ApiRequestContent';
 import { useApiRequests, type ApiKind, type ApiRequestStatus, type ApiSource } from './api';
 
 export const PAGE_SIZE = 50;
@@ -175,12 +179,14 @@ function RequestsTable({
   showClient,
   current,
   onPage,
+  onOpen,
 }: {
   page: ApiRequestPage;
   isAdmin: boolean;
   showClient: boolean;
   current: number;
   onPage: (p: number) => void;
+  onOpen: (r: ApiRequest) => void;
 }) {
   const pages = Math.max(1, Math.ceil(page.total / PAGE_SIZE));
   return (
@@ -196,7 +202,7 @@ function RequestsTable({
             : 'No hay pedidos con estos filtros. Los que hagan tus sistemas con una API key aparecen acá.'}
         </EmptyState>
       ) : (
-        <Table.ScrollContainer minWidth={isAdmin ? 980 : 720}>
+        <Table.ScrollContainer minWidth={isAdmin ? 1060 : 800}>
           <Table>
             <Table.Thead>
               <Table.Tr>
@@ -208,11 +214,20 @@ function RequestsTable({
                 <Table.Th ta="right">Duración</Table.Th>
                 {isAdmin && <Table.Th ta="right">Primer byte</Table.Th>}
                 <Table.Th ta="right">Consumo</Table.Th>
+                <Table.Th>Contenido</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {page.items.map((r) => (
-                <Table.Tr key={r.id}>
+                <Table.Tr
+                  key={r.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    if ((e.target as Element).closest('a, button, input, label')) return;
+                    if (window.getSelection()?.toString()) return;
+                    onOpen(r);
+                  }}
+                >
                   <Table.Td className="mono" style={{ whiteSpace: 'nowrap' }}>
                     {formatDateTimeLong(r.created_at)}
                   </Table.Td>
@@ -252,6 +267,20 @@ function RequestsTable({
                   <Table.Td ta="right" className="mono" style={{ whiteSpace: 'nowrap' }}>
                     <Consumption r={r} />
                   </Table.Td>
+                  <Table.Td>
+                    {r.has_content ? (
+                      <Button
+                        size="compact-sm"
+                        variant="subtle"
+                        leftSection={<IconFileText size={14} />}
+                        onClick={() => onOpen(r)}
+                      >
+                        Ver
+                      </Button>
+                    ) : (
+                      <Dash />
+                    )}
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>
@@ -277,6 +306,7 @@ export function ApiRequestsPage() {
   const clients = useClients(isAdmin);
   const keys = useApiKeys(clientId);
   const inferenceKeys = (keys.data ?? []).filter((k) => k.scopes.some((s) => s !== 'calls'));
+  const [open, setOpen] = useState<ApiRequest | null>(null);
   const requests = useApiRequests({
     client_id: isAdmin ? clientId : undefined,
     api_key_id: filters.key ?? undefined,
@@ -399,9 +429,11 @@ export function ApiRequestsPage() {
             showClient={isAdmin && !filters.client}
             current={filters.page}
             onPage={(page) => update({ page })}
+            onOpen={setOpen}
           />
         </>
       )}
+      <ApiRequestContentDrawer r={open} onClose={() => setOpen(null)} />
     </Stack>
   );
 }

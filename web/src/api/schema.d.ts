@@ -419,6 +419,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/api-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Api Content
+         * @description Si se guarda el contenido de la API de inferencia y de las pruebas de voz, cuanto dura y cuanto ocupa.
+         */
+        get: operations["read_api_content_api_v1_clients__client_id__api_content_get"];
+        /**
+         * Update Api Content
+         * @description Solo con sesion del panel (ni API key ni OAuth). Apagarlo no borra lo guardado: vence con su plazo.
+         */
+        put: operations["update_api_content_api_v1_clients__client_id__api_content_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clients/{client_id}/usage": {
         parameters: {
             query?: never;
@@ -2877,9 +2901,54 @@ export interface paths {
         /**
          * List Api Requests
          * @description Pedidos a la API de inferencia (LLM, STT, TTS) y pruebas de voz, del mas nuevo al mas viejo, con los
-         *     totales del filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.
+         *     totales del filtro. `has_content`: si hay contenido guardado (GET /api-requests/{id}/content).
          */
         get: operations["list_api_requests_api_v1_api_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api-requests/{request_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Api Request Content
+         * @description Lo que se mando y se recibio en el pedido: el body y la respuesta en JSON, y los audios (se bajan por
+         *     /audio/{input|output}). 404 content_not_found si no se guardo, vencio o se borro.
+         */
+        get: operations["read_api_request_content_api_v1_api_requests__request_id__content_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Api Request Content
+         * @description Borra el contenido guardado del pedido; la fila (consumo, estado) queda. Solo con sesion del panel.
+         */
+        delete: operations["delete_api_request_content_api_v1_api_requests__request_id__content_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api-requests/{request_id}/audio/{which}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Api Request Audio
+         * @description El audio subido al STT (input) o el sintetizado por el TTS (output). download=true lo baja como adjunto.
+         */
+        get: operations["read_api_request_audio_api_v1_api_requests__request_id__audio__which__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4414,6 +4483,43 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** ApiAudioOut */
+        ApiAudioOut: {
+            /** Content Type */
+            content_type: string;
+            /** Bytes */
+            bytes: number;
+        };
+        /**
+         * ApiContentSettingsIn
+         * @description Guardar el contenido de la API de inferencia y de las pruebas de voz (app/services/api_content.py).
+         */
+        ApiContentSettingsIn: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Retention Days
+             * @description Dias hasta que se borra; null = indefinido. Obligatorio (null explicito)
+             */
+            retention_days: (7 | 30 | 90 | 180 | 365) | null;
+        };
+        /** ApiContentSettingsOut */
+        ApiContentSettingsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Retention Days */
+            retention_days: number | null;
+            /**
+             * Stored Bytes
+             * @description Lo que ocupa el contenido guardado del cliente
+             */
+            stored_bytes: number;
+            /**
+             * Stored Requests
+             * @description Pedidos con contenido guardado
+             */
+            stored_requests: number;
+        };
         /** ApiKeyCreated */
         ApiKeyCreated: {
             /** Id */
@@ -4475,6 +4581,52 @@ export interface components {
             last_used_at: string | null;
             /** Revoked At */
             revoked_at: string | null;
+        };
+        /**
+         * ApiRequestContentOut
+         * @description Contenido guardado de un pedido (app/services/api_content.py).
+         */
+        ApiRequestContentOut: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "llm" | "stt" | "tts";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "api" | "voice_test_panel" | "voice_test_api" | "voice_test_landing";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Request
+             * @description El body del pedido (LLM y TTS); None en el STT
+             */
+            request: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Response
+             * @description La respuesta del motor (LLM y STT); en stream, el mensaje rearmado
+             */
+            response: {
+                [key: string]: unknown;
+            } | null;
+            /** @description El audio subido al STT: GET .../audio/input */
+            input_audio: components["schemas"]["ApiAudioOut"] | null;
+            /** @description El WAV del TTS: GET .../audio/output */
+            output_audio: components["schemas"]["ApiAudioOut"] | null;
+            /**
+             * Truncated
+             * @description El audio guardado se corto en el tope (API_CONTENT_MAX_AUDIO_BYTES)
+             */
+            truncated: boolean;
         };
         /** ApiRequestOut */
         ApiRequestOut: {
@@ -4549,6 +4701,11 @@ export interface components {
             voice: string | null;
             /** Response Format */
             response_format: string | null;
+            /**
+             * Has Content
+             * @description Si hay contenido guardado (GET /api-requests/{id}/content)
+             */
+            has_content: boolean;
         };
         /** ApiRequestPage */
         ApiRequestPage: {
@@ -12570,6 +12727,72 @@ export interface operations {
             };
         };
     };
+    read_api_content_api_v1_clients__client_id__api_content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiContentSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_content_api_v1_clients__client_id__api_content_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiContentSettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiContentSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     client_usage_api_v1_clients__client_id__usage_get: {
         parameters: {
             query?: {
@@ -17662,6 +17885,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiRequestPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_api_request_content_api_v1_api_requests__request_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiRequestContentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_request_content_api_v1_api_requests__request_id__content_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_api_request_audio_api_v1_api_requests__request_id__audio__which__get: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                request_id: string;
+                which: "input" | "output";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/*": unknown;
                 };
             };
             /** @description Validation Error */

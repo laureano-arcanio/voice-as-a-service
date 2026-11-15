@@ -10,12 +10,12 @@ Estado: en producción.
 | Tema | Decisión | Por qué |
 |---|---|---|
 | Qué cupo descuenta | Texto a voz, `api_tts_minutes`; Transcribir, `api_stt_minutes` (los de la API de inferencia). Con el cupo en 0, 403 `not_in_plan` | Es el mismo uso de los mismos motores que la API; los entrantes quedan solo para llamadas, y el Estudio no puede cortar ni rechazar una llamada |
-| Pruebas de voz | Sin cargo: no descuentan minutos ni se guardan en el Estudio. Tope de texto: una frase, hasta `TTS_PREVIEW_MAX_CHARS` (250; entra la más larga fija, 160 del editor y 128 de la landing). Sin tope por hora en el panel, la API key y el MCP; la demo de la landing tiene `DEMO_IP_TTS_PER_HOUR` | Sirven para elegir una voz, no para generar audio. Quedan en Uso de la API como `voice_test_*` ([`API_INFERENCIA.md`](../API_INFERENCIA.md)) |
+| Pruebas de voz | Sin cargo: no descuentan minutos ni se guardan en el Estudio (su texto y audio quedan en Uso de la API si el cliente guarda contenido). Tope de texto: una frase, hasta `TTS_PREVIEW_MAX_CHARS` (250; entra la más larga fija, 160 del editor y 128 de la landing). Sin tope por hora en el panel, la API key y el MCP; la demo de la landing tiene `DEMO_IP_TTS_PER_HOUR` | Sirven para elegir una voz, no para generar audio. Quedan en Uso de la API como `voice_test_*` ([`API_INFERENCIA.md`](../API_INFERENCIA.md)) |
 | Cómo se cuenta | Segundos reales de audio, sumados en el mes (`billed_seconds`) | Por minuto iniciado, 20 pruebas de voz de 5 s agotarían los 20 minutos de Free. Cambiar la regla es una línea (`studio.billable`) |
 | Motores | Los mismos de las llamadas, por `tts._send` y el HTTP del STT | Sin servicios nuevos ni cambios de GPU |
 | Trabajo en segundo plano | Fila en `studio_items` y `studio_loop` en la app | Un texto largo tarda minutos y el pedido HTTP no puede esperar por el túnel. Mismo patrón que `campaign_loop` |
 | Protección de las llamadas | Un trabajo a la vez por motor, en pedazos cortos (`STUDIO_TTS_CHUNK_CHARS`, `STUDIO_STT_CHUNK_SECONDS`) | Los motores atienden llamadas en vivo: un pedazo pesa como un turno. Un audio entero en un solo pedido frenaría al STT |
-| Dónde se guarda | Texto en la base; audio en `CALL_RECORDINGS_DIR/studio/<cliente>/<item>/` | Ya es un volumen de `app`, en el disco de datos, y entra en el backup de `storage/` |
+| Dónde se guarda | Texto en la base; audio en `CALL_RECORDINGS_DIR/studio/<cliente>/<item>/` | Ya es un volumen de `app`, en el disco de datos; no entra en el backup ([`INFRA.md`](../INFRA.md)) |
 | Formatos | Se guarda WAV (24 kHz, mono) y se convierte al bajar: `wav`, `mp3`, `ogg` (Opus), `flac` | PyAV ya está en la imagen. La conversión queda guardada al lado y no se vuelve a sintetizar |
 | Subir texto | `.txt` leído en el navegador, a la misma caja | Sin parsers ni archivos del lado del servidor |
 | Borrar | Borra audio y texto, y la fila queda con sus segundos | Borrar no devuelve minutos |

@@ -21,9 +21,15 @@ STATUSES = ("ok", "cut", "error", "rejected")
 SOURCES = ("api", "voice_test_panel", "voice_test_api", "voice_test_landing")
 
 
-def log(s: Session, client_id: str, key_id: str | None, kind: str, status: str, **fields) -> None:
-    s.add(ApiRequest(client_id=client_id, api_key_id=key_id, kind=kind, status=status, **fields))
+def log(s: Session, client_id: str, key_id: str | None, kind: str, status: str,
+        **fields) -> tuple[str, datetime.datetime]:
+    """Anota el pedido; devuelve (id, created_at), con los que se ubica su contenido (services/api_content.py)."""
+    row = ApiRequest(client_id=client_id, api_key_id=key_id, kind=kind, status=status, **fields)
+    s.add(row)
+    s.flush()
+    out = (row.id, row.created_at)
     s.commit()
+    return out
 
 
 def _utc(day: datetime.date, tz: ZoneInfo) -> datetime.datetime:
@@ -74,7 +80,8 @@ def page(s: Session, flt: RequestFilter, limit: int = 50, offset: int = 0) -> tu
         .outerjoin(ApiKey, ApiKey.id == ApiRequest.api_key_id)
         .where(*conds).order_by(ApiRequest.created_at.desc()).limit(limit).offset(offset)).all()
     items = [{**{c.name: getattr(r, c.name) for c in ApiRequest.__table__.columns},
-              "client_name": client_name, "api_key_name": key_name, "api_key_prefix": prefix}
+              "client_name": client_name, "api_key_name": key_name, "api_key_prefix": prefix,
+              "has_content": r.content_bytes is not None}
              for r, client_name, key_name, prefix in rows]
     return items, total
 

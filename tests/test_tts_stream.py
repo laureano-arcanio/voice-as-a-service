@@ -168,3 +168,36 @@ def test_landing_voice_test_is_logged_in_the_demo_client_once(landing, engine):
         demo_client = s.query(Client).filter_by(slug=settings.demo_client).one()
     assert (row.client_id, row.source, row.characters, row.status) == \
         (demo_client.id, tts.SOURCE_LANDING, len(body["text"]), "ok")
+
+
+def _content(row: ApiRequest) -> dict[str, bytes]:
+    from app.services import api_content
+    return {name: path.read_bytes() for name, path in api_content.files_of(row).items()}
+
+
+def test_dashboard_preview_saves_its_content_in_the_client(api, admin, engine):
+    client = make_client(admin)
+    ana = client_user(api, admin, client)
+    assert ana.post(f"{API}/tts/preview", json={"voice": "sofia", "text": " Hola ", "format": "pcm"}).status_code == 200
+    [row] = _voice_tests(api)
+    files = _content(row)
+    assert row.client_id == client["id"]
+    assert json.loads(files["request.json"]) == {"text": "Hola", "voice": "sofia", "format": "pcm",
+                                                  "source": tts.SOURCE_PANEL}
+    assert files["output.wav"] == tts.wav_from_pcm(b"".join(engine.chunks))
+    with api.sessions() as s:                                      # apagado: se anota pero no se guarda
+        s.get(Client, client["id"]).store_api_content = False
+        s.commit()
+    assert ana.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "Chau"}).status_code == 200
+    assert _voice_tests(api)[-1].content_bytes is None
+
+
+def test_landing_voice_test_saves_in_the_demo_client_and_the_cache_does_not(landing, engine):
+    headers = session(landing)
+    body = {"voice": "sofia", "text": "Hola, te llamo por tu turno.", "format": "wav"}
+    for _ in range(2):
+        assert landing.client.post(f"{DEMO}/tts", json=body, headers=headers).status_code == 200
+    [row] = _voice_tests(landing)                                   # el segundo sale del cache
+    files = _content(row)
+    assert json.loads(files["request.json"])["text"] == body["text"]
+    assert files["output.wav"][:4] == b"RIFF"

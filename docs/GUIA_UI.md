@@ -390,6 +390,12 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   con fecha, origen, key, tipo, estado, duración y consumo, y los totales del filtro. Las pruebas de voz no se
   descuentan del plan. Filtros: API key, origen, tipo, estado, streaming y período; la del admin suma la columna y el filtro de cliente y los datos técnicos.
   Desde la tarjeta de consumo, **Ver los pedidos** abre esta pantalla filtrada por el cliente.
+  - **Contenido:** los pedidos con contenido guardado tienen **Ver** (o se hace clic en la fila) y abren un panel
+    con el pedido y la respuesta en JSON, el reproductor del audio enviado (transcripción) o generado (síntesis y
+    pruebas de voz), **Descargar** y **Borrar contenido** (pide confirmación; el pedido y su consumo quedan). Una
+    fila sin contenido dice «Sin contenido guardado» (apagado, vencido o borrado). Si el audio superó el máximo que se
+    guarda, avisa que está cortado. El admin filtra por origen (Prueba de voz · landing) para revisar las pruebas
+    de la landing, del cliente Atentina. Se configura en Mi cuenta (ver arriba).
   - **Revocar** la anula en el acto.
 
 ## Operación diaria
@@ -892,6 +898,11 @@ El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede
   "Teléfono" si el agente no lo tiene: en las llamadas por teléfono se completa solo con el número de quien llama, y
   por el link para llamar el agente lo pide. El admin lo ve y lo
   edita en la ficha del cliente.
+- **Contenido de la API:** switch **Guardar el contenido de la API y de las pruebas de voz** (prendido por defecto)
+  y **Se borra a los** 7, 30 (por defecto), 90, 180, 365 días o **Indefinido** (avisa que no vence y ocupa disco
+  hasta que lo borres). El plazo rige también para lo ya guardado; apagar el switch no borra nada. Muestra
+  cuánto hay guardado ("42 pedidos, 1,2 MB"). Lo editan el cliente y el admin, en la ficha del cliente
+  (Consumo y datos) y entrando como el cliente. Se ve y se borra pedido por pedido en **Uso de la API**.
 
 ### Plan (cliente) y Cobros (admin)
 

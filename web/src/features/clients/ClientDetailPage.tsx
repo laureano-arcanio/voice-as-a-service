@@ -36,6 +36,7 @@ import { ApiAccess } from '@/features/developers/ApiAccess';
 import { SubscriptionCard } from '@/features/billing/SubscriptionCard';
 import { BrandingTab } from './BrandingTab';
 import { CallEmailsCard } from './CallEmailsCard';
+import { ApiContentCard } from './ApiContentCard';
 import { ClientUsage } from './ClientUsage';
 import { LlmConnectionsSection } from '@/features/llm/LlmConnectionsSection';
 import { LimitAdjustmentsCard } from './LimitAdjustmentsCard';
@@ -308,6 +309,7 @@ function ClientView({ client }: { client: Client }) {
                 <ClientDataCard key={client.id} client={client} />
                 <SubscriptionCard clientId={client.id} />
                 <CallEmailsCard clientId={client.id} />
+                <ApiContentCard clientId={client.id} />
                 <LimitAdjustmentsCard clientId={client.id} />
               </Stack>
             </Grid.Col>

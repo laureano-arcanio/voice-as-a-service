@@ -770,3 +770,202 @@ def test_official_openai_sdk_works_against_the_api(api, admin, engines):
         openai.OpenAI(base_url="http://testserver/api/v1/inference", api_key=make_key(admin, client, ["calls"])
                       ["Authorization"].removeprefix("Bearer "), http_client=api.client, max_retries=0
                       ).chat.completions.create(model="x", messages=[{"role": "user", "content": "hola"}])
+
+
+# ---------- contenido guardado (services/api_content.py) ----------
+
+def _rows(api, client_id):
+    from app.models import ApiRequest
+    with api.sessions() as s:
+        return s.query(ApiRequest).filter_by(client_id=client_id).order_by(ApiRequest.created_at).all()
+
+
+def _saved(row) -> dict[str, bytes]:
+    from app.services import api_content
+    return {name: path.read_bytes() for name, path in api_content.files_of(row).items()}
+
+
+def _store(api, client_id, enabled: bool):
+    from app.models import Client
+    with api.sessions() as s:
+        s.get(Client, client_id).store_api_content = enabled
+        s.commit()
+
+
+def test_content_llm_without_stream_saves_the_body_and_the_engine_json(api, admin, engines):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    r = chat(api, key, temperature=0.2)
+    assert r.status_code == 200
+    [row] = _rows(api, client["id"])
+    files = _saved(row)
+    assert json.loads(files["request.json"])["temperature"] == 0.2
+    assert json.loads(files["response.json"])["choices"][0]["message"]["content"] == "Hola"
+    assert row.content_bytes == sum(map(len, files.values()))
+
+
+def test_content_llm_stream_rebuilds_the_message_with_tool_calls(api, admin, engines, monkeypatch):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    deltas = [{"choices": [{"delta": {"content": "Ho"}}]}, {"choices": [{"delta": {"content": "la"}}]},
+              {"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "t1", "type": "function",
+                                                       "function": {"name": "buscar", "arguments": "{\"q\":"}}]}}]},
+              {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": "\"x\"}"}}]}}]},
+              {"choices": [{"delta": {}, "finish_reason": "tool_calls"}]},
+              {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 4}}]
+    sse = "".join(f"data: {json.dumps(d)}\n\n" for d in deltas) + "data: [DONE]\n\n"
+    gateway = InferenceGateway(api.sessions, transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, stream=Slices(sse.encode(), 5),
+                                       headers={"content-type": "text/event-stream"})))
+    api.app.dependency_overrides[get_gateway] = lambda: gateway
+    r = chat(api, key, stream=True)
+    assert r.status_code == 200 and r.content == sse.encode()     # el stream sale igual
+    [row] = _rows(api, client["id"])
+    saved = json.loads(_saved(row)["response.json"])
+    assert saved["message"]["content"] == "Hola" and saved["finish_reason"] == "tool_calls"
+    assert saved["message"]["tool_calls"] == [{"id": "t1", "type": "function",
+                                               "function": {"name": "buscar", "arguments": "{\"q\":\"x\"}"}}]
+    assert saved["usage"] == {"prompt_tokens": 3, "completion_tokens": 4}
+
+
+def _real_access(api, client_id):
+    from app.models import ApiKey, Client
+    with api.sessions() as s:
+        c = s.get(Client, client_id)
+        key_id = s.query(ApiKey).filter_by(client_id=client_id).one().id
+        return SimpleNamespace(client=SimpleNamespace(id=c.id, slug=c.slug, store_api_content=c.store_api_content),
+                               key=SimpleNamespace(id=key_id), remaining=api_usage.Remaining())
+
+
+def test_content_llm_stream_cut_by_the_client_saves_what_was_delivered(api, admin):
+    client = make_client_with_tier(admin)
+    make_key(admin, client)
+    access = _real_access(api, client["id"])
+    gate = asyncio.Event()
+    token = b'data: {"choices":[{"delta":{"content":"Ho"}}],"usage":null}\n\n'
+    gateway = _gated_gateway(api, token, [token, b"data: [DONE]\n\n"], gate)
+
+    async def run():
+        response = await gateway.chat(access, {"messages": [{"role": "user", "content": "hola"}], "stream": True})
+        chunks = response.body_iterator
+        await chunks.__anext__()
+        await chunks.aclose()
+
+    asyncio.run(run())
+    [row] = _rows(api, client["id"])
+    assert row.status == "cut"
+    assert json.loads(_saved(row)["response.json"])["message"]["content"] == "Ho"
+
+
+def test_content_tts_stream_cut_saves_the_delivered_audio(api, admin):
+    client = make_client_with_tier(admin)
+    make_key(admin, client)
+    access = _real_access(api, client["id"])
+    gate = asyncio.Event()
+    gateway = _gated_gateway(api, _delta(b"\1\0" * 4800), [_delta(b"\2\0" * 4800)], gate)
+
+    async def run():
+        response = await gateway.speech(access, "sofia", "Hola", "pcm")
+        chunks = response.body_iterator
+        await chunks.__anext__()
+        await chunks.aclose()
+
+    asyncio.run(run())
+    [row] = _rows(api, client["id"])
+    wav = _saved(row)["output.wav"]
+    assert row.status == "cut" and wav[:4] == b"RIFF" and len(wav) == 44 + 9600
+
+
+def test_content_stt_saves_the_upload_and_the_verbose_json(api, admin, engines):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    r = api.client.post(f"{INF}/audio/transcriptions", headers=key, data={"response_format": "text"},
+                        files={"file": ("../../x.MP3", b"\1" * 500, "audio/mpeg")})
+    assert r.status_code == 200 and r.text == "hola mundo"
+    [row] = _rows(api, client["id"])
+    files = _saved(row)
+    assert files["input.mp3"] == b"\1" * 500                       # el nombre no viene del pedido
+    assert json.loads(files["response.json"])["duration"] == engines.stt_seconds
+
+
+@pytest.mark.parametrize("body", [{}, {"response_format": "pcm"},
+                                  {"response_format": "pcm", "stream_format": "sse"}])
+def test_content_tts_saves_the_request_and_a_wav(api, admin, engines, body):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    assert tts(api, key, **body).status_code == 200
+    [row] = _rows(api, client["id"])
+    files = _saved(row)
+    request = json.loads(files["request.json"])
+    assert request["input"] == "Hola, ¿cómo estás?" and request["voice"] == "sofia" and "truncated" not in request
+    assert files["output.wav"][:4] == b"RIFF"
+    assert len(files["output.wav"]) == 44 + int(engines.tts_seconds * 48_000)
+
+
+def test_content_audio_cap_marks_truncated(api, admin, engines, monkeypatch):
+    monkeypatch.setattr(settings, "api_content_max_audio_bytes", 1000)
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    r = tts(api, key, response_format="pcm")
+    assert len(r.content) == int(engines.tts_seconds * 48_000)     # el cliente recibe todo
+    [row] = _rows(api, client["id"])
+    files = _saved(row)
+    assert json.loads(files["request.json"])["truncated"] is True and len(files["output.wav"]) == 44 + 1000
+
+
+def test_content_is_not_saved_when_the_client_turned_it_off(api, admin, engines):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    _store(api, client["id"], False)
+    assert chat(api, key).status_code == 200 and stt(api, key).status_code == 200
+    assert tts(api, key, response_format="pcm").status_code == 200
+    rows = _rows(api, client["id"])
+    assert len(rows) == 3 and all(r.content_bytes is None for r in rows)
+    assert not (settings.call_recordings_dir / "api").exists()
+
+
+def test_content_is_not_saved_for_requests_rejected_before_the_engine(api, admin, engines):
+    client = make_client_with_tier(admin, api_llm_output_tokens=5)
+    key = make_key(admin, client)
+    assert chat(api, key).status_code == 200                        # gasta los 5 tokens
+    assert chat(api, key).status_code == 429
+    assert tts(api, key, voice="nadie").status_code == 422
+    saved, *rejected = _rows(api, client["id"])
+    assert saved.content_bytes and all(r.content_bytes is None for r in rejected)
+
+
+def test_content_engine_rejection_saves_the_request_without_response(api, admin, engines):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    engines.status = 400
+    r = chat(api, key)
+    assert r.status_code == 400 and r.json()["code"] == "upstream_rejected"
+    engines.status = 503
+    assert chat(api, key).status_code == 502                        # caido: no se guarda
+    rejected, down = _rows(api, client["id"])
+    assert set(_saved(rejected)) == {"request.json"} and down.content_bytes is None
+
+
+def test_content_without_disk_room_answers_the_same(api, admin, engines, monkeypatch):
+    from app.services import api_content
+    monkeypatch.setattr(api_content, "has_room", lambda: False)
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    assert chat(api, key).json()["choices"][0]["message"]["content"] == "Hola"
+    assert tts(api, key).status_code == 200
+    assert all(r.content_bytes is None for r in _rows(api, client["id"]))
+
+
+def test_content_write_failure_does_not_change_the_response_or_the_usage(api, admin, engines, monkeypatch):
+    from pathlib import Path
+    def broken(self, data):
+        raise OSError("disco roto")
+    monkeypatch.setattr(Path, "write_bytes", broken)
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    assert chat(api, key).json()["choices"][0]["message"]["content"] == "Hola"
+    r = tts(api, key, response_format="pcm")
+    assert r.status_code == 200 and len(r.content) == int(engines.tts_seconds * 48_000)
+    u = usage(api, key)
+    assert u["keys"][0]["requests"] == {"llm": 1, "stt": 0, "tts": 1}
+    assert all(r.content_bytes is None for r in _rows(api, client["id"]))

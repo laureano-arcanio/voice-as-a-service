@@ -389,6 +389,14 @@ const phoneNumberFields = [
   { field: "team_retry_message", text: "El aviso que oye quien llama al empezar a reintentar (hasta 500 caracteres). Vacío: un aviso por defecto" },
 ];
 
+const requestEndpoints = [
+  { path: "GET /api-requests", text: "Tus pedidos uno por uno, con filtros (key, tipo, estado, origen, fechas) y has_content si hay contenido guardado" },
+  { path: "GET /api-requests/{id}/content", text: "Lo guardado del pedido: request, response, input_audio, output_audio y truncated; 404 content_not_found si no hay" },
+  { path: "GET /api-requests/{id}/audio/{input|output}", text: "El audio subido al STT o el WAV del TTS; ?download=true lo baja como adjunto" },
+  { path: "DELETE /api-requests/{id}/content", text: "Borra lo guardado; el pedido queda en la lista. Solo desde el panel" },
+  { path: "GET · PUT /clients/{id}/api-content", text: "enabled y retention_days (7, 30, 90, 180, 365 o null = indefinido), más stored_bytes y stored_requests. El PUT, solo desde el panel" },
+];
+
 const directEndpoints = [
   { path: "POST /direct-calls", text: "Crea la llamada saliente de una persona" },
   { path: "POST /direct-calls/{id}/join", text: "Token nuevo para volver a entrar a la llamada (recargó la página): solo el usuario de la llamada, mientras está activa" },
@@ -596,6 +604,13 @@ const campaignEndpoints = [
       </ul>
       <p>Para ver tu consumo del mes contra el plan (no gasta cupo):</p>
       <CodeBlock label="curl" code={usage} />
+      <p>Pedido por pedido (sesión o key <code>calls</code>):</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {requestEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
       <p>Los minutos de síntesis y transcripción suman tus keys y el panel; lo del panel viene aparte en <code>studio</code> (<code>tts_minutes</code>, <code>stt_minutes</code>).</p>
     </section>
 

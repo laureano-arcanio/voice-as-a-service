@@ -1140,6 +1140,110 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/api-content": {
+   "get": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Read Api Content",
+    "description": "Si se guarda el contenido de la API de inferencia y de las pruebas de voz, cuanto dura y cuanto ocupa.",
+    "operationId": "read_api_content_api_v1_clients__client_id__api_content_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiContentSettingsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Update Api Content",
+    "description": "Solo con sesion del panel (ni API key ni OAuth). Apagarlo no borra lo guardado: vence con su plazo.",
+    "operationId": "update_api_content_api_v1_clients__client_id__api_content_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApiContentSettingsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiContentSettingsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/clients/{client_id}/usage": {
    "get": {
     "tags": [
@@ -9495,7 +9599,7 @@
      "inference"
     ],
     "summary": "List Api Requests",
-    "description": "Pedidos a la API de inferencia (LLM, STT, TTS) y pruebas de voz, del mas nuevo al mas viejo, con los\ntotales del filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.",
+    "description": "Pedidos a la API de inferencia (LLM, STT, TTS) y pruebas de voz, del mas nuevo al mas viejo, con los\ntotales del filtro. `has_content`: si hay contenido guardado (GET /api-requests/{id}/content).",
     "operationId": "list_api_requests_api_v1_api_requests_get",
     "security": [
      {
@@ -9716,6 +9820,160 @@
          "$ref": "#/components/schemas/ApiRequestPage"
         }
        }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/api-requests/{request_id}/content": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Read Api Request Content",
+    "description": "Lo que se mando y se recibio en el pedido: el body y la respuesta en JSON, y los audios (se bajan por\n/audio/{input|output}). 404 content_not_found si no se guardo, vencio o se borro.",
+    "operationId": "read_api_request_content_api_v1_api_requests__request_id__content_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiRequestContentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Delete Api Request Content",
+    "description": "Borra el contenido guardado del pedido; la fila (consumo, estado) queda. Solo con sesion del panel.",
+    "operationId": "delete_api_request_content_api_v1_api_requests__request_id__content_delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/api-requests/{request_id}/audio/{which}": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Read Api Request Audio",
+    "description": "El audio subido al STT (input) o el sintetizado por el TTS (output). download=true lo baja como adjunto.",
+    "operationId": "read_api_request_audio_api_v1_api_requests__request_id__audio__which__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     },
+     {
+      "name": "which",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "enum": [
+        "input",
+        "output"
+       ],
+       "type": "string",
+       "title": "Which"
+      }
+     },
+     {
+      "name": "download",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Download"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "audio/*": {}
       }
      },
      "422": {
@@ -15510,6 +15768,95 @@
     ],
     "title": "AgentVersionOut"
    },
+   "ApiAudioOut": {
+    "properties": {
+     "content_type": {
+      "type": "string",
+      "title": "Content Type"
+     },
+     "bytes": {
+      "type": "integer",
+      "title": "Bytes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "content_type",
+     "bytes"
+    ],
+    "title": "ApiAudioOut"
+   },
+   "ApiContentSettingsIn": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "enum": [
+         7,
+         30,
+         90,
+         180,
+         365
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days",
+      "description": "Dias hasta que se borra; null = indefinido. Obligatorio (null explicito)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "retention_days"
+    ],
+    "title": "ApiContentSettingsIn",
+    "description": "Guardar el contenido de la API de inferencia y de las pruebas de voz (app/services/api_content.py)."
+   },
+   "ApiContentSettingsOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days"
+     },
+     "stored_bytes": {
+      "type": "integer",
+      "title": "Stored Bytes",
+      "description": "Lo que ocupa el contenido guardado del cliente"
+     },
+     "stored_requests": {
+      "type": "integer",
+      "title": "Stored Requests",
+      "description": "Pedidos con contenido guardado"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "retention_days",
+     "stored_bytes",
+     "stored_requests"
+    ],
+    "title": "ApiContentSettingsOut"
+   },
    "ApiKeyCreated": {
     "properties": {
      "id": {
@@ -15703,6 +16050,105 @@
     ],
     "title": "ApiKeyOut"
    },
+   "ApiRequestContentOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "llm",
+       "stt",
+       "tts"
+      ],
+      "title": "Kind"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "api",
+       "voice_test_panel",
+       "voice_test_api",
+       "voice_test_landing"
+      ],
+      "title": "Source"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "request": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request",
+      "description": "El body del pedido (LLM y TTS); None en el STT"
+     },
+     "response": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Response",
+      "description": "La respuesta del motor (LLM y STT); en stream, el mensaje rearmado"
+     },
+     "input_audio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ApiAudioOut"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "El audio subido al STT: GET .../audio/input"
+     },
+     "output_audio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ApiAudioOut"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "El WAV del TTS: GET .../audio/output"
+     },
+     "truncated": {
+      "type": "boolean",
+      "title": "Truncated",
+      "description": "El audio guardado se corto en el tope (API_CONTENT_MAX_AUDIO_BYTES)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "source",
+     "created_at",
+     "request",
+     "response",
+     "input_audio",
+     "output_audio",
+     "truncated"
+    ],
+    "title": "ApiRequestContentOut",
+    "description": "Contenido guardado de un pedido (app/services/api_content.py)."
+   },
    "ApiRequestOut": {
     "properties": {
      "id": {
@@ -15890,6 +16336,11 @@
        }
       ],
       "title": "Response Format"
+     },
+     "has_content": {
+      "type": "boolean",
+      "title": "Has Content",
+      "description": "Si hay contenido guardado (GET /api-requests/{id}/content)"
      }
     },
     "type": "object",
@@ -15914,7 +16365,8 @@
      "audio_seconds",
      "characters",
      "voice",
-     "response_format"
+     "response_format",
+     "has_content"
     ],
     "title": "ApiRequestOut"
    },

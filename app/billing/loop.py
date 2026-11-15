@@ -1,11 +1,13 @@
 """Barrido periodico del cobro, en la app (lifespan, como el de WhatsApp): vencimientos, gracia,
-recordatorios, numeros suspendidos que vuelven al inventario y registros sin activar."""
+recordatorios, numeros suspendidos que vuelven al inventario, registros sin activar y el contenido vencido de la
+API de inferencia."""
 import asyncio
+import datetime
 import logging
 
 from ..db import get_sessionmaker
 from ..mail import notify
-from ..services import signup
+from ..services import api_content, signup
 from . import service
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,9 @@ def run_once() -> None:
         mails += service.tick(s)
         purged = signup.purge_unactivated(s)
         s.commit()
+        dirs, rows = api_content.purge(s, datetime.datetime.now(datetime.UTC).date())
+    if dirs or rows:
+        logger.info("billing: contenido de la API vencido: %d carpetas de dia, %d pedidos", dirs, rows)
     if purged:
         logger.info("billing: %d registros sin activar borrados", purged)
     notify.deliver(mails)

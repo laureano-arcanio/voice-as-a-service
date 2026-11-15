@@ -27,6 +27,9 @@ export type Usage = S['UsageOut'];
 export type InferenceUsage = S['InferenceUsageOut'];
 export type ApiRequest = S['ApiRequestOut'];
 export type ApiRequestPage = S['ApiRequestPage'];
+export type ApiRequestContent = S['ApiRequestContentOut'];
+export type ApiContentSettings = S['ApiContentSettingsOut'];
+export type ApiContentSettingsIn = S['ApiContentSettingsIn'];
 export type ApiScope = S['ApiKeyOut']['scopes'][number];
 export type MinutesUsage = S['MinutesUsageOut'];
 // Como llega de openapi-fetch (Readable): el horario trae las franjas como listas, no tuplas.

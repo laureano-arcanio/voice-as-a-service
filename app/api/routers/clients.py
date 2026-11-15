@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from ...mail import notify
 from ...models import (
     Agent,
+    ApiRequest,
     CallRow,
     Campaign,
     Client,
@@ -21,11 +22,13 @@ from ...models import (
     WaAccount,
     WaThread,
 )
-from ...services import api_usage, branding, limits, phone_numbers, quota
+from ...services import api_content, api_usage, branding, limits, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
-from ..deps import DB, AdminPrincipal, CurrentPrincipal
+from ..deps import DB, AdminPrincipal, CurrentPrincipal, SessionPrincipal
 from ..schemas import (
+    ApiContentSettingsIn,
+    ApiContentSettingsOut,
     CallEmailsIn,
     CallEmailsOut,
     CallsUsageOut,
@@ -151,6 +154,7 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
     db.delete(client)
     db.commit()
     branding.drop_files(client_id)
+    api_content.drop_client(client_id)
 
 
 # ---------- resumen por email de cada llamada ----------
@@ -179,6 +183,31 @@ def update_call_emails(client_id: str, body: CallEmailsIn, p: CurrentPrincipal, 
     client.call_emails_to = list(dict.fromkeys(str(e).lower() for e in body.recipients))
     db.commit()
     return _call_emails_out(db, client)
+
+
+# ---------- contenido de la API de inferencia (services/api_content.py) ----------
+
+def _api_content_out(db, client: Client) -> ApiContentSettingsOut:
+    count, total = db.execute(select(func.count(ApiRequest.id), func.coalesce(func.sum(ApiRequest.content_bytes), 0))
+                              .where(ApiRequest.client_id == client.id, ApiRequest.content_bytes.is_not(None))).one()
+    return ApiContentSettingsOut(enabled=client.store_api_content, retention_days=client.api_content_retention_days,
+                                 stored_bytes=int(total), stored_requests=int(count))
+
+
+@router.get("/{client_id}/api-content", response_model=ApiContentSettingsOut)
+def read_api_content(client_id: str, p: CurrentPrincipal, db: DB):
+    """Si se guarda el contenido de la API de inferencia y de las pruebas de voz, cuanto dura y cuanto ocupa."""
+    return _api_content_out(db, get_client(db, p, client_id))
+
+
+@router.put("/{client_id}/api-content", response_model=ApiContentSettingsOut)
+def update_api_content(client_id: str, body: ApiContentSettingsIn, p: SessionPrincipal, db: DB):
+    """Solo con sesion del panel (ni API key ni OAuth). Apagarlo no borra lo guardado: vence con su plazo."""
+    client = get_client(db, p, client_id)
+    client.store_api_content = body.enabled
+    client.api_content_retention_days = body.retention_days
+    db.commit()
+    return _api_content_out(db, client)
 
 
 def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:

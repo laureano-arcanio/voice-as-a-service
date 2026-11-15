@@ -329,6 +329,20 @@ class CallEmailsIn(BaseModel):
                                        description="Destinos; vacio = los usuarios activos del cliente")
 
 
+class ApiContentSettingsIn(BaseModel):
+    """Guardar el contenido de la API de inferencia y de las pruebas de voz (app/services/api_content.py)."""
+    enabled: bool
+    retention_days: Literal[7, 30, 90, 180, 365] | None = Field(
+        description="Dias hasta que se borra; null = indefinido. Obligatorio (null explicito)")
+
+
+class ApiContentSettingsOut(BaseModel):
+    enabled: bool
+    retention_days: int | None
+    stored_bytes: int = Field(description="Lo que ocupa el contenido guardado del cliente")
+    stored_requests: int = Field(description="Pedidos con contenido guardado")
+
+
 class CallEmailsOut(CallEmailsIn):
     default_recipients: list[str] = Field(description="Usuarios activos del cliente (los destinos si recipients va vacio)")
     agents: list[str] = Field(description="Agentes del cliente (no archivados) con el resumen prendido")
@@ -2468,6 +2482,25 @@ class ApiRequestOut(BaseModel):
     characters: int | None = Field(description="Largo del texto del TTS")
     voice: str | None
     response_format: str | None
+    has_content: bool = Field(description="Si hay contenido guardado (GET /api-requests/{id}/content)")
+
+
+class ApiAudioOut(BaseModel):
+    content_type: str
+    bytes: int
+
+
+class ApiRequestContentOut(BaseModel):
+    """Contenido guardado de un pedido (app/services/api_content.py)."""
+    id: str
+    kind: Literal["llm", "stt", "tts"]
+    source: Literal["api", "voice_test_panel", "voice_test_api", "voice_test_landing"]
+    created_at: UTCDateTime
+    request: dict | None = Field(description="El body del pedido (LLM y TTS); None en el STT")
+    response: dict | None = Field(description="La respuesta del motor (LLM y STT); en stream, el mensaje rearmado")
+    input_audio: ApiAudioOut | None = Field(description="El audio subido al STT: GET .../audio/input")
+    output_audio: ApiAudioOut | None = Field(description="El WAV del TTS: GET .../audio/output")
+    truncated: bool = Field(description="El audio guardado se corto en el tope (API_CONTENT_MAX_AUDIO_BYTES)")
 
 
 class ApiRequestsSummaryOut(BaseModel):

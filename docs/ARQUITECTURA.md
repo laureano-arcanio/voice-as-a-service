@@ -109,7 +109,7 @@ crm/                 FastAPI propio: routes (leads, outreach, reminders), servic
 apps/                apps aparte, cada una con su imagen, su base y su compose: registros/ (fichas; no importa app/ ni crm/)
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0057
+migrations/          Alembic, 0001 a 0058
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -126,7 +126,8 @@ del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un sol
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
 propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
 pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación, 0050 orden o rotativa en la
-entrante al equipo, 0057 definiciones guardadas a la forma con `prompt` (y `definition_legacy` para la vuelta atrás).
+entrante al equipo, 0057 definiciones guardadas a la forma con `prompt` (y `definition_legacy` para la vuelta atrás), 0058 contenido de la API
+(ajuste en `clients` y `api_requests.content_bytes`).
 
 ## Modelo de datos
 
@@ -163,13 +164,13 @@ incluido.
 | Tabla | Claves y reglas |
 |---|---|
 | `tiers` | Límites de llamadas: `max_concurrent_calls`, `max_calls_per_hour`/`_day`/`_month`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`. Campañas y agenda: `campaign_channels` (`[]`, `whatsapp`, `voice`), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts`, `campaign_followup`. Inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes`, `api_rate_limit`. Funciones: `max_call_links`, `max_team_members`, `max_tools`, `code_tools`, `whatsapp`, `external_agent`, `white_label`, `advanced_reports`, `direct_calls`. Venta: `price_ars` (NULL = no se vende por el dashboard, 0 = el gratis del registro), `public` (se ofrece en el registro y en Plan), `sort`. `internal`: el tier de Atentina, no se ofrece ni cuenta en las estadísticas. Ver "Funciones por plan". |
-| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)). |
+| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)), contenido de la API (`store_api_content`, `true`; `api_content_retention_days`, 30, NULL = indefinido). |
 | `client_limit_adjustments` | Ajuste de un límite numérico del tier para un cliente: `field`, `mode` (`add`/`set`), `value`, `starts_on`/`ends_on` (inclusive, `BILLING_TIMEZONE`), `note`, `created_by`. Ver "Límites por tier". |
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
 | `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
 | `api_keys` | SHA-256 (`key_hash` único), `prefix` visible, `revoked_at`, `last_used_at`, `scopes` (ver "Autenticación"). |
 | `studio_items` | Lo sintetizado y transcripto en el Estudio, con los segundos que descuenta de `api_tts_minutes` o `api_stt_minutes` (`origin='voice_test'`: pruebas de voz, que no descuentan ni se crean) ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
-| `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo), sin contenido ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
+| `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo) y `content_bytes` (NULL = sin contenido). El contenido va a disco, en `CALL_RECORDINGS_DIR/api/<cliente>/<día UTC>/<pedido>/` (`app/services/api_content.py`): lo vence la purga del barrido de cobros según los días del cliente, se borra con el cliente y no entra en el backup ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
 | `subscriptions`, `billing_payments` | Plan pago: `method`, `status` (`pending`, `active`, `past_due`...), `current_period_end`, `grace_until`, `pending_tier_id`, `cancel_at_period_end`, `mp_preapproval_id`; pagos con `amount_ars`, `paid_on`, `period_end`, `mp_payment_id`, `recorded_by` ([`features/COBROS.md`](features/COBROS.md)). |
 | `legal_acceptances`, `consumer_requests` | Cada aceptación (`document`, `version`, `sha256`, `statement`, `channel` `signup`/`panel`, IP, user agent) y los botones de arrepentimiento y de baja (`kind`, `code`, `status`) ([`features/LEGAL.md`](features/LEGAL.md)). |
 | `oauth_clients`, `oauth_grants`, `oauth_codes`, `oauth_tokens`, `mcp_tool_usage` | OAuth 2.1 del MCP (registro dinámico o por documento, permiso por usuario y cliente con `scope` y `resource`, PKCE) y uso por día, cliente y herramienta ([`features/MCP.md`](features/MCP.md)). |
@@ -713,7 +714,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | Router (`app/api/routers/`) | Rutas | Detalle |
 |---|---|---|
 | `auth.py` | `/auth`: login, logout, `me` (perfil, bienvenida, condiciones, clave, email), alta y reset de clave, pase de sesión (`/switch*`, `/handoff`) | "Autenticación" |
-| `tiers.py`, `clients.py`, `users.py`, `api_keys.py` | `/tiers`, `/clients` (más `call-emails`, `usage`, `inference-usage`, `limits`, `limit-adjustments`), `/users` (`invite`), `/clients/{id}/api-keys` | [`GUIA_UI.md`](GUIA_UI.md) |
+| `tiers.py`, `clients.py`, `users.py`, `api_keys.py` | `/tiers`, `/clients` (más `call-emails`, `api-content`, `usage`, `inference-usage`, `limits`, `limit-adjustments`), `/users` (`invite`), `/clients/{id}/api-keys` | [`GUIA_UI.md`](GUIA_UI.md) |
 | `plan.py` | `GET /plan/features` | "Funciones por plan" |
 | `billing.py` | `/clients/{id}/billing/*` (subscribe, cancel, fiscal, payments, suspend), `/billing/subscriptions`, `/billing/payments` | [`COBROS.md`](features/COBROS.md) |
 | `branding.py` | `/clients/{id}/branding*`, `/public/branding/{slug}*` | "Marca blanca" |
@@ -732,7 +733,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `tools.py` | `/tools/schema`, `/tools/code-template`, `/clients/{id}/tools*` (prueba, versiones), `/clients/{id}/secrets`, `/clients/{id}/credentials`, `/agents/{id}/secrets` | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
 | `llm_connections.py` | `/clients/{id}/llm-connections` (prueba, modelos) | [`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md) |
 | `reports.py` | `/reports/summary|calls|outcomes|messages|transfers|campaigns|technical|platform` | [`REPORTES.md`](features/REPORTES.md) |
-| `inference.py`, `api_requests.py` | `/inference/chat/completions`, `/audio/transcriptions`, `/audio/speech`, `/models`, `/voices`, `/usage`; `/api-requests` | [`API_INFERENCIA.md`](API_INFERENCIA.md) |
+| `inference.py`, `api_requests.py` | `/inference/chat/completions`, `/audio/transcriptions`, `/audio/speech`, `/models`, `/voices`, `/usage`; `/api-requests` (más `{id}/content` y `{id}/audio/{input|output}`) | [`API_INFERENCIA.md`](API_INFERENCIA.md) |
 | `mcp_usage.py` (y `app/api/oauth.py`) | `/mcp/usage`; `/oauth/authorize`, `/oauth/grants` | [`MCP.md`](features/MCP.md) |
 | `consumer_requests.py` | `/consumer-requests` (arrepentimiento y baja) | [`LEGAL.md`](features/LEGAL.md) |
 | `legal_versions.py` | `/legal/versions` (admin: cada versión de las condiciones y la privacidad) | [`LEGAL.md`](features/LEGAL.md) |

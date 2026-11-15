@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     line_spool_tick_seconds: float = 60
     # Cada cuanto la app toma las grabaciones terminadas del spool (app/services/line_recordings.py).
     line_recordings_tick_seconds: float = 10
+    # Contenido de la API de inferencia (app/services/api_content.py), bajo call_recordings_dir/api: con menos
+    # espacio libre que esto no se guarda (el disco es el de las grabaciones); tope del audio de un pedido de TTS.
+    api_content_min_free_gb: float = 50
+    api_content_max_audio_bytes: int = 30 * 1024 * 1024
     # Aperturas pregeneradas (first_message_audio; app/conversation/opening_audio.py).
     opening_audio_dir: Path = Field(default=BASE_DIR / "storage" / "openings")
     # Imagenes de los links para llamar (app/services/call_links.py): las sirve `app`; en el backup.

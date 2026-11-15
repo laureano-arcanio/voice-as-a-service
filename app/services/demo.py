@@ -235,7 +235,7 @@ async def synthesize(sessions: sessionmaker[Session], voice: str, text: str, ip:
         stream = await start
     else:
         stream = await tts.tracked(start, sessions, client_id=client_id, key_id=None, source=tts.SOURCE_LANDING,
-                                   voice=key[0], characters=len(text), audio_format=audio_format)
+                                   voice=key[0], characters=len(text), audio_format=audio_format, text=text)
 
     async def caching() -> AsyncIterator[bytes]:
         chunks = []

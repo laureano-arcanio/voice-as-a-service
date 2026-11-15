@@ -1,7 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import type { ApiScope, CallEmailsIn, ClientIn, ClientUpdate, LimitAdjustmentIn } from '@/api/types';
+import type {
+  ApiContentSettingsIn,
+  ApiScope,
+  CallEmailsIn,
+  ClientIn,
+  ClientUpdate,
+  LimitAdjustmentIn,
+} from '@/api/types';
 
 export const clientKeys = {
   all: ['clients'] as const,
@@ -9,6 +16,7 @@ export const clientKeys = {
   usage: (id: string, month: string) => ['clients', id, 'usage', month] as const,
   limits: (id: string) => ['clients', id, 'limits'] as const,
   callEmails: (id: string) => ['clients', id, 'call-emails'] as const,
+  apiContent: (id: string) => ['clients', id, 'api-content'] as const,
 };
 
 export const apiKeyKeys = {
@@ -188,5 +196,25 @@ export function useUpdateCallEmails(id: string) {
         api.PUT('/api/v1/clients/{client_id}/call-emails', { params: { path: { client_id: id } }, body }),
       ),
     onSuccess: (data) => qc.setQueryData(clientKeys.callEmails(id), data),
+  });
+}
+
+/** Ajuste de guardar el contenido de la API y de las pruebas de voz, con lo que ocupa hoy. */
+export function useApiContent(id: string) {
+  return useQuery({
+    queryKey: clientKeys.apiContent(id),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/clients/{client_id}/api-content', { params: { path: { client_id: id } } })),
+  });
+}
+
+export function useUpdateApiContent(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ApiContentSettingsIn) =>
+      unwrap(
+        api.PUT('/api/v1/clients/{client_id}/api-content', { params: { path: { client_id: id } }, body }),
+      ),
+    onSuccess: (data) => qc.setQueryData(clientKeys.apiContent(id), data),
   });
 }

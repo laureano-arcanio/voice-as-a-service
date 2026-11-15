@@ -211,7 +211,8 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 - `atentina-hostmon.service`: colector del host para Prometheus (`make monitoring-host-install`), solo server2.
 - El monitoreo, el CRM y Registros vuelven por `restart: unless-stopped`.
 - **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
-  (`RECORDINGS_DIR`, con el spool `line-spool/` de Asterisk) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
+  (`RECORDINGS_DIR`, con el spool `line-spool/` de Asterisk, el Estudio en `studio/` y el contenido de la API de inferencia en
+  `api/`, sin backup; con menos de `API_CONTENT_MIN_FREE_GB` libres no se guarda contenido de la API) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
   event loop del worker. Sin montar, el backup falla a propósito y el chequeo avisa.
 
 **Cron del usuario, solo en server2** (`deploy/crontab`, `make cron-install`; logs en `~/atentina-ops/`):

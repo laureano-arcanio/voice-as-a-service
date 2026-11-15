@@ -27,6 +27,16 @@ from app.conversation.store import ConversationStore
 from app.db import Base
 
 
+@pytest.fixture(autouse=True)
+def _api_content_dir(tmp_path, monkeypatch):
+    """El contenido de la API de inferencia que guardan los tests va a un directorio temporal, nunca a storage/."""
+    from app.config import settings
+    from app.services import api_content
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path / "recordings")
+    monkeypatch.setattr(api_content, "_room", (0.0, True))
+    monkeypatch.setattr(settings, "api_content_min_free_gb", 0)
+
+
 @pytest.fixture
 def workflow():
     return load_reference("sales_discovery")

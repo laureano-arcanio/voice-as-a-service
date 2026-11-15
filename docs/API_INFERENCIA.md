@@ -260,8 +260,28 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 
 - `tts_minutes` y `stt_minutes` suman las keys y el Estudio (`studio`).
 
-- Se guarda por cliente, key y día (`api_usage_daily`), sin el contenido de los pedidos: **la plataforma no
-  guarda prompts, audios ni textos de la API**.
+- Se guarda por cliente, key y día (`api_usage_daily`).
+
+### Contenido guardado
+
+- **Qué:** con el ajuste del cliente prendido (`store_api_content`, prendido por defecto), cada pedido que llega al
+  motor deja sus archivos en `CALL_RECORDINGS_DIR/api/<cliente>/<AAAA-MM-DD UTC>/<id del pedido>/`
+  (`app/services/api_content.py`):
+  - LLM: `request.json` (el body recibido) y `response.json` (el JSON del motor; en stream, el mensaje rearmado:
+    `content`, `reasoning_content`, `tool_calls` unidas por `index`, `finish_reason`, `usage`).
+  - STT: `input.<ext>` (el audio subido; extensión de la lista del Estudio o `.bin`, nunca el nombre del cliente) y
+    `response.json` (`verbose_json` del motor).
+  - TTS y pruebas de voz (`/tts/preview`, `/demo/tts`): `request.json` (texto, voz y formato) y `output.wav` (el PCM
+    se envuelve en WAV de 24 kHz). Lo que la landing sirve de su cache no llega al motor y no se guarda.
+- **Cuándo:** se anota la fila y después se escribe, fuera del tiempo de respuesta: en los streams, tras el último byte
+  entregado; sin stream, en una tarea de fondo de la respuesta. Se guardan `ok`, `cut` (lo entregado) y los
+  rechazos del motor (`upstream_rejected`, solo lo pedido); no los rechazos previos (cupo, voz, validación) ni las
+  caídas del motor. Una falla al escribir se loguea y no cambia la respuesta ni el consumo.
+- **Topes:** el audio guardado se corta en `API_CONTENT_MAX_AUDIO_BYTES` (30 MB) y `request.json` lleva
+  `"truncated": true`; con menos de `API_CONTENT_MIN_FREE_GB` (50) libres en el disco no se guarda nada.
+- **Vencimiento y cómo apagarlo:** cada cliente elige 7, 30 (default), 90, 180 o 365 días, o indefinido, con el
+  ajuste de abajo; la purga borra los días vencidos. Apagarlo deja de guardar sin borrar lo ya guardado, que vence
+  con su plazo. Sin backup, como las grabaciones ([`INFRA.md`](INFRA.md)).
 
 ### Pedido por pedido
 
@@ -271,7 +291,14 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 - **API:** `GET /api/v1/api-requests` (sesión de usuario o key `calls`; `client_id`, `api_key_id`, `kind`, `status`,
   `source`, `stream`, `date_from`, `date_to`, `tz`, `limit`, `offset`).
 - Cada fila (`api_requests`, migración 0022): tipo, key, duración hasta el último byte, primer byte (stream y TTS),
-  tokens o segundos de audio, caracteres y voz del TTS, HTTP y `code`. Sin contenido, como el agregado.
+  tokens o segundos de audio, caracteres y voz del TTS, HTTP y `code`, y `has_content` si hay contenido guardado.
+- **Contenido:** `GET /api/v1/api-requests/{id}/content` (sesión o key `calls`) da `request`, `response`,
+  `input_audio`/`output_audio` (`content_type`, `bytes`) y `truncated`; `GET .../audio/{input|output}?download=true`
+  baja el audio; `DELETE .../content` (solo sesión del panel) lo borra y la fila queda. Otro cliente, vencido o
+  borrado: 404 `content_not_found`.
+- **Ajuste por cliente:** `GET /api/v1/clients/{id}/api-content` → `enabled`, `retention_days` (`null` =
+  indefinido), `stored_bytes`, `stored_requests`; `PUT` (solo sesión del panel, también el admin entrando como el
+  cliente) con `enabled` y `retention_days` en `7`, `30`, `90`, `180`, `365` o `null`, los dos obligatorios (otro, 422).
 - **Estados:** `ok`; `cut` (stream cortado: se cobra lo entregado); `error` (del motor o del pedido: 400, 422, 502);
   `rejected` (cupo del mes agotado o motor fuera del plan).
 - **Qué no se anota:** los 401, `scope_missing`, `client_inactive`, `not_in_plan` de `api_rate_limit` en 0 y los

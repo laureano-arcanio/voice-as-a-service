@@ -36,6 +36,6 @@ async def tts_preview(body: TtsPreviewIn, p: CurrentPrincipal, db: DB):
         source = tts.SOURCE_PANEL if p.kind == "user" and not p.oauth else tts.SOURCE_API
         stream = await tts.tracked(start, sessionmaker(bind=db.get_bind()), client_id=client_id, key_id=key_id,
                                    source=source, voice=body.voice, characters=len(body.text.strip()),
-                                   audio_format=body.format)
+                                   audio_format=body.format, text=body.text.strip())
     return StreamingResponse(stream, media_type="audio/pcm" if body.format == "pcm" else "audio/wav",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

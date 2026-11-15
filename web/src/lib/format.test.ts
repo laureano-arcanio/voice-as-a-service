@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatBytes,
   formatDateTime,
   formatDuration,
   formatLimit,
@@ -70,5 +71,15 @@ describe('consumo', () => {
     expect(usageColor(50)).toBe('green');
     expect(usageColor(75)).toBe('yellow');
     expect(usageColor(95)).toBe('red');
+  });
+});
+
+describe('formatBytes', () => {
+  it('elige la unidad', () => {
+    expect(formatBytes(null)).toBe('–');
+    expect(formatBytes(800)).toBe('800 B');
+    expect(formatBytes(1_258_291)).toBe('1,2 MB');
+    expect(formatBytes(30 * 1024 * 1024)).toBe('30 MB');
+    expect(formatBytes(5 * 1024 ** 3)).toBe('5 GB');
   });
 });

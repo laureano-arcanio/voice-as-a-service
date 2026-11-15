@@ -23,11 +23,12 @@ from functools import cache
 import anyio
 import httpx
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 from ..db import get_sessionmaker
-from . import api_requests, api_usage, tts, voices
+from . import api_content, api_requests, api_usage, tts, voices
 from .errors import Invalid, ServiceError, Upstream
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,8 @@ class Trace:
     characters: int | None = None
     started: float = field(default_factory=time.monotonic)
     first_byte: float | None = None
+    # Archivos del pedido que se guardan (services/api_content.py); None si el cliente no guarda contenido.
+    content: dict[str, bytes] | None = None
 
     def mark(self) -> None:
         if self.first_byte is None:
@@ -129,32 +132,60 @@ class InferenceGateway:
     def _headers() -> dict[str, str]:
         return {"Authorization": f"Bearer {settings.vllm_api_key}"}
 
-    def _record_sync(self, access, trace: Trace, status: str, error: ServiceError | None, deltas: dict) -> None:
+    @staticmethod
+    def _capture(access, trace: Trace, files: dict[str, bytes]) -> None:
+        """Prende la captura del contenido si el cliente la tiene y hay disco."""
+        if getattr(access.client, "store_api_content", False) and api_content.has_room():
+            trace.content = files
+
+    def _save_sync(self, access, row, files: dict[str, bytes]) -> None:
+        if row is not None and files:
+            api_content.save(self.sessions, row[0], access.client.id, row[1], files)
+
+    async def _save(self, access, row, files: dict[str, bytes] | None) -> None:
+        """Guarda el contenido despues de anotar la fila (ya salio el ultimo byte); una falla no se propaga."""
+        if not files:
+            return
+        with anyio.CancelScope(shield=True):
+            try:
+                await anyio.to_thread.run_sync(lambda: self._save_sync(access, row, files))
+            except Exception:
+                logger.exception("no se pudo guardar el contenido de la API de %s", access.client.slug)
+
+    def _later(self, access, row, files: dict[str, bytes] | None) -> BackgroundTask | None:
+        """Sin stream: el contenido se escribe despues de responder, para no sumar el disco a la latencia."""
+        return BackgroundTask(self._save_sync, access, row, files) if files else None
+
+    def _record_sync(self, access, trace: Trace, status: str, error: ServiceError | None, deltas: dict):
         with self.sessions() as s:
             if deltas:
                 api_usage.record(s, access.client.id, access.key.id, **deltas)
             usage = {col: deltas[k] for k, col in _LOG_FIELDS.items() if k in deltas}
             if usage.get("audio_seconds") is not None:
                 usage["audio_seconds"] = round(usage["audio_seconds"], 3)
-            api_requests.log(s, access.client.id, access.key.id, trace.kind, status, **trace.fields(), **usage,
+            return api_requests.log(s, access.client.id, access.key.id, trace.kind, status, **trace.fields(), **usage,
                              http_status=error.status_code if error else 200,
                              error_code=error.code if error else None)
 
     async def _record(self, access, trace: Trace, status: str = "ok", error: ServiceError | None = None,
-                      **deltas) -> None:
+                      **deltas):
+        """Devuelve (id, created_at) de la fila, o None si no se pudo anotar."""
         # Blindado: en un stream que el cliente corta, la tarea se cancela y el consumo igual se anota.
         with anyio.CancelScope(shield=True):
             try:
-                await anyio.to_thread.run_sync(lambda: self._record_sync(access, trace, status, error, deltas))
+                return await anyio.to_thread.run_sync(lambda: self._record_sync(access, trace, status, error, deltas))
             except Exception:
                 logger.exception("no se pudo registrar el consumo de la API de %s", access.client.slug)
+                return None
 
     async def _traced(self, access, trace: Trace, call):
         """Corre el pedido y, si falla antes de responder, lo anota como error (sin consumo)."""
         try:
             return await call
         except ServiceError as e:
-            await self._record(access, trace, "error", e)
+            row = await self._record(access, trace, "error", e)
+            if e.code == "upstream_rejected":   # llego al motor: se guarda lo pedido, sin respuesta
+                await self._save(access, row, trace.content)
             raise
         except Exception:
             await self._record(access, trace, "error", _Internal("error interno"))
@@ -193,6 +224,7 @@ class InferenceGateway:
 
     async def _chat(self, access, body: dict, trace: Trace):
         upstream = self._chat_request(body, access)
+        self._capture(access, trace, {"request.json": _json(body)})
         url = f"{settings.vllm_llm_base_url}/chat/completions"
         http = self._http()
         try:
@@ -203,11 +235,12 @@ class InferenceGateway:
                     raise _upstream_error("LLM", r.status_code, r.text)
                 data = r.json()
                 usage = data.get("usage") or {}
-                await self._record(
+                row = await self._record(
                     access, trace, llm_requests=1,
                     llm_input_tokens=int(usage.get("prompt_tokens") or self._prompt_estimate(upstream["messages"])),
                     llm_output_tokens=int(usage.get("completion_tokens") or 0))
-                return JSONResponse(data)
+                files = trace.content and {**trace.content, "response.json": r.content}
+                return JSONResponse(data, background=self._later(access, row, files))
             response = await http.send(http.build_request("POST", url, json=upstream, headers=self._headers()),
                                        stream=True)
         except httpx.HTTPError as e:
@@ -233,6 +266,7 @@ class InferenceGateway:
         chunks = 0
         tail = b""
         completed = False
+        message = _Message() if trace.content is not None else None
         try:
             async for data in response.aiter_bytes():
                 trace.mark()
@@ -242,6 +276,8 @@ class InferenceGateway:
                 for line in lines:
                     if not line.startswith(b"data:") or b"[DONE]" in line:
                         continue
+                    if message is not None:
+                        message.add(line[5:])
                     if b'"usage":{' in line or b'"usage": {' in line:
                         try:
                             found = json.loads(line[5:]).get("usage")
@@ -258,10 +294,12 @@ class InferenceGateway:
             await response.aclose()
             await http.aclose()
             usage = usage or {}
-            await self._record(
+            row = await self._record(
                 access, trace, "ok" if completed else "cut", llm_requests=1,
                 llm_input_tokens=int(usage.get("prompt_tokens") or self._prompt_estimate(upstream["messages"])),
                 llm_output_tokens=int(usage.get("completion_tokens") or chunks))
+            if message is not None:
+                await self._save(access, row, {**trace.content, "response.json": _json(message.result())})
 
     # ---------- STT ----------
 
@@ -281,6 +319,7 @@ class InferenceGateway:
                           "invalid_request")
         if not audio:
             raise Invalid("El archivo de audio está vacío", "invalid_request")
+        self._capture(access, trace, {api_content.input_name(filename): audio})
         form = {"model": settings.vllm_stt_model, "response_format": "verbose_json"}   # verbose: trae la duracion
         if language:
             form["language"] = language
@@ -295,13 +334,16 @@ class InferenceGateway:
             raise _upstream_error("STT", r.status_code, r.text)
         result = r.json()
         seconds = float(result.get("duration") or 0)
-        await self._record(access, trace, stt_requests=1, stt_seconds=seconds)
+        row = await self._record(access, trace, stt_requests=1, stt_seconds=seconds)
+        later = self._later(access, row, trace.content and {**trace.content, "response.json": r.content})
         text = result.get("text", "")
         if response_format == "text":
-            return PlainTextResponse(text)
+            return PlainTextResponse(text, background=later)
         if response_format == "verbose_json":
-            return JSONResponse({**result, "language": result.get("language") or language, "duration": seconds})
-        return JSONResponse({"text": text, "usage": {"type": "duration", "seconds": round(seconds, 3)}})
+            return JSONResponse({**result, "language": result.get("language") or language, "duration": seconds},
+                                background=later)
+        return JSONResponse({"text": text, "usage": {"type": "duration", "seconds": round(seconds, 3)}},
+                            background=later)
 
     # ---------- TTS ----------
 
@@ -339,6 +381,9 @@ class InferenceGateway:
         trace.response_format = response_format if stream_format == "audio" else f"{response_format}+sse"
         # pcm: el motor transmite el audio de a pedazos (SSE) y se reenvia al instante. wav: el archivo entero.
         incremental = response_format == "pcm"
+        self._capture(access, trace, {"request.json": _json({"input": text, "voice": voice,
+                                                             "response_format": response_format,
+                                                             "stream_format": stream_format})})
         body = {"model": settings.vllm_tts_model, "voice": voice, "input": text, "response_format": response_format}
         if incremental:
             body["stream"] = True
@@ -369,12 +414,15 @@ class InferenceGateway:
         header = b""
         total = 0
         completed = False
+        audio = _Audio() if trace.content is not None else None
         try:
             async for data in response.aiter_bytes():
                 trace.mark()
                 if len(header) < WAV_HEADER_BYTES:
                     header += data[:WAV_HEADER_BYTES - len(header)]
                 total += len(data)
+                if audio is not None:
+                    audio.add(data)
                 yield data
             completed = True
         except httpx.HTTPError as e:
@@ -382,8 +430,10 @@ class InferenceGateway:
         finally:
             await response.aclose()
             await http.aclose()
-            await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
-                               tts_seconds=audio_seconds("wav", header, total))
+            row = await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
+                                     tts_seconds=audio_seconds("wav", header, total))
+            if audio is not None:
+                await self._save(access, row, audio.files(trace.content, wav=True))
 
     async def _speech_pcm(self, access, trace: Trace, stream_format: str, http: httpx.AsyncClient,
                           response: httpx.Response) -> AsyncIterator[bytes]:
@@ -393,6 +443,7 @@ class InferenceGateway:
         total = 0
         done = False
         completed = False
+        audio = _Audio() if trace.content is not None else None
         try:
             async for event in tts.sse_events(response):
                 kind = event.get("type")
@@ -400,6 +451,8 @@ class InferenceGateway:
                     trace.mark()
                     pcm = base64.b64decode(event["audio"])
                     total += len(pcm)
+                    if audio is not None:
+                        audio.add(pcm)
                     yield pcm if stream_format == "audio" else _sse({"type": kind, "audio": event["audio"]})
                 elif kind == "speech.audio.done":
                     done = True
@@ -415,8 +468,10 @@ class InferenceGateway:
         finally:
             await response.aclose()
             await http.aclose()
-            await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
-                               tts_seconds=total / PCM_BYTES_PER_SECOND)
+            row = await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
+                                     tts_seconds=total / PCM_BYTES_PER_SECOND)
+            if audio is not None:
+                await self._save(access, row, audio.files(trace.content, wav=False))
 
     # ---------- catalogo ----------
 
@@ -425,6 +480,82 @@ class InferenceGateway:
         return [{"id": settings.vllm_llm_model, "object": "model", "owned_by": "atentina", "engine": "llm"},
                 {"id": settings.vllm_stt_model, "object": "model", "owned_by": "atentina", "engine": "stt"},
                 {"id": settings.vllm_tts_model, "object": "model", "owned_by": "atentina", "engine": "tts"}]
+
+
+def _json(data) -> bytes:
+    return json.dumps(data, ensure_ascii=False, indent=1).encode()
+
+
+class _Message:
+    """El mensaje de un stream del LLM rearmado de sus chunks (protocolo de OpenAI): contenido, razonamiento,
+    tool_calls unidas por `index`, finish_reason y usage."""
+    def __init__(self):
+        self.content, self.reasoning, self.finish, self.usage = [], [], None, None
+        self.calls: dict[int, dict] = {}
+
+    def add(self, line: bytes) -> None:
+        try:
+            chunk = json.loads(line)
+        except ValueError:
+            return
+        if not isinstance(chunk, dict):
+            return
+        self.usage = chunk.get("usage") or self.usage
+        for choice in chunk.get("choices") or []:
+            if not isinstance(choice, dict):
+                continue
+            self.finish = choice.get("finish_reason") or self.finish
+            delta = choice.get("delta") or {}
+            if not isinstance(delta, dict):
+                continue
+            if isinstance(delta.get("content"), str):
+                self.content.append(delta["content"])
+            reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+            if isinstance(reasoning, str):
+                self.reasoning.append(reasoning)
+            for call in delta.get("tool_calls") or []:
+                if not isinstance(call, dict):
+                    continue
+                into = self.calls.setdefault(call.get("index", 0), {"id": None, "type": "function",
+                                                                     "function": {"name": "", "arguments": ""}})
+                into["id"] = call.get("id") or into["id"]
+                into["type"] = call.get("type") or into["type"]
+                fn = call.get("function") or {}
+                into["function"]["name"] += fn.get("name") or ""
+                into["function"]["arguments"] += fn.get("arguments") or ""
+
+    def result(self) -> dict:
+        message: dict = {"role": "assistant", "content": "".join(self.content)}
+        if self.reasoning:
+            message["reasoning_content"] = "".join(self.reasoning)
+        if self.calls:
+            message["tool_calls"] = [self.calls[i] for i in sorted(self.calls)]
+        return {"message": message, "finish_reason": self.finish, "usage": self.usage}
+
+
+class _Audio:
+    """El audio de un TTS que se guarda, hasta API_CONTENT_MAX_AUDIO_BYTES."""
+    def __init__(self):
+        self.parts: list[bytes] = []
+        self.size = 0
+        self.truncated = False
+
+    def add(self, data: bytes) -> None:
+        room = settings.api_content_max_audio_bytes - self.size
+        if len(data) > room:
+            data, self.truncated = data[:max(room, 0)], True
+        if data:
+            self.parts.append(data)
+            self.size += len(data)
+
+    def files(self, request: dict[str, bytes], wav: bool) -> dict[str, bytes]:
+        audio = b"".join(self.parts)
+        files = dict(request)
+        if self.truncated:
+            files["request.json"] = _json({**json.loads(request["request.json"]), "truncated": True})
+        if audio:
+            files["output.wav"] = audio if wav else api_content.pcm_to_wav(audio)
+        return files
 
 
 def audio_seconds(response_format: str, header: bytes, total_bytes: int) -> float:

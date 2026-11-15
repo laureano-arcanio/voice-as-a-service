@@ -48,6 +48,20 @@ export function formatNumber(x: number | null | undefined, digits = 1): string {
   return x.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
 
+/** Tamaño de archivo: 800 B, 1,2 MB. */
+export function formatBytes(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return EMPTY;
+  if (n < 1024) return `${Math.round(n)} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${formatNumber(v, v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
 /** Pesos sin decimales: $ 29.000. */
 export function formatArs(x: number | null | undefined): string {
   if (x == null || !Number.isFinite(x)) return EMPTY;

@@ -1,6 +1,7 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ApiRequest, ApiRequestPage } from '@/api/types';
+import type { ApiRequest, ApiRequestContent, ApiRequestPage } from '@/api/types';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { ApiRequestsPage } from './ApiRequestsPage';
 
@@ -26,6 +27,7 @@ const BASE: ApiRequest = {
   voice: null,
   response_format: null,
   source: 'api',
+  has_content: false,
 };
 
 const PAGE: ApiRequestPage = {
@@ -124,7 +126,10 @@ describe('ApiRequestsPage', () => {
 
   it('el admin ve el cliente, el primer byte y el código de error, y filtra por la URL', async () => {
     const urls = stubApi();
-    renderWithProviders(<ApiRequestsPage />, { me: ADMIN, path: '/?kind=tts&status=error&source=voice_test_landing&range=1' });
+    renderWithProviders(<ApiRequestsPage />, {
+      me: ADMIN,
+      path: '/?kind=tts&status=error&source=voice_test_landing&range=1',
+    });
     expect(await screen.findByText('429 api_stt_minutes')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
     expect(screen.getByText('32 ms')).toBeInTheDocument();
@@ -133,5 +138,147 @@ describe('ApiRequestsPage', () => {
     expect(list.searchParams.getAll('status')).toEqual(['error']);
     expect(list.searchParams.getAll('source')).toEqual(['voice_test_landing']);
     expect(list.searchParams.get('date_from')).toBe(list.searchParams.get('date_to'));
+  });
+});
+
+describe('ApiRequestsPage: contenido guardado', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const withContent = (r: ApiRequest): ApiRequest => ({ ...r, has_content: true });
+  const CONTENTS: Record<string, ApiRequestContent> = {
+    r1: {
+      id: 'r1',
+      kind: 'llm',
+      source: 'api',
+      created_at: BASE.created_at,
+      request: { messages: [{ role: 'user', content: 'hola' }] },
+      response: { content: 'buen día', finish_reason: 'stop' },
+      input_audio: null,
+      output_audio: null,
+      truncated: false,
+    },
+    r2: {
+      id: 'r2',
+      kind: 'stt',
+      source: 'api',
+      created_at: BASE.created_at,
+      request: null,
+      response: { text: 'texto transcripto' },
+      input_audio: { content_type: 'audio/mpeg', bytes: 2048 },
+      output_audio: null,
+      truncated: false,
+    },
+    r3: {
+      id: 'r3',
+      kind: 'tts',
+      source: 'api',
+      created_at: BASE.created_at,
+      request: { input: 'hola mundo', voice: 'sofia' },
+      response: null,
+      input_audio: null,
+      output_audio: { content_type: 'audio/wav', bytes: 480000 },
+      truncated: true,
+    },
+    r4: {
+      id: 'r4',
+      kind: 'tts',
+      source: 'voice_test_landing',
+      created_at: BASE.created_at,
+      request: { input: 'prueba de la landing', voice: 'sofia' },
+      response: null,
+      input_audio: null,
+      output_audio: { content_type: 'audio/wav', bytes: 96000 },
+      truncated: false,
+    },
+  };
+
+  function stub(items: ApiRequest[]) {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        const url = new URL(req.url);
+        calls.push(`${req.method} ${url.pathname}`);
+        if (url.pathname === '/api/v1/api-requests')
+          return Promise.resolve(jsonResponse({ ...PAGE, items, total: items.length }));
+        const m = url.pathname.match(/^\/api\/v1\/api-requests\/(\w+)\/content$/);
+        if (m && req.method === 'GET') return Promise.resolve(jsonResponse(CONTENTS[m[1]!]));
+        if (m && req.method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }));
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    return calls;
+  }
+
+  const [r1, r2, r3, r4] = PAGE.items as [ApiRequest, ApiRequest, ApiRequest, ApiRequest];
+
+  it('LLM: pedido y respuesta en JSON, sin reproductor', async () => {
+    stub([withContent(r1)]);
+    renderWithProviders(<ApiRequestsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Ver/ }));
+    const dlg = await screen.findByRole('dialog');
+    expect(await within(dlg).findByText(/"content": "hola"/)).toBeInTheDocument();
+    expect(within(dlg).getByText(/"finish_reason": "stop"/)).toBeInTheDocument();
+    expect(dlg.querySelector('audio')).toBeNull();
+  });
+
+  it('STT: audio enviado con su descarga y la respuesta', async () => {
+    stub([withContent(r2)]);
+    renderWithProviders(<ApiRequestsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Ver/ }));
+    const dlg = await screen.findByRole('dialog');
+    expect(await within(dlg).findByText(/texto transcripto/)).toBeInTheDocument();
+    expect(dlg.querySelector('audio')).toHaveAttribute('src', '/api/v1/api-requests/r2/audio/input');
+    expect(within(dlg).getByRole('link', { name: /Descargar/ })).toHaveAttribute(
+      'href',
+      '/api/v1/api-requests/r2/audio/input?download=true',
+    );
+  });
+
+  it('TTS: audio generado y aviso si se cortó en el tope', async () => {
+    stub([withContent(r3)]);
+    renderWithProviders(<ApiRequestsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Ver/ }));
+    const dlg = await screen.findByRole('dialog');
+    expect(await within(dlg).findByText(/hola mundo/)).toBeInTheDocument();
+    expect(dlg.querySelector('audio')).toHaveAttribute('src', '/api/v1/api-requests/r3/audio/output');
+    expect(within(dlg).getByText(/audio guardado está cortado/)).toBeInTheDocument();
+  });
+
+  it('prueba de voz de la landing: el admin la ve con su origen y la escucha', async () => {
+    stub([withContent({ ...r4, source: 'voice_test_landing' })]);
+    renderWithProviders(<ApiRequestsPage />, { me: ADMIN });
+    await userEvent.click(await screen.findByRole('button', { name: /Ver/ }));
+    const dlg = await screen.findByRole('dialog');
+    expect(await within(dlg).findByText(/prueba de la landing/)).toBeInTheDocument();
+    expect(within(dlg).getByText('Prueba de voz · landing')).toBeInTheDocument();
+    expect(dlg.querySelector('audio')).toHaveAttribute('src', '/api/v1/api-requests/r4/audio/output');
+  });
+
+  it('una fila sin contenido dice que no hay y no lo pide', async () => {
+    const calls = stub([r1]);
+    renderWithProviders(<ApiRequestsPage />, { me: CLIENT_USER });
+    expect(screen.queryByRole('button', { name: /Ver/ })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByText('120 / 45'));
+    const dlg = await screen.findByRole('dialog');
+    expect(within(dlg).getByText('Sin contenido guardado.')).toBeInTheDocument();
+    expect(calls.some((c) => c.endsWith('/content'))).toBe(false);
+  });
+
+  it('borrar pide confirmación, borra y cierra', async () => {
+    const calls = stub([withContent(r1)]);
+    renderWithProviders(<ApiRequestsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Ver/ }));
+    const dlg = await screen.findByRole('dialog');
+    await userEvent.click(await within(dlg).findByRole('button', { name: /Borrar contenido/ }));
+    // Sin confirmar no se borra.
+    expect(calls).not.toContain('DELETE /api/v1/api-requests/r1/content');
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar', hidden: true }));
+    await waitFor(() => expect(calls).toContain('DELETE /api/v1/api-requests/r1/content'));
+    // La lista se vuelve a pedir.
+    await waitFor(() =>
+      expect(calls.filter((c) => c === 'GET /api/v1/api-requests').length).toBeGreaterThan(1),
+    );
   });
 });

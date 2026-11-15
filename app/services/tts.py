@@ -17,9 +17,11 @@ from collections.abc import AsyncIterator, Awaitable
 
 import anyio
 import httpx
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
+from ..models import Client
 from ..voice.speech_text import to_speech
 from . import api_requests, voices
 from .errors import Invalid, ServiceError, Upstream
@@ -142,29 +144,46 @@ async def synthesize_pcm(voice: str, text: str) -> AsyncIterator[bytes]:
 
 
 async def tracked(start: Awaitable[AsyncIterator[bytes]], sessions: sessionmaker[Session], *, client_id: str,
-                  key_id: str | None, source: str, voice: str, characters: int,
-                  audio_format: str) -> AsyncIterator[bytes]:
+                  key_id: str | None, source: str, voice: str, characters: int, audio_format: str,
+                  text: str = "") -> AsyncIterator[bytes]:
     """Abre la prueba (`preview` o `preview_pcm`) y la anota en api_requests al terminar: ok, cut (el
-    navegador corto) o error (del motor). Los rechazos antes del motor (voz inexistente, texto vacio) no."""
+    navegador corto) o error (del motor). Los rechazos antes del motor (voz inexistente, texto vacio) no.
+    Si el cliente guarda contenido, despues de anotarla guarda el texto y el audio (services/api_content.py)."""
     started = time.monotonic()
     fields = {"kind": "tts", "stream": audio_format == "pcm", "voice": voice.strip().lower(),
               "response_format": audio_format, "characters": characters, "source": source}
 
-    def log(status: str, error: ServiceError | None, size: int, first: float | None) -> None:
+    def log(status: str, error: ServiceError | None, size: int, first: float | None,
+            parts: list[bytes] | None, truncated: bool) -> None:
         audio = max(size - (WAV_HEADER_BYTES if audio_format == "wav" else 0), 0) / BYTES_PER_SECOND
         now = time.monotonic()
         with sessions() as s:
-            api_requests.log(s, client_id, key_id, status=status, **fields,
-                             http_status=error.status_code if error else 200, error_code=error.code if error else None,
-                             duration_ms=int((now - started) * 1000),
-                             ttfb_ms=None if first is None else int((first - started) * 1000),
-                             audio_seconds=round(audio, 3) if size else None)
+            row = api_requests.log(s, client_id, key_id, status=status, **fields,
+                                   http_status=error.status_code if error else 200,
+                                   error_code=error.code if error else None,
+                                   duration_ms=int((now - started) * 1000),
+                                   ttfb_ms=None if first is None else int((first - started) * 1000),
+                                   audio_seconds=round(audio, 3) if size else None)
+            store = s.scalar(select(Client.store_api_content).where(Client.id == client_id))
+        from . import api_content   # aca: api_content importa studio, que importa este modulo
+        # Se guarda lo que llego al motor: ok, cut y sus rechazos; no las caidas.
+        if (not store or (status == "error" and getattr(error, "code", None) != "upstream_rejected")
+                or not api_content.has_room()):
+            return
+        request = {"text": text, "voice": fields["voice"], "format": audio_format, "source": source}
+        files = {"request.json": json.dumps(request | ({"truncated": True} if truncated else {}),
+                                            ensure_ascii=False, indent=1).encode()}
+        if parts:
+            data = b"".join(parts)
+            files["output.wav"] = api_content.pcm_to_wav(data) if audio_format == "pcm" else data
+        api_content.save(sessions, row[0], client_id, row[1], files)
 
-    async def record(status: str, error: ServiceError | None = None, size: int = 0, first: float | None = None):
+    async def record(status: str, error: ServiceError | None = None, size: int = 0, first: float | None = None,
+                     parts: list[bytes] | None = None, truncated: bool = False):
         # Blindado: si el navegador corta, la tarea se cancela y la prueba igual se anota.
         with anyio.CancelScope(shield=True):
             try:
-                await anyio.to_thread.run_sync(lambda: log(status, error, size, first))
+                await anyio.to_thread.run_sync(lambda: log(status, error, size, first, parts, truncated))
             except Exception:
                 logger.exception("no se pudo anotar la prueba de voz")
 
@@ -176,10 +195,18 @@ async def tracked(start: Awaitable[AsyncIterator[bytes]], sessions: sessionmaker
 
     async def run() -> AsyncIterator[bytes]:
         size, first, status, error = 0, None, "cut", None
+        parts: list[bytes] = []   # el audio que salio, hasta el tope del contenido guardado
+        cap, truncated = settings.api_content_max_audio_bytes, False
         try:
             async for chunk in stream:
                 if first is None:
                     first = time.monotonic()
+                if size + len(chunk) > cap:
+                    truncated = True
+                    if size < cap:
+                        parts.append(chunk[:cap - size])
+                else:
+                    parts.append(chunk)
                 size += len(chunk)
                 yield chunk
             status = "ok"
@@ -190,6 +217,6 @@ async def tracked(start: Awaitable[AsyncIterator[bytes]], sessions: sessionmaker
             status, error = "error", Upstream("TTS")
             raise
         finally:
-            await record(status, error, size, first)
+            await record(status, error, size, first, parts, truncated)
 
     return run()
