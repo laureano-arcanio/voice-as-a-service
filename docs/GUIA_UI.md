@@ -720,8 +720,8 @@ el cliente solo ve el historial. Detalle: [`features/ESTUDIO.md`](features/ESTUD
 ### WhatsApp (cliente)
 
 Conectá tu número de WhatsApp Business para que lo atienda uno de tus agentes, por texto y notas de voz. Se conecta
-con **tu propia app de Meta** ([`WHATSAPP.md`](features/WHATSAPP.md)); el registro con Facebook (Embedded
-Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider).
+con el registro de Facebook («Conectar WhatsApp», Embedded Signup) o con **tu propia app de Meta**
+([`WHATSAPP.md`](features/WHATSAPP.md)); el registro de Facebook se oculta con `WA_EMBEDDED_SIGNUP=false`.
 
 1. **Conectar con mi app de Meta:** la ventana trae la guía (crear en tu Business Manager una app tipo Business con
    WhatsApp, pasarla a Live y crear un usuario de sistema con token permanente con `whatsapp_business_messaging`

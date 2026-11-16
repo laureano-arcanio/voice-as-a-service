@@ -9,7 +9,7 @@ cliente. Estado: en producción desde el 1-oct-2026 (llamadas por SIP con el nú
 |---|---|
 | Texto y notas de voz | En producción con el número de Atentina (+54 9 351 700-2592, agente `atentina_comercial`) |
 | Número con la app de Meta propia del cliente (`own_app`) | Desplegado; falta probar con un número real |
-| Embedded Signup (alta con la app de Atentina) | Código desplegado, apagado con `WA_EMBEDDED_SIGNUP=false` hasta que Meta apruebe el Tech Provider |
+| Embedded Signup (alta con la app de Atentina) | Prendido en producción desde el 16-nov-2026 (`WA_EMBEDDED_SIGNUP=true`); falta la primera alta real |
 | Llamadas de WhatsApp por SIP | En producción, solo con el número de Atentina |
 | Ruteo por contacto (`wa_routes`) | En producción |
 | Derivación a personas del equipo (rotación, aviso, reenvío) | Implementada y probada en local con Meta simulado; sin desplegar, sin probar con un toque de botón real ni con un `failed` real de Meta |
@@ -355,9 +355,9 @@ Apagar: `make wa-calling-disable` (Meta borra la config SIP y el ícono desapare
   sea de esa WABA con el token del cliente.
 - **Embedded Signup solo por HTTPS** desde un dominio declarado en la app de Meta: anda por
   `app.atentina.com.ar`, no por `localhost`. `CSP_REPORT_ONLY=true` hasta el primer alta real.
-- **Token de Embedded Signup:** la configuración (`WA_CONFIG_ID`) se creó con la plantilla "with 60 Expiration
-  Token" (la única disponible sin Tech Provider): cada cuenta quedaría desconectada a los 60 días (190) y se reconecta
-  con el mismo botón.
+- **Token de Embedded Signup:** la configuración `WA_CONFIG_ID` (2303541346881216, creada el 16-nov-2026 tras aprobarse
+  el Tech Provider) no muestra vencimiento; la anterior (2936386673383943) vencía a los 60 días. Confirmar con
+  `GET /debug_token` en la primera alta: si vence, la cuenta pasa a desconectada (190) y se reconecta con el mismo botón.
 - **Tokens y secretos** cifrados con `WA_TOKEN_KEY` (varias claves separadas por coma para rotar); sin ella no se
   leen: guardarla aparte. Nunca en logs; el access log tapa `hub.verify_token`.
 - **Webhooks duplicados y fuera de orden:** dedupe por `wamid`; un `status` puede llegar antes que el `sent` propio.
@@ -412,10 +412,8 @@ Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
 
 ## Pendientes
 
-- **Tech Provider y App Review de Meta:** sin ellos un cliente no completa Embedded Signup ni conecta un número con
-  la app de Atentina ([META_APP_REVIEW.md](META_APP_REVIEW.md)). Al aprobarse: primer alta real, confirmar si el
-  business token vence (`GET /debug_token`), recrear la configuración sin vencimiento si Meta la ofrece y volver
-  `CSP_REPORT_ONLY` a `false`.
+- **Primera alta por Embedded Signup:** prendido en producción ([META_APP_REVIEW.md](META_APP_REVIEW.md)). Falta la
+  primera alta real, confirmar que el business token no vence (`GET /debug_token`) y volver `CSP_REPORT_ONLY` a `false`.
 - **`own_app` con un número real:** que una app en Live sin App Review reciba los webhooks de sus números, y que un
   número que está en la app WhatsApp Business del celular no se pueda usar por la API sin coexistencia.
 - **Coexistencia:** el alta y la sincronización están, pero la app no lee `history`, `smb_app_state_sync` ni
