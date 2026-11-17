@@ -15,7 +15,7 @@ Estado: en producción.
 | Motores | Los mismos de las llamadas, por `tts._send` y el HTTP del STT | Sin servicios nuevos ni cambios de GPU |
 | Trabajo en segundo plano | Fila en `studio_items` y `studio_loop` en la app | Un texto largo tarda minutos y el pedido HTTP no puede esperar por el túnel. Mismo patrón que `campaign_loop` |
 | Protección de las llamadas | Un trabajo a la vez por motor, en pedazos cortos (`STUDIO_TTS_CHUNK_CHARS`, `STUDIO_STT_CHUNK_SECONDS`) | Los motores atienden llamadas en vivo: un pedazo pesa como un turno. Un audio entero en un solo pedido frenaría al STT |
-| Dónde se guarda | Texto en la base; audio en `CALL_RECORDINGS_DIR/studio/<cliente>/<item>/` | Ya es un volumen de `app`, en el disco de datos; no entra en el backup ([`INFRA.md`](../INFRA.md)) |
+| Dónde se guarda | Texto en la base; audio en `CALL_RECORDINGS_DIR/studio/<cliente>/<item>/` | Ya es un volumen de `app`, en el disco de datos; se sincroniza sin cifrar a R2 con los audios ([`INFRA.md`](../INFRA.md)) |
 | Formatos | Se guarda WAV (24 kHz, mono) y se convierte al bajar: `wav`, `mp3`, `ogg` (Opus), `flac` | PyAV ya está en la imagen. La conversión queda guardada al lado y no se vuelve a sintetizar |
 | Subir texto | `.txt` leído en el navegador, a la misma caja | Sin parsers ni archivos del lado del servidor |
 | Borrar | Borra audio y texto, y la fila queda con sus segundos | Borrar no devuelve minutos |

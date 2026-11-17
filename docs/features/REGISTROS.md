@@ -73,8 +73,8 @@ variables `REGISTROS_*`, no los secretos de la plataforma. Pool de 7 conexiones 
   la base de la plataforma y en `crm`; la plataforma y el CRM usan `POSTGRES_USER`, dueño, y no lo notan. El `REVOKE` no
   viaja en un volcado: si `crm` se restaura o se crea después, volver a correr `make registros-db`.
 - **Backup:** `BACKUP_EXTRA_DBS=registros` en el `.env` suma un volcado de esa base a `backup.sh` (mismo directorio,
-  retención y copia a S3 que la base principal). **Una base listada que no existe hace fallar el backup**, y
-  `healthcheck.sh` avisa a las 26 h. Los secretos de Registros están en el `.env`, que el backup ya copia.
+  retención y copia a R2 que la base principal). **Una base listada que no existe hace fallar el backup**, y
+  `healthcheck.sh` avisa a las 14 h. Los secretos de Registros están en el `.env`, que el backup ya copia.
 - **Restauración:** el volcado es `--no-owner`; restaurarlo con el superusuario deja las tablas ajenas y la app da
   `permission denied` (`/health` en 503). `make registros-restore` pasa antes por `registros-db`. `backup-fetch.sh`
   imprime el comando cuando baja un `registros.sql.gz`.
@@ -109,7 +109,7 @@ Sin Registros los workflows fallan, el agente atiende y deriva igual, y los post
 
 - **Datos sensibles legibles** (el formulario de un tenant puede pedir datos de salud): sin cifrado propio, en la instancia compartida, en los backups y con `make psql` para quien
   opere el server.
-- **Backups solo en server2** ([`INFRA.md`](../INFRA.md)): perder ese server es perder la base, las fichas y los backups.
+- **Backups solo en server2 mientras R2 no esté activo** ([`INFRA.md`](../INFRA.md)): sin `BACKUP_R2_BUCKET`, perder ese server es perder la base, las fichas y los backups. Con R2 activo, la base y los audios quedan fuera.
 - **Sin límites en el borde:** `registros.atentina.com.ar` se expone sin tope de cuerpo ni límite de login por IP. Los
   intentos fallidos se cuentan por correo (5 cada 15 minutos): quien sepa un correo puede bloquearle el login 15 minutos.
 - **Una persona cargada como contacto en una sola ficha** que llama por otra ficha cobra a esa ficha: sin anulación y

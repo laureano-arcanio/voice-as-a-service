@@ -6,7 +6,7 @@ set -euo pipefail
 cd /home/laureano/voice-as-a-service
 export DB_DSN=sqlite:///scratch/videos/tafm/dev.db AUTH_SECRET=dev-secret-dev-secret-dev-secret AUTH_COOKIE_SECURE=false
 export ADMIN_EMAIL=admin@oime.com.ar ADMIN_PASSWORD=admin12345 ANURA_DID=1152630861
-export LIVEKIT_URL= LIVEKIT_API_KEY= LIVEKIT_API_SECRET= RESEND_API_KEY= WA_ACCESS_TOKEN= BACKUP_S3_BUCKET=
+export LIVEKIT_URL= LIVEKIT_API_KEY= LIVEKIT_API_SECRET= RESEND_API_KEY= WA_ACCESS_TOKEN= BACKUP_R2_ACCOUNT_ID= BACKUP_R2_BUCKET=
 export DEMO_LIVEKIT_URL=wss://rtc.invalid TURNSTILE_SITE_KEY=dev-site-key TURNSTILE_SECRET_KEY=dev-secret-key
 export CALL_LINK_BASE_URL=https://llamar.atentina.com.ar
 .venv/bin/alembic upgrade head

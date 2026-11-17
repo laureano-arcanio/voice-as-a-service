@@ -383,7 +383,7 @@ panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y 
 - **Acceso:** `CallDetail.full_recording` y `GET /calls/{id}/recording` (`audio/ogg`, descarga con
   `llamada-<id>.ogg`), con el mismo chequeo que los audios por frase: otro cliente 404, el admin lo ve. En el detalle
   de la conversación, reproductor y **Descargar** arriba de la transcripción. Se borra con la conversación (mismo
-  directorio); sin backup, como los audios por frase.
+  directorio); se sincroniza sin cifrar a R2 (espejo incremental), como los audios por frase.
 - **Trampa:** si se borra la conversación mientras se convierte, el `.ogg` se borra al terminar; el detalle de la
   llamada solo cuenta `*.wav` como audios por frase, por eso el completo no es `.wav`.
 - **No comprobado:** Safari con Ogg/Opus (Chrome sí); si no reproduce, el mismo Opus en WebM.

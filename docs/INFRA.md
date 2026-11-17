@@ -212,23 +212,33 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
 - El monitoreo, el CRM y Registros vuelven por `restart: unless-stopped`.
 - **Disco de datos de server2** (`DATA_DISK`, ext4, `/etc/fstab` por UUID, antes de Docker, `nofail`): `audios/`
   (`RECORDINGS_DIR`, con el spool `line-spool/` de Asterisk, el Estudio en `studio/` y el contenido de la API de inferencia en
-  `api/`, sin backup; con menos de `API_CONTENT_MIN_FREE_GB` libres no se guarda contenido de la API) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
+  `api/`; todo menos `line-spool/` se sincroniza sin cifrar a R2; con menos de `API_CONTENT_MIN_FREE_GB` libres no se guarda contenido de la API) y `backups/` (`BACKUP_DIR`). `/etc/hdparm.conf` le saca el reposo: la grabación escribe en el
   event loop del worker. Sin montar, el backup falla a propósito y el chequeo avisa.
 
 **Cron del usuario, solo en server2** (`deploy/crontab`, `make cron-install`; logs en `~/atentina-ops/`):
 
 | Cuándo | Qué |
 |---|---|
-| 03:30 y cada hora con `--if-due` | `scripts/ops/backup.sh`: base (`pg_dump`), las de `BACKUP_EXTRA_DBS` (`registros`), `.env`, `storage/`, certificado SIP y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). **Los audios no entran**: están en el mismo disco. La corrida horaria lo recupera si el host estuvo apagado |
-| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, certificado SIP (< 14 días), backup completo en 26 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
+| 00:00 y 12:00 | `scripts/ops/backup.sh`: base (`pg_dump`), `crm` si existe y las de `BACKUP_EXTRA_DBS` (`registros`), `.env`, `storage/`, certificado SIP, agentes en JSON, embeddings del TTS y checkpoint del TTS, 30 días, en `BACKUP_DIR` (el disco de datos, otro que Docker). Con `BACKUP_R2_BUCKET` en `.env`, sube además una instantánea cifrada y espeja audios y checkpoint a R2 |
+| cada 2 min | `scripts/ops/healthcheck.sh`: contenedores, app local, dashboard y webhook por el túnel, certificado SIP (< 14 días), backup completo en 14 h y Registros si hay `REGISTROS_HEALTH_URL`; avisa por ntfy (`ALERT_NTFY_TOPIC`) |
 | cada 5 min | `scripts/ops/livekit-sip-reconcile.sh`: si el Redis de LiveKit perdió los trunks SIP o la dispatch rule, `make livekit-sip`; si están, solo los lista. Escribe en `livekit-sip.log` solo al crear algo o fallar |
 | 04:15 | `scripts/ops/sip-cert-renew.sh`: renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso |
 
-- **Copia externa a S3: no activa.** Está implementada (`make backup-key`, `make backup-s3-setup`,
-  `make backup-fetch`, `make backup-list`; cifrado con la llave pública `deploy/backup-key.asc`, salvo el
-  checkpoint), pero `BACKUP_S3_BUCKET` no está en `.env`. Por decisión del usuario los backups quedan solo en server2:
-  perder ese server es perder base, audios, `.env` (con `WA_TOKEN_KEY`) y backups; perder su disco de datos, audios y backups.
-- Restauración probada en un Postgres limpio, desde disco y desde un S3 de prueba.
+- **Copia externa a Cloudflare R2: implementada; bucket `atentina-backups` y token creados, y
+  `BACKUP_R2_*` en el `.env` de server2.** El lifecycle de 30 días para `daily/` está configurado en el
+  bucket. `make backup-key` deja el par GPG (la privada, fuera del server). Falta deployar la rama y
+  correr `make cron-install` para que las corridas de 00:00 y 12:00 usen el código nuevo. `backup.sh` sube a `r2://<bucket>/daily/<STAMP>/` la base, `crm` y las extra, `.env`,
+  agentes en JSON, `storage/`, certificado SIP y embeddings, cifrados con `deploy/backup-key.asc`, y
+  `latest` apunta al último completo. Los **audios** (`RECORDINGS_DIR`, sin `line-spool/`, incluido el
+  Estudio y `api/`) y el **checkpoint del TTS** van como espejo incremental bajo `audios/` y `tts/`, sin
+  cifrar: no se re-suben ni se borran al borrarse en el server. Restaurar: `make backup-fetch TTS=1 AUDIOS=1`.
+  `make backup-list` lista los últimos. Costo hoy ~5 GB (checkpoint 4,3 GB, audios 254 MB y 60
+  instantáneas): dentro del plan gratuito de R2 (10 GB y egress 0). Los audios crecen ~27 MB/día, así que
+  en ~medio año se pasa del plan gratuito; después, USD 0,015/GB-mes (egress 0).
+  **Mientras no esté activa** los backups quedan solo en server2: perder ese server es perder base,
+  audios, `.env` (con `WA_TOKEN_KEY`) y backups. El token de R2 puede leer, escribir y borrar: acotarlo al
+  bucket y no habilitar acceso público; audios y checkpoint viajan sin cifrar en el bucket.
+- Restauración probada en un Postgres limpio, desde disco y desde un bucket compatible de prueba; falta el ensayo desde R2.
 
 ## Exposición a internet
 
@@ -273,8 +283,8 @@ Hechos del código que atan la plataforma a **un solo `app` y un solo server**:
 
 ## Pendientes de producción
 
-- **Copia externa del backup:** crear el bucket y la llave (`make backup-key`, `make backup-s3-setup`) y
-  guardar la privada fuera del server.
+- **Copia externa del backup:** deployar la rama `backup-r2`, correr `make cron-install` y guardar la
+  privada de `make backup-key` y las claves de R2 fuera del server (sin ellas no se restaura desde R2).
 - **Energía:** UPS senoidal de 1500–2200 VA (≥ 1000 W reales; el pico de las GPUs bajo carga no está medido) con
   apagado ordenado por NUT.
 - **Internet:** segunda conexión; confirmar si la IP fija es plan de empresa y si Anura admite un segundo destino.
