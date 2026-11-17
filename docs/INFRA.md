@@ -228,7 +228,8 @@ producción: LiveKit Cloud no se usa. Detalle, formatos de número, síntomas y 
   `BACKUP_R2_*` en el `.env` de server2.** El lifecycle de 30 días para `daily/` está configurado en el
   bucket. `make backup-key` deja el par GPG (la privada, fuera del server). Falta deployar la rama y
   correr `make cron-install` para que las corridas de 00:00 y 12:00 usen el código nuevo. `backup.sh` sube a `r2://<bucket>/daily/<STAMP>/` la base, `crm` y las extra, `.env`,
-  agentes en JSON, `storage/`, certificado SIP y embeddings, cifrados con `deploy/backup-key.asc`, y
+  agentes en JSON, `storage/`, `secrets/` (Google Analytics del CRM y clave del registro MCP),
+  certificado SIP y embeddings, cifrados con `deploy/backup-key.asc`, y
   `latest` apunta al último completo. Los **audios** (`RECORDINGS_DIR`, sin `line-spool/`, incluido el
   Estudio y `api/`) y el **checkpoint del TTS** van como espejo incremental bajo `audios/` y `tts/`, sin
   cifrar: no se re-suben ni se borran al borrarse en el server. Restaurar: `make backup-fetch TTS=1 AUDIOS=1`.

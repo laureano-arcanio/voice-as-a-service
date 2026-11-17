@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Backup (cron, docs/INFRA.md): base (pg_dump), crm y las bases de BACKUP_EXTRA_DBS, .env, storage/,
-# certificado SIP, agentes en JSON, embeddings del TTS y checkpoint del TTS servido. Local en
+# secrets/ (credenciales de Google y clave del registro MCP), certificado SIP, agentes en JSON,
+# embeddings del TTS y checkpoint del TTS servido. Local en
 # BACKUP_DIR (.env o entorno; default ~/atentina-backups): otro disco que el de Docker. Copia externa
-# a Cloudflare R2 si BACKUP_R2_BUCKET está en .env: la base, .env, agentes, storage/ y certificado se
+# a Cloudflare R2 si BACKUP_R2_BUCKET está en .env: la base, .env, agentes, storage/, secrets/ y certificado se
 # cifran con la llave pública de deploy/backup-key.asc (la privada no está en el server); los audios
 # (RECORDINGS_DIR, sin line-spool/) y el checkpoint se sincronizan incrementales y sin cifrar.
 # Restaurar: scripts/ops/backup-fetch.sh (docs/MIGRACION_SERVER.md, 4).
@@ -26,7 +27,7 @@ disk="$(env_get DATA_DISK)"
 KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
 STAMP="$(date +%Y%m%d-%H%M)"
 umask 077
-mkdir -p "$DEST/db" "$DEST/env" "$DEST/storage" "$DEST/letsencrypt" "$DEST/tts" "$DEST/speakers" "$STATE_DIR"
+mkdir -p "$DEST/db" "$DEST/env" "$DEST/storage" "$DEST/secrets" "$DEST/letsencrypt" "$DEST/tts" "$DEST/speakers" "$STATE_DIR"
 
 # Base: dump completo en SQL, comprimido. Se verifica que no esté vacío.
 db_file="$DEST/db/db-$STAMP.sql.gz"
@@ -67,6 +68,13 @@ SQL
 storage_file="$DEST/storage/storage-$STAMP.tar.gz"
 tar -czf "$storage_file" --warning=no-file-changed storage || [[ $? -eq 1 ]]
 
+# secrets/: credenciales de Google Analytics del CRM y clave privada del registro MCP (no versionados).
+secrets_file=""
+if [[ -d secrets ]]; then
+    secrets_file="$DEST/secrets/secrets-$STAMP.tar.gz"
+    tar -czf "$secrets_file" --warning=no-file-changed secrets || [[ $? -eq 1 ]]
+fi
+
 # Certificado SIP de WhatsApp (de root: se lee desde un contenedor). Se regenera con make sip-cert.
 le_file=""
 if [[ -d asterisk/letsencrypt ]]; then
@@ -92,7 +100,7 @@ if [[ -n "$ckpt" && -d "$ckpt" ]]; then
     rsync -a --delete "$ckpt/" "$DEST/tts/$ckpt_rel/"
 fi
 
-find "$DEST/db" "$DEST/env" "$DEST/storage" "$DEST/letsencrypt" "$DEST/speakers" -type f -mtime +"$KEEP_DAYS" -delete
+find "$DEST/db" "$DEST/env" "$DEST/storage" "$DEST/secrets" "$DEST/letsencrypt" "$DEST/speakers" -type f -mtime +"$KEEP_DAYS" -delete
 
 remote="local"; audios_remote="no"
 if [[ -n "$(env_get BACKUP_R2_BUCKET)" ]]; then
@@ -108,9 +116,11 @@ if [[ -n "$(env_get BACKUP_R2_BUCKET)" ]]; then
     enc "$env_file" env.gpg
     [[ -n "$agents_file" ]] && enc "$agents_file" agents.json.gpg
     enc "$storage_file" storage.tar.gz.gpg
+    [[ -n "$secrets_file" ]] && enc "$secrets_file" secrets.tar.gz.gpg
     [[ -n "$le_file" ]] && enc "$le_file" letsencrypt.tar.gz.gpg
     [[ -n "$speakers_file" ]] && enc "$speakers_file" speakers.tar.gz.gpg
     snapshot_files=("$db_file" "$env_file" "$storage_file")
+    [[ -n "$secrets_file" ]] && snapshot_files+=("$secrets_file")
     [[ -n "$crm_file" ]] && snapshot_files+=("$crm_file")
     for name in "${extra_dbs[@]}"; do snapshot_files+=("$DEST/db/$name-$STAMP.sql.gz"); done
     [[ -n "$agents_file" ]] && snapshot_files+=("$agents_file")
@@ -125,7 +135,7 @@ if [[ -n "$(env_get BACKUP_R2_BUCKET)" ]]; then
     } > "$tmp/manifest.txt"
     echo "$STAMP" > "$tmp/latest"
 
-    # Instantánea cifrada: base, .env, agentes, storage/, certificado y embeddings.
+    # Instantánea cifrada: base, .env, agentes, storage/, secrets/, certificado y embeddings.
     r2 "$tmp" s3 cp --quiet --recursive --exclude latest . "$base/daily/$STAMP/"
 
     # Audios (grabaciones, Estudio, contenido de la API) y checkpoint: espejo incremental, sin cifrar.

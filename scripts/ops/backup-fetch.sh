@@ -54,6 +54,9 @@ Listo. Restaurar (docs/MIGRACION_SERVER.md, 4):
   certificado: sudo tar -xzf $dir/letsencrypt.tar.gz -C asterisk
   agentes:     $dir/agents.json (consulta; la base ya los trae)
 EOF
+if [[ -f "$dir/secrets.tar.gz" ]]; then
+    echo "  secrets/:    tar -xzf $dir/secrets.tar.gz"
+fi
 if [[ -f "$dir/speakers.tar.gz" ]]; then
     echo "  voces TTS:   docker run --rm -v voice-as-a-service_vllm_tts_speakers_ft:/dst -v $dir:/src:ro alpine:3.24 \\"
     echo "                 tar xzf /src/speakers.tar.gz -C /dst"

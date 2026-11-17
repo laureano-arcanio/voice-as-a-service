@@ -33,6 +33,7 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Dato | Dónde (server viejo) | Tamaño | En `backup.sh` | Cómo se recupera en el nuevo |
 |---|---|---|---|---|
 | `.env` (todos los secretos; `WA_TOKEN_KEY`) | `~/voice-as-a-service/.env` | — | sí: `~/atentina-backups/env/env-AAAAMMDD-HHMM` | copiar (paso 3.2) |
+| `secrets/` (Google Analytics del CRM y clave privada del registro MCP; no versionado) | `~/voice-as-a-service/secrets/` | KB | sí: `~/atentina-backups/secrets/secrets-AAAAMMDD-HHMM.tar.gz` y cifrado en R2 | `tar -xzf` |
 | Base PostgreSQL (clientes, tiers, agentes y sus versiones, números y su ruteo, cuentas de WhatsApp, usuarios, conversaciones) | volumen `voice-as-a-service_postgres_data` | MB | sí: `~/atentina-backups/db/db-AAAAMMDD-HHMM.sql.gz` | paso 4.2 |
 | Base `registros` (fichas de personas, con datos sensibles: [`features/REGISTROS.md`](features/REGISTROS.md)) | misma instancia de Postgres, volumen `voice-as-a-service_postgres_data` | MB | sí, con `BACKUP_EXTRA_DBS=registros` en el `.env`: `~/atentina-backups/db/registros-AAAAMMDD-HHMM.sql.gz` | paso 4.2 (`make registros-restore`) |
 | Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí: `~/atentina-backups/tts/multi41/lr2e-6/checkpoint-epoch-2` y en R2 `tts/…` sin cifrar | paso 4.1 |
@@ -57,7 +58,7 @@ git -C ~/voice-as-a-service log origin/main..HEAD --oneline   # vacío: todo pus
 
 **Copia externa a Cloudflare R2** (implementada; bucket `atentina-backups`, token y `BACKUP_R2_*` ya configurados; falta deployar la rama y correr `make cron-install`):
 `backup.sh` corre a las 00:00 y 12:00 y sube a `r2://$BACKUP_R2_BUCKET/daily/<STAMP>/` la base, `crm` y las
-extra, `.env`, agentes en JSON, `storage/`, certificado SIP y embeddings, cifrados con la llave pública
+extra, `.env`, agentes en JSON, `storage/`, `secrets/`, certificado SIP y embeddings, cifrados con la llave pública
 `deploy/backup-key.asc`; espeja `audios/` (grabaciones, Estudio y `api/`, sin `line-spool/`) y el checkpoint
 en `tts/`, sin cifrar, solo lo que cambió; `latest` apunta al último backup completo. El lifecycle del bucket
 borra `daily/` a los 30 días. Alta, una vez:

@@ -270,9 +270,21 @@ def test_backup_sube_la_instantanea_cifrada_a_r2(sandbox, extra, subidos):
     assert result.returncode == 0, result.stderr
     assert any("registros.sql.gz.gpg" in line for line in sandbox.calls("gpg")) is subidos
     assert any("agents.json.gpg" in line for line in sandbox.calls("gpg"))
+    assert not any("secrets.tar.gz.gpg" in line for line in sandbox.calls("gpg"))
     cp = [line for line in sandbox.calls("docker") if "s3 cp" in line]
     assert any("daily/" in line for line in cp)
     assert any("--endpoint-url https://cuenta.r2.cloudflarestorage.com" in line for line in cp)
+
+
+def test_backup_incluye_secrets_cifrado(sandbox):
+    _backup_env(sandbox, BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
+    _key(sandbox)
+    (sandbox.root / "secrets").mkdir()
+    (sandbox.root / "secrets" / "ga.json").write_text("{}")
+    result = sandbox.run("scripts/ops/backup.sh")
+    assert result.returncode == 0, result.stderr
+    assert any("secrets.tar.gz.gpg" in line for line in sandbox.calls("gpg"))
+    assert list((sandbox.backups / "secrets").glob("secrets-*.tar.gz"))
 
 
 def test_backup_espeja_audios_sin_line_spool(sandbox, tmp_path):
@@ -364,6 +376,17 @@ def test_healthcheck_con_la_clave_y_200_da_ok(sandbox):
     result = sandbox.run("scripts/ops/healthcheck.sh", FAKE_REGISTROS_CODE="200")
     assert result.returncode == 0, result.stderr
     assert (sandbox.state / "health.state").read_text().strip() == "ok"
+
+
+def test_backup_fetch_imprime_secrets_solo_si_esta_el_archivo(sandbox, tmp_path):
+    sandbox.copy("scripts/ops/backup-fetch.sh", "scripts/ops/lib.sh")
+    sandbox.env_file(BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
+    folder = tmp_path / "restore"
+    folder.mkdir()
+    (folder / "secrets.tar.gz").write_text("x")
+    result = sandbox.run("scripts/ops/backup-fetch.sh", "20260101-0000", str(folder))
+    assert result.returncode == 0, result.stderr
+    assert f"tar -xzf {folder}/secrets.tar.gz" in result.stdout
 
 
 def test_backup_fetch_baja_audios_con_audios_1(sandbox, tmp_path):
