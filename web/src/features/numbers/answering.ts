@@ -63,6 +63,12 @@ export const RETRY_HELP =
   'Si da ocupado o no atiende, le avisa a quien llama, lo deja en espera y vuelve a llamar. La espera gasta minutos entrantes.';
 export const RETRY_INTERVAL_HELP = 'Espera con música entre un intento y el siguiente.';
 export const RETRY_MESSAGE_HELP = 'Lo dice una vez, antes de la espera. Vacío usa el de siempre.';
+/** Avisos apenas una persona da ocupado o no atiende, antes de seguir con la siguiente. */
+export const BUSY_MESSAGE_DEFAULT =
+  'La línea está ocupada. Podés esperar en línea o volver a llamar en unos minutos.';
+export const NO_ANSWER_MESSAGE_DEFAULT =
+  'Ahora no podemos atenderte. Volvé a llamar en unos minutos o esperá en línea.';
+export const FAILURE_MESSAGE_HELP = 'Lo dice apenas pasa, antes de seguir con la siguiente persona. Vacío usa el de siempre.';
 export const RING_SECONDS_HELP = 'Segundos antes de pasar a la siguiente.';
 export const RING_SECONDS_RETRY_HELP = `${RING_SECONDS_HELP} El buzón de un celular atiende a los ~33 s.`;
 
@@ -110,6 +116,8 @@ export interface AnsweringDraft {
   team_retry_seconds: number;
   team_retry_interval_seconds: number;
   team_retry_message: string;
+  team_busy_message: string;
+  team_no_answer_message: string;
   schedule: ScheduleDraft;
   team_fallback: TeamFallback;
   /** Con team_fallback member: la persona, fuera del número, con teléfono. */
@@ -132,6 +140,8 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     team_retry_seconds: n.team_retry_seconds,
     team_retry_interval_seconds: n.team_retry_interval_seconds,
     team_retry_message: n.team_retry_message,
+    team_busy_message: n.team_busy_message,
+    team_no_answer_message: n.team_no_answer_message,
     schedule: toDraft(n.schedule),
     team_fallback: n.team_fallback,
     team_fallback_member_id: n.team_fallback_member_id ?? null,
@@ -162,6 +172,8 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     team_retry_seconds: v.team_retry_seconds,
     team_retry_interval_seconds: v.team_retry_interval_seconds,
     team_retry_message: v.team_retry_message.trim(),
+    team_busy_message: v.team_busy_message.trim(),
+    team_no_answer_message: v.team_no_answer_message.trim(),
     schedule: toSchedule(v.schedule),
     team_fallback: v.team_fallback,
     team_fallback_member_id: v.team_fallback === 'member' ? v.team_fallback_member_id : null,

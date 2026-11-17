@@ -21,6 +21,8 @@ export type AnsweringField =
   | 'team_retry_seconds'
   | 'team_retry_interval_seconds'
   | 'team_retry_message'
+  | 'team_busy_message'
+  | 'team_no_answer_message'
   | 'schedule'
   | 'team_fallback_member_id'
   | 'team_fallback_message';
@@ -46,6 +48,8 @@ export function answeringErrorField(e: unknown): AnsweringField | undefined {
   if (/^team_retry_interval_seconds\b/.test(m)) return 'team_retry_interval_seconds';
   if (/^team_retry_seconds\b/.test(m)) return 'team_retry_seconds';
   if (/^team_retry_message\b|mensaje de espera/i.test(m)) return 'team_retry_message';
+  if (/^team_busy_message\b|aviso de ocupado/i.test(m)) return 'team_busy_message';
+  if (/^team_no_answer_message\b|aviso si no atiende/i.test(m)) return 'team_no_answer_message';
   if (/^team_fallback_message\b|mensaje/i.test(m)) return 'team_fallback_message';
   if (/^schedule\b|horario|franja|zona horaria|días|fecha/i.test(m)) return 'schedule';
   return undefined;

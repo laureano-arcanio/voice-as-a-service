@@ -35,6 +35,8 @@ const base = {
   team_retry_seconds: 0,
   team_retry_interval_seconds: 30,
   team_retry_message: '',
+  team_busy_message: '',
+  team_no_answer_message: '',
   record_full_call: false,
   schedule: null,
   team_fallback: 'voicemail',
@@ -243,6 +245,8 @@ describe('números: quién atiende', () => {
       team_retry_seconds: 0,
       team_retry_interval_seconds: 30,
       team_retry_message: '',
+      team_busy_message: '',
+      team_no_answer_message: '',
       schedule: null,
       team_fallback: 'agent',
       team_fallback_member_id: null,
@@ -361,6 +365,36 @@ describe('números: quién atiende', () => {
       team_retry_seconds: 180,
       team_retry_interval_seconds: 15,
       team_retry_message: 'Espere en línea.',
+    });
+  });
+
+  it('avisos de ocupado y sin atender: se cargan, se guardan y la ayuda explica cuándo salen', async () => {
+    const saved = {
+      ...TEAM_NUMBER,
+      team_busy_message: 'Ocupado, esperá.',
+      team_no_answer_message: 'No atiende.',
+    } as PhoneNumber;
+    const calls = mockApi([TEAM_NUMBER, { ...saved, id: 'n8', e164: '+541155550008' } as PhoneNumber], {
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse(saved),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit('+541155550001');
+    const busy = within(dialog).getByLabelText('Si una persona da ocupado');
+    const noAnswer = within(dialog).getByLabelText('Si una persona no atiende');
+    expect(busy).toHaveAttribute('placeholder', expect.stringContaining('La línea está ocupada'));
+    expect(noAnswer).toHaveAttribute('placeholder', expect.stringContaining('Ahora no podemos atenderte'));
+    expect(
+      within(dialog).getAllByText(
+        'Lo dice apenas pasa, antes de seguir con la siguiente persona. Vacío usa el de siempre.',
+      ),
+    ).toHaveLength(2);
+    await userEvent.type(busy, ' Ocupado, esperá. ');
+    await userEvent.type(noAnswer, ' No atiende. ');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toBeDefined());
+    expect(patched(calls, 'n1')).toMatchObject({
+      team_busy_message: 'Ocupado, esperá.',
+      team_no_answer_message: 'No atiende.',
     });
   });
 
@@ -601,6 +635,8 @@ describe('números: formulario y errores', () => {
       team_retry_seconds: 0,
       team_retry_interval_seconds: 30,
       team_retry_message: '',
+      team_busy_message: '',
+      team_no_answer_message: '',
       schedule: null,
       team_fallback: 'voicemail',
       team_fallback_member_id: null,
@@ -634,6 +670,12 @@ describe('números: formulario y errores', () => {
     );
     expect(answeringErrorField(err(422, 'El mensaje de espera va hasta 500 caracteres'))).toBe(
       'team_retry_message',
+    );
+    expect(answeringErrorField(err(422, 'El aviso de ocupado va hasta 500 caracteres'))).toBe(
+      'team_busy_message',
+    );
+    expect(answeringErrorField(err(422, 'El aviso si no atiende va hasta 500 caracteres'))).toBe(
+      'team_no_answer_message',
     );
     expect(answeringErrorField(err(409, 'otra cosa'))).toBeUndefined();
     expect(answeringErrorField(new Error('red'))).toBeUndefined();

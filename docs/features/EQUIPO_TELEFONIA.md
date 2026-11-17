@@ -28,6 +28,7 @@ saliente necesita además `outbound_calls`).
 | `phone_numbers.strategy` (`sequential`/`round_robin`, default `sequential`), `last_member_id` (FK `team_members`, SET NULL) | Orden de los celulares del número, como en las áreas: la última que atendió en su celular | 0050 |
 | `phone_numbers.team_connect_on_answer` (bool, default `false`), `team_hold_music` (bool, default `true`) | Con `team`: conectar apenas atiende el teléfono, sin whisper ni tecla ni detección de contestador (para destinos que siempre atienden, como una central); música o silencio mientras suena. Los números existentes siguen con whisper y música | 0051 |
 | `phone_numbers.team_retry_seconds` (int, default `0`), `team_retry_interval_seconds` (int, default `30`), `team_retry_message` (texto, default vacío) | Con `team`: etapa de reintentos antes del respaldo. Si nadie atiende, se vuelve a llamar cada `team_retry_interval_seconds` durante `team_retry_seconds` (0, sin reintentos; 15 a 300, de a 15), con aviso y música; vacío, el aviso por defecto. Los números existentes no reintentan | 0054 |
+| `phone_numbers.team_busy_message`, `team_no_answer_message` (texto, default vacío) | Con `team`: lo que se dice apenas una persona da ocupado o no atiende, antes de seguir con la siguiente. Vacío usa el aviso por defecto (`app/voice/direct.py`). Se dice una vez por motivo en toda la llamada: los reintentos no lo repiten | 0059 |
 | `phone_numbers.record_full_call` (bool, default `false`) | Graba la llamada entera por teléfono, con el equipo o con el agente ([Grabación completa](#grabación-completa)). Asignar o liberar el número la apaga | 0055 |
 | `phone_number_members` | Personas del número, en orden | 0039 |
 | `user_presence` | `user_id`, `client_id`, `last_seen`: Disponible en el panel | 0039 |
@@ -62,7 +63,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | `PUT /me/presence` `{available}`, `GET /me/ringing` | Pulso de Disponible; entrantes que le suenan | — |
 | `GET /team/presence` | Quién está Disponible u ocupado | `list_team_presence` |
 | `GET/PUT /clients/{id}/direct-call-settings` `{recording_notice}` | Aviso de grabación en las directas | `get_/update_direct_call_settings` |
-| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_member_id`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`). `team_retry_seconds` (0 a 300, de a 15), `team_retry_interval_seconds` (15 a 120) y `team_retry_message` (hasta 500; se recorta): no nulos, 422 fuera de rango; liberar el número los vuelve a `0`, `30` y vacío. `record_full_call` (bool no nulo; aparte del modo, vale con `agent` y con `team`). Otro `team_fallback` sin mandar la persona la limpia; borrar a la persona deja el número en `voicemail`; liberarlo, también | `route_phone_number` |
+| `PATCH /phone-numbers/{id}` | `answer_mode`, `member_ids` (reemplaza, en orden), `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_member_id`, `team_fallback_message`, `team_connect_on_answer`, `team_hold_music` (los dos, booleanos no nulos; liberar el número los vuelve a `false` y `true`). `team_retry_seconds` (0 a 300, de a 15), `team_retry_interval_seconds` (15 a 120) y `team_retry_message` (hasta 500; se recorta): no nulos, 422 fuera de rango; liberar el número los vuelve a `0`, `30` y vacío. `team_busy_message` y `team_no_answer_message` (hasta 500; se recortan): vacíos usan el aviso por defecto y liberar el número los vacía. `record_full_call` (bool no nulo; aparte del modo, vale con `agent` y con `team`). Otro `team_fallback` sin mandar la persona la limpia; borrar a la persona deja el número en `voicemail`; liberarlo, también | `route_phone_number` |
 | `GET /calls` | Filtros `mode`, `user_id`, `answered_by`, `phone`, `contact_id`; `CallOut` con `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id`; el detalle trae `call.team` (`answered`, `person`, `fallback`) | `list_calls`, `get_call` |
 | `POST /calls/{id}/hangup` | Cortar (también las directas) | `hangup_call` |
 | `GET /reports/transfers` | Panel de derivaciones (Reportes > Transferencias, `advanced_reports`); `/reports/calls` separa agente, directa y equipo, por usuario | `get_report_*` ([REPORTES.md](REPORTES.md)) |
@@ -109,7 +110,9 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    antes de marcar, así el cliente no oye el timbre ni el whisper.
 5. Al atender, en paralelo: STT de los primeros 3 s contra las frases de buzón (`app/campaigns/voicemail.py`) y el
    whisper solo a la persona. Después, `HANDOFF_CONFIRM_SECONDS` (8) para marcar 1. Buzón: `machine`; otra tecla,
-   cortar o no marcar: `not_confirmed`; siguiente miembro.
+   cortar o no marcar: `not_confirmed`; siguiente miembro. Apenas el intento falla (ocupado, sin atender, buzón o
+   sin el 1), se avisa al cliente con `messages.busy` o `messages.no_answer` (una vez por área y motivo en la
+   derivación), antes de seguir con el siguiente; el mensaje queda en la conversación.
 6. Con el 1: conecta las dos pistas y el worker queda en **modo escucha** (sin LLM ni TTS): VAD + STT de cada lado
    en la conversación (`handoff_leg`, `person`) y un WAV por frase si el agente tiene `record_audio`. El LLM ve ese
    tramo como mensajes con su rol y nombre.
@@ -121,7 +124,9 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    de pasar a otra área. Un área sin miembros llamables pero con esa persona la llama. Si es de otro cliente, está
    inactiva, sin teléfono o es miembro del área, no se la llama. No entra en el round robin (`last_member_id`).
    Si no acepta o no hay persona: `busy` si el último intento dio ocupado, si no `no_answer`. El texto queda en la conversación
-   y el modelo toma el mensaje en el turno siguiente (regla de la plantilla, no del código).
+   y el modelo toma el mensaje en el turno siguiente (regla de la plantilla, no del código). Ese aviso ya se dijo
+   apenas falló el último intento (regla anterior), así que al volver el agente no se repite: solo se le devuelve la
+   palabra.
    Ese aviso de vuelta se puede interrumpir: sin eso LiveKit descarta lo que la persona dice encima
    (`discard_audio_if_uninterruptible`) y un pedido hecho durante el aviso se perdía. "Te paso con…" no se interrumpe.
    Si el modelo derivó sin decir nada, el aviso de transferencia queda como el texto de ese turno.
@@ -161,7 +166,9 @@ para llamar (sin nombres); nunca por teléfono, celular, campañas, loadtest ni 
 Mensajes por área (`DEFAULT_MESSAGES` en `app/services/handoff.py`; variables `{{area}}`, `{{persona}}`,
 `{{cliente}}`, `{{resumen}}`, `{{horario}}`, `{{nombre}}`, las variables de la conversación por su nombre (también
 las ocultas, que no pasan por el LLM) y las del sistema, como `{{call.phone}}`; hasta 500 caracteres). Las de la derivación (`area`, `persona`,
-`cliente`, `resumen`, `horario`) no las pisa una variable de la conversación y una que falta queda vacía:
+`cliente`, `resumen`, `horario`) no las pisa una variable de la conversación y una que falta queda vacía.
+`busy` y `no_answer` se dicen apenas falla cada intento, una vez por área y motivo en la derivación, y no se
+repiten al volver el agente:
 
 | Clave | Default |
 |---|---|
@@ -273,6 +280,11 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
    - El orden de los celulares es `strategy`: `sequential`, siempre desde la primera; `round_robin`, desde la
      siguiente a `last_member_id` (`handoff.rotate`, la misma de las áreas; si ya no está en el número, desde la
      primera). El panel suena a todos a la vez, sin orden.
+   Apenas una persona da ocupado o no atiende, se corta la música y se avisa a quien llama con
+   `team_busy_message`/`team_no_answer_message` (vacío, "La línea está ocupada…" / "Ahora no podemos atenderte…"),
+   antes de seguir con la siguiente; después vuelve la música. Se dice una vez por motivo en toda la llamada (los
+   reintentos no lo repiten) y solo lo oye quien llama: la persona que falló ya salió y la siguiente todavía no
+   fue marcada.
 3. Atiende alguien: se apagan los demás timbres, se conectan y se graba y transcribe como la saliente. Si corta
    la persona, termina (no hay agente al que volver). Atendida en el celular, queda el `user_id` de la persona si
    tiene usuario y se anota en `phone_numbers.last_member_id` (con cualquier `strategy`; solo si el número sigue
@@ -489,7 +501,7 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - Tests (LLM y teléfono falsos): `tests/test_handoff.py`, `test_handoff_transfer.py`, `test_direct_calls.py`,
   `test_direct_voice.py`, `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
   `test_voice_wiring.py`, `test_dtmf.py`, `test_dtmf_agent.py`, `test_line_spool.py`, `test_line_recordings.py` y `test_migration_0023/0024/0039/0053.py`, en `make test`. La 0050 (`strategy` del número), la 0051
-  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) la 0054 (reintentos) y la 0055 (`record_full_call`) y la 0056 (`call_logs.line_id`, con índice) solo agregan columnas, y `test_migration_0051.py`, `test_migration_0054.py`, `test_migration_0055.py` y `test_migration_0056.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
+  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) la 0054 (reintentos), la 0055 (`record_full_call`), la 0056 (`call_logs.line_id`, con índice) y la 0059 (`team_busy_message`, `team_no_answer_message`) solo agregan columnas, y `test_migration_0051.py`, `test_migration_0054.py`, `test_migration_0055.py`, `test_migration_0056.py` y `test_migration_0059.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y

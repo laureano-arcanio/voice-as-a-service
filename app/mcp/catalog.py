@@ -606,6 +606,8 @@ _WRITE: tuple[Tool, ...] = (
          "`team_retry_seconds` (0 a 300, de a 15; por defecto 0): si nadie atiende, segundos durante los que se vuelve a llamar, "
          "con un aviso y música; 0, no reintenta. `team_retry_interval_seconds` (15 a 120, por defecto 30): espera entre un "
          "intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre). "
+         "`team_busy_message` y `team_no_answer_message`: lo que se dice apenas una persona da ocupado o no atiende, "
+         "antes de seguir con la siguiente (vacío, el de siempre); se dice una vez por motivo. "
          "`record_full_call` (por defecto false), con equipo o agente: graba el audio entero de las llamadas por "
          "teléfono del número (lo que dice quien llama y lo que oye); no incluye el link para llamar, la prueba "
          "del panel ni WhatsApp.",

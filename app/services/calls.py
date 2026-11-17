@@ -294,6 +294,9 @@ class TeamRoute:
     retry_seconds: int = 0
     retry_interval_seconds: int = 30
     retry_message: str = ""
+    # Avisos apenas una persona da ocupado o no atiende, antes de seguir con la siguiente (vacio: app/voice/direct.py).
+    busy_message: str = ""
+    no_answer_message: str = ""
 
 
 @dataclass
@@ -332,6 +335,7 @@ def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
         connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music,
         retry_seconds=number.team_retry_seconds, retry_interval_seconds=number.team_retry_interval_seconds,
         retry_message=number.team_retry_message,
+        busy_message=number.team_busy_message, no_answer_message=number.team_no_answer_message,
         fallback_member=TeamPerson(member_id=backup.id, name=backup.name, phone=backup.phone, user_id=backup.user_id)
         if backup else None)
 

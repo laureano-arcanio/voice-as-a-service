@@ -147,7 +147,8 @@ class Transfer:
                  hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
                  on_connected=None, limit=None, get_vars=None, get_contact_vars=None, spawn_notice=None,
                  on_progress=None,
-                 progress_names: bool = True, progress_id: int = 1):
+                 progress_names: bool = True, progress_id: int = 1,
+                 announce: bool = False, announced: set | None = None, messages: dict | None = None):
         self.sessions = sessions
         self.line = line
         self.conversation_id = conversation_id
@@ -160,6 +161,12 @@ class Transfer:
         self.hang_up = hang_up
         self.on_connected = on_connected     # on_connected(member): la persona quedo conectada con el cliente
         self.hold_music = hold_music
+        # Aviso apenas una persona da ocupado o no atiende, antes de seguir con la siguiente (announce): se dice
+        # una vez por area y motivo. `announced` se comparte entre pasadas (la entrante al equipo crea un Transfer
+        # por pasada) y `messages` pisa los mensajes del area (los avisos por numero de la entrante al equipo).
+        self.announce = announce
+        self.announced = announced if announced is not None else set()
+        self.messages = messages or {}
         # limit() -> motivo de corte o None, con la persona conectada: la entrante directa no tiene el
         # quota_watchdog del worker (minutos entrantes y duracion: app/voice/direct.py, TeamCall._limit).
         self.limit = limit
@@ -471,6 +478,7 @@ class Transfer:
                         outcome.ended = await self._connected(area, member, leg_id, identity, texts, values,
                                                               rotate=not backup)
                         return outcome
+                    await self._announce(area, result, texts, values)
                 route = None if step.backup else self._route(area, "no_answer_area_id", visited)
                 if route is not None:
                     self._rerouted(step, route, outcome.result)
@@ -478,7 +486,8 @@ class Transfer:
                     continue
                 self._finish("failed", outcome.result)
                 await self._stop_hold(area.id)
-                await self._back(texts["busy" if outcome.result == "busy" else "no_answer"], values)
+                skip = self.announce and self._failure_key(area, outcome.result) in self.announced
+                await self._back(texts["busy" if outcome.result == "busy" else "no_answer"], values, skip_say=skip)
                 return outcome
         except CustomerGone:
             self._abort = "customer_hung_up"
@@ -568,7 +577,7 @@ class Transfer:
             logger.info("directa %s: no se llama a los celulares (%s)", self.conversation_id, reason)
             self._event("handoff.unavailable", area=team.name, reason=reason)
             return Outcome("unavailable", reason)
-        texts = handoff.DEFAULT_MESSAGES | {"whisper": whisper}
+        texts = handoff.DEFAULT_MESSAGES | self.messages | {"whisper": whisper}
         summary = asyncio.create_task(self._summary())
         outcome = Outcome("failed")
         try:
@@ -582,6 +591,7 @@ class Transfer:
                     outcome.status, outcome.member_id = "connected", member.id
                     outcome.ended = await self._connected(team, member, leg_id, identity, texts, values)
                     return outcome
+                await self._announce(team, result, texts, values)
             return outcome
         finally:
             summary.cancel()
@@ -800,12 +810,34 @@ class Transfer:
         self.on_message("assistant", text)
         await self.line.say(text, interruptible=interruptible)
 
-    async def _back(self, text: str, values: dict) -> None:
+    def _failure_key(self, area: HandoffArea | TeamRing, result: str) -> tuple[str | None, str]:
+        return area.id, "busy" if result == "busy" else "no_answer"
+
+    async def _announce(self, area: HandoffArea | TeamRing, result: str, texts: dict, values: dict) -> bool:
+        """Avisa al cliente apenas una persona da ocupado o no atiende, antes de seguir con la siguiente. Para y
+        retoma la musica; el mensaje queda en la conversacion. Una vez por area y motivo: devuelve si ya estaba
+        dicho. `messages` del Transfer (la entrante al equipo) pisa el texto del area."""
+        if not self.announce:
+            return False
+        key = self._failure_key(area, result)
+        if key in self.announced:
+            return True
+        self.announced.add(key)
+        text = handoff.render(texts["busy" if result == "busy" else "no_answer"], **values)
+        if self.hold_music:
+            await self.line.hold(False)
+        await self._say(text)
+        if self.hold_music:
+            await self.line.hold(True)
+        return True
+
+    async def _back(self, text: str, values: dict, skip_say: bool = False) -> None:
         """Vuelve el agente: el texto queda en la conversacion (el LLM lo ve en el turno siguiente). Se puede
         interrumpir: sin interrupciones, LiveKit descarta lo que dice la persona encima (discard_audio_if_uninterruptible)
-        y un pedido hecho durante el aviso se perdia."""
+        y un pedido hecho durante el aviso se perdia. skip_say: ya se aviso apenas fallo el ultimo intento."""
         await self.line.resume()
-        await self._say(handoff.render(text, **values), interruptible=True)
+        if not skip_say:
+            await self._say(handoff.render(text, **values), interruptible=True)
 
 
 # ---------- LiveKit ----------

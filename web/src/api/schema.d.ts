@@ -655,7 +655,7 @@ export interface paths {
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
          *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
          *     `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
-         *     `team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
+         *     `team_retry_message`, los avisos `team_busy_message` y `team_no_answer_message` (apenas una persona da ocupado o no atiende), y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
          *     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
@@ -8373,6 +8373,10 @@ export interface components {
             team_retry_interval_seconds: number;
             /** Team Retry Message */
             team_retry_message: string;
+            /** Team Busy Message */
+            team_busy_message: string;
+            /** Team No Answer Message */
+            team_no_answer_message: string;
             /** Record Full Call */
             record_full_call: boolean;
             /**
@@ -8451,6 +8455,16 @@ export interface components {
              * @description Aviso al empezar a reintentar; vacío, el de siempre
              */
             team_retry_message?: string | null;
+            /**
+             * Team Busy Message
+             * @description Con el equipo: lo que se dice apenas una persona da ocupado, antes de seguir con la siguiente; vacío, el de siempre
+             */
+            team_busy_message?: string | null;
+            /**
+             * Team No Answer Message
+             * @description Con el equipo: lo que se dice apenas una persona no atiende, antes de seguir con la siguiente; vacío, el de siempre
+             */
+            team_no_answer_message?: string | null;
             /**
              * Record Full Call
              * @description Graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp

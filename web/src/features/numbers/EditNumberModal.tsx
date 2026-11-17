@@ -30,12 +30,15 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUpdateNumber } from './api';
 import {
   type AnsweringDraft,
+  BUSY_MESSAGE_DEFAULT,
   CONNECT_ON_ANSWER_HELP,
   CONNECT_ON_ANSWER_PANEL_HELP,
+  FAILURE_MESSAGE_HELP,
   HOLD_MUSIC_HELP,
   FALLBACK_LABELS,
   FALLBACK_MESSAGE_DEFAULTS,
   MESSAGE_MAX,
+  NO_ANSWER_MESSAGE_DEFAULT,
   RECORD_FULL_CALL_HELP,
   RETRY_HELP,
   RETRY_INTERVAL_DEFAULT,
@@ -103,6 +106,8 @@ export function EditNumberModal({
       team_fallback_member_id: (v, all) =>
         teamMode(all) && all.team_fallback === 'member' && !v ? 'Elegí la persona a la que se llama' : null,
       team_retry_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
+      team_busy_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
+      team_no_answer_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
       team_fallback_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
     },
   });
@@ -316,6 +321,30 @@ export function EditNumberModal({
                       allowDecimal={false}
                       allowNegative={false}
                       {...form.getInputProps('ring_seconds')}
+                    />
+                  </SimpleGrid>
+
+                  <Divider label="Avisos apenas falla una persona" labelPosition="left" mt="xs" />
+                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+                    <Textarea
+                      label="Si una persona da ocupado"
+                      description={FAILURE_MESSAGE_HELP}
+                      placeholder={BUSY_MESSAGE_DEFAULT}
+                      maxLength={MESSAGE_MAX}
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps('team_busy_message')}
+                    />
+                    <Textarea
+                      label="Si una persona no atiende"
+                      description={FAILURE_MESSAGE_HELP}
+                      placeholder={NO_ANSWER_MESSAGE_DEFAULT}
+                      maxLength={MESSAGE_MAX}
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps('team_no_answer_message')}
                     />
                   </SimpleGrid>
 

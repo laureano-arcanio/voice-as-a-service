@@ -394,10 +394,13 @@ def test_team_phone_first_nobody_then_panel_answers(api, admin, monkeypatch, tmp
 
     assert asyncio.run(run()) == "answered" and team.reason == "customer_hangup"
     assert [x for x in line.log if x[0] in ("dial", "hold", "listen")] == [
-        ("hold", True), ("dial", "+5493511111111"), ("hold", False), ("listen", f"user-{ana_id}"), ("hold", False)]
-    assert messages(api, cid) == [("user", "Hola, quería consultar", None, 1), ("assistant", "Sí, decime", "Ana", 2)]
+        ("hold", True), ("dial", "+5493511111111"), ("hold", False), ("hold", True),
+        ("hold", False), ("listen", f"user-{ana_id}"), ("hold", False)]
+    assert messages(api, cid) == [("assistant", direct.BUSY_MESSAGE, None, None),
+                                  ("user", "Hola, quería consultar", None, 1), ("assistant", "Sí, decime", "Ana", 2)]
     # La transcripcion en vivo llega al panel de Ana (tema transcript), como en la saliente.
-    assert line.sent == [("transcript", {"role": "user", "person": None, "text": "Hola, quería consultar"}),
+    assert line.sent == [("transcript", {"role": "assistant", "person": None, "text": direct.BUSY_MESSAGE}),
+                         ("transcript", {"role": "user", "person": None, "text": "Hola, quería consultar"}),
                          ("transcript", {"role": "assistant", "person": "Ana", "text": "Sí, decime"})]
     with api.sessions() as s:
         assert s.get(CallRow, cid).user_id == ana_id
@@ -508,7 +511,8 @@ def test_team_nobody_answers_voicemail_records(api, admin, monkeypatch, tmp_path
     assert asyncio.run(team.run()) == "voicemail" and team.reason == "team_no_answer"
     assert ("say", direct.FALLBACK_MESSAGES["voicemail"]) in line.log and ("resume",) in line.log
     assert ("settle", CUSTOMER) in line.log
-    assert messages(api, cid) == [("assistant", direct.FALLBACK_MESSAGES["voicemail"], None, None),
+    assert messages(api, cid) == [("assistant", direct.NO_ANSWER_MESSAGE, None, None),
+                                  ("assistant", direct.FALLBACK_MESSAGES["voicemail"], None, None),
                                   ("user", "Soy Laura, llamame al 351 555 1234", None, 1), ("user", "Gracias", None, 2)]
     assert (tmp_path / cid / "001.wav").is_file()
     assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "voicemail"}
@@ -533,7 +537,8 @@ def test_team_nobody_answers_the_backup_person_answers(api, admin, monkeypatch, 
     assert dialed(line) == [JUAN, LUIS]
     # Con la misma musica de espera y el mismo whisper que los celulares del numero.
     assert [x for x in line.log if x[0] == "hold"] == [("hold", True), ("hold", False), ("hold", True),
-                                                       ("hold", False), ("hold", False)]
+                                                       ("hold", False), ("hold", True), ("hold", False),
+                                                       ("hold", False)]
     assert all(x[1].startswith("Llamada a la línea") for x in line.log if x[0] == "whisper")
     # No entra en la rotacion del numero.
     assert last_member(api, inbound.team.number_id) is None
@@ -693,10 +698,11 @@ def test_team_connect_on_answer_skips_the_whisper_and_the_1(api, admin, monkeypa
     assert asyncio.run(team.run()) == "answered" and team.reason == "customer_hangup"
     assert not [x for x in line.log if x[0] in ("whisper", "first_words")]
     assert [x for x in line.log if x[0] in ("hold", "dial", "connect")] == [
-        ("hold", True), ("dial", "+5493511111111"), ("dial", "+5493512222222"), ("hold", False),
-        ("connect", "persona-2"), ("hold", False)]
-    assert [(r, t, p) for r, t, p, _ in messages(api, cid)] == [("assistant", "La Estrella, buenos días", "Pedro"),
-                                                               ("user", "Hola, quiero un remis", None)]
+        ("hold", True), ("dial", "+5493511111111"), ("hold", False), ("hold", True),
+        ("dial", "+5493512222222"), ("hold", False), ("connect", "persona-2"), ("hold", False)]
+    assert [(r, t, p) for r, t, p, _ in messages(api, cid)] == [
+        ("assistant", direct.BUSY_MESSAGE, None), ("assistant", "La Estrella, buenos días", "Pedro"),
+        ("user", "Hola, quiero un remis", None)]
     with api.sessions() as s:
         legs = s.query(HandoffLeg).order_by(HandoffLeg.created_at).all()
         assert [leg.result for leg in legs] == ["busy", "connected"]
@@ -920,6 +926,23 @@ def test_team_person_deleted_mid_call_is_not_marked(api, admin, monkeypatch, tmp
     assert last_member(api, inbound.team.number_id) is None
 
 
+def test_team_busy_and_no_answer_messages_are_said_as_soon_as_they_happen(api, admin, monkeypatch, tmp_path):
+    # Juan da ocupado y Pedro no atiende: los avisos salen apenas pasa cada uno, con el texto del numero, antes de
+    # seguir con la siguiente persona y sin esperar al respaldo.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None),
+                               ("Pedro", "3512222222", None),
+                               team_busy_message="Ocupado, esperá.", team_no_answer_message="No atiende, esperá.")
+    cid = inbound.conversation_id
+    line = TeamLine({JUAN: "busy", PEDRO: "no_answer"}, on_listen=[("left", CUSTOMER)])
+    team = team_call(api, c, inbound, line)
+    assert asyncio.run(team.run()) == "voicemail" and team.reason == "team_no_answer"
+    assert [x[1] for x in line.log if x[0] == "say"] == [
+        "Ocupado, esperá.", "No atiende, esperá.", direct.FALLBACK_MESSAGES["voicemail"]]
+    assert [m[:2] for m in messages(api, cid)] == [
+        ("assistant", "Ocupado, esperá."), ("assistant", "No atiende, esperá."),
+        ("assistant", direct.FALLBACK_MESSAGES["voicemail"])]
+
+
 # ---------- reintentos (team_retry_*) ----------
 
 class RetryLine(TeamLine):
@@ -971,15 +994,28 @@ def test_team_retry_busy_then_answers(api, admin, monkeypatch, tmp_path, waits):
     assert asyncio.run(team.run()) == "answered" and team.reason == "person_hangup"
     assert waits == [0] and dialed(line) == [JUAN, JUAN] and ("resume",) not in line.log
     assert [x for x in line.log if x[0] in ("hold", "say", "connect")] == [
-        ("hold", True), ("hold", False), ("say", direct.RETRY_MESSAGE), ("hold", True), ("hold", False),
+        ("hold", True), ("hold", False), ("say", direct.BUSY_MESSAGE), ("hold", True),
+        ("hold", False), ("say", direct.RETRY_MESSAGE), ("hold", True), ("hold", False),
         ("connect", "persona-2"), ("hold", False)]
-    assert messages(api, cid)[0][:2] == ("assistant", direct.RETRY_MESSAGE)
+    assert messages(api, cid)[:2] == [("assistant", direct.BUSY_MESSAGE, None, None),
+                                      ("assistant", direct.RETRY_MESSAGE, None, None)]
     events = team_events(api, cid)
     assert ("team.retry", {"seconds": 60}) in events and not [t for t, _ in events if t == "team.fallback"]
     with api.sessions() as s:
         assert [leg.result for leg in s.query(HandoffLeg).filter_by(conversation_id=cid)
                 .order_by(HandoffLeg.created_at)] == ["busy", "connected"]
     assert team_outcome(admin, cid) == {"answered": True, "person": "Juan", "fallback": None}
+
+
+def test_team_failure_message_is_said_once_across_retries(api, admin, monkeypatch, tmp_path, waits):
+    # El aviso de ocupado se dice una vez en toda la llamada: los reintentos no lo repiten.
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Juan", "3511111111", None))
+    inbound = with_retries(api, inbound, 2, 1, team_fallback="hangup", team_busy_message="Ocupado, esperá.")
+    line = RetryLine({JUAN: "busy"})
+    assert asyncio.run(team_call(api, c, inbound, line).run()) == "hangup"
+    says = [x[1] for x in line.log if x[0] == "say"]
+    assert says == ["Ocupado, esperá.", direct.RETRY_MESSAGE, direct.FALLBACK_MESSAGES["hangup"]]
+    assert says.count("Ocupado, esperá.") == 1
 
 
 def test_team_retry_until_the_limit_then_the_fallback(api, admin, monkeypatch, tmp_path, waits):
@@ -992,7 +1028,8 @@ def test_team_retry_until_the_limit_then_the_fallback(api, admin, monkeypatch, t
     team = team_call(api, c, inbound, line)
     assert asyncio.run(team.run()) == "hangup" and team.reason == "team_no_answer"
     assert waits == [1] and dialed(line) == [JUAN, JUAN]
-    assert [x[1] for x in line.log if x[0] == "say"] == ["Aguarde en línea, por favor.",
+    assert [x[1] for x in line.log if x[0] == "say"] == [direct.NO_ANSWER_MESSAGE,
+                                                         "Aguarde en línea, por favor.",
                                                          "No lo hemos podido conectar."]
     fallback = [d for t, d in team_events(api, cid) if t == "team.fallback"]
     assert fallback == [{"fallback": "hangup", "reason": "team_no_answer", "retries": 1}]
@@ -1011,7 +1048,8 @@ def test_team_retry_customer_hangs_up_while_waiting(api, admin, monkeypatch, tmp
     line = HangsUp({JUAN: "busy"})
     team = team_call(api, c, inbound, line)
     assert asyncio.run(team.run()) == "customer_hung_up" and team.reason == "customer_hangup"
-    assert dialed(line) == [JUAN] and [x[1] for x in line.log if x[0] == "say"] == [direct.RETRY_MESSAGE]
+    assert dialed(line) == [JUAN] and [x[1] for x in line.log if x[0] == "say"] == [
+        direct.BUSY_MESSAGE, direct.RETRY_MESSAGE]
     assert line.log[-1] == ("hold", False)
     assert not [t for t, _ in team_events(api, inbound.conversation_id) if t == "team.fallback"]
 
@@ -1057,7 +1095,8 @@ def test_team_retry_stops_without_minutes_or_time(api, admin, monkeypatch, tmp_p
     team = team_call(api, c, inbound, line)
     team.deadline = time.monotonic() + direct.RETRY_DEADLINE_MARGIN - 1
     assert asyncio.run(team.run()) == "hangup" and dialed(line) == [JUAN] and team.retries is None
-    assert [x[1] for x in line.log if x[0] == "say"] == [direct.FALLBACK_MESSAGES["hangup"]]
+    assert [x[1] for x in line.log if x[0] == "say"] == [direct.BUSY_MESSAGE,
+                                                         direct.FALLBACK_MESSAGES["hangup"]]
 
 
 def test_team_retry_after_hours_and_without_music(api, admin, monkeypatch, tmp_path):

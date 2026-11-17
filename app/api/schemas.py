@@ -502,6 +502,12 @@ class PhoneNumberUpdate(BaseModel):
         default=None, ge=15, le=120, description="Espera entre un intento y el siguiente")
     team_retry_message: str | None = Field(
         default=None, max_length=500, description="Aviso al empezar a reintentar; vacío, el de siempre")
+    team_busy_message: str | None = Field(
+        default=None, max_length=500, description="Con el equipo: lo que se dice apenas una persona da ocupado, antes "
+                                                  "de seguir con la siguiente; vacío, el de siempre")
+    team_no_answer_message: str | None = Field(
+        default=None, max_length=500, description="Con el equipo: lo que se dice apenas una persona no atiende, antes "
+                                                  "de seguir con la siguiente; vacío, el de siempre")
     record_full_call: bool | None = Field(
         default=None, description="Graba el audio entero de las llamadas por teléfono del número (lo que dice quien "
                                   "llama y lo que oye), con el equipo o con el agente. No incluye el link para "
@@ -543,6 +549,8 @@ class PhoneNumberOut(ORM):
     team_retry_seconds: int
     team_retry_interval_seconds: int
     team_retry_message: str
+    team_busy_message: str
+    team_no_answer_message: str
     record_full_call: bool
     members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 

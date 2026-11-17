@@ -245,6 +245,10 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     team_retry_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     team_retry_interval_seconds: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
     team_retry_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Con team: lo que se dice apenas una persona da ocupado o no atiende, antes de seguir con la siguiente.
+    # Vacio usa el mensaje por defecto (app/voice/direct.py). Se dice una vez por motivo en toda la llamada.
+    team_busy_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    team_no_answer_message: Mapped[str] = mapped_column(Text, default="", server_default="")
     # Graba la llamada entera por telefono (Asterisk MixMonitor): el marcador del spool lo escribe la app
     # (services/line_spool.py). Se apaga al asignar o liberar el numero.
     record_full_call: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

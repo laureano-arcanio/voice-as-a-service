@@ -26,10 +26,14 @@ export const MESSAGE_FIELDS: MessageField[] = [
   {
     key: 'no_answer',
     label: 'Mensaje si nadie atiende',
-    help: 'También si atiende un contestador, o si no hay línea o minutos libres. En un área de aviso, si no se pudo avisar a nadie.',
+    help: 'En un área de llamada, se lo dice apenas una persona no atiende, antes de seguir con la siguiente; también si atiende un contestador, o si no hay línea o minutos libres. En un área de aviso, si no se pudo avisar a nadie.',
     group: 'call+notice',
   },
-  { key: 'busy', label: 'Si están ocupados', help: 'Cuando la persona rechaza la llamada o da ocupado.' },
+  {
+    key: 'busy',
+    label: 'Si están ocupados',
+    help: 'En un área de llamada, se lo dice apenas la persona rechaza la llamada o da ocupado, antes de seguir con la siguiente.',
+  },
   {
     key: 'after_hours',
     label: 'Fuera de horario',

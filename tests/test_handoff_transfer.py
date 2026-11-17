@@ -136,6 +136,20 @@ def test_connects_after_busy_and_returns_to_ai(api, admin):
         assert s.get(HandoffArea, areas[0]["id"]).last_member_id == legs[1].team_member_id
 
 
+def test_busy_and_no_answer_are_said_as_soon_as_they_fail(api, admin):
+    # Con announce, cada falla se avisa apenas pasa (con el mensaje del area), una vez por motivo, y al volver el
+    # agente no se repite.
+    c, conv, areas = setup_call(api, admin, messages={"busy": "Ocupado, esperá.", "no_answer": "Nadie atiende."})
+    line = FakeLine({"+5493511111111": "busy", "+5493512222222": "no_answer"})
+    outcome, said = run(api, conv, c, areas, line, announce=True)
+    assert (outcome.status, outcome.result) == ("failed", "no_answer")
+    assert [x[1] for x in line.log if x[0] == "say"] == [
+        "Te paso con Ventas, un momento por favor.", "Ocupado, esperá.", "Nadie atiende."]
+    assert line.log[-1] == ("resume",)
+    assert [t for _, t, _ in said] == ["Te paso con Ventas, un momento por favor.", "Ocupado, esperá.",
+                                       "Nadie atiende."]
+
+
 def test_machine_silent_and_hangup_fall_back_with_message(api, admin):
     c, conv, areas = setup_call(api, admin)
     line = FakeLine({"+5493511111111": "machine", "+5493512222222": "silent"})
