@@ -52,10 +52,12 @@ Listo. Restaurar (docs/MIGRACION_SERVER.md, 4):
   .env:        diff enmascarado contra $dir/env antes de copiarlo
   storage/:    tar -xzf $dir/storage.tar.gz
   certificado: sudo tar -xzf $dir/letsencrypt.tar.gz -C asterisk
-  voces TTS:   docker run --rm -v voice-as-a-service_vllm_tts_speakers_ft:/dst -v $dir:/src:ro alpine:3.24 \\
-                 tar xzf /src/speakers.tar.gz -C /dst
   agentes:     $dir/agents.json (consulta; la base ya los trae)
 EOF
+if [[ -f "$dir/speakers.tar.gz" ]]; then
+    echo "  voces TTS:   docker run --rm -v voice-as-a-service_vllm_tts_speakers_ft:/dst -v $dir:/src:ro alpine:3.24 \\"
+    echo "                 tar xzf /src/speakers.tar.gz -C /dst"
+fi
 # Conecta como el rol registros, que queda dueño; registros-db vuelve a poner el REVOKE, que no viaja en
 # el dump. Si crm se restaura después, otro make registros-db.
 if [[ -f "$dir/registros.sql.gz" ]]; then
