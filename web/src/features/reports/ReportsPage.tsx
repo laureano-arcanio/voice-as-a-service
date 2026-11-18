@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { useFeatureLock, usePlanFeatures } from '@/features/billing/features';
 import { formatDate } from '@/lib/format';
+import { useReport } from './api';
 import { CallsTab } from './CallsTab';
 import { CampaignsTab } from './CampaignsTab';
 import { ReportContext } from './format';
@@ -14,6 +15,7 @@ import { MessagesTab } from './MessagesTab';
 import { OutcomesTab } from './OutcomesTab';
 import { PlatformTab } from './PlatformTab';
 import { ReportFiltersBar } from './ReportFiltersBar';
+import { SplitTab } from './SplitTab';
 import { SummaryTab } from './SummaryTab';
 import { TechnicalTab } from './TechnicalTab';
 import { TransfersTab } from './TransfersTab';
@@ -38,6 +40,7 @@ const TABS: TabDef[] = [
   { value: 'outcomes', label: 'Resultados', Component: OutcomesTab, advanced: true },
   { value: 'messages', label: 'Mensajes', Component: MessagesTab, advanced: true },
   { value: 'transfers', label: 'Transferencias', Component: TransfersTab, advanced: true },
+  { value: 'split', label: 'Reparto', Component: SplitTab, advanced: true },
   { value: 'campaigns', label: 'Campañas', Component: CampaignsTab, advanced: true },
   { value: 'technical', label: 'Técnico', Component: TechnicalTab, admin: true },
 ];
@@ -49,7 +52,15 @@ export function ReportsPage() {
   const planPending = usePlanFeatures().isLoading;
   const { filters, update, dates, query } = useReportFilters();
   const withPlatform = isAdmin && !filters.client;
-  const tabs = TABS.filter((t) => !t.admin || isAdmin);
+  // La pestaña Reparto existe solo si el cliente ya tiene llamadas con brazo (aunque hoy no reparta).
+  const splitReport = useReport(
+    'split',
+    query,
+    !withPlatform && filters.tab !== 'usage' && !planPending && !lock.locked,
+  );
+  const showSplit =
+    !withPlatform && !lock.locked && (planPending || splitReport.isPending || !!splitReport.data?.has_data);
+  const tabs = TABS.filter((t) => (!t.admin || isAdmin) && (t.value !== 'split' || showSplit));
   const values = [...tabs.map((t) => t.value), ...(withPlatform ? ['platform'] : [])];
   const tab = filters.tab && values.includes(filters.tab) ? filters.tab : 'summary';
 

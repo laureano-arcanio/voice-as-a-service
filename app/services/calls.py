@@ -2,6 +2,7 @@
 y borrado de conversaciones (admin)."""
 import asyncio
 import logging
+import random
 import re
 import shutil
 import uuid
@@ -54,6 +55,14 @@ logger = logging.getLogger(__name__)
 # ended_reason de una llamada cortada desde la UI o la API (hang_up).
 HANGUP_REASON = "hangup_by_user"
 E164_RE = re.compile(r"\+\d{8,15}")
+# Generador del sorteo del reparto (SystemRandom: no sembrable) ; los tests inyectan uno fijo.
+_RNG = random.SystemRandom()
+
+
+def split_draw(percent: int, rng) -> bool:
+    """Sorteo del reparto agente/equipo: uniforme por llamada, sin mirar al que llama (ni hora ni día).
+    True = la entrante va al agente del número."""
+    return rng.random() * 100 < percent
 
 
 def normalize_e164(raw: str) -> str:
@@ -294,6 +303,9 @@ class TeamRoute:
     retry_seconds: int = 0
     retry_interval_seconds: int = 30
     retry_message: str = ""
+    # Avisos apenas una persona da ocupado o no atiende, antes de seguir con la siguiente (vacio: app/voice/direct.py).
+    busy_message: str = ""
+    no_answer_message: str = ""
 
 
 @dataclass
@@ -332,6 +344,7 @@ def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
         connect_on_answer=number.team_connect_on_answer, hold_music=number.team_hold_music,
         retry_seconds=number.team_retry_seconds, retry_interval_seconds=number.team_retry_interval_seconds,
         retry_message=number.team_retry_message,
+        busy_message=number.team_busy_message, no_answer_message=number.team_no_answer_message,
         fallback_member=TeamPerson(member_id=backup.id, name=backup.name, phone=backup.phone, user_id=backup.user_id)
         if backup else None)
 
@@ -351,20 +364,42 @@ def _own_number(s: Session, client_id: str, caller: str | None) -> bool:
         select(PhoneNumber.e164).where(PhoneNumber.client_id == client_id)))
 
 
+def _answerable_agent(s: Session, agent_id: str | None) -> bool:
+    """El agente existe y no esta archivado (el que puede abrir una conversacion)."""
+    if agent_id is None:
+        return False
+    agent = s.get(Agent, agent_id)
+    return agent is not None and agent.archived_at is None
+
+
+def _active_split_agent_calls(s: Session, number: PhoneNumber) -> int:
+    """Entrantes activas del brazo agente de este numero, para el tope del reparto. En Postgres, cuenta e
+    insercion de la llamada van bajo advisory lock por numero (hasta el commit): dos entrantes a la vez no
+    pasan las dos el tope. En SQLite (tests) no hay advisory locks y se cuenta sin lock."""
+    if s.get_bind().dialect.name == "postgresql":
+        s.execute(select(func.pg_advisory_xact_lock(func.hashtext(f"split_cap:{number.id}"))))
+    return s.scalar(select(func.count()).select_from(CallRow).where(
+        CallRow.client_id == number.client_id, CallRow.phone_number_id == number.id,
+        CallRow.split_arm == "agent", CallRow.status.in_(ACTIVE_CALL_STATUSES))) or 0
+
+
 def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None,
                   wa_id: str | None = None, line_id: str | None = None) -> InboundCall:
     """Rutea la entrante por el numero marcado y la admite con los limites del cliente. Con
     answer_mode=team va al equipo (conversacion sin agente, `team` con el ruteo); con agent, o un numero
     del equipo sin personas, sin la funcion en el plan o con las condiciones vigentes sin aceptar, al agente
-    del numero. En una llamada de WhatsApp (wa_id del llamante), manda
-    la regla de ruteo por contacto de la cuenta, si hay (tambien sobre el equipo). line_id: el canal de Asterisk,
+    del numero. Con answer_mode=team y agent_percent > 0, cada entrante sin regla de WhatsApp se sortea
+    entre el agente y el equipo (docs/features/EQUIPO_TELEFONIA.md); el brazo queda en call_logs
+    (split_arm/split_reason/split_percent/split_experiment), tambien en las rechazadas. En una llamada de
+    WhatsApp (wa_id del llamante), manda la regla de ruteo por contacto de la cuenta, si hay (tambien sobre
+    el equipo, y nunca se sortea). line_id: el canal de Asterisk,
     para vincular la grabacion completa (app/services/line_recordings.py). Si el tier no la deja,
     queda registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
     llama esta bloqueado por el cliente, igual pero con Forbidden (el worker corta sin atender)."""
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
     if number is None or number.client_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
-    agent_id, by_rule = number.agent_id, False
+    agent_id, by_rule, route = number.agent_id, False, None
     if wa_id:
         # WhatsApp: la regla por contacto de la cuenta pisa al agente por defecto del numero.
         account = wa_routing.account_for_number(s, number.e164)
@@ -373,12 +408,34 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
             route = wa_routing.route_of(s, account.id, wa_id)
             by_rule = route is not None and agent_id == route.agent_id
     team = team_route(s, number) if number.answer_mode == "team" and not by_rule else None
+    split_arm = split_reason = split_percent = split_experiment = None
     if team is not None and not (team.members and
-                                 limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls and
-                                 legal_gate.client_accepted_direct_calls(s, number.client_id)):
+                                  limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls and
+                                  legal_gate.client_accepted_direct_calls(s, number.client_id)):
         # Sin personas, el plan ya no tiene llamadas directas o el cliente no acepto las condiciones que las
         # cubren (graban siempre): al agente del numero, si tiene, como si no tuviera la funcion.
         team = None
+        if number.agent_percent > 0 and route is None:
+            # Con reparto: el brazo agente por el equipo no usable (la llamada no se sortea).
+            split_arm, split_reason = "agent", "team_unavailable"
+            split_percent, split_experiment = number.agent_percent, number.split_experiment
+    # El chequeo de bucle corre antes del sorteo del reparto: la vuelta de la central del cliente no puede
+    # caer en el brazo agente (la llamada se corta igual, team_loop, como sin reparto).
+    own = _own_number(s, number.client_id, caller) if team is not None and not wa_id else False
+    if team is not None and number.agent_percent > 0 and route is None and not own:
+        # Reparto agente/equipo (docs/features/EQUIPO_TELEFONIA.md): sorteo independiente por llamada. Con regla
+        # de WhatsApp (route) no se sortea: el camino de hoy.
+        split_percent, split_experiment = number.agent_percent, number.split_experiment
+        if split_draw(number.agent_percent, _RNG):
+            if not _answerable_agent(s, agent_id):
+                split_arm, split_reason = "team", "agent_unavailable"
+            elif number.split_max_agent_calls is not None and \
+                    _active_split_agent_calls(s, number) >= number.split_max_agent_calls:
+                split_arm, split_reason = "team", "cap"
+            else:
+                split_arm, split_reason, team = "agent", "random", None
+        else:
+            split_arm, split_reason = "team", "random"
     if team is None and agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
     if team is not None:
@@ -393,12 +450,13 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
         except KeyError:
             raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
-                   phone=caller, phone_number_id=number.id, answered_by="team" if team else "agent",
-                   line_id=(line_id or None) and line_id[:64])
+                    phone=caller, phone_number_id=number.id, answered_by="team" if team else "agent",
+                    line_id=(line_id or None) and line_id[:64], split_arm=split_arm, split_reason=split_reason,
+                    split_percent=split_percent, split_experiment=split_experiment)
     try:
         if blocked_numbers.is_blocked(s, number.client_id, caller, wa_id):
             raise Forbidden("El número que llama está bloqueado", "blocked_number")
-        if team is not None and not wa_id and _own_number(s, number.client_id, caller):
+        if own:
             # Bucle: un telefono del equipo (una central) desviado a un numero del cliente. Cada vuelta abriria una
             # entrante que vuelve a marcar hasta agotar los canales de toda la plataforma.
             raise Forbidden("La llamada vuelve del mismo número: se corta", "team_loop")

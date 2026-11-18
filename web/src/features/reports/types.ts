@@ -4,7 +4,7 @@
 import type { components } from '@/api/schema';
 
 export type ReportName =
-  'summary' | 'calls' | 'outcomes' | 'messages' | 'transfers' | 'campaigns' | 'technical' | 'platform';
+  'summary' | 'calls' | 'outcomes' | 'messages' | 'transfers' | 'split' | 'campaigns' | 'technical' | 'platform';
 
 export type Channel = 'voice' | 'whatsapp' | 'web';
 
@@ -12,6 +12,8 @@ export interface ReportQuery {
   client_id?: string;
   agent_id?: string;
   channel?: Channel;
+  phone_number_id?: string;
+  split_experiment?: string;
   date_from: string;
   date_to: string;
   include_tests?: boolean;
@@ -219,6 +221,53 @@ export interface TransfersReport {
   }[];
 }
 
+// --- Reparto agente/equipo ---
+
+export interface SplitOutcome {
+  outcome: string;
+  label: string;
+  goal: boolean;
+  count: number;
+}
+
+export interface SplitGroup {
+  experiment: string | null;
+  percent: number | null;
+  arm: 'agent' | 'team';
+  calls: number;
+  callers: number;
+  first_at: string | null;
+  last_at: string | null;
+  reasons: { reason: string; count: number }[];
+  statuses: { status: string; count: number }[];
+  ended: { reason: string; count: number }[];
+  duration_p25: number | null;
+  duration_p50: number | null;
+  duration_p75: number | null;
+  duration_p90: number | null;
+  early_hangups: number;
+  handoff_requested: number;
+  handoff_connected: number;
+  callbacks_24h: number;
+  outcomes: SplitOutcome[];
+  goals: number;
+}
+
+export interface SplitBothArms {
+  experiment: string | null;
+  percent: number | null;
+  callers: number;
+  calls: number;
+  arms: SplitGroup[];
+  rest: SplitGroup[];
+}
+
+export interface SplitReport {
+  has_data: boolean;
+  groups: SplitGroup[];
+  both_arms: SplitBothArms[];
+}
+
 // --- Campañas ---
 
 export interface CampaignsReport {
@@ -315,6 +364,7 @@ export interface ReportByName {
   outcomes: OutcomesReport;
   messages: MessagesReport;
   transfers: TransfersReport;
+  split: SplitReport;
   campaigns: CampaignsReport;
   technical: TechnicalReport;
   platform: PlatformReport;
@@ -330,7 +380,8 @@ export const reportTypesMatchApi: [
   Fits<Schemas['ReportOutcomesOut'], OutcomesReport>,
   Fits<Schemas['ReportMessagesOut'], MessagesReport>,
   Fits<Schemas['ReportTransfersOut'], TransfersReport>,
+  Fits<Schemas['ReportSplitOut'], SplitReport>,
   Fits<Schemas['ReportCampaignsOut'], CampaignsReport>,
   Fits<Schemas['ReportTechnicalOut'], TechnicalReport>,
   Fits<Schemas['ReportPlatformOut'], PlatformReport>,
-] = [true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true];

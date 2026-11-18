@@ -40,7 +40,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         migrate migrate-down migrate-test agents-reference dev-agents-reference reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
-        backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
+        backup backup-key backup-r2-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
         server2-ssh server2-setup server2-discos replica-host-disable solo-principal crm-tunnel \
         registros-db registros-migrate registros-up registros-down registros-restore registros-logs registros-psql registros-cli registros-test registros-dev registros-dev-down registros-ops-test \
@@ -618,22 +618,22 @@ slides-abrir: ## Abre una presentación en Chrome para presentarla (flechas, F =
 
 # --- Limpieza ------------------------------------------------------------
 
-backup: ## Backup ya (base, .env, storage/, certificado SIP, checkpoint del TTS; a S3 si BACKUP_S3_BUCKET esta en .env)
+backup: ## Backup ya (base, .env, agentes, storage/, certificado SIP, TTS y audios; a R2 si BACKUP_R2_BUCKET esta en .env)
 	scripts/ops/backup.sh
 
 backup-key: ## Una vez: par de llaves GPG de los backups (publica en deploy/backup-key.asc; la privada, a guardar fuera del server)
 	scripts/ops/backup-key.sh
 
-backup-s3-setup: ## Una vez, con credenciales de admin de AWS: bucket privado + usuario IAM sin borrado, y BACKUP_S3_* en .env. Ej: make backup-s3-setup BUCKET=atentina-backups [REGION=sa-east-1] [PROFILE=default]
-	@[ -n "$(BUCKET)" ] || { echo "Uso: make backup-s3-setup BUCKET=<nombre> [REGION=sa-east-1] [PROFILE=default]"; exit 1; }
-	AWS_PROFILE=$(or $(PROFILE),default) scripts/ops/s3-setup.sh $(BUCKET) $(or $(REGION),sa-east-1)
+backup-r2-setup: ## Una vez: bucket de Cloudflare R2, lifecycle de 30 dias y BACKUP_R2_* en .env. Ej: make backup-r2-setup ACCOUNT_ID=<cuenta> BUCKET=atentina-backups ACCESS_KEY_ID=<id> SECRET_ACCESS_KEY=<secreto>
+	@[ -n "$(ACCOUNT_ID)" ] && [ -n "$(BUCKET)" ] || { echo "Uso: make backup-r2-setup ACCOUNT_ID=<cuenta> BUCKET=<nombre> [ACCESS_KEY_ID=<id> SECRET_ACCESS_KEY=<secreto>]"; exit 1; }
+	scripts/ops/r2-setup.sh $(ACCOUNT_ID) $(BUCKET) $(ACCESS_KEY_ID) $(SECRET_ACCESS_KEY)
 
-backup-fetch: ## Baja y descifra un backup de S3 (requiere la llave privada en gpg). Ej: make backup-fetch [STAMP=latest] [DIR=scratch/restore/...] [TTS=1]
-	TTS=$(TTS) scripts/ops/backup-fetch.sh $(or $(STAMP),latest) $(DIR)
+backup-fetch: ## Baja y descifra un backup de R2 (requiere la llave privada en gpg). Ej: make backup-fetch [STAMP=latest] [DIR=scratch/restore/...] [TTS=1] [AUDIOS=1]
+	TTS=$(TTS) AUDIOS=$(AUDIOS) scripts/ops/backup-fetch.sh $(or $(STAMP),latest) $(DIR)
 
-backup-list: ## Backups en S3 (ultimos 10) y el ultimo completo
-	@. scripts/ops/lib.sh && b=$$(s3_base) && \
-		s3 $(CURDIR)/scratch s3 ls "$$b/daily/" | tail -10 && echo "latest: $$(s3 $(CURDIR)/scratch s3 cp --quiet "$$b/latest" - )"
+backup-list: ## Backups en R2 (ultimos 10) y el ultimo completo
+	@. scripts/ops/lib.sh && b=$$(r2_base) && \
+		r2 $(CURDIR)/scratch s3 ls "$$b/daily/" | tail -10 && echo "latest: $$(r2 $(CURDIR)/scratch s3 cp --quiet "$$b/latest" - )"
 
 cron-install: ## Instala (o actualiza) las lineas de Atentina en el crontab del usuario desde deploy/crontab, sin tocar las demas
 	@mkdir -p $$HOME/atentina-ops $$HOME/atentina-backups && \

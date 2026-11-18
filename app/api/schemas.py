@@ -194,7 +194,8 @@ class TierIn(BaseModel):
     code_tools: bool = Field(default=False, description="Las herramientas pueden ser codigo (JavaScript)")
     white_label: bool = Field(default=False, description="Marca blanca: el panel con el logo y los colores del cliente")
     advanced_reports: bool = Field(default=False, description="Reportes completos: Resultados, Mensajes, "
-                                                              "Transferencias y Campañas (sin esto, Resumen y Llamadas)")
+                                                              "Transferencias, Reparto y Campañas (sin esto, "
+                                                              "Resumen y Llamadas)")
     internal: bool = Field(default=False, description="Tier de Atentina: no se ofrece como plan ni cuenta en "
                                                       "las estadisticas de la plataforma")
     direct_calls: bool = Field(default=False, description="Llamadas directas: el equipo llama y atiende desde el "
@@ -502,10 +503,26 @@ class PhoneNumberUpdate(BaseModel):
         default=None, ge=15, le=120, description="Espera entre un intento y el siguiente")
     team_retry_message: str | None = Field(
         default=None, max_length=500, description="Aviso al empezar a reintentar; vacío, el de siempre")
+    team_busy_message: str | None = Field(
+        default=None, max_length=500, description="Con el equipo: lo que se dice apenas una persona da ocupado, antes "
+                                                  "de seguir con la siguiente; vacío, el de siempre")
+    team_no_answer_message: str | None = Field(
+        default=None, max_length=500, description="Con el equipo: lo que se dice apenas una persona no atiende, antes "
+                                                  "de seguir con la siguiente; vacío, el de siempre")
     record_full_call: bool | None = Field(
         default=None, description="Graba el audio entero de las llamadas por teléfono del número (lo que dice quien "
                                   "llama y lo que oye), con el equipo o con el agente. No incluye el link para "
                                   "llamar, la prueba del panel ni WhatsApp")
+    agent_percent: int | None = Field(
+        default=None, ge=0, le=100, description="Con team: porcentaje de las entrantes que atiende el agente del "
+                                                "número (sorteo independiente por llamada; 0, todas al equipo). "
+                                                "Requiere agente; con answer_mode agent se guarda 0")
+    split_max_agent_calls: int | None = Field(
+        default=None, ge=1, le=50, description="Con reparto: tope de llamadas activas a la vez del brazo agente; "
+                                               "pasado el tope, las nuevas van al equipo. null = sin tope")
+    new_experiment: bool | None = Field(
+        default=None, description="Arranca una etiqueta nueva de experimento (separa el análisis desde ahí; "
+                                  "el sorteo no cambia)")
 
 
 class AssignIn(BaseModel):
@@ -543,7 +560,13 @@ class PhoneNumberOut(ORM):
     team_retry_seconds: int
     team_retry_interval_seconds: int
     team_retry_message: str
+    team_busy_message: str
+    team_no_answer_message: str
     record_full_call: bool
+    agent_percent: int
+    split_experiment: str | None = None
+    split_started_at: UTCDateTime | None = None
+    split_max_agent_calls: int | None = None
     members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 
 
@@ -3028,6 +3051,60 @@ class ReportTransfersOut(BaseModel):
     daily: list[ReportTransfersDayOut]
     by_area: list[ReportAreaOut]
     by_member: list[ReportMemberOut]
+
+
+class ReportSplitStatusOut(BaseModel):
+    status: str
+    count: int
+
+
+class ReportSplitOutcomeOut(BaseModel):
+    outcome: str
+    label: str
+    goal: bool
+    count: int
+
+
+class ReportSplitGroupOut(BaseModel):
+    """Un brazo del reparto en un experimento y porcentaje (docs/features/EQUIPO_TELEFONIA.md)."""
+    experiment: str | None = Field(description="Etiqueta del experimento; agrupa las llamadas, no cambia el sorteo")
+    percent: int | None = Field(description="Porcentaje al agente que tenía el número en esa llamada")
+    arm: Literal["agent", "team"]
+    calls: int
+    callers: int = Field(description="Llamantes distintos (últimos 10 dígitos del teléfono)")
+    first_at: UTCDateTime | None
+    last_at: UTCDateTime | None
+    reasons: list[ReportReasonOut] = Field(description="Por qué cayó en ese brazo (random, cap, agent_unavailable, "
+                                                       "team_unavailable)")
+    statuses: list[ReportSplitStatusOut]
+    ended: list[ReportReasonOut]
+    duration_p25: int | None = Field(description="Segundos, de las llamadas finalizadas")
+    duration_p50: int | None = Field(description="Segundos, de las llamadas finalizadas")
+    duration_p75: int | None = Field(description="Segundos, de las llamadas finalizadas")
+    duration_p90: int | None = Field(description="Segundos, de las llamadas finalizadas")
+    early_hangups: int = Field(description="Llamadas finalizadas en menos de 15 s")
+    handoff_requested: int = Field(description="Llamadas con un pedido de derivación a una persona")
+    handoff_connected: int = Field(description="Llamadas con una derivación atendida")
+    callbacks_24h: int = Field(description="Llamadas con otra entrante de los mismos 10 dígitos al mismo número "
+                                            "dentro de 24 h del fin")
+    outcomes: list[ReportSplitOutcomeOut] = Field(description="Solo el brazo agente: resultados del análisis")
+    goals: int = Field(description="Solo el brazo agente: conversaciones con objetivo cumplido")
+
+
+class ReportSplitBothArmsOut(BaseModel):
+    """Los llamantes que pasaron por los dos brazos del mismo experimento y porcentaje."""
+    experiment: str | None
+    percent: int | None
+    callers: int = Field(description="Llamantes distintos con llamadas en los dos brazos")
+    calls: int = Field(description="Llamadas de esos llamantes")
+    arms: list[ReportSplitGroupOut] = Field(description="Los mismos campos, solo con sus llamadas")
+    rest: list[ReportSplitGroupOut] = Field(description="Los mismos campos, sin esas llamadas")
+
+
+class ReportSplitOut(BaseModel):
+    has_data: bool = Field(description="El cliente tiene alguna llamada con brazo registrado (histórico)")
+    groups: list[ReportSplitGroupOut]
+    both_arms: list[ReportSplitBothArmsOut]
 
 
 class ReportCampaignOut(BaseModel):

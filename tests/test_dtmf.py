@@ -180,7 +180,8 @@ def test_team_keys_in_voicemail(api, admin, monkeypatch, tmp_path):
     line2 = KeyLine({"+5493511111111": "no_answer"}, marks=[("listen", "7")],
                     on_listen=[("text", CUSTOMER, "Llamame", PCM), ("left", CUSTOMER)])
     assert asyncio.run(team_call(api, c2, inbound2, line2).run()) == "voicemail"
-    assert [m[1] for m in shown(api, inbound2.conversation_id)][1:] == ["Marcó 7", "Llamame"]
+    assert [m[1] for m in shown(api, inbound2.conversation_id)] == [
+        direct.NO_ANSWER_MESSAGE, direct.FALLBACK_MESSAGES["voicemail"], "Marcó 7", "Llamame"]
 
 
 # ---------- RoomLine ----------

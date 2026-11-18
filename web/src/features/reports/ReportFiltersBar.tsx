@@ -1,8 +1,9 @@
-import { Group, Select, Switch } from '@mantine/core';
+import { Group, Select, Switch, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useAgents } from '@/features/agents/api';
 import { useIsAdmin } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
+import { usePhoneNumbers } from '@/features/numbers/api';
 import { toIsoDate } from '@/lib/format';
 import { CHANNEL_LABEL } from './labels';
 import type { Channel } from './types';
@@ -30,6 +31,10 @@ export function ReportFiltersBar({
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);
   const agents = useAgents(filters.client ?? undefined, true);
+  const numbers = usePhoneNumbers(
+    { clientId: filters.client ?? undefined, status: 'assigned' },
+    filters.tab === 'split',
+  );
 
   return (
     <Group gap="sm" align="flex-end" wrap="wrap">
@@ -78,6 +83,32 @@ export function ReportFiltersBar({
             allowDeselect={false}
             w={150}
           />
+          {filters.tab === 'split' && (
+            <>
+              <Select
+                label="Número"
+                data={[
+                  { value: '', label: 'Todos' },
+                  ...(numbers.data ?? []).map((n) => ({
+                    value: n.id,
+                    label: n.label ? `${n.e164} · ${n.label}` : n.e164,
+                  })),
+                ]}
+                value={filters.number ?? ''}
+                onChange={(v) => update({ number: v || null })}
+                allowDeselect={false}
+                searchable
+                w={220}
+              />
+              <TextInput
+                label="Experimento"
+                placeholder="Todos"
+                value={filters.experiment ?? ''}
+                onChange={(e) => update({ experiment: e.currentTarget.value.trim() || null })}
+                w={170}
+              />
+            </>
+          )}
           <Select
             label="Período"
             data={RANGES}

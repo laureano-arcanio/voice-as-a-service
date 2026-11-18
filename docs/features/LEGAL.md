@@ -47,7 +47,7 @@ No es asesoramiento legal: los textos los revisa un abogado (la versión `2026-1
 | `consumer_requests` | `kind` (`revocation`, `cancellation`), `code` (`ARR-…`/`BAJ-…`, único), `name`, `email`, `company`, `message`, `ip`, `client_id`, `status` (`open`, `done`, `rejected`), `resolution`, `resolved_at`, `email_status` |
 
 - **Sin claves foráneas:** la prueba sobrevive a que se borre el usuario o el cliente. Ni la purga de registros sin
-  activar ni la baja del cliente las borran; van en el backup diario de la base.
+  activar ni la baja del cliente las borran; van en el backup de la base (dos veces por día).
 
 ## API
 

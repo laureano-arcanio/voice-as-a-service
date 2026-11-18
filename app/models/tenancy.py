@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     false,
@@ -97,8 +98,8 @@ class Tier(IdMixin, TimestampMixin, Base):
     code_tools: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Marca blanca del panel: logo y colores del cliente en vez de los de Atentina (docs/ARQUITECTURA.md).
     white_label: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias y Campañas. Sin esto,
-    # solo Resumen y Llamadas.
+    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias, Reparto y Campañas. Sin
+    # esto, solo Resumen y Llamadas.
     advanced_reports: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Tier de Atentina (nosotros): no se ofrece como plan ni cuenta en las estadisticas de la plataforma.
     internal: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
@@ -245,9 +246,22 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     team_retry_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     team_retry_interval_seconds: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
     team_retry_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Con team: lo que se dice apenas una persona da ocupado o no atiende, antes de seguir con la siguiente.
+    # Vacio usa el mensaje por defecto (app/voice/direct.py). Se dice una vez por motivo en toda la llamada.
+    team_busy_message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    team_no_answer_message: Mapped[str] = mapped_column(Text, default="", server_default="")
     # Graba la llamada entera por telefono (Asterisk MixMonitor): el marcador del spool lo escribe la app
     # (services/line_spool.py). Se apaga al asignar o liberar el numero.
     record_full_call: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Reparto agente/equipo de la entrante (docs/features/EQUIPO_TELEFONIA.md): con team, porcentaje de las
+    # entrantes que sortea al agente del numero (sorteo independiente por llamada; 0, todas al equipo).
+    agent_percent: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # Etiqueta del experimento vigente (solo agrupa llamadas; la genera pasar de 0 a >0 o "experimento nuevo")
+    # y desde cuando corre. Limpiar (liberar o reasignar) no toca las call_logs ya registradas.
+    split_experiment: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    split_started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Tope de seguridad: entrantes activas del brazo agente a la vez; NULL, sin tope.
+    split_max_agent_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Role(enum.StrEnum):

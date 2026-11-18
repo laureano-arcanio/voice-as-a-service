@@ -45,7 +45,7 @@ En 676 GB con Opus 24 kbps estéreo (0,18 MB/min): ~3,75 millones de minutos, **
 Supone todas las llamadas grabadas, cada columna sola; los backups del mismo disco (dentro de los 4,5 GB) se suman.
 
 - Opus 24 kbps estéreo: la troncal es de banda angosta (16 kHz no agrega); 12 kbps por canal sobra.
-- Sin rotación: se borra con la conversación, sin backup ([`INFRA.md`](../INFRA.md)). La alerta de disco avisa al 85 %
+- Sin rotación: se borra con la conversación; el espejo incremental en R2 conserva lo ya subido ([`INFRA.md`](../INFRA.md)). La alerta de disco avisa al 85 %
   (`deploy/monitoring/rules.yml`).
 - Lo que crece primero son los audios por frase (7 veces más por minuto). Al 50 % del disco, object storage (R2/MinIO)
-  o la copia S3 ya implementada.
+  o la copia a R2 ya implementada (incluye los audios).

@@ -655,7 +655,7 @@ export interface paths {
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
          *     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
          *     `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
-         *     `team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
+         *     `team_retry_message`, los avisos `team_busy_message` y `team_no_answer_message` (apenas una persona da ocupado o no atiende), y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
          *     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
          *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
@@ -3734,6 +3734,29 @@ export interface paths {
          *     persona (tiempo hasta atender, minutos), y el puente de WhatsApp. Plan con reportes completos.
          */
         get: operations["transfers_api_v1_reports_transfers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Split
+         * @description Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,
+         *     derivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los
+         *     llamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.
+         *     Plan con reportes completos.
+         */
+        get: operations["split_api_v1_reports_split_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8373,8 +8396,20 @@ export interface components {
             team_retry_interval_seconds: number;
             /** Team Retry Message */
             team_retry_message: string;
+            /** Team Busy Message */
+            team_busy_message: string;
+            /** Team No Answer Message */
+            team_no_answer_message: string;
             /** Record Full Call */
             record_full_call: boolean;
+            /** Agent Percent */
+            agent_percent: number;
+            /** Split Experiment */
+            split_experiment?: string | null;
+            /** Split Started At */
+            split_started_at?: string | null;
+            /** Split Max Agent Calls */
+            split_max_agent_calls?: number | null;
             /**
              * Members
              * @description Las personas del número, en orden
@@ -8452,10 +8487,35 @@ export interface components {
              */
             team_retry_message?: string | null;
             /**
+             * Team Busy Message
+             * @description Con el equipo: lo que se dice apenas una persona da ocupado, antes de seguir con la siguiente; vacío, el de siempre
+             */
+            team_busy_message?: string | null;
+            /**
+             * Team No Answer Message
+             * @description Con el equipo: lo que se dice apenas una persona no atiende, antes de seguir con la siguiente; vacío, el de siempre
+             */
+            team_no_answer_message?: string | null;
+            /**
              * Record Full Call
              * @description Graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp
              */
             record_full_call?: boolean | null;
+            /**
+             * Agent Percent
+             * @description Con team: porcentaje de las entrantes que atiende el agente del número (sorteo independiente por llamada; 0, todas al equipo). Requiere agente; con answer_mode agent se guarda 0
+             */
+            agent_percent?: number | null;
+            /**
+             * Split Max Agent Calls
+             * @description Con reparto: tope de llamadas activas a la vez del brazo agente; pasado el tope, las nuevas van al equipo. null = sin tope
+             */
+            split_max_agent_calls?: number | null;
+            /**
+             * New Experiment
+             * @description Arranca una etiqueta nueva de experimento (separa el análisis desde ahí; el sorteo no cambia)
+             */
+            new_experiment?: boolean | null;
         };
         /** PhoneVerifyIn */
         PhoneVerifyIn: {
@@ -9378,6 +9438,157 @@ export interface components {
             count: number;
             /** Reason */
             reason: string;
+        };
+        /**
+         * ReportSplitBothArmsOut
+         * @description Los llamantes que pasaron por los dos brazos del mismo experimento y porcentaje.
+         */
+        ReportSplitBothArmsOut: {
+            /** Experiment */
+            experiment: string | null;
+            /** Percent */
+            percent: number | null;
+            /**
+             * Callers
+             * @description Llamantes distintos con llamadas en los dos brazos
+             */
+            callers: number;
+            /**
+             * Calls
+             * @description Llamadas de esos llamantes
+             */
+            calls: number;
+            /**
+             * Arms
+             * @description Los mismos campos, solo con sus llamadas
+             */
+            arms: components["schemas"]["ReportSplitGroupOut"][];
+            /**
+             * Rest
+             * @description Los mismos campos, sin esas llamadas
+             */
+            rest: components["schemas"]["ReportSplitGroupOut"][];
+        };
+        /**
+         * ReportSplitGroupOut
+         * @description Un brazo del reparto en un experimento y porcentaje (docs/features/EQUIPO_TELEFONIA.md).
+         */
+        ReportSplitGroupOut: {
+            /**
+             * Experiment
+             * @description Etiqueta del experimento; agrupa las llamadas, no cambia el sorteo
+             */
+            experiment: string | null;
+            /**
+             * Percent
+             * @description Porcentaje al agente que tenía el número en esa llamada
+             */
+            percent: number | null;
+            /**
+             * Arm
+             * @enum {string}
+             */
+            arm: "agent" | "team";
+            /** Calls */
+            calls: number;
+            /**
+             * Callers
+             * @description Llamantes distintos (últimos 10 dígitos del teléfono)
+             */
+            callers: number;
+            /** First At */
+            first_at: string | null;
+            /** Last At */
+            last_at: string | null;
+            /**
+             * Reasons
+             * @description Por qué cayó en ese brazo (random, cap, agent_unavailable, team_unavailable)
+             */
+            reasons: components["schemas"]["ReportReasonOut"][];
+            /** Statuses */
+            statuses: components["schemas"]["ReportSplitStatusOut"][];
+            /** Ended */
+            ended: components["schemas"]["ReportReasonOut"][];
+            /**
+             * Duration P25
+             * @description Segundos, de las llamadas finalizadas
+             */
+            duration_p25: number | null;
+            /**
+             * Duration P50
+             * @description Segundos, de las llamadas finalizadas
+             */
+            duration_p50: number | null;
+            /**
+             * Duration P75
+             * @description Segundos, de las llamadas finalizadas
+             */
+            duration_p75: number | null;
+            /**
+             * Duration P90
+             * @description Segundos, de las llamadas finalizadas
+             */
+            duration_p90: number | null;
+            /**
+             * Early Hangups
+             * @description Llamadas finalizadas en menos de 15 s
+             */
+            early_hangups: number;
+            /**
+             * Handoff Requested
+             * @description Llamadas con un pedido de derivación a una persona
+             */
+            handoff_requested: number;
+            /**
+             * Handoff Connected
+             * @description Llamadas con una derivación atendida
+             */
+            handoff_connected: number;
+            /**
+             * Callbacks 24H
+             * @description Llamadas con otra entrante de los mismos 10 dígitos al mismo número dentro de 24 h del fin
+             */
+            callbacks_24h: number;
+            /**
+             * Outcomes
+             * @description Solo el brazo agente: resultados del análisis
+             */
+            outcomes: components["schemas"]["ReportSplitOutcomeOut"][];
+            /**
+             * Goals
+             * @description Solo el brazo agente: conversaciones con objetivo cumplido
+             */
+            goals: number;
+        };
+        /** ReportSplitOut */
+        ReportSplitOut: {
+            /**
+             * Has Data
+             * @description El cliente tiene alguna llamada con brazo registrado (histórico)
+             */
+            has_data: boolean;
+            /** Groups */
+            groups: components["schemas"]["ReportSplitGroupOut"][];
+            /** Both Arms */
+            both_arms: components["schemas"]["ReportSplitBothArmsOut"][];
+        };
+        /** ReportSplitOutcomeOut */
+        ReportSplitOutcomeOut: {
+            /** Outcome */
+            outcome: string;
+            /** Label */
+            label: string;
+            /** Goal */
+            goal: boolean;
+            /** Count */
+            count: number;
+        };
+        /** ReportSplitStatusOut */
+        ReportSplitStatusOut: {
+            /** Status */
+            status: string;
+            /** Count */
+            count: number;
         };
         /** ReportSummaryDayOut */
         ReportSummaryDayOut: {
@@ -10530,7 +10741,7 @@ export interface components {
             white_label?: boolean;
             /**
              * Advanced Reports
-             * @description Reportes completos: Resultados, Mensajes, Transferencias y Campañas (sin esto, Resumen y Llamadas)
+             * @description Reportes completos: Resultados, Mensajes, Transferencias, Reparto y Campañas (sin esto, Resumen y Llamadas)
              * @default false
              */
             advanced_reports?: boolean;
@@ -19555,6 +19766,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19601,6 +19816,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19647,6 +19866,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19700,6 +19923,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19753,6 +19980,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19767,6 +19998,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportTransfersOut"];
+                };
+            };
+            /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    split_api_v1_reports_split_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSplitOut"];
                 };
             };
             /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
@@ -19806,6 +20094,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19859,6 +20151,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;
@@ -19905,6 +20201,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
                 include_tests?: boolean;
+                /** @description Solo las llamadas del reparto agente/equipo que cayeron en ese brazo */
+                split_arm?: ("team" | "agent") | null;
+                /** @description Solo las llamadas de esa etiqueta de experimento del reparto */
+                split_experiment?: string | null;
             };
             header?: never;
             path?: never;

@@ -126,7 +126,7 @@ def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, 
     """Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
     `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y
-    `team_retry_message`, y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
+    `team_retry_message`, los avisos `team_busy_message` y `team_no_answer_message` (apenas una persona da ocupado o no atiende), y el respaldo `team_fallback`, que con `agent` usa el agente del numero y con `member` la persona
     `team_fallback_member_id`). `member_ids` reemplaza la lista. El equipo
     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending)."""
     n = _get(db, p, number_id)

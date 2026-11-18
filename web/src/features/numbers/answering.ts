@@ -5,6 +5,8 @@ import { type ScheduleDraft, toDraft, toSchedule } from '@/features/team/schedul
 // personas del número, en orden) o el agente.
 
 export type AnswerMode = 'team' | 'agent';
+/** La opcion de la UI: el reparto (team con agent_percent > 0) se muestra aparte del equipo. */
+export type AnswerChoice = 'agent' | 'team' | 'split';
 export type RingFirst = 'phone' | 'panel';
 export type TeamFallback = 'agent' | 'member' | 'voicemail' | 'hangup';
 export type Strategy = NonNullable<PhoneNumberUpdate['strategy']>;
@@ -13,6 +15,14 @@ export const RING_FIRST_OPTIONS: { value: RingFirst; label: string }[] = [
   { value: 'phone', label: 'En su teléfono' },
   { value: 'panel', label: 'En el panel' },
 ];
+
+/** Porcentajes rapidos del reparto; el numero acepta cualquiera de 1 a 100. */
+export const SPLIT_PERCENT_OPTIONS = [5, 10, 25, 50, 75, 100];
+export const SPLIT_HELP =
+  'Cada llamada entrante se sortea sola entre el agente y el equipo, sin cuotas ni horarios: el mismo llamante puede caer en los dos. El equipo suena como está configurado abajo.';
+export const SPLIT_AGENT_HELP = 'Atiende el agente del número; puede derivar al equipo con sus áreas.';
+export const SPLIT_CAP_HELP =
+  'Máximo de llamadas activas a la vez del brazo agente. Pasado el tope, las nuevas van al equipo. Vacío: sin tope.';
 
 export const RING_FIRST_HELP: Record<RingFirst, string> = {
   phone:
@@ -63,6 +73,12 @@ export const RETRY_HELP =
   'Si da ocupado o no atiende, le avisa a quien llama, lo deja en espera y vuelve a llamar. La espera gasta minutos entrantes.';
 export const RETRY_INTERVAL_HELP = 'Espera con música entre un intento y el siguiente.';
 export const RETRY_MESSAGE_HELP = 'Lo dice una vez, antes de la espera. Vacío usa el de siempre.';
+/** Avisos apenas una persona da ocupado o no atiende, antes de seguir con la siguiente. */
+export const BUSY_MESSAGE_DEFAULT =
+  'La línea está ocupada. Podés esperar en línea o volver a llamar en unos minutos.';
+export const NO_ANSWER_MESSAGE_DEFAULT =
+  'Ahora no podemos atenderte. Volvé a llamar en unos minutos o esperá en línea.';
+export const FAILURE_MESSAGE_HELP = 'Lo dice apenas pasa, antes de seguir con la siguiente persona. Vacío usa el de siempre.';
 export const RING_SECONDS_HELP = 'Segundos antes de pasar a la siguiente.';
 export const RING_SECONDS_RETRY_HELP = `${RING_SECONDS_HELP} El buzón de un celular atiende a los ~33 s.`;
 
@@ -98,6 +114,12 @@ export const retrySummary = (n: Pick<PhoneNumber, 'team_retry_seconds' | 'team_r
 export interface AnsweringDraft {
   label: string;
   answer_mode: AnswerMode;
+  /** Con team: 0-100. 0 se ve como Equipo; > 0, como Agente y equipo. */
+  agent_percent: number | string;
+  /** Tope de activas del brazo agente; vacío o null, sin tope. */
+  split_max_agent_calls: number | string;
+  /** Boton "Empezar experimento nuevo": se manda al guardar. */
+  new_experiment: boolean;
   agent_id: string;
   member_ids: string[];
   strategy: Strategy;
@@ -110,6 +132,8 @@ export interface AnsweringDraft {
   team_retry_seconds: number;
   team_retry_interval_seconds: number;
   team_retry_message: string;
+  team_busy_message: string;
+  team_no_answer_message: string;
   schedule: ScheduleDraft;
   team_fallback: TeamFallback;
   /** Con team_fallback member: la persona, fuera del número, con teléfono. */
@@ -121,6 +145,9 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
   return {
     label: n.label,
     answer_mode: n.answer_mode,
+    agent_percent: n.agent_percent ?? 0,
+    split_max_agent_calls: n.split_max_agent_calls ?? '',
+    new_experiment: false,
     agent_id: n.agent_id ?? '',
     member_ids: (n.members ?? []).map((m) => m.id),
     strategy: n.strategy,
@@ -132,6 +159,8 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
     team_retry_seconds: n.team_retry_seconds,
     team_retry_interval_seconds: n.team_retry_interval_seconds,
     team_retry_message: n.team_retry_message,
+    team_busy_message: n.team_busy_message,
+    team_no_answer_message: n.team_no_answer_message,
     schedule: toDraft(n.schedule),
     team_fallback: n.team_fallback,
     team_fallback_member_id: n.team_fallback_member_id ?? null,
@@ -153,6 +182,9 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
   if (v.answer_mode === 'agent') return base;
   return {
     ...base,
+    agent_percent: Number(v.agent_percent) || 0,
+    split_max_agent_calls: v.split_max_agent_calls === '' ? null : Number(v.split_max_agent_calls),
+    ...(v.new_experiment && { new_experiment: true }),
     member_ids: v.member_ids,
     strategy: v.strategy,
     ring_first: v.ring_first,
@@ -162,12 +194,18 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     team_retry_seconds: v.team_retry_seconds,
     team_retry_interval_seconds: v.team_retry_interval_seconds,
     team_retry_message: v.team_retry_message.trim(),
+    team_busy_message: v.team_busy_message.trim(),
+    team_no_answer_message: v.team_no_answer_message.trim(),
     schedule: toSchedule(v.schedule),
     team_fallback: v.team_fallback,
     team_fallback_member_id: v.team_fallback === 'member' ? v.team_fallback_member_id : null,
     team_fallback_message: v.team_fallback_message.trim(),
   };
 }
+
+/** La opcion que se ve: el reparto solo existe con team y un porcentaje mayor que 0. */
+export const answerChoice = (v: Pick<AnsweringDraft, 'answer_mode' | 'agent_percent'>): AnswerChoice =>
+  v.answer_mode === 'agent' ? 'agent' : Number(v.agent_percent) > 0 ? 'split' : 'team';
 
 /** Las personas del número, en orden. */
 export const numberMembers = (n: PhoneNumber) => n.members ?? [];

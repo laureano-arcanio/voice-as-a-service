@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { PhoneNumber, TeamMember } from '@/api/types';
+import { confirmAction } from '@/components/confirm';
 import { PlanAlert } from '@/components/PlanGate';
 import { useAgents } from '@/features/agents/api';
 import { useFeatureLock } from '@/features/billing/features';
@@ -26,16 +27,21 @@ import { MemberPicker } from '@/features/team/MemberPicker';
 import { type NoAnswerDestination, NoAnswerField } from '@/features/team/NoAnswerField';
 import { ScheduleFields } from '@/features/team/ScheduleFields';
 import { scheduleError } from '@/features/team/schedule';
+import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUpdateNumber } from './api';
 import {
+  answerChoice,
   type AnsweringDraft,
+  BUSY_MESSAGE_DEFAULT,
   CONNECT_ON_ANSWER_HELP,
   CONNECT_ON_ANSWER_PANEL_HELP,
+  FAILURE_MESSAGE_HELP,
   HOLD_MUSIC_HELP,
   FALLBACK_LABELS,
   FALLBACK_MESSAGE_DEFAULTS,
   MESSAGE_MAX,
+  NO_ANSWER_MESSAGE_DEFAULT,
   RECORD_FULL_CALL_HELP,
   RETRY_HELP,
   RETRY_INTERVAL_DEFAULT,
@@ -48,6 +54,10 @@ import {
   RING_FIRST_OPTIONS,
   RING_SECONDS_HELP,
   RING_SECONDS_RETRY_HELP,
+  SPLIT_AGENT_HELP,
+  SPLIT_CAP_HELP,
+  SPLIT_HELP,
+  SPLIT_PERCENT_OPTIONS,
   STRATEGY_HELP,
   toAnsweringBody,
   toAnsweringDraft,
@@ -74,11 +84,14 @@ function reach(m: TeamMember | undefined) {
 export function EditNumberModal({
   number,
   startInTeam = false,
+  startInSplit = false,
   onClose,
 }: {
   number: PhoneNumber;
   /** Abre con el equipo elegido: el toggle de la fila lo usa para pasar a Equipo un número sin personas. */
   startInTeam?: boolean;
+  /** Abre con el reparto elegido: la tercera opción de la fila. */
+  startInSplit?: boolean;
   onClose: () => void;
 }) {
   const update = useUpdateNumber();
@@ -89,7 +102,11 @@ export function EditNumberModal({
   const lock = useFeatureLock('direct_calls');
   const teamMode = (all: AnsweringDraft) => assigned && all.answer_mode === 'team';
   const form = useForm<AnsweringDraft>({
-    initialValues: { ...toAnsweringDraft(number), ...(startInTeam && { answer_mode: 'team' as const }) },
+    initialValues: {
+      ...toAnsweringDraft(number),
+      ...(startInTeam && { answer_mode: 'team' as const }),
+      ...(startInSplit && { answer_mode: 'team' as const, agent_percent: 50 }),
+    },
     validate: {
       label: (v) => (v.length <= 64 ? null : 'Hasta 64 caracteres'),
       ring_seconds: (v, all) =>
@@ -97,12 +114,22 @@ export function EditNumberModal({
       schedule: (v, all) => (teamMode(all) ? scheduleError(v) : null),
       member_ids: (v, all) => (teamMode(all) && v.length === 0 ? 'Elegí al menos una persona' : null),
       agent_id: (v, all) =>
-        teamMode(all) && all.team_fallback === 'agent' && !v
-          ? 'Elegí el agente que atiende si nadie del equipo lo hace'
+        teamMode(all) && Number(all.agent_percent) > 0 && !v
+          ? 'Elegí el agente que atiende el brazo agente'
+          : teamMode(all) && all.team_fallback === 'agent' && !v
+            ? 'Elegí el agente que atiende si nadie del equipo lo hace'
+            : null,
+      agent_percent: (v, all) =>
+        teamMode(all) && Number(all.agent_percent) > 0 && !(Number(v) >= 1 && Number(v) <= 100)
+          ? 'Entre 1 y 100'
           : null,
+      split_max_agent_calls: (v) =>
+        v === '' || v == null || (Number(v) >= 1 && Number(v) <= 50) ? null : 'Entre 1 y 50, o vacío',
       team_fallback_member_id: (v, all) =>
         teamMode(all) && all.team_fallback === 'member' && !v ? 'Elegí la persona a la que se llama' : null,
       team_retry_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
+      team_busy_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
+      team_no_answer_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
       team_fallback_message: (v) => (v.length <= MESSAGE_MAX ? null : `Hasta ${MESSAGE_MAX} caracteres`),
     },
   });
@@ -203,9 +230,11 @@ export function EditNumberModal({
               )}
               <Radio.Group
                 aria-label="Atiende"
-                value={v.answer_mode}
-                onChange={(mode) => {
-                  form.setFieldValue('answer_mode', mode === 'team' ? 'team' : 'agent');
+                value={answerChoice(v)}
+                onChange={(next) => {
+                  form.setFieldValue('answer_mode', next === 'agent' ? 'agent' : 'team');
+                  if (next === 'team') form.setFieldValue('agent_percent', 0);
+                  if (next === 'split' && Number(v.agent_percent) <= 0) form.setFieldValue('agent_percent', 50);
                   form.clearFieldError('answer_mode');
                 }}
                 error={form.errors.answer_mode}
@@ -222,6 +251,12 @@ export function EditNumberModal({
                     label="El agente"
                     description="Atiende el agente, que puede derivar al equipo con sus áreas."
                   />
+                  <Radio
+                    value="split"
+                    label="Agente y equipo"
+                    description="Un porcentaje de las entrantes va al agente y el resto al equipo, por sorteo."
+                    disabled={teamLocked}
+                  />
                 </Stack>
               </Radio.Group>
 
@@ -235,6 +270,84 @@ export function EditNumberModal({
                   value={v.agent_id || null}
                   onChange={(id) => form.setFieldValue('agent_id', id ?? '')}
                 />
+              )}
+
+              {v.answer_mode === 'team' && Number(v.agent_percent) > 0 && (
+                <>
+                  <Divider label="Reparto agente/equipo" labelPosition="left" mt="xs" />
+                  <Text size="xs" c="dimmed">
+                    {SPLIT_HELP}
+                  </Text>
+                  <Select
+                    label="Agente del reparto"
+                    description={SPLIT_AGENT_HELP}
+                    placeholder="Elegí un agente"
+                    data={agentOptions}
+                    searchable
+                    value={v.agent_id || null}
+                    onChange={(id) => form.setFieldValue('agent_id', id ?? '')}
+                    error={form.errors.agent_id}
+                  />
+                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+                    <NumberInput
+                      label="Porcentaje al agente"
+                      description="El resto va al equipo."
+                      min={1}
+                      max={100}
+                      allowDecimal={false}
+                      allowNegative={false}
+                      suffix=" %"
+                      {...form.getInputProps('agent_percent')}
+                    />
+                    <NumberInput
+                      label="Tope a la vez del brazo agente"
+                      description={SPLIT_CAP_HELP}
+                      min={1}
+                      max={50}
+                      allowDecimal={false}
+                      allowNegative={false}
+                      placeholder="Sin tope"
+                      {...form.getInputProps('split_max_agent_calls')}
+                    />
+                  </SimpleGrid>
+                  <Group gap="xs">
+                    {SPLIT_PERCENT_OPTIONS.map((p) => (
+                      <Button
+                        key={p}
+                        type="button"
+                        size="compact-xs"
+                        variant={Number(v.agent_percent) === p ? 'filled' : 'default'}
+                        onClick={() => form.setFieldValue('agent_percent', p)}
+                      >
+                        {p} %
+                      </Button>
+                    ))}
+                  </Group>
+                  <Group justify="space-between" align="center" gap="xs">
+                    <Text size="xs" c="dimmed">
+                      {number.split_experiment
+                        ? `Experimento ${number.split_experiment} desde ${formatDateTime(number.split_started_at)}`
+                        : 'Al guardar arranca el experimento.'}
+                      {v.new_experiment ? ' Se va a empezar uno nuevo al guardar.' : ''}
+                    </Text>
+                    <Button
+                      type="button"
+                      size="compact-xs"
+                      variant="default"
+                      onClick={async () => {
+                        const ok = await confirmAction({
+                          title: 'Empezar un experimento nuevo',
+                          message:
+                            'Las llamadas desde ahora se agrupan con una etiqueta nueva, aparte de las anteriores. El sorteo y el porcentaje no cambian.',
+                          confirmLabel: 'Empezar',
+                        });
+                        if (ok) form.setFieldValue('new_experiment', true);
+                      }}
+                    >
+                      Empezar experimento nuevo
+                    </Button>
+                  </Group>
+                </>
               )}
 
               {v.answer_mode === 'team' && (
@@ -316,6 +429,30 @@ export function EditNumberModal({
                       allowDecimal={false}
                       allowNegative={false}
                       {...form.getInputProps('ring_seconds')}
+                    />
+                  </SimpleGrid>
+
+                  <Divider label="Avisos apenas falla una persona" labelPosition="left" mt="xs" />
+                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+                    <Textarea
+                      label="Si una persona da ocupado"
+                      description={FAILURE_MESSAGE_HELP}
+                      placeholder={BUSY_MESSAGE_DEFAULT}
+                      maxLength={MESSAGE_MAX}
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps('team_busy_message')}
+                    />
+                    <Textarea
+                      label="Si una persona no atiende"
+                      description={FAILURE_MESSAGE_HELP}
+                      placeholder={NO_ANSWER_MESSAGE_DEFAULT}
+                      maxLength={MESSAGE_MAX}
+                      autosize
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps('team_no_answer_message')}
                     />
                   </SimpleGrid>
 

@@ -561,3 +561,133 @@ def test_period_defaults_and_limits(api, data):
     assert r.status_code == 422
     r = data["admin"].get(f"{V1}/reports/summary", params={"tz": "Marte/Base"})
     assert r.status_code == 422
+
+
+# ---------- reparto agente/equipo (T3) ----------
+
+def split_call(s, client_id, agent_id, at, line, *, arm, percent, experiment, phone, reason="random", **kw):
+    return conv(s, client_id, agent_id, at, phone=phone, line=line, split_arm=arm, split_reason=reason,
+                split_percent=percent, split_experiment=experiment, **kw)
+
+
+def test_split_report_groups_and_both_arms(api, admin, monkeypatch):
+    monkeypatch.setattr(report_stats, "utcnow", lambda: NOW)
+    tier = make_tier(admin, name="Con reportes", advanced_reports=True)
+    c = make_client(admin, "split", tier=tier)
+    free = make_client(admin, "free", tier=make_tier(admin, name="Free"))
+    agent = make_agent(admin, c)["id"]
+    other = make_client(admin, "otro", tier=tier)
+    other_agent = make_agent(admin, other)["id"]
+    exp = "aa11bb22"
+    with api.sessions() as s:
+        line = PhoneNumber(client_id=c["id"], e164="+541152630900", agent_id=agent)
+        other_line = PhoneNumber(client_id=other["id"], e164="+541152630901", agent_id=other_agent)
+        s.add_all([line, other_line])
+        s.flush()
+        # 50 %: el mismo llamante en los dos brazos, con una derivación, un corte temprano y un tope.
+        a1 = split_call(s, c["id"], agent, T(2, 10), line.id, arm="agent", percent=50, experiment=exp,
+                        phone="+5493510000001", duration=120, ended_reason="customer_hangup",
+                        outcome="demo", goal=True)
+        t1 = split_call(s, c["id"], agent, T(2, 12), line.id, arm="team", percent=50, experiment=exp,
+                        phone="+5493510000001", duration=10, ended_reason="completed")
+        a2 = split_call(s, c["id"], agent, T(3, 10), line.id, arm="agent", percent=50, experiment=exp,
+                        phone="+5493510000002", duration=5, ended_reason="customer_hangup", reason="cap")
+        t2 = split_call(s, c["id"], agent, T(4, 10), line.id, arm="team", percent=50, experiment=exp,
+                        phone="+5493510000003", status="rechazada", ended_reason="blocked_number")
+        # Otro porcentaje del mismo experimento, otro experimento y una llamada sin reparto.
+        split_call(s, c["id"], agent, T(5, 10), line.id, arm="team", percent=25, experiment=exp,
+                   phone="+5493510000004", duration=20, ended_reason="completed")
+        split_call(s, c["id"], agent, T(6, 10), line.id, arm="agent", percent=100, experiment="cc33dd44",
+                   phone="+5493510000005", duration=30, ended_reason="customer_hangup")
+        conv(s, c["id"], agent, T(7, 10), phone="+5493510000006", line=line.id, duration=30)
+        # Otro cliente: no se mezcla.
+        split_call(s, other["id"], other_agent, T(2, 10), other_line.id, arm="agent", percent=50,
+                   experiment=exp, phone="+5493510000007", duration=30)
+        s.add_all([
+            Event(client_id=c["id"], type="handoff.requested", conversation_id=a1, at=T(2, 10, 1)),
+            Event(client_id=c["id"], type="handoff.connected", conversation_id=a1, at=T(2, 10, 2)),
+        ])
+        s.commit()
+
+    out = report(admin, "split", client_id=c["id"])
+    assert out["has_data"] is True
+    groups = {(g["experiment"], g["percent"], g["arm"]): g for g in out["groups"]}
+    assert set(groups) == {(exp, 50, "agent"), (exp, 50, "team"), (exp, 25, "team"), ("cc33dd44", 100, "agent")}
+
+    agent50 = groups[(exp, 50, "agent")]
+    assert (agent50["calls"], agent50["callers"]) == (2, 2)
+    assert agent50["reasons"] == [{"reason": "cap", "count": 1}, {"reason": "random", "count": 1}]
+    assert agent50["statuses"] == [{"status": "finalizada", "count": 2}]
+    assert agent50["ended"] == [{"reason": "customer_hangup", "count": 2}]
+    assert (agent50["early_hangups"], agent50["handoff_requested"], agent50["handoff_connected"]) == (1, 1, 1)
+    assert agent50["callbacks_24h"] == 1     # t1 volvio a llamar al mismo numero, en el otro brazo
+    assert agent50["outcomes"] == [{"outcome": "demo", "label": "Pide demo", "goal": True, "count": 1}]
+    assert agent50["goals"] == 1
+    assert agent50["first_at"].startswith("2026-10-02") and agent50["last_at"].startswith("2026-10-03")
+
+    team50 = groups[(exp, 50, "team")]
+    assert team50["statuses"] == [{"status": "finalizada", "count": 1}, {"status": "rechazada", "count": 1}]
+    assert team50["ended"] == [{"reason": "blocked_number", "count": 1}, {"reason": "completed", "count": 1}]
+    assert team50["callbacks_24h"] == 0
+    assert team50["outcomes"] == [] and team50["goals"] == 0
+
+    # Duracion de las finalizadas: el grupo de una sola llamada.
+    team25 = groups[(exp, 25, "team")]
+    assert (team25["duration_p25"], team25["duration_p50"], team25["duration_p75"], team25["duration_p90"]) == (
+        20, 20, 20, 20)
+
+    # Los dos brazos del mismo experimento y porcentaje: el llamante 1 y sus dos llamadas.
+    [both] = out["both_arms"]
+    assert (both["experiment"], both["percent"], both["callers"], both["calls"]) == (exp, 50, 1, 2)
+    assert {(g["arm"], g["calls"]) for g in both["arms"]} == {("agent", 1), ("team", 1)}
+    rest = {g["arm"]: g for g in both["rest"]}
+    assert (rest["agent"]["calls"], rest["team"]["calls"]) == (1, 1)
+
+    # Filtros: brazo, experimento y linea. Las de otro cliente no entran.
+    assert {g["arm"] for g in report(admin, "split", client_id=c["id"], split_arm="agent")["groups"]} == {"agent"}
+    assert {g["experiment"] for g in report(admin, "split", client_id=c["id"], split_experiment="cc33dd44")["groups"]} == {
+        "cc33dd44"}
+    assert report(admin, "split", client_id=c["id"], phone_number_id="nope")["groups"] == []
+    assert report(admin, "split", client_id=other["id"])["groups"][0]["calls"] == 1
+    # split_arm tambien filtra /reports/calls.
+    calls = report(admin, "calls", client_id=c["id"], split_arm="agent")
+    assert calls["total"] == 3
+
+    # Sin plan de reportes completos, 403; sin llamadas con brazo, vacio.
+    user = client_user(api, admin, free, email="free@free.com")
+    assert user.get(f"{V1}/reports/split", params=PERIOD).status_code == 403
+    assert report(admin, "split", client_id=free["id"]) == {"has_data": False, "groups": [], "both_arms": []}
+
+
+def test_split_report_callback_boundary_and_released_number(api, admin, monkeypatch):
+    """La rellamada cuenta hasta 24 h del fin, a cualquier brazo; un numero liberado conserva su historial."""
+    monkeypatch.setattr(report_stats, "utcnow", lambda: NOW)
+    tier = make_tier(admin, name="Con reportes", advanced_reports=True)
+    c = make_client(admin, "split2", tier=tier)
+    agent = make_agent(admin, c)["id"]
+    exp = "ee55ff66"
+    with api.sessions() as s:
+        line = PhoneNumber(client_id=c["id"], e164="+541152630902", agent_id=agent)
+        s.add(line)
+        s.flush()
+        # P1: vuelve a llamar a las 23 h 59 min del fin (cuenta).
+        split_call(s, c["id"], agent, T(2, 10), line.id, arm="agent", percent=50, experiment=exp,
+                   phone="+5493510000011", duration=60)
+        split_call(s, c["id"], agent, T(3, 10), line.id, arm="team", percent=50, experiment=exp,
+                   phone="+5493510000011", duration=10)
+        # P2: vuelve 24 h y 1 s despues del fin (no cuenta).
+        split_call(s, c["id"], agent, T(4, 10), line.id, arm="agent", percent=50, experiment=exp,
+                   phone="+5493510000012", duration=60)
+        split_call(s, c["id"], agent, datetime.datetime(2026, 10, 5, 10, 1, 2), line.id, arm="team",
+                   percent=50, experiment=exp, phone="+5493510000012", duration=10)
+        s.commit()
+        line_id = line.id
+
+    groups = {g["arm"]: g for g in report(admin, "split", client_id=c["id"])["groups"]}
+    assert groups["agent"]["callbacks_24h"] == 1
+    assert groups["team"]["callbacks_24h"] == 0
+
+    # Liberar el numero no borra el reporte: las llamadas ya registradas quedan.
+    assert admin.post(f"{V1}/phone-numbers/{line_id}/release").status_code == 200
+    out = report(admin, "split", client_id=c["id"])
+    assert out["has_data"] is True and len(out["groups"]) == 2

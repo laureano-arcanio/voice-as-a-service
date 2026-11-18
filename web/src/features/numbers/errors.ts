@@ -21,9 +21,13 @@ export type AnsweringField =
   | 'team_retry_seconds'
   | 'team_retry_interval_seconds'
   | 'team_retry_message'
+  | 'team_busy_message'
+  | 'team_no_answer_message'
   | 'schedule'
   | 'team_fallback_member_id'
-  | 'team_fallback_message';
+  | 'team_fallback_message'
+  | 'agent_percent'
+  | 'split_max_agent_calls';
 
 export function answeringErrorField(e: unknown): AnsweringField | undefined {
   if (!(e instanceof ApiError)) return undefined;
@@ -46,6 +50,10 @@ export function answeringErrorField(e: unknown): AnsweringField | undefined {
   if (/^team_retry_interval_seconds\b/.test(m)) return 'team_retry_interval_seconds';
   if (/^team_retry_seconds\b/.test(m)) return 'team_retry_seconds';
   if (/^team_retry_message\b|mensaje de espera/i.test(m)) return 'team_retry_message';
+  if (/^team_busy_message\b|aviso de ocupado/i.test(m)) return 'team_busy_message';
+  if (/^team_no_answer_message\b|aviso si no atiende/i.test(m)) return 'team_no_answer_message';
+  if (/^agent_percent\b|porcentaje/i.test(m)) return 'agent_percent';
+  if (/^split_max_agent_calls\b|tope/i.test(m)) return 'split_max_agent_calls';
   if (/^team_fallback_message\b|mensaje/i.test(m)) return 'team_fallback_message';
   if (/^schedule\b|horario|franja|zona horaria|días|fecha/i.test(m)) return 'schedule';
   return undefined;

@@ -779,7 +779,8 @@ async def entrypoint(ctx: JobContext):
                 first_attempt=current["attempts"], get_vars=team_vars, get_contact_vars=contact_vars,
                 spawn_notice=spawn_notice,
                 on_connected=lambda member: workflows.arm(sessions, conversation_id, mode, workflow),
-                on_progress=on_progress, progress_names=progress_mode == "names", progress_id=current["handoffs"])
+                on_progress=on_progress, progress_names=progress_mode == "names", progress_id=current["handoffs"],
+                announce=True)
             # Las teclas de quien llama durante la derivacion, con el tramo si esta hablando con la persona.
             line.on_dtmf = lambda digit: keys.press(digit, leg=tr.leg)
             await line.start()

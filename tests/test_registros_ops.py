@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ case "$*" in
   *pg_dump*-d\\ crm*) echo "{FAKE_DUMP} crm" ;;
   *pg_dump*) echo "{FAKE_DUMP} principal" ;;
   *"datname = "*) [[ -n "${{FAKE_CRM:-}}" ]] && echo 1 ;;
+  *"-tA"*) echo "[]" ;;
 esac
 exit 0
 """
@@ -142,6 +144,8 @@ def test_env_example_sin_compose_profiles_y_con_las_claves():
     documented = {line.lstrip("#").split("=")[0] for line in text.splitlines() if "=" in line}
     assert set(_compose_services()["registros"]["environment"]) - {"REGISTROS_DB_DSN"} <= documented
     assert {"REGISTROS_DB_PASSWORD", "REGISTROS_HEALTH_URL", "BACKUP_EXTRA_DBS"} <= documented
+    assert {"BACKUP_R2_ACCOUNT_ID", "BACKUP_R2_BUCKET", "BACKUP_R2_ACCESS_KEY_ID", "BACKUP_R2_SECRET_ACCESS_KEY"} <= documented
+    assert "BACKUP_S3_BUCKET" not in text
 
 
 # --- boot.sh ---
@@ -194,20 +198,31 @@ def _dumps(sandbox: Sandbox) -> list[str]:
     return sorted(p.name.rsplit("-", 2)[0] for p in (sandbox.backups / "db").glob("*.sql.gz"))
 
 
-def test_backup_sin_la_variable_hace_lo_de_siempre(sandbox):
+def _db_calls(sandbox: Sandbox) -> list[str]:
+    return [line for line in sandbox.calls("docker") if "pg_dump" in line or "datname = " in line]
+
+
+def _key(sandbox: Sandbox) -> None:
+    key = sandbox.root / "deploy" / "backup-key.asc"
+    key.parent.mkdir()
+    key.write_text("llave")
+
+
+def test_backup_sin_r2_hace_lo_de_siempre(sandbox):
     _backup_env(sandbox)
     result = sandbox.run("scripts/ops/backup.sh")
     assert result.returncode == 0, result.stderr
-    assert sandbox.calls("docker") == BASE_COMMANDS
+    assert _db_calls(sandbox) == BASE_COMMANDS
     assert _dumps(sandbox) == ["db"]
+    assert not [line for line in sandbox.calls("docker") if " s3 " in line]
     assert (sandbox.state / "backup.ok").exists()
 
 
-def test_backup_con_crm_y_sin_la_variable(sandbox):
+def test_backup_con_crm_y_sin_r2(sandbox):
     _backup_env(sandbox)
     result = sandbox.run("scripts/ops/backup.sh", FAKE_CRM="1")
     assert result.returncode == 0, result.stderr
-    assert sandbox.calls("docker") == [*BASE_COMMANDS, CRM_COMMAND]
+    assert _db_calls(sandbox) == [*BASE_COMMANDS, CRM_COMMAND]
     assert _dumps(sandbox) == ["crm", "db"]
 
 
@@ -248,15 +263,72 @@ def test_backup_rechaza_un_nombre_invalido(sandbox, name):
 
 
 @pytest.mark.parametrize(("extra", "subidos"), [("", False), ("registros", True)])
-def test_backup_sube_la_base_extra_cifrada_a_s3(sandbox, extra, subidos):
-    _backup_env(sandbox, BACKUP_S3_BUCKET="bucket", BACKUP_EXTRA_DBS=extra)
-    key = sandbox.root / "deploy" / "backup-key.asc"
-    key.parent.mkdir()
-    key.write_text("llave")
+def test_backup_sube_la_instantanea_cifrada_a_r2(sandbox, extra, subidos):
+    _backup_env(sandbox, BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket", BACKUP_EXTRA_DBS=extra)
+    _key(sandbox)
     result = sandbox.run("scripts/ops/backup.sh")
     assert result.returncode == 0, result.stderr
     assert any("registros.sql.gz.gpg" in line for line in sandbox.calls("gpg")) is subidos
-    assert any("s3 cp" in line for line in sandbox.calls("docker"))
+    assert any("agents.json.gpg" in line for line in sandbox.calls("gpg"))
+    assert not any("secrets.tar.gz.gpg" in line for line in sandbox.calls("gpg"))
+    cp = [line for line in sandbox.calls("docker") if "s3 cp" in line]
+    assert any("daily/" in line for line in cp)
+    assert any("--endpoint-url https://cuenta.r2.cloudflarestorage.com" in line for line in cp)
+
+
+def test_backup_incluye_secrets_cifrado(sandbox):
+    _backup_env(sandbox, BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
+    _key(sandbox)
+    (sandbox.root / "secrets").mkdir()
+    (sandbox.root / "secrets" / "ga.json").write_text("{}")
+    result = sandbox.run("scripts/ops/backup.sh")
+    assert result.returncode == 0, result.stderr
+    assert any("secrets.tar.gz.gpg" in line for line in sandbox.calls("gpg"))
+    assert list((sandbox.backups / "secrets").glob("secrets-*.tar.gz"))
+
+
+def test_backup_espeja_audios_sin_line_spool(sandbox, tmp_path):
+    rec = tmp_path / "audios"
+    (rec / "conv").mkdir(parents=True)
+    (rec / "conv" / "a.opus").write_text("x")
+    (rec / "line-spool").mkdir()
+    (rec / "line-spool" / "spool").write_text("x")
+    _backup_env(sandbox, BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket", RECORDINGS_DIR=str(rec))
+    _key(sandbox)
+    result = sandbox.run("scripts/ops/backup.sh")
+    assert result.returncode == 0, result.stderr
+    sync = [line for line in sandbox.calls("docker") if "s3 sync" in line and "audios" in line]
+    assert sync, sandbox.calls("docker")
+    assert "line-spool/*" in sync[0]
+
+
+def test_backup_con_r2_sin_llave_falla_sin_backup_ok(sandbox):
+    _backup_env(sandbox, BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
+    result = sandbox.run("scripts/ops/backup.sh")
+    assert result.returncode != 0
+    assert "make backup-key" in result.stderr
+    assert not (sandbox.state / "backup.ok").exists()
+
+
+def test_r2_setup_reemplaza_al_de_s3():
+    assert (ROOT / "scripts" / "ops" / "r2-setup.sh").exists()
+    assert not (ROOT / "scripts" / "ops" / "s3-setup.sh").exists()
+
+
+def test_backup_if_due_no_repite_uno_reciente(sandbox):
+    _backup_env(sandbox)
+    (sandbox.state / "backup.ok").touch()
+    result = sandbox.run("scripts/ops/backup.sh", "--if-due")
+    assert result.returncode == 0, result.stderr
+    assert not (sandbox.backups / "db").exists()
+
+
+def test_cron_hace_dos_backups_diarios():
+    lines = [line for line in (ROOT / "deploy" / "crontab").read_text().splitlines() if "backup.sh" in line]
+    assert len(lines) == 2
+    assert lines[0].startswith("0 0 * * *")
+    assert lines[1].startswith("0 12 * * *")
+    assert "--if-due" not in "\n".join(lines)
 
 
 # --- backup-fetch.sh ---
@@ -265,7 +337,7 @@ def test_backup_sube_la_base_extra_cifrada_a_s3(sandbox, extra, subidos):
 @pytest.mark.parametrize(("name", "muestra"), [("registros.sql.gz.gpg", True), ("db.sql.gz.gpg", False)])
 def test_backup_fetch_imprime_la_restauracion_solo_si_esta_el_archivo(sandbox, tmp_path, name, muestra):
     sandbox.copy("scripts/ops/backup-fetch.sh", "scripts/ops/lib.sh")
-    sandbox.env_file(BACKUP_S3_BUCKET="bucket")
+    sandbox.env_file(BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
     folder = tmp_path / "restore"
     folder.mkdir()
     (folder / name).write_text("cifrado")
@@ -304,3 +376,34 @@ def test_healthcheck_con_la_clave_y_200_da_ok(sandbox):
     result = sandbox.run("scripts/ops/healthcheck.sh", FAKE_REGISTROS_CODE="200")
     assert result.returncode == 0, result.stderr
     assert (sandbox.state / "health.state").read_text().strip() == "ok"
+
+
+def test_backup_fetch_imprime_secrets_solo_si_esta_el_archivo(sandbox, tmp_path):
+    sandbox.copy("scripts/ops/backup-fetch.sh", "scripts/ops/lib.sh")
+    sandbox.env_file(BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket")
+    folder = tmp_path / "restore"
+    folder.mkdir()
+    (folder / "secrets.tar.gz").write_text("x")
+    result = sandbox.run("scripts/ops/backup-fetch.sh", "20260101-0000", str(folder))
+    assert result.returncode == 0, result.stderr
+    assert f"tar -xzf {folder}/secrets.tar.gz" in result.stdout
+
+
+def test_backup_fetch_baja_audios_con_audios_1(sandbox, tmp_path):
+    sandbox.copy("scripts/ops/backup-fetch.sh", "scripts/ops/lib.sh")
+    rec = tmp_path / "audios"
+    sandbox.env_file(BACKUP_R2_ACCOUNT_ID="cuenta", BACKUP_R2_BUCKET="bucket", RECORDINGS_DIR=str(rec))
+    folder = tmp_path / "restore"
+    folder.mkdir()
+    result = sandbox.run("scripts/ops/backup-fetch.sh", "20260101-0000", str(folder), AUDIOS="1")
+    assert result.returncode == 0, result.stderr
+    assert any("s3 sync" in line and "audios" in line for line in sandbox.calls("docker"))
+
+
+def test_healthcheck_avisa_si_el_backup_tiene_mas_de_14_h(sandbox):
+    _health_env(sandbox)
+    old = time.time() - 15 * 3600
+    os.utime(sandbox.state / "backup.ok", (old, old))
+    result = sandbox.run("scripts/ops/healthcheck.sh", FAKE_REGISTROS_CODE="200")
+    assert result.returncode != 0
+    assert "sin backup completo en 14 h" in (sandbox.state / "health.log").read_text()

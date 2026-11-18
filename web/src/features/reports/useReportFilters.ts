@@ -13,6 +13,8 @@ export interface ReportFilters {
   client: string | null;
   agent: string | null;
   channel: Channel | null;
+  number: string | null;
+  experiment: string | null;
   range: ReportRange;
   from: string | null;
   to: string | null;
@@ -51,6 +53,8 @@ export function useReportFilters() {
     client: params.get('client'),
     agent: params.get('agent'),
     channel: rawChannel && CHANNELS.includes(rawChannel) ? rawChannel : null,
+    number: params.get('number'),
+    experiment: params.get('experiment'),
     range: rawRange && RANGES.includes(rawRange) ? rawRange : '30',
     from: params.get('from'),
     to: params.get('to'),
@@ -77,6 +81,8 @@ export function useReportFilters() {
     client_id: filters.client ?? undefined,
     agent_id: filters.agent ?? undefined,
     channel: filters.channel ?? undefined,
+    phone_number_id: filters.number ?? undefined,
+    split_experiment: filters.experiment ?? undefined,
     date_from: dates.from,
     date_to: dates.to,
     include_tests: filters.tests || undefined,

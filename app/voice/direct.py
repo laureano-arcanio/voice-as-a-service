@@ -72,6 +72,10 @@ FALLBACK_MESSAGES = {
 }
 # Aviso al empezar los reintentos (team_retry_message vacio).
 RETRY_MESSAGE = "En este momento no podemos atenderte. Por favor, esperá en línea."
+# Avisos apenas una persona da ocupado o no atiende (team_busy_message/team_no_answer_message vacios). Se dicen una
+# vez por motivo en toda la llamada, antes de seguir con la siguiente persona.
+BUSY_MESSAGE = "La línea está ocupada. Podés esperar en línea o volver a llamar en unos minutos."
+NO_ANSWER_MESSAGE = "Ahora no podemos atenderte. Volvé a llamar en unos minutos o esperá en línea."
 # Los reintentos terminan antes del tope de duracion con este margen: el buzon (VOICEMAIL_SECONDS) y los mensajes.
 RETRY_DEADLINE_MARGIN = 150
 
@@ -398,6 +402,8 @@ class TeamCall:
         # no se reintenta. Sin canal libre si.
         self.stuck: str | None = None
         self.retries: int | None = None         # con etapa de reintentos, cuantos hubo (team.fallback)
+        # Motivos ya avisados a quien llama (busy, no_answer): se dice una vez por motivo en toda la llamada.
+        self.announced: set = set()
         self.released: set[str] = set()         # atendieron en el panel y no entraron: no se les vuelve a sonar
         self.end = CallEnd()
         # El tope de duracion cuenta desde que entro la llamada (en_curso), no desde que atiende alguien.
@@ -521,7 +527,9 @@ class TeamCall:
             sessions=self.sessions, line=self.line, conversation_id=self.conversation_id, client_id=self.client_id,
             areas=[], customer=self.customer, caller=self.caller, on_message=self.log.add,
             confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=on_connected,
-            limit=self._limit, hold_music=self.route.hold_music)
+            limit=self._limit, hold_music=self.route.hold_music, announce=True, announced=self.announced,
+            messages={"busy": (self.route.busy_message or "").strip() or BUSY_MESSAGE,
+                      "no_answer": (self.route.no_answer_message or "").strip() or NO_ANSWER_MESSAGE})
         # Conectar al atender: sin whisper ni 1 (Transfer._attempt).
         whisper = None if self.route.connect_on_answer else TEAM_WHISPER
         try:

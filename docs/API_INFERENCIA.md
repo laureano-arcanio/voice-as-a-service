@@ -281,7 +281,7 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
   `"truncated": true`; con menos de `API_CONTENT_MIN_FREE_GB` (50) libres en el disco no se guarda nada.
 - **Vencimiento y cómo apagarlo:** cada cliente elige 7, 30 (default), 90, 180 o 365 días, o indefinido, con el
   ajuste de abajo; la purga borra los días vencidos. Apagarlo deja de guardar sin borrar lo ya guardado, que vence
-  con su plazo. Sin backup, como las grabaciones ([`INFRA.md`](INFRA.md)).
+  con su plazo. Se sincroniza sin cifrar a R2 con los audios (espejo incremental), como las grabaciones ([`INFRA.md`](INFRA.md)).
 
 ### Pedido por pedido
 
