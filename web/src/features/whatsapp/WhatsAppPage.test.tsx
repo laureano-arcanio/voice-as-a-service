@@ -19,6 +19,8 @@ const ACCOUNT: WaAccount = {
   has_token: true,
   has_pin: true,
   active: true,
+  attendance: 'agent',
+  on_biz_app: null,
   status: 'disconnected',
   status_reason: 'token_invalid code=190',
   status_changed_at: null,
@@ -205,8 +207,88 @@ describe('WhatsAppPage', () => {
       business_id: '333',
       agent_id: 'ag-1',
       client_id: null,
+      attendance: 'agent',
       pin: null,
     });
+  });
+
+  it('edicion: el modo Dueño se pide en "Quién responde" y se manda en el PATCH', async () => {
+    const calls = mockApi({
+      'GET /api/v1/whatsapp/accounts': () => jsonResponse([{ ...ACCOUNT, status: 'connected' }]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse(ENABLED),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'GET /api/v1/whatsapp/accounts/wa-1/templates': () => jsonResponse([]),
+      'PATCH /api/v1/whatsapp/accounts/wa-1': () => jsonResponse({ ...ACCOUNT, attendance: 'owner' }),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: SUPPORT });
+    await user.click(await actionItem(user, /^Editar/));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('textbox', { name: 'Quién responde' }));
+    await user.click(await screen.findByRole('option', { name: 'Dueño', hidden: true }));
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ attendance: 'owner' }),
+    );
+  });
+
+  it('modo Dueño: badge en la lista y ruteo por contacto deshabilitado con el motivo', async () => {
+    mockApi({
+      'GET /api/v1/whatsapp/accounts': () =>
+        jsonResponse([{ ...ACCOUNT, status: 'connected', attendance: 'owner' }]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse(ENABLED),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'GET /api/v1/whatsapp/accounts/wa-1/templates': () => jsonResponse([]),
+    });
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    expect(await screen.findByText('Dueño')).toBeInTheDocument();
+    const item = await actionItem(userEvent, /Ruteo por contacto \(no aplica en Dueño\)/);
+    expect(item).toHaveAttribute('data-disabled');
+  });
+
+  it('alta en coexistencia: modo Dueño, el número sigue en la app y hay que abrirla cada 14 días', async () => {
+    const calls = mockApi({
+      'GET /api/v1/whatsapp/accounts': () => jsonResponse([]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse({ ...ENABLED, coexistence: true }),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'POST /api/v1/whatsapp/signup': () =>
+        jsonResponse({ ...ACCOUNT, status: 'connected', status_reason: null, source: 'coexistence',
+                       on_biz_app: true }, 201),
+    });
+    let loginCb: ((r: { authResponse?: { code?: string } }) => void) | null = null;
+    window.FB = {
+      init: vi.fn(),
+      login: vi.fn((cb: (r: { authResponse?: { code?: string } }) => void) => {
+        loginCb = cb;
+      }),
+    };
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    const open = await screen.findByRole('button', { name: /Conectar WhatsApp/ });
+    await waitFor(() => expect(open).not.toHaveAttribute('data-disabled'));
+    await user.click(open);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/sigue en el teléfono/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('textbox', { name: 'Quién responde' }));
+    await user.click(await screen.findByRole('option', { name: 'Dueño', hidden: true }));
+    await user.click(within(dialog).getByRole('textbox', { name: 'Agente que responde' }));
+    await user.click(await screen.findByRole('option', { name: 'Turnos', hidden: true }));
+    const connect = within(dialog).getByRole('button', { name: /Conectar WhatsApp/ });
+    await waitFor(() => expect(connect).toBeEnabled());
+    await user.click(connect);
+    const finish = JSON.stringify({
+      type: 'WA_EMBEDDED_SIGNUP',
+      event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+      data: { messaging_account_ids: ['222'], business_id: '333' },
+    });
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', { origin: 'https://www.facebook.com', data: finish }));
+      loginCb?.({ authResponse: { code: 'CODE123' } });
+    });
+    expect(await screen.findByText('Número conectado')).toBeInTheDocument();
+    expect(screen.getByText(/sigue funcionando en tu app/)).toBeInTheDocument();
+    expect(screen.getByText(/al menos cada 14 días/)).toBeInTheDocument();
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ attendance: 'owner' });
   });
 
   it('alta cancelada en Meta: aviso y no llama a la API', async () => {

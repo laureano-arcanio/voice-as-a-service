@@ -359,18 +359,23 @@ Conecta un número de WhatsApp Business a un agente del cliente. Responde texto 
 contacto manda un audio, el agente lo transcribe y contesta con una nota de voz con la voz del agente
 (ver [`WHATSAPP.md`](features/WHATSAPP.md)).
 
-1. **WhatsApp > Alta manual** (en soporte): agente que responde, **Phone number ID** y **WABA ID**
-   (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
+1. **WhatsApp > Alta manual** (en soporte): **Quién responde** (Agente o Dueño), agente que responde cuando el
+   modo es Agente, **Phone number ID** y **WABA ID** (de Meta: WhatsApp → Configuración de la API; el ID, no el
+   teléfono), número visible y nombre.
 2. **Token:** vacío usa el del system user (`WA_ACCESS_TOKEN`). Uno propio solo para números de otro
    portafolio; no se vuelve a mostrar (la tabla dice "Propio" o "Global").
-3. **Editar:** agente por defecto, número visible, nombre y token. El agente nuevo vale para las
-   conversaciones nuevas; las en curso siguen con el suyo.
-4. **Ruteo por contacto** (menú de la fila): agrega uno o más agentes y, a cada uno, la lista de
-   contactos que atiende (el WhatsApp con código de país, ej. `5493511234567`; Enter después de cada
+3. **Editar:** quién responde, agente por defecto, número visible, nombre y token. El agente nuevo vale para las
+   conversaciones nuevas; las en curso siguen con el suyo. En un número con coexistencia y modo Agente, la ventana
+   avisa "en este modo no respondas desde la app".
+4. **Modo:** el badge debajo del agente dice **Agente** (contesta la IA; si el dueño escribe desde su app, sus
+   mensajes entran a la conversación como "Dueño") o **Dueño** (la IA no contesta: lo atiende la persona y los
+   mensajes quedan sin leer en el teléfono; las campañas siguen saliendo).
+5. **Ruteo por contacto** (menú de la fila; solo en modo Agente): agrega uno o más agentes y, a cada uno, la lista
+   de contactos que atiende (el WhatsApp con código de país, ej. `5493511234567`; Enter después de cada
    uno). Esos contactos los atiende ese agente en los mensajes y las llamadas de WhatsApp; los demás,
    el agente por defecto. Se ve debajo del agente ("N reglas por
-   contacto").
-5. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
+   contacto"). En modo Dueño el ítem queda deshabilitado: los mensajes no se rutean.
+6. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
    lo referencian. **Activar** lo vuelve a habilitar.
 
 Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
@@ -737,31 +742,37 @@ Conectá tu número de WhatsApp Business para que lo atienda uno de tus agentes,
 con el registro de Facebook («Conectar WhatsApp», Embedded Signup) o con **tu propia app de Meta**
 ([`WHATSAPP.md`](features/WHATSAPP.md)); el registro de Facebook se oculta con `WA_EMBEDDED_SIGNUP=false`.
 
-1. **Conectar con mi app de Meta:** la ventana trae la guía (crear en tu Business Manager una app tipo Business con
+1. **Conectar WhatsApp** (Embedded Signup, hacia el final de esta sección): en la ventana de Meta podés conectar
+   un número nuevo o el que ya usás en la app de WhatsApp Business; ese sigue en el teléfono (coexistencia). Elegí
+   **Quién responde**: **Agente** (contesta la IA) o **Dueño** (lo atendés vos y la IA no contesta). Si el número
+   también es personal, conviene Dueño o un segundo número para el agente.
+2. **Conectar con mi app de Meta:** la ventana trae la guía (crear en tu Business Manager una app tipo Business con
    WhatsApp, pasarla a Live y crear un usuario de sistema con token permanente con `whatsapp_business_messaging`
    y `whatsapp_business_management`) y el formulario: Phone number ID, WABA ID, token, app secret y agente. Al
    guardar, la plataforma valida el número contra tu WABA y suscribe tu app.
-2. **Datos del webhook:** el panel te da la **URL del webhook de tu número** y su **verify token** (menú de la fila >
+3. **Datos del webhook:** el panel te da la **URL del webhook de tu número** y su **verify token** (menú de la fila >
    **Datos del webhook**). Pegalos en tu app de Meta (Webhooks > WhatsApp Business Account) y suscribí `messages`.
-3. **Medio de pago:** Meta cobra los mensajes a tu cuenta, no a nosotros. Cargalo en
+4. **Medio de pago:** Meta cobra los mensajes a tu cuenta, no a nosotros. Cargalo en
    [WhatsApp Manager](https://business.facebook.com/wa/manage/home/).
-4. **Estado** de cada número (con el badge **App propia**):
+5. **Estado** de cada número (con el badge **App propia** o **Coexistencia**):
    - **Conectado:** responde.
    - **Pendiente:** falló la suscripción o el registro en Meta. Menú > **Reintentar suscripción** o **Reintentar
      registro** (con el PIN si Meta dice que es incorrecto).
    - **Desconectado:** Meta rechazó el acceso (lo quitaste o venció). Menú > **Actualizar token**.
    - **Calidad** (Alta, Media, Baja) y límite de envío, según Meta. **Releer datos de Meta** los actualiza.
-5. **Agente:** se cambia en la fila; vale para las conversaciones nuevas.
-6. **Ruteo por contacto:** en el menú de la fila, elegí los agentes y cargá los contactos que atiende
-   cada uno (mensajes y llamadas de WhatsApp); los demás los atiende el agente por defecto.
-7. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
+   - Un número que sigue en la app (**coexistencia**) muestra "el número sigue en tu app": abrí la app en el
+     teléfono al menos cada 14 días; si no, Meta lo desconecta y el motivo aparece traducido.
+6. **Quién responde y agente:** se cambian en la fila; el agente vale para las conversaciones nuevas.
+7. **Ruteo por contacto:** en el menú de la fila (solo en modo Agente), elegí los agentes y cargá los contactos que
+   atiende cada uno (mensajes y llamadas de WhatsApp); los demás los atiende el agente por defecto.
+8. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
    Rechazada con el motivo) y **Nueva plantilla** crea una (nombre en minúsculas y `_`, categoría
    Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable; botón de enlace y, opcional, un botón de
    respuesta rápida con el texto que quieras, por ejemplo «Aceptar»: es el que usa la rotación del equipo). Meta la revisa.
-8. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
-9. Con **Embedded Signup** prendido aparece también **Conectar WhatsApp** (ventana de Meta; solo desde
-   `https://app.atentina.com.ar`).
-10. Un número de **alta manual** (nuestra WABA, que carga el admin entrando como el cliente) no muestra registro,
+9. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
+10. Con **Embedded Signup** prendido aparece también **Conectar WhatsApp** (ventana de Meta; solo desde
+    `https://app.atentina.com.ar`).
+11. Un número de **alta manual** (nuestra WABA, que carga el admin entrando como el cliente) no muestra registro,
     datos de Meta ni plantillas al cliente: los maneja el admin.
 
 ### Tus clientes (`/contacts`)

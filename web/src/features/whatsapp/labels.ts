@@ -12,6 +12,26 @@ export const WA_STATUS_HELP: Record<string, string> = {
   disconnected: 'Meta rechazó el token o se quitó el acceso. Volvé a conectar con "Conectar WhatsApp".',
 };
 
+/** Quién atiende el número (coexistencia): el agente o el dueño desde su app. */
+export const WA_ATTENDANCE: Record<string, Label> = {
+  agent: { label: 'Agente', color: 'blue' },
+  owner: { label: 'Dueño', color: 'grape' },
+};
+
+/** Motivos de baja de Meta en status_reason (account_update PARTNER_REMOVED <motivo>). */
+export const WA_INACTIVITY: Record<string, string> = {
+  PRIMARY_INACTIVITY: 'el número dejó de abrirse en el teléfono por unos 14 días',
+  COMPANION_INACTIVITY: 'la app de WhatsApp Business del teléfono dejó de estar activa',
+};
+
+export function waStatusReason(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  const why = Object.entries(WA_INACTIVITY).find(([code]) => reason.includes(code))?.[1];
+  return why
+    ? `Meta desconectó el número porque ${why}. Volvé a conectarlo con "Conectar WhatsApp".`
+    : reason;
+}
+
 /** quality_rating de Meta. */
 export const WA_QUALITY: Record<string, Label> = {
   GREEN: { label: 'Alta', color: 'green' },

@@ -1,9 +1,11 @@
-import { Button, Checkbox, Group, Modal, PasswordInput, Select, Stack, TextInput } from '@mantine/core';
+import { Alert, Button, Checkbox, Group, Modal, PasswordInput, Select, Stack, TextInput } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import type { WaAccount, WaAccountPatch } from '@/api/types';
 import { useAgents } from '@/features/agents/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateWaAccount, useUpdateWaAccount } from './api';
+import { WA_ATTENDANCE } from './labels';
 
 const TOKEN_HELP =
   'Vacío: el del system user de nuestro portafolio (WA_ACCESS_TOKEN). Uno propio solo para números de otro portafolio. No se vuelve a mostrar.';
@@ -28,6 +30,7 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
       display_phone_number: '',
       name: '',
       access_token: '',
+      attendance: 'agent' as 'agent' | 'owner',
     },
     validate: {
       agent_id: (v) => (v ? null : 'Elegí el agente'),
@@ -50,6 +53,7 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
               display_phone_number: v.display_phone_number.trim(),
               name: v.name.trim(),
               access_token: v.access_token.trim() || null,
+              attendance: v.attendance,
             },
             {
               onSuccess: (a) => {
@@ -63,10 +67,21 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
       >
         <Stack>
           <Select
+            label="Quién responde"
+            description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
+            data={[
+              { value: 'agent', label: WA_ATTENDANCE.agent.label },
+              { value: 'owner', label: WA_ATTENDANCE.owner.label },
+            ]}
+            allowDeselect={false}
+            data-autofocus
+            {...form.getInputProps('attendance')}
+          />
+          <Select
             label="Agente que responde"
+            description="Responde cuando el modo es Agente."
             data={agentOptions(agents.data)}
             searchable
-            data-autofocus
             {...form.getInputProps('agent_id')}
           />
           <Group grow align="flex-start">
@@ -122,6 +137,7 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
       name: account.name,
       access_token: '',
       clear_token: false,
+      attendance: account.attendance,
     },
     validate: {
       agent_id: (v) => (v ? null : 'Elegí el agente'),
@@ -135,6 +151,7 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
         onSubmit={form.onSubmit((v) => {
           const body: WaAccountPatch = {
             agent_id: v.agent_id,
+            attendance: v.attendance,
             display_phone_number: v.display_phone_number.trim(),
             name: v.name.trim(),
           };
@@ -155,11 +172,27 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
       >
         <Stack>
           <Select
+            label="Quién responde"
+            description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
+            data={[
+              { value: 'agent', label: WA_ATTENDANCE.agent.label },
+              { value: 'owner', label: WA_ATTENDANCE.owner.label },
+            ]}
+            allowDeselect={false}
+            data-autofocus
+            {...form.getInputProps('attendance')}
+          />
+          {form.values.attendance === 'agent' && account.source === 'coexistence' && (
+            <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
+              En este modo no respondas desde la app: lo que escribas desde WhatsApp Business llega como un mensaje
+              del dueño a la conversación y la IA también contesta.
+            </Alert>
+          )}
+          <Select
             label="Agente por defecto"
-            description="Los contactos sin regla de ruteo. Las conversaciones en curso siguen con su agente; el cambio vale para las nuevas."
+            description="Responde cuando el modo es Agente. Los contactos sin regla de ruteo; las conversaciones en curso siguen con su agente y el cambio vale para las nuevas."
             data={agentOptions(agents.data, account)}
             searchable
-            data-autofocus
             {...form.getInputProps('agent_id')}
           />
           <TextInput label="Número visible" {...form.getInputProps('display_phone_number')} />

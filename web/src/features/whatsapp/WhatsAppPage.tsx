@@ -45,7 +45,15 @@ import {
   useWaAccounts,
   useWaConfig,
 } from './api';
-import { WA_MANAGER_URL, WA_QUALITY, WA_SOURCE, WA_STATUS, WA_STATUS_HELP } from './labels';
+import {
+  WA_ATTENDANCE,
+  WA_MANAGER_URL,
+  WA_QUALITY,
+  WA_SOURCE,
+  WA_STATUS,
+  WA_STATUS_HELP,
+  waStatusReason,
+} from './labels';
 import { OwnAppModal, WebhookDataModal } from './OwnAppModal';
 import { RegisterModal } from './RegisterModal';
 import { WaRoutesModal } from './RoutesModal';
@@ -73,7 +81,9 @@ function dash() {
 
 function StatusCell({ account }: { account: WaAccount }) {
   const st = WA_STATUS[account.status] ?? { label: account.status, color: 'gray' };
-  const help = [account.status_reason, WA_STATUS_HELP[account.status]].filter(Boolean).join(' · ');
+  const help = [waStatusReason(account.status_reason), WA_STATUS_HELP[account.status]]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <Group gap={4} wrap="nowrap">
       <Tooltip label={help} multiline w={280} withArrow disabled={!help}>
@@ -132,13 +142,22 @@ function WaAgentSelect({ account }: { account: WaAccount }) {
           )
         }
       />
-      {account.routes.length > 0 && (
-        <Text size="xs" c="dimmed">
-          {account.routes.length === 1
-            ? '1 regla por contacto'
-            : `${account.routes.length} reglas por contacto`}
-        </Text>
-      )}
+      <Group gap={4}>
+        <Badge
+          size="xs"
+          variant="light"
+          color={WA_ATTENDANCE[account.attendance ?? 'agent']?.color ?? 'gray'}
+        >
+          {WA_ATTENDANCE[account.attendance ?? 'agent']?.label ?? account.attendance}
+        </Badge>
+        {account.routes.length > 0 && (
+          <Text size="xs" c="dimmed">
+            {account.routes.length === 1
+              ? '1 regla por contacto'
+              : `${account.routes.length} reglas por contacto`}
+          </Text>
+        )}
+      </Group>
     </Stack>
   );
 }
@@ -314,9 +333,17 @@ export function WhatsAppPage() {
                               <Menu.Dropdown>
                                 <Menu.Item
                                   leftSection={<IconRoute size={16} />}
+                                  disabled={a.attendance === 'owner'}
+                                  title={
+                                    a.attendance === 'owner'
+                                      ? 'En modo Dueño los mensajes no se rutean: los atiende el dueño'
+                                      : undefined
+                                  }
                                   onClick={() => setDialog({ kind: 'routes', account: a })}
                                 >
-                                  Ruteo por contacto
+                                  {a.attendance === 'owner'
+                                    ? 'Ruteo por contacto (no aplica en Dueño)'
+                                    : 'Ruteo por contacto'}
                                 </Menu.Item>
                                 <Menu.Divider />
                                 {a.source === 'own_app' && (

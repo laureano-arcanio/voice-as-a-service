@@ -16,7 +16,7 @@ import { errorMessage } from '@/api/errors';
 import type { WaAccount, WaConfig } from '@/api/types';
 import { useAgents } from '@/features/agents/api';
 import { useWaSignup } from './api';
-import { WA_MANAGER_URL } from './labels';
+import { WA_ATTENDANCE, WA_MANAGER_URL, waStatusReason } from './labels';
 import { SignupAbort, useEmbeddedSignup } from './useEmbeddedSignup';
 
 type Phase = 'form' | 'popup' | 'saving';
@@ -37,7 +37,7 @@ function SignupDone({ account, onClose }: { account: WaAccount; onClose: () => v
         <Alert color="yellow" icon={<IconAlertTriangle size={18} />} title="Conectado, falta un paso">
           <Text size="sm">
             {account.display_phone_number} quedó pendiente:{' '}
-            {account.status_reason ?? 'falta registrar el número'}.
+            {waStatusReason(account.status_reason) ?? 'falta registrar el número'}.
           </Text>
           <Text size="sm" mt={4}>
             Usá "Reintentar registro" en el menú del número. Si el número ya tenía verificación en dos pasos,
@@ -45,10 +45,10 @@ function SignupDone({ account, onClose }: { account: WaAccount; onClose: () => v
           </Text>
         </Alert>
       )}
-      {account.source === 'coexistence' && (
+      {(account.source === 'coexistence' || account.on_biz_app) && (
         <Text size="sm" c="dimmed">
-          El número sigue funcionando en la app de WhatsApp Business. Meta da 24 h para sincronizar contactos
-          e historial desde la app.
+          El número sigue funcionando en tu app de WhatsApp Business y en el teléfono. Abrí la app en el teléfono
+          al menos cada 14 días: si no, Meta desconecta el número.
         </Text>
       )}
       <Alert color="blue" icon={<IconInfoCircle size={18} />} title="Cargá el medio de pago">
@@ -72,6 +72,7 @@ function SignupDone({ account, onClose }: { account: WaAccount; onClose: () => v
  */
 export function SignupModal({ config, onClose }: { config: WaConfig; onClose: () => void }) {
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [attendance, setAttendance] = useState<'agent' | 'owner'>('agent');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [phase, setPhase] = useState<Phase>('form');
@@ -101,6 +102,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
             business_id: r.business_id,
             agent_id: agentId,
             client_id: null,
+            attendance,
             pin: pin || null,
           },
           {
@@ -133,9 +135,13 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
       ) : (
         <Stack>
           <Text size="sm">
-            Se abre una ventana de Meta: entrás con tu cuenta de Facebook, elegís o creás tu portafolio y tu
-            cuenta de WhatsApp Business, y cargás y verificás el número (SMS o llamada). Al terminar, el
-            número queda atendido por el agente que elijas acá.
+            Se abre una ventana de Meta: entrás con tu cuenta de Facebook, elegís tu portafolio y tu cuenta de
+            WhatsApp Business. Podés conectar un número nuevo o el que ya usás en la app de WhatsApp Business: ese
+            sigue en el teléfono (coexistencia). Después elegís quién atiende los mensajes.
+          </Text>
+          <Text size="sm" c="dimmed">
+            Si el número también es personal, elegí "Dueño" o conectá un segundo número para el agente: en modo
+            Agente no conviene responder desde la app.
           </Text>
           {insecure && (
             <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
@@ -144,7 +150,20 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
             </Alert>
           )}
           <Select
+            label="Quién responde"
+            description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
+            data={[
+              { value: 'agent', label: WA_ATTENDANCE.agent.label },
+              { value: 'owner', label: WA_ATTENDANCE.owner.label },
+            ]}
+            value={attendance}
+            onChange={(v) => v && setAttendance(v as 'agent' | 'owner')}
+            allowDeselect={false}
+            disabled={busy}
+          />
+          <Select
             label="Agente que responde"
+            description="Responde cuando el modo es Agente."
             placeholder="Elegí el agente"
             data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
             value={agentId}

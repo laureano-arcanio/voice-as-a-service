@@ -71,3 +71,18 @@ describe('ChatView: teclas marcadas', () => {
     expect(screen.getAllByRole('separator')).toHaveLength(1);
   });
 });
+
+describe('ChatView: eco del dueño (coexistencia)', () => {
+  it('se firma Dueño, no como persona del equipo', () => {
+    renderWithProviders(
+      <ChatView
+        messages={[
+          { role: 'user', text: '¿Me llamás?' },
+          { role: 'assistant', text: 'Te llamo en un rato', person: 'Dueño', owner: true },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Dueño')).toBeInTheDocument();
+    expect(screen.queryByText('Dueño (equipo)')).not.toBeInTheDocument();
+  });
+});

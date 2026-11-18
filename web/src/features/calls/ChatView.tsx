@@ -283,7 +283,8 @@ export function ChatView({
     <div className="chat" ref={ref} style={maxHeight ? { maxHeight } : undefined}>
       {messages.map((m, i) => {
         const leg = legStart(messages, i);
-        const person = m.role === 'assistant' && m.person;
+        const owner = m.role === 'assistant' && m.owner;
+        const person = m.role === 'assistant' && m.person && !owner;
         return (
           <Fragment key={i}>
             {leg !== null && (
@@ -308,7 +309,13 @@ export function ChatView({
                 className={`bubble ${m.role === 'assistant' ? (person ? 'agent team' : 'agent') : 'client'}`}
               >
                 <span className="who label">
-                  {person ? `${m.person} (equipo)` : m.role === 'assistant' ? agentLabel : userLabel}
+                  {owner
+                    ? 'Dueño'
+                    : person
+                      ? `${m.person} (equipo)`
+                      : m.role === 'assistant'
+                        ? agentLabel
+                        : userLabel}
                 </span>
                 {m.voice_note && (
                   <span className="voice-note">
