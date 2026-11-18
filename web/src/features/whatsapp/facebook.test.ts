@@ -78,6 +78,31 @@ describe('parseSignupMessage', () => {
     });
   });
 
+  it('v5 manda messaging_account_ids en vez de waba_id', () => {
+    const v5 = parseSignupMessage({
+      type: 'WA_EMBEDDED_SIGNUP',
+      event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+      data: { messaging_account_ids: ['222'], business_id: '333' },
+    });
+    expect(v5).toEqual({
+      kind: 'finish',
+      event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+      waba_id: '222',
+      phone_number_id: '',
+      business_id: '333',
+    });
+    // Un FINISH comun tambien puede llegar sin waba_id (v5).
+    expect(
+      parseSignupMessage({ type: 'WA_EMBEDDED_SIGNUP', event: 'FINISH', data: { messaging_account_ids: ['444'] } }),
+    ).toMatchObject({ kind: 'finish', event: 'FINISH', waba_id: '444' });
+    // Array vacio o ausente: no se inventa la cuenta.
+    for (const data of [{ messaging_account_ids: [] }, { messaging_account_ids: ['22a'] }, {}]) {
+      expect(parseSignupMessage({ type: 'WA_EMBEDDED_SIGNUP', event: 'FINISH', data })).toMatchObject({
+        kind: 'error',
+      });
+    }
+  });
+
   it('IDs que no son digitos no pasan', () => {
     expect(parseSignupMessage({ ...finish, data: { waba_id: '22a', phone_number_id: '1' } })).toMatchObject({
       kind: 'error',

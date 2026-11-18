@@ -295,13 +295,17 @@ Graph que el número sea de esa WABA y suscribe su app (`subscribed_apps`; si fa
 `WA_PUBLIC_URL/wa/webhook/<clave>` y el verify token, que el cliente pega en su app y suscribe `messages`. Reenviar
 el alta con el mismo número cambia token y secret; URL y verify token no cambian.
 
-**Embedded Signup** (`app/whatsapp/signup.py`, v4): el popup de Meta devuelve un código (vence a los 30 s) y el
-`FINISH` con `waba_id` y `phone_number_id`; la UI espera hasta 10 s entre uno y otro y llama a `/signup`. La app
-cambia el código por el business token, comprueba que el número sea de esa WABA, suscribe la app, registra el
-número con PIN (no en coexistencia) y guarda la cuenta. Errores: número de otro cliente 409; `signup_no_phone`,
-`signup_mismatch`, `signup_code_expired` (400); `meta_error` (502, con `meta_code`); `wa_signup_disabled` y
-`wa_token_key_missing` (503). En coexistencia (`FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`) el número sale de
-`GET /{waba_id}/phone_numbers` y se piden las dos sincronizaciones (`smb_app_data`) dentro de las 24 h.
+**Embedded Signup** (`app/whatsapp/signup.py`, v5): el popup de Meta devuelve un código (vence a los 30 s) y el
+`FINISH` con `waba_id` (o `messaging_account_ids`) y `phone_number_id`; la UI espera hasta 10 s entre uno y otro y
+llama a `/signup`. El popup va en v5 y ofrece la coexistencia con `WA_COEXISTENCE` (default `true`): el cliente
+conecta el número que ya usa en la app de WhatsApp Business y lo sigue usando en el teléfono. La app cambia el
+código por el business token, comprueba que el número sea de esa WABA, suscribe la app, registra el número con PIN
+(no en coexistencia) y lee `is_on_biz_app`/`platform_type` de Meta (`on_biz_app`: el número sigue en la app; si
+falla, queda NULL y el alta no pasa a `pending`). No se piden historial ni contactos. Errores: número de otro
+cliente 409; `signup_no_phone`, `signup_mismatch`, `signup_code_expired` (400); `meta_error` (502, con `meta_code`);
+`wa_signup_disabled` y `wa_token_key_missing` (503). En coexistencia
+(`FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`) el número sale de `GET /{waba_id}/phone_numbers` y la cuenta queda
+`connected` tras suscribir; `/register` solo reintenta la suscripción.
 
 **Estados de la cuenta:** un 190 o 401 con el token del cliente la pasa a `disconnected` y deja de responder;
 también `account_update` con `PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`, `ACCOUNT_OFFBOARDED`, `ACCOUNT_DELETED` o
@@ -403,7 +407,7 @@ Apagar: `make wa-calling-disable` (Meta borra la config SIP y el ícono desapare
 | Grupo | Variables |
 |---|---|
 | App y webhook | `WA_APP_ID`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user de Atentina), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`), `WA_GRAPH_VERSION`, `WA_REGISTRATION_PIN`, `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`) |
-| Embedded Signup y cifrado | `WA_EMBEDDED_SIGNUP` (false), `WA_CONFIG_ID`, `WA_TOKEN_KEY`, `WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`, `WA_SDK_LOCALE` |
+| Embedded Signup y cifrado | `WA_EMBEDDED_SIGNUP` (false), `WA_CONFIG_ID`, `WA_TOKEN_KEY`, `WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`, `WA_SDK_LOCALE`, `WA_COEXISTENCE` (true) |
 | Conversación | `WA_SESSION_HOURS`, `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS`, `WA_MAX_TURN_CHARS`, `WA_MAX_TURNS` |
 | Audios | `WA_AUDIO_REPLY`, `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, `WA_AUDIO_VOICE_FLAG`, `WA_AUDIO_TOO_LONG_REPLY`, `WA_AUDIO_EMPTY_REPLY`, `WA_AUDIO_ERROR_REPLY` |
 | Campañas | `WA_CAMPAIGN_TICK_SECONDS`, `WA_CAMPAIGN_REPLY_DAYS`, `WA_CAMPAIGN_MAX_RECIPIENTS`, `WA_OPTOUT_REPLY` ([CAMPANAS.md](CAMPANAS.md)) |
@@ -434,7 +438,8 @@ Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
   (origen "WhatsApp").
 - Embedded Signup: `WA_EMBEDDED_SIGNUP=true` con `WA_APP_ID`, `WA_APP_SECRET`, `WA_CONFIG_ID` y `WA_TOKEN_KEY`; en
   Meta, Facebook Login for Business con `app.atentina.com.ar` en dominios y URIs de redirección, y los campos
-  `account_update`, `phone_number_quality_update` y `message_template_status_update` suscritos (hecho).
+  `account_update`, `phone_number_quality_update`, `message_template_status_update` y `smb_message_echoes`
+  suscritos.
 
 ## Pendientes
 

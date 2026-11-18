@@ -31,10 +31,20 @@ export const PAIR_TIMEOUT_MS = 10_000;
 /** Sin codigo (popup cerrado): margen para que llegue el CANCEL con el paso. */
 const CLOSE_GRACE_MS = 1_500;
 
+/** `extras` del popup: v5 con coexistencia (el numero sigue en la app). Con la coexistencia apagada,
+ * se pide el alta de un numero nuevo. */
+export function signupExtras(coexistence: boolean | undefined): Record<string, unknown> {
+  const extras: Record<string, unknown> = { version: 'v5', setup: {} };
+  if (coexistence === false) {
+    extras.features = [{ name: 'whatsapp_business_app_onboarding', enabled: false }];
+  }
+  return extras;
+}
+
 /**
- * Embedded Signup v4: carga el SDK con la config de la API, y `launch()` abre el popup
- * y junta el codigo de FB.login con el mensaje WA_EMBEDDED_SIGNUP (waba_id y
- * phone_number_id). Llamar a launch() dentro del click: si no, el navegador bloquea el popup.
+ * Embedded Signup v5: carga el SDK con la config de la API, y `launch()` abre el popup
+ * y junta el codigo de FB.login con el mensaje WA_EMBEDDED_SIGNUP (waba_id o
+ * messaging_account_ids y phone_number_id). Llamar a launch() dentro del click: si no, el navegador bloquea el popup.
  */
 export function useEmbeddedSignup(config: WaConfig | undefined) {
   const [sdk, setSdk] = useState<FacebookSdk | null>(null);
@@ -144,7 +154,7 @@ export function useEmbeddedSignup(config: WaConfig | undefined) {
             config_id: configId,
             response_type: 'code',
             override_default_response_type: true,
-            extras: { setup: {} },
+            extras: signupExtras(config?.coexistence),
           },
         );
       } catch (e) {
@@ -153,7 +163,7 @@ export function useEmbeddedSignup(config: WaConfig | undefined) {
         );
       }
     });
-  }, [sdk, config?.config_id]);
+  }, [sdk, config?.config_id, config?.coexistence]);
 
   return { ready: !!sdk, loadError, launch };
 }

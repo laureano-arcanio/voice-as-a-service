@@ -29,4 +29,6 @@ Revisado en developers.facebook.com y Business Settings el 16-nov-2026.
 ## Pendientes
 
 - Prender Embedded Signup y hacer la primera alta real: ver los pendientes de [WHATSAPP.md](WHATSAPP.md).
+- Suscribir `smb_message_echoes` en Webhooks → WhatsApp Business Account (coexistencia): los ecos de lo que el dueño
+  manda desde su app llegan por ese campo.
 - Meta pide renovar cada año la comprobación de uso de datos; el aviso llega a las notificaciones de desarrollador.

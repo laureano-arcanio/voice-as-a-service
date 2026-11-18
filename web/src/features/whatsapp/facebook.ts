@@ -1,4 +1,4 @@
-// SDK de Facebook y mensajes de Embedded Signup v4 (docs/features/WHATSAPP.md).
+// SDK de Facebook y mensajes de Embedded Signup v5 (docs/features/WHATSAPP.md).
 // El SDK se carga recien al abrir el alta: no va en index.html (CSP: connect.facebook.net).
 
 interface FbLoginResponse {
@@ -92,7 +92,9 @@ export function parseSignupMessage(raw: unknown): SignupMessage | null {
   }
   if (event === 'CANCEL') return { kind: 'cancel', step: str(data.current_step) };
   if ((FINISH_EVENTS as string[]).includes(event)) {
-    const waba = str(data.waba_id);
+    // v4 manda waba_id; v5, messaging_account_ids (el de la WABA). La coexistencia no manda el numero.
+    const accounts = Array.isArray(data.messaging_account_ids) ? data.messaging_account_ids : [];
+    const waba = str(data.waba_id) ?? str(accounts[0]);
     const pnid = str(data.phone_number_id) ?? '';
     const business = str(data.business_id);
     if (!waba || !DIGITS.test(waba)) {

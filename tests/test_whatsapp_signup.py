@@ -36,6 +36,8 @@ class FakeMeta:
         self.fail: dict[str, GraphError] = {}
         self.numbers = [{"id": PNID, "display_phone_number": DISPLAY, "verified_name": "Acme Turnos",
                          "quality_rating": "GREEN"}]
+        self.on_biz_app = True
+        self.platform_type = "CLOUD_API"
         self.templates = [
             {"id": "t1", "name": "recordatorio", "language": "es_AR", "category": "UTILITY", "status": "APPROVED",
              "components": [{"type": "BODY", "text": "Hola {{1}}"}]},
@@ -68,13 +70,10 @@ class FakeMeta:
                 await self._call("register", pnid, pin)
                 return {"success": True}
 
-            async def smb_app_data(self, pnid, sync_type):
-                await self._call("smb_app_data", pnid, sync_type)
-                return {"success": True}
-
             async def get_phone_number(self, pnid, fields=""):
-                await self._call("get_phone_number", pnid)
-                return {"id": pnid, "display_phone_number": DISPLAY, "quality_rating": "YELLOW"}
+                await self._call("get_phone_number", pnid, fields)
+                return {"id": pnid, "display_phone_number": DISPLAY, "quality_rating": "YELLOW",
+                        "is_on_biz_app": meta.on_biz_app, "platform_type": meta.platform_type}
 
             async def list_templates(self, waba_id, limit=100):
                 await self._call("list_templates", waba_id)
@@ -147,8 +146,10 @@ def test_signup_happy_path_encrypts_secrets(api, meta, acme, caplog):
     assert acc["client_id"] == c["id"] and acc["agent_id"] == agent["id"]
     assert (acc["display_phone_number"], acc["name"], acc["quality_rating"]) == (DISPLAY, "Acme Turnos", "GREEN")
     assert acc["has_token"] is True and acc["has_pin"] is True and acc["business_id"] == "500"
-    # Orden de Meta: codigo -> numeros de la WABA -> suscripcion -> registro, con el token del cliente.
-    assert meta.names() == ["exchange_code", "list_phone_numbers", "subscribe_app", "register"]
+    assert acc["on_biz_app"] is True
+    # Orden de Meta: codigo -> numeros de la WABA -> suscripcion -> registro -> coexistencia, con el token del cliente.
+    assert meta.names() == ["exchange_code", "list_phone_numbers", "subscribe_app", "register", "get_phone_number"]
+    assert meta.calls[-1][3] == "is_on_biz_app,platform_type"
     assert meta.calls[0] == ("exchange_code", "", "2192489028351511", APP_SECRET, CODE)
     assert all(call[1] == BIZ_TOKEN for call in meta.calls[1:])
     pin = meta.calls[3][3]
@@ -190,23 +191,47 @@ def test_signup_subscribe_failure_is_pending(meta, acme):
     assert "register" not in meta.names()
 
 
-def test_signup_coexistence_skips_register(meta, acme):
+def test_signup_coexistence_skips_register_and_sync(meta, acme):
     _, agent, user = acme
     # El evento de coexistencia solo trae waba_id: el numero es el unico de la WABA.
     acc = signup_ok(user, agent, event="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", phone_number_id="")
     assert acc["source"] == "coexistence" and acc["status"] == "connected"
-    assert acc["phone_number_id"] == PNID and acc["has_pin"] is False
-    assert "register" not in meta.names()
-    # Sincronizacion de contactos e historial pedida en el alta (Meta da 24 h).
-    assert [c for c in meta.calls if c[0] == "smb_app_data"] == [
-        ("smb_app_data", BIZ_TOKEN, PNID, "smb_app_state_sync"), ("smb_app_data", BIZ_TOKEN, PNID, "history")]
+    assert acc["phone_number_id"] == PNID and acc["has_pin"] is False and acc["on_biz_app"] is True
+    # El numero sigue en la app del dueno: no se registra ni se piden historial ni contactos.
+    assert meta.names() == ["exchange_code", "list_phone_numbers", "subscribe_app", "get_phone_number"]
 
 
-def test_signup_coexistence_sync_failure_is_pending_and_ambiguous_waba(meta, acme):
+def test_signup_coexistence_retry_only_subscribes(api, meta, acme):
     _, agent, user = acme
-    meta.fail["smb_app_data"] = GraphError("Not allowed", code=100, status=400)
     acc = signup_ok(user, agent, event="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", phone_number_id="")
-    assert acc["status"] == "pending" and acc["status_reason"].startswith("smb_app_data smb_app_state_sync")
+    with api.sessions() as s:
+        store.mark_status(s, s.get(WaAccount, acc["id"]), "pending", "subscribed_apps: code=100")
+        s.commit()
+    meta.calls.clear()
+    r = user.post(f"{V1}/whatsapp/accounts/{acc['id']}/register", json={})
+    assert r.status_code == 200 and r.json()["status"] == "connected"
+    assert meta.names() == ["subscribe_app"]
+
+
+def test_on_biz_app_null_or_false(api, meta, acme):
+    _, agent, user = acme
+    # Un error de esa lectura no cambia el estado de la cuenta y la deja NULL (no pasa a pending).
+    meta.numbers.append({"id": "400000000000002", "display_phone_number": "+1 555 2",
+                         "verified_name": "Otra", "quality_rating": "GREEN"})
+    meta.fail["get_phone_number"] = GraphError("boom", code=1, status=500)
+    acc = signup_ok(user, agent, phone_number_id="400000000000002")
+    assert acc["status"] == "connected" and acc["on_biz_app"] is None
+    del meta.fail["get_phone_number"]
+    # is_on_biz_app false, o una plataforma que no es la Cloud API.
+    meta.on_biz_app = False
+    assert signup_ok(user, agent)["on_biz_app"] is False
+    meta.on_biz_app = True
+    meta.platform_type = "ON_PREMISE"
+    assert signup_ok(user, agent)["on_biz_app"] is False
+
+
+def test_signup_coexistence_ambiguous_waba(meta, acme):
+    _, agent, user = acme
     # Con varios numeros en la WABA no se adivina cual.
     meta.numbers = meta.numbers + [{"id": "400000000000002", "display_phone_number": "+1"}]
     r = user.post(f"{V1}/whatsapp/signup", json=body(agent, event="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
@@ -378,8 +403,9 @@ def test_config_endpoint(api, meta, acme, monkeypatch):
 def test_refresh_updates_quality_and_190_disconnects(api, meta, acme):
     _, agent, user = acme
     acc = signup_ok(user, agent)
+    meta.on_biz_app = False
     r = user.post(f"{V1}/whatsapp/accounts/{acc['id']}/refresh")
-    assert r.status_code == 200 and r.json()["quality_rating"] == "YELLOW"
+    assert r.status_code == 200 and r.json()["quality_rating"] == "YELLOW" and r.json()["on_biz_app"] is False
     meta.fail["get_phone_number"] = GraphError("Error validating access token", code=190, status=401)
     r = user.post(f"{V1}/whatsapp/accounts/{acc['id']}/refresh")
     assert r.status_code == 502 and r.json()["errors"][0]["meta_code"] == 190

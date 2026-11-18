@@ -1,4 +1,4 @@
-"""Embedded Signup v4 (docs/features/WHATSAPP.md): el cliente conecta su numero desde
+"""Embedded Signup v5 (docs/features/WHATSAPP.md): el cliente conecta su numero desde
 el dashboard, y despues administra la cuenta (registro, datos del numero, plantillas).
 
 connect(), en orden:
@@ -8,10 +8,12 @@ connect(), en orden:
 3. suscribe nuestra app a la WABA (sin esto no llega ningun mensaje);
 4. registra el numero con un PIN de 6 digitos (el pedido, el guardado si el numero se
    reconecta, o uno nuevo); en coexistencia (numero de la app de WhatsApp Business) no se
-   registra: se pide la sincronizacion de contactos e historial (Meta da 24 h);
-5. guarda la cuenta (wa_accounts) con el token y el PIN cifrados.
+   registra: el numero sigue en la app del dueno;
+5. lee is_on_biz_app y platform_type (coexistencia: el numero sigue en la app);
+6. guarda la cuenta (wa_accounts) con el token y el PIN cifrados.
 Si falla la suscripcion o el registro, la cuenta queda `pending` con el motivo y se
-reintenta con retry_register(). Un token rechazado (190) la deja `disconnected`.
+reintenta con retry_register(). Un token rechazado (190) la deja `disconnected`. No se piden
+historial ni contactos de la app (la coexistencia no los necesita).
 
 El token, el secret, el codigo y el PIN no van a los logs ni a las respuestas.
 """
@@ -36,8 +38,8 @@ EVENT_SOURCE = {"FINISH": "embedded_signup", "FINISH_WHATSAPP_BUSINESS_APP_ONBOA
 # Codigo de Meta del intercambio con un codigo vencido o ya usado (OAuthException).
 CODE_EXPIRED = 100
 PLACEHOLDER_RE = re.compile(r"\{\{\s*(\d+)\s*\}\}")
-# Coexistencia: sincronizaciones que hay que pedir dentro de las 24 h del alta.
-SMB_SYNC_TYPES = ("smb_app_state_sync", "history")
+# Coexistencia: campos de Meta que dicen si el numero sigue en la app de WhatsApp Business.
+COEXISTENCE_FIELDS = "is_on_biz_app,platform_type"
 
 
 class MetaError(ServiceError):
@@ -168,8 +170,14 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
             except GraphError as e:
                 logger.warning("wa signup: register fallo pnid=%s code=%s", phone_number_id, e.code)
                 status, reason = "pending", _reason("register", e)
-        elif source == "coexistence" and status == "connected":
-            status, reason = await _smb_sync(graph, phone_number_id)
+        # 5. Coexistencia: Meta dice si el numero sigue en la app del dueno. Si falla, queda NULL y no cambia el estado.
+        on_biz_app = None
+        try:
+            number_meta = await graph.get_phone_number(phone_number_id, fields=COEXISTENCE_FIELDS)
+            on_biz_app = bool(number_meta.get("is_on_biz_app")) and \
+                str(number_meta.get("platform_type") or "") == "CLOUD_API"
+        except GraphError as e:
+            logger.warning("wa signup: la lectura de coexistencia fallo pnid=%s code=%s", phone_number_id, e.code)
     finally:
         await _close(graph)
 
@@ -178,6 +186,8 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
     name = str(number.get("verified_name") or "")[:128]
     fields = {"waba_id": waba_id, "business_id": business_id or None, "source": source, "attendance": attendance,
               "quality_rating": str(number.get("quality_rating") or "") or None, "connected_by": user_id}
+    if on_biz_app is not None:
+        fields["on_biz_app"] = on_biz_app
     account = store.account_by_pnid(s, phone_number_id)
     if account is not None and account.client_id != client_id:
         raise Conflict("Ese número de WhatsApp ya está conectado a otra cuenta")
@@ -199,17 +209,6 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
     return account
 
 
-async def _smb_sync(graph, phone_number_id: str) -> tuple[str, str | None]:
-    """Coexistencia: pide las dos sincronizaciones. ("connected", None) o ("pending", motivo)."""
-    for sync_type in SMB_SYNC_TYPES:
-        try:
-            await graph.smb_app_data(phone_number_id, sync_type)
-        except GraphError as e:
-            logger.warning("wa signup: smb_app_data %s fallo pnid=%s code=%s", sync_type, phone_number_id, e.code)
-            return "pending", _reason(f"smb_app_data {sync_type}", e)
-    return "connected", None
-
-
 def _disconnect_if_auth(s: Session, account: WaAccount, e: GraphError) -> None:
     """Token del cliente rechazado: la cuenta queda desconectada (commit). Con el token
     global solo se loguea: es nuestro, no del cliente."""
@@ -226,9 +225,9 @@ def _disconnect_if_auth(s: Session, account: WaAccount, e: GraphError) -> None:
 async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
                          graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Reintenta la suscripcion y el registro de una cuenta pending (o los repite); en
-    coexistencia, la suscripcion y la sincronizacion; con la app propia del cliente (own_app), solo la
-    suscripcion (el numero lo registro el). PIN: el pedido, el guardado o uno nuevo. Sin token propio (numero de nuestro portafolio): el pedido o WA_REGISTRATION_PIN,
-    nunca uno al azar. Hace commit."""
+    coexistencia y con la app propia del cliente (own_app), solo la suscripcion (el numero ya
+    esta registrado en la app, o lo registro el). PIN: el pedido, el guardado o uno nuevo. Sin token propio (numero de
+    nuestro portafolio): el pedido o WA_REGISTRATION_PIN, nunca uno al azar. Hace commit."""
     own = store.has_own_token(account)
     pin = pin or store.pin_for(account) or (crypto.new_pin() if own else settings.wa_registration_pin)
     registers = account.source not in ("coexistence", "own_app")
@@ -238,13 +237,7 @@ async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
     step = "subscribed_apps"
     try:
         await graph.subscribe_app(account.waba_id)
-        if account.source == "coexistence":
-            status, reason = await _smb_sync(graph, account.phone_number_id)
-            if status != "connected":
-                store.mark_status(s, account, status, reason)
-                s.commit()
-                raise ServiceError(f"Meta rechazó la sincronización: {reason}", code="meta_error")
-        elif registers:
+        if registers:
             step = "register"
             await graph.register(account.phone_number_id, pin)
     except GraphError as e:
@@ -264,10 +257,10 @@ async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
 
 async def refresh(s: Session, account: WaAccount,
                   graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
-    """Relee el numero en Meta (numero visible y calidad). Un 190 la desconecta."""
+    """Relee el numero en Meta (numero visible, calidad y si sigue en la app). Un 190 la desconecta."""
     graph = (graph_factory or graph_for)(store.token_for(account))
     try:
-        data = await graph.get_phone_number(account.phone_number_id)
+        data = await graph.get_phone_number(account.phone_number_id, fields=COEXISTENCE_FIELDS)
     except GraphError as e:
         _disconnect_if_auth(s, account, e)
         raise MetaError(e) from None
@@ -276,6 +269,8 @@ async def refresh(s: Session, account: WaAccount,
     if data.get("display_phone_number"):
         account.display_phone_number = str(data["display_phone_number"])[:32]
     account.quality_rating = str(data.get("quality_rating") or "") or None
+    if "is_on_biz_app" in data or "platform_type" in data:
+        account.on_biz_app = bool(data.get("is_on_biz_app")) and str(data.get("platform_type") or "") == "CLOUD_API"
     s.commit()
     return account
 

@@ -273,12 +273,6 @@ class GraphClient:
         """Suscribe nuestra app a los webhooks de la WABA: sin esto no llega ningun mensaje."""
         return await self._request("POST", self._url(waba_id, "subscribed_apps"))
 
-    async def smb_app_data(self, phone_number_id: str, sync_type: str) -> dict:
-        """Coexistencia: pide la sincronizacion de contactos (smb_app_state_sync) o del
-        historial (history) de la app de WhatsApp Business. Meta da 24 h desde el alta."""
-        return await self._post(phone_number_id, "smb_app_data",
-                                {"messaging_product": "whatsapp", "sync_type": sync_type})
-
     async def list_phone_numbers(self, waba_id: str) -> list[dict]:
         data = await self._request("GET", self._url(waba_id, "phone_numbers"),
                                    params={"fields": "id,display_phone_number,verified_name,quality_rating"})
