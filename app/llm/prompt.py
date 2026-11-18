@@ -45,6 +45,8 @@ def render_conversation(state: ConversationState) -> str:
 
 
 def _speaker(message: Message, whatsapp: bool) -> str:
+    if message.owner:
+        return "dueño del número"
     if message.person:
         return f"{message.person} (persona del equipo)"
     if message.role == "assistant":

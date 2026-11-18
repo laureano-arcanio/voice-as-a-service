@@ -11,6 +11,7 @@ from app.llm.prompt import (
     build_turn_messages,
     build_system_prompt,
     build_extraction_prompt,
+    classic_history,
     extraction_prompt,
     render_conversation,
 )
@@ -145,6 +146,16 @@ def test_voice_note_marks_only_the_user_audio():
     assert text_reply[-1]["content"] == f"{VOICE_NOTE_TAG} Centro."
     audio_reply = build_turn_messages(wf, with_media(state, reply=True), "Centro.")
     assert audio_reply[-1]["content"] == "Centro."
+
+
+def test_owner_echo_is_a_person_that_is_not_the_team():
+    """El eco del dueno es un assistant con nombre (Dueño), no una persona del equipo."""
+    wf = load_reference("berlin_signup")
+    state = on_whatsapp(state_with(wf))
+    state.messages = [Message(role="assistant", text="Te llamo en un rato", person="Dueño", owner=True)]
+    assert render_conversation(state) == "dueño del número: Te llamo en un rato"
+    [item] = classic_history(state.messages, True)
+    assert (item["role"], item["name"], item["content"]) == ("assistant", "Dueño", "Te llamo en un rato")
 
 
 def test_history_marks_only_the_user_voice_notes():

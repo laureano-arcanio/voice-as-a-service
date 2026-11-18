@@ -442,7 +442,7 @@ async def test_account_update_and_quality_events(sessions, caplog):
                                            "disconnection_info": {"reason": "x"}}))
     with sessions() as s:
         account = s.get(WaAccount, w.account_id)
-        assert account.status == "disconnected" and account.status_reason == "account_update PARTNER_REMOVED"
+        assert account.status == "disconnected" and account.status_reason == "account_update PARTNER_REMOVED x"
     # DISABLED_UPDATE: SCHEDULE_FOR_DISABLE solo avisa; DISABLE desconecta; REINSTATE reconecta
     # solo lo que desconecto un DISABLE (no el PARTNER_REMOVED de arriba).
     def disabled(state):
@@ -451,7 +451,7 @@ async def test_account_update_and_quality_events(sessions, caplog):
 
     await send(w, disabled("REINSTATE"))
     with sessions() as s:
-        assert s.get(WaAccount, w.account_id).status_reason == "account_update PARTNER_REMOVED"
+        assert s.get(WaAccount, w.account_id).status_reason == "account_update PARTNER_REMOVED x"
     with sessions() as s:
         store.mark_status(s, s.get(WaAccount, w.account_id), "connected")
         s.commit()

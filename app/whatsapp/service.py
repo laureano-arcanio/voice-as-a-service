@@ -56,7 +56,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ..config import settings
 from ..conversation import recordings, workflows
 from ..conversation.engine import ConversationEngine
-from ..conversation.models import ConversationState, TurnMedia
+from ..conversation.models import ConversationState, Message, TurnMedia
 from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
@@ -72,8 +72,12 @@ from .graph import GraphClient, GraphError, MediaTooLarge
 logger = logging.getLogger(__name__)
 
 MESSAGE_TYPES = {"text", "audio", "image", "document", "sticker", "video", "location"}
-# Sin respuesta: una reaccion no es un mensaje, y system/unsupported los genera Meta.
-SILENT_TYPES = {"reaction", "system", "unsupported", "ephemeral", "request_welcome"}
+# Sin respuesta: una reaccion no es un mensaje, y system/unsupported los genera Meta. edit y revoke son cambios de
+# un mensaje ya enviado (coexistencia), no mensajes nuevos.
+SILENT_TYPES = {"reaction", "system", "unsupported", "ephemeral", "request_welcome", "edit", "revoke"}
+# Lo que el dueno escribe desde la app de WhatsApp Business (eco): va al historial como un assistant con este
+# nombre, para que el modelo lo vea como lo que dijo una persona (como las personas del equipo).
+OWNER_PERSON = "Dueño"
 # Campos de webhook de la cuenta (no traen metadata.phone_number_id): se rutean por WABA.
 ACCOUNT_EVENT_FIELDS = {"account_update", "phone_number_quality_update", "message_template_status_update"}
 # account_update que dejan la cuenta desconectada: el cliente nos quito el acceso o Meta la dio de baja.
@@ -183,6 +187,15 @@ def _size(value) -> int | None:
         return None
 
 
+def _caption_of(msg: dict) -> str | None:
+    """El texto que acompaña una imagen, un documento o un video."""
+    kind = msg.get("type")
+    if kind not in RELAY_KINDS:
+        return None
+    body = (msg.get(kind) or {}).get("caption")
+    return body.strip() if isinstance(body, str) and body.strip() else None
+
+
 def _text_of(msg: dict) -> str | None:
     """Texto del mensaje: el de un text, o el titulo del boton o la opcion elegida."""
     kind = msg.get("type")
@@ -246,6 +259,12 @@ class WhatsAppService:
                     self._spawn(self._on_account_event(str(change["field"]), waba_id, value))
                     continue
                 pnid = str((value.get("metadata") or {}).get("phone_number_id") or "")
+                if change.get("field") == "smb_message_echoes":
+                    # Coexistencia: lo que el dueno manda desde la app de WhatsApp Business. Trae "to", no "from".
+                    for echo in value.get("message_echoes") or []:
+                        if isinstance(echo, dict) and echo.get("id") and echo.get("to"):
+                            self._spawn(self._on_echo(pnid, echo))
+                    continue
                 if not pnid:
                     continue
                 names = {c.get("wa_id"): (c.get("profile") or {}).get("name")
@@ -375,11 +394,15 @@ class WhatsAppService:
                 return
             info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
                                store.has_own_token(account))
+            attendance = account.attendance
             if (routed := wa_routing.resolve_agent_id(s, account, wa_id)) not in (None, account.agent_id):
                 # Ruteo por contacto: a este contacto lo atiende el agente de su regla.
                 info = replace(info, agent_id=routed, routed=True)
 
         if kind == "button" and await self.handoffs.on_tap(info, wa_id, wamid, msg):
+            return
+        if attendance == "owner":
+            await self._owner_message(info, wa_id, wamid, text)
             return
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
@@ -408,6 +431,74 @@ class WhatsAppService:
         inbox.items.append(Item(_stamp(msg), text, wamid))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
+
+    async def _owner_message(self, info: AccountInfo, wa_id: str, wamid: str, text: str | None) -> None:
+        """Modo owner: el numero lo atiende el dueno y la IA no responde nunca. Solo la baja de campañas (contesta
+        una vez) y el reporte de la campaña; el entrante queda received, sin conversacion ni mark_read (sigue sin
+        leer en el telefono)."""
+        if text is not None and campaigns.is_optout_text(text) and self._campaign_optout(info, wa_id):
+            sent = await self._send(self._graph(info.token), info, wa_id, None, settings.wa_optout_reply)
+            with self.sessions() as s:
+                store.set_inbound(s, [wamid], status="answered" if sent else "error")
+                s.commit()
+            return
+        if text is not None:
+            now = utcnow()
+            with self.sessions() as s:
+                target = campaigns.reply_target(s, info.id, wa_id, now)
+                if target is not None:
+                    # Sin conversacion: el reporte de la campaña cuenta la respuesta igual.
+                    campaigns.mark_replied(s, target.recipient_id, None, now)
+                    s.commit()
+        logger.info("wa: entrante en modo owner, sin respuesta pnid=%s wamid=%s", info.phone_number_id, wamid)
+
+    def _campaign_optout(self, info: AccountInfo, wa_id: str) -> bool:
+        """Baja pedida en respuesta a una campaña, sin mirar hilo ni reenvio (en owner no hay conversacion propia)."""
+        with self.sessions() as s:
+            if not campaigns.got_campaign(s, info.id, wa_id):
+                return False
+            campaigns.add_optout(s, info.client_id, wa_id, "keyword")
+            s.commit()
+        logger.info("wa: baja de campañas en modo owner pnid=%s", info.phone_number_id)
+        return True
+
+    async def _on_echo(self, pnid: str, echo: dict) -> None:
+        """Eco de un mensaje que el dueno mando desde la app (coexistencia): fila out con origin='app'. En modo agent
+        y con un hilo abierto, su texto se suma a la conversacion como assistant con OWNER_PERSON, bajo el lock del
+        contacto (no intercala con el turno ni con la extraccion). En owner, solo la fila."""
+        wamid, wa_id = str(echo["id"]), str(echo["to"])
+        kind = echo.get("type") or "other"
+        text = _text_of(echo) or _caption_of(echo)
+        if text is None and kind in RELAY_KINDS:
+            text = f"[{RELAY_KINDS[kind]}]"
+        kind_db = "text" if text is not None else (kind if kind in MESSAGE_TYPES else "other")
+        with self.sessions() as s:
+            account = store.account_by_pnid(s, pnid)
+            if not store.record_echo(s, wamid=wamid, account_id=account.id if account else None, wa_id=wa_id,
+                                     type=kind_db, meta_ts=_ts(echo.get("timestamp"))):
+                logger.info("wa: eco repetido, se descarta pnid=%s wamid=%s", pnid, wamid)
+                return
+            if account is None or text is None or account.attendance != "agent":
+                return
+            if self._why_ignore(s, account, wa_id) is not None:
+                return
+            if self._active_thread(s, account.id, wa_id, utcnow()) is None:
+                return
+            account_id = account.id
+        async with self.contact_lock(pnid, wa_id):
+            with self.sessions() as s:
+                thread = self._active_thread(s, account_id, wa_id, utcnow())
+                if thread is None:
+                    return
+                state = self.engine.store.get(thread.conversation_id)
+                if state is None:
+                    return
+                # Sin await entre releer y guardar: la extraccion del turno tambien lo hace asi.
+                state.messages.append(Message(role="assistant", text=text, person=OWNER_PERSON, owner=True))
+                self.engine.store.save(state)
+                store.set_conversation(s, wamid, thread.conversation_id)
+                s.commit()
+        logger.info("wa: eco del dueno agregado al hilo pnid=%s wamid=%s", pnid, wamid)
 
     def _relaying(self, info: AccountInfo, wa_id: str) -> bool:
         with self.sessions() as s:
@@ -632,7 +723,7 @@ class WhatsAppService:
         with self.sessions() as s:
             account = s.get(WaAccount, info.id)
             conversation_id = (handoffs.active_relay_id(s, info.id, wa_id, now)
-                               if account is not None and account.active else None)
+                               if account is not None and account.active and account.attendance != "owner" else None)
             if conversation_id is None:
                 return False
             store.touch_thread(s, conversation_id, now)
@@ -654,7 +745,8 @@ class WhatsAppService:
         now = utcnow()
         with self.sessions() as s:
             account = s.get(WaAccount, info.id)
-            if account is None or not account.active:     # desactivada mientras esperaba
+            if account is None or not account.active or account.attendance == "owner":
+                # Desactivada o pasada a owner mientras esperaba el debounce: sin LLM ni mark_read.
                 store.set_inbound(s, wamids, status="ignored")
                 s.commit()
                 return
@@ -934,8 +1026,12 @@ class WhatsAppService:
             with self.sessions() as s:
                 accounts = store.accounts_by_waba(s, waba_id) if waba_id else []
                 if event in DISCONNECT_EVENTS:
+                    reason = f"account_update {event}"
+                    info = value.get("disconnection_info")
+                    if isinstance(info, dict) and info.get("reason"):
+                        reason = f"{reason} {info['reason']}"
                     for account in accounts:
-                        store.mark_status(s, account, "disconnected", f"account_update {event}")
+                        store.mark_status(s, account, "disconnected", reason)
                 elif event == "DISABLED_UPDATE":
                     states = _ban_states(value)
                     for account in accounts:

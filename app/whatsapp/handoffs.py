@@ -220,7 +220,7 @@ class TextHandoffs:
         if state is None:
             return
         last = state.messages[-1] if state.messages else None
-        if role == "assistant" and last is not None and last.role == "assistant":
+        if role == "assistant" and last is not None and last.role == "assistant" and last.person is None:
             last.text = f"{last.text} {text}".strip()
         else:
             state.messages.append(Message(role=role, text=text, voice_note=voice_note))

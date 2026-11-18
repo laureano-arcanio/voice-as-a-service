@@ -100,6 +100,13 @@ def _summarize(payload) -> list[str]:
             if not isinstance(value, dict):
                 continue
             field = change.get("field")
+            if field == "smb_message_echoes":
+                meta = value.get("metadata")
+                pnid = meta.get("phone_number_id") if isinstance(meta, dict) else None
+                for echo in value.get("message_echoes") or []:
+                    wamid = echo.get("id") if isinstance(echo, dict) else None
+                    lines.append(f"object={obj} phone_number_id={pnid} tipo=message_echoes wamid={wamid}")
+                continue
             if field and field != "messages":
                 lines.append(f"object={obj} field={field} event={value.get('event')} waba={entry.get('id')}")
                 continue

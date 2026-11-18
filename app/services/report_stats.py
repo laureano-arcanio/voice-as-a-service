@@ -573,10 +573,13 @@ def messages(s: Session, flt: ReportFilter) -> dict:
             conversion[conv if conv in conversion else "empty"] += n
 
     out = WaMessage.direction == "out"
+    # El embudo es de lo que manda la plataforma: los ecos del dueno no reciben statuses de entrega.
+    not_echo = or_(WaMessage.origin.is_(None), WaMessage.origin != "app")
     sent, delivered, read, failed = map(_n, s.execute(_wa_messages(
-        flt, _count_if(and_(out, WaMessage.status.in_(("sent", "delivered", "read")))),
-        _count_if(and_(out, WaMessage.status.in_(("delivered", "read")))),
-        _count_if(and_(out, WaMessage.status == "read")), _count_if(and_(out, WaMessage.status == "failed")))).one())
+        flt, _count_if(and_(out, not_echo, WaMessage.status.in_(("sent", "delivered", "read")))),
+        _count_if(and_(out, not_echo, WaMessage.status.in_(("delivered", "read")))),
+        _count_if(and_(out, not_echo, WaMessage.status == "read")),
+        _count_if(and_(out, not_echo, WaMessage.status == "failed")))).one())
     code, text = WaMessage.error["code"].as_string(), WaMessage.error["message"].as_string()
     failures = [{"code": None if c is None else str(c), "message": m, "count": n} for c, m, n in s.execute(
         _wa_messages(flt, code, text, func.count()).where(out, WaMessage.status == "failed")

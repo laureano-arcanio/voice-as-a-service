@@ -86,7 +86,8 @@ Todo corre en `app` (no en `agent`): el webhook es HTTP y no hay room.
 ### Mensaje entrante
 
 1. Dedupe por `wamid`; cuenta por `phone_number_id`. Se ignora (queda `ignored`) si la cuenta no existe, está
-   inactiva o desconectada, el cliente está inactivo o su plan no incluye WhatsApp.
+   inactiva o desconectada, el cliente está inactivo o su plan no incluye WhatsApp. En modo `owner` no se sigue con
+   el flujo: ver [Modo de atención](#modo-de-atención-attendance).
 2. Junta lo que llega en `WA_DEBOUNCE_SECONDS` (2 s) en un turno, ordenado por el timestamp de Meta; un turno a la
    vez por contacto. Si llega texto mientras responde el LLM, deshace el turno y responde todo junto.
 3. Conversación activa del contacto, o una nueva **sin apertura** (el primer mensaje del cliente es el turno 1). Si
@@ -132,6 +133,30 @@ OGG ~240 bytes por carácter (600 caracteres ≈ 140 KB, bajo los 512 KB en que 
   el barrido (`sweep`, cada 300 s), que cierra los hilos vencidos y llama a `engine.finish` (extracción final).
 - No confundir con la ventana de 24 h de Meta (texto libre vs. plantillas), que aplica Meta.
 - La conversación corre con la versión del agente con que empezó: **Cerrar conversación** fuerza la vigente.
+
+### Modo de atención (`attendance`) y coexistencia
+
+Cada número tiene un modo excluyente en `wa_accounts.attendance`, independiente de cómo se conectó: `agent`
+(default) o `owner`. Con la coexistencia de Meta (Embedded Signup v5), el número sigue en la app de WhatsApp
+Business del dueño y atiende desde el teléfono.
+
+- **`agent`:** el flujo de arriba. Si el dueño además escribe desde la app, el eco (`smb_message_echoes`) se
+  registra en `wa_messages` (`direction='out'`, `origin='app'`) y, con un hilo abierto con ese contacto, su texto se
+  agrega a la conversación como assistant con `person="Dueño"` y `owner=true`. Entra al historial del LLM como un
+  assistant con nombre, como lo que dijo una persona del equipo; no dispara un turno ni toca `last_user_at`. La UI
+  avisa "en este modo no respondas desde la app".
+- **`owner`:** la IA no responde nunca. El entrante queda solo en `wa_messages` (`received`, sin texto, sin
+  conversación, LLM, derivación, ruteo ni `mark_read`: sigue sin leer en el teléfono). Siguen las campañas y las
+  plantillas; la baja por palabra clave se registra y se contesta una vez (`WA_OPTOUT_REPLY`, sin `mark_read`), y la
+  respuesta a una campaña marca `replied_at` sin abrir conversación. Los ecos del dueño quedan solo como fila. El
+  reenvío al operador vigente se corta al pasar a `owner`; las llamadas de WhatsApp siguen la config del número y
+  `wa_routes`, con las reglas de mensajes guardadas.
+- **Ecos:** un eco con `id` y `to`; el `to` es el contacto. Se registran con dedupe por `wamid` (si un status llegó
+  antes y dejó la fila `other`, se completa). El texto es el del mensaje, el `caption`, o `[imagen]`, `[documento]`,
+  `[sticker]`, `[video]`, `[ubicación]`. Sin `mark_read` ni envío. `edit` y `revoke` no son mensajes nuevos (sin
+  respuesta).
+- En `own_app`, el webhook filtra por `metadata.phone_number_id` todo cambio que lo traiga (mensajes, ecos y
+  statuses), no solo `messages`.
 
 ### Ruteo por contacto (`wa_routes`)
 
@@ -280,8 +305,9 @@ número con PIN (no en coexistencia) y guarda la cuenta. Errores: número de otr
 
 **Estados de la cuenta:** un 190 o 401 con el token del cliente la pasa a `disconnected` y deja de responder;
 también `account_update` con `PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`, `ACCOUNT_OFFBOARDED`, `ACCOUNT_DELETED` o
-`DISABLED_UPDATE` con `DISABLE`. `REINSTATE` reconecta lo que desconectó un `DISABLE`; `SCHEDULE_FOR_DISABLE` solo
-se loguea. `phone_number_quality_update` guarda `messaging_limit`; `message_template_status_update` solo se loguea.
+`DISABLED_UPDATE` con `DISABLE`. `PARTNER_REMOVED` guarda el motivo de Meta si viene
+(`account_update PARTNER_REMOVED PRIMARY_INACTIVITY|COMPANION_INACTIVITY`). `REINSTATE` reconecta lo que desconectó un
+`DISABLE`; `SCHEDULE_FOR_DISABLE` solo se loguea. `phone_number_quality_update` guarda `messaging_limit`; `message_template_status_update` solo se loguea.
 
 **Plantillas:** se listan y crean en vivo contra Meta. Variables `{{1}}`… solo en el cuerpo, con un ejemplo por
 variable; encabezado y pie fijos; botón de enlace (https fijo), un botón de respuesta rápida con texto libre sin variables
@@ -416,8 +442,10 @@ Al editar `.env`: diff enmascarado contra el backup antes de reiniciar.
   primera alta real, confirmar que el business token no vence (`GET /debug_token`) y volver `CSP_REPORT_ONLY` a `false`.
 - **`own_app` con un número real:** que una app en Live sin App Review reciba los webhooks de sus números, y que un
   número que está en la app WhatsApp Business del celular no se pueda usar por la API sin coexistencia.
-- **Coexistencia:** el alta y la sincronización están, pero la app no lee `history`, `smb_app_state_sync` ni
-  `smb_message_echoes`; sin suscribir esos campos Meta no ofrece la pantalla de coexistencia.
+- **Coexistencia:** el alta está y los ecos de `smb_message_echoes` se leen, pero no se piden historial ni contactos
+  (`history`, `smb_app_state_sync`); si Meta no ofrece la pantalla sin suscribirlos, se agregan y `handle_payload` los
+  ignora (no traen `messages`). Desconocido: a dónde llegan los ecos (a la app o al número) y si Meta desconecta sola
+  si no se piden los datos en 24 h.
 - **Llamadas de WhatsApp en `call_logs`:** hoy quedan como una entrante de teléfono; el `wa.wacid` ya llega al
   worker, falta marcarlas como de WhatsApp. Las llamadas por SIP siguen solo con el número de Atentina.
 - **Capacidad:** perfiles `whatsapp` y `whatsapp-audio` del test de capacidad (texto y audio junto con llamadas,

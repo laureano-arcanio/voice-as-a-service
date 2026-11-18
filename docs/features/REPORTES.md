@@ -84,6 +84,9 @@ llamantes que pasaron por los dos.
   de atención), un tramo `interrupted` no cuenta como intento sin atender, y los envíos al equipo (`team_notice`,
   `team_relay`) suman en Mensajes porque son envíos reales. Un toque tardío sobre un área ya pasada puede contar una
   derivación de más en el área que quedó esperando.
+- **Ecos del dueño** ([WHATSAPP.md](WHATSAPP.md#modo-de-atención-attendance-y-coexistencia)): los mensajes que el
+  dueño manda desde la app de WhatsApp Business (`wa_messages.origin='app'`) suman en el volumen diario de Mensajes,
+  pero no entran al embudo de entrega: Meta no les manda statuses de entrega.
 - **Workflows** ([HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): su ejecución deja una
   fila en `tool_runs` y aparece en `tools` de Técnico; `last_error` trae solo el diagnóstico (tipo, HTTP y si fue de
   conexión), sin texto de la respuesta.

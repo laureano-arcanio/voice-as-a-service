@@ -208,6 +208,38 @@ def record_inbound(s: Session, *, wamid: str, account_id: str | None, wa_id: str
     return True
 
 
+def record_echo(s: Session, *, wamid: str, account_id: str | None, wa_id: str, type: str,
+                meta_ts: datetime.datetime | None) -> bool:
+    """Registra el eco del dueno (coexistencia) como saliente origin='app' y hace commit (dedupe). False si ya era
+    un eco: Meta reenvia. Si el wamid ya estaba como 'other' porque un status llego antes, se completa y sigue."""
+    msg = s.scalar(select(WaMessage).where(WaMessage.wamid == wamid))
+    if msg is None:
+        s.add(WaMessage(wamid=wamid, account_id=account_id, direction="out", origin="app", wa_id=wa_id, type=type,
+                        status="sent", meta_ts=meta_ts))
+        try:
+            s.commit()
+        except IntegrityError:
+            s.rollback()
+            return False
+        return True
+    if msg.origin == "app" or msg.direction != "out" or msg.type != "other":
+        return False     # ya era un eco, o un envio nuestro: no se pisa
+    msg.origin = "app"
+    msg.account_id = msg.account_id or account_id
+    msg.wa_id = msg.wa_id or wa_id
+    msg.type = type
+    if meta_ts is not None:
+        msg.meta_ts = meta_ts
+    s.commit()
+    return True
+
+
+def set_conversation(s: Session, wamid: str, conversation_id: str) -> None:
+    msg = s.scalar(select(WaMessage).where(WaMessage.wamid == wamid, WaMessage.direction == "out"))
+    if msg is not None and msg.conversation_id is None:
+        msg.conversation_id = conversation_id
+
+
 def set_inbound(s: Session, wamids: list[str], *, status: str, conversation_id: str | None = None) -> None:
     if not wamids:
         return

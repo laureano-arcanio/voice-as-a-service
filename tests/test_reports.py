@@ -127,6 +127,9 @@ def data(api, admin, monkeypatch):
                       status="delivered", created_at=T(3, 9, 1)),
             WaMessage(account_id=acc.id, conversation_id=c3, direction="out", wa_id="5493510000002", type="text",
                       status="failed", error={"code": 131026, "message": "Undeliverable"}, created_at=T(3, 9, 6)),
+            # Eco del dueno (coexistencia): cuenta como saliente del dia, pero no entra al embudo de entrega.
+            WaMessage(account_id=acc.id, direction="out", origin="app", wa_id="5493510000002", type="text",
+                      status="sent", created_at=T(3, 9, 2)),
             WaAccountStatusLog(account_id=acc.id, status="connected", quality_rating="GREEN", at=T(1, 8)),
             ToolRun(client_id=ac, agent_id=a, conversation_id=c1, slug="stock", type="http", ok=True, ms=100,
                     created_at=T(2, 10)),
@@ -176,7 +179,7 @@ def test_summary_kpis_daily_and_previous(api, data):
     # Los absolutos de los porcentajes: 2 y 1 de las 5 atendidas por un agente; las 3 llamadas del agente terminaron.
     assert (k["with_agent"], k["conversions"], k["goals"], k["finished"], k["failed"]) == (5, 2, 1, 3, 0)
     assert (k["transfers"], k["transfers_answered"], k["transfer_pct"]) == (2, 1, 40.0)
-    assert (k["minutes"], k["avg_duration"], k["rejected_by_limit"], k["wa_messages"]) == (4, 63, 1, 4)
+    assert (k["minutes"], k["avg_duration"], k["rejected_by_limit"], k["wa_messages"]) == (4, 63, 1, 5)
     assert out["previous"]["conversations"] == 1 and out["previous"]["minutes"] == 1
     assert out["period"] == {"date_from": "2026-10-01", "date_to": "2026-10-10"}
     day = next(d for d in out["daily"] if d["date"] == "2026-10-02")
@@ -397,7 +400,7 @@ def test_outcomes_report_with_an_agent_without_outcomes(api, data):
 def test_messages_report(api, data):
     out = report(data["admin"], "messages", client_id=data["acme"])
     day = next(d for d in out["daily"] if d["date"] == "2026-10-03")
-    assert day == {"date": "2026-10-03", "inbound": 2, "outbound": 2, "inbound_audio": 1, "outbound_audio": 0,
+    assert day == {"date": "2026-10-03", "inbound": 2, "outbound": 3, "inbound_audio": 1, "outbound_audio": 0,
                    "conversations": 1}
     assert sum(c["count"] for c in out["heatmap"]) == 2
     assert out["delivery"] == {"sent": 1, "delivered": 1, "read": 0, "failed": 1}

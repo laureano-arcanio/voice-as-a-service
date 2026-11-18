@@ -9,6 +9,7 @@ from app.models import (
     Contact,
     ContactOptout,
     ConversationRow,
+    WaAccount,
     WaMessage,
 )
 from app.services.errors import Invalid
@@ -455,3 +456,18 @@ def test_campaign_conversation_row_count(sessions):
     with sessions() as s:
         assert s.scalars(select(ConversationRow)).all() == []
         assert s.scalars(select(WaMessage)).all() == []
+
+
+async def test_campaign_reply_in_owner_marks_replied_without_conversation(sessions):
+    """Modo owner: responder a una campaña no abre conversacion ni pasa por el LLM; el reporte cuenta la respuesta."""
+    w = make_wa(sessions, llm=FakeLLM(), graph=CampaignGraph())
+    with sessions() as s:
+        s.get(WaAccount, w.account_id).attendance = "owner"
+        s.commit()
+    cid = make_campaign(w, WA_ID)
+    await sender_for(w).tick()
+    await send(w, text_payload("sí, contame", "wamid.in1"))
+    assert conversations(sessions) == [] and w.llm.calls == [] and w.graph.sent == []
+    with sessions() as s:
+        (r,) = recipients(sessions, cid)
+        assert r.replied_at is not None and r.conversation_id is None

@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.conversation import workflows
-from app.conversation.models import Extraction
+from app.conversation.models import Extraction, Message
 from app.db import utcnow
 from app.models import (
     Agent,
@@ -2998,3 +2998,17 @@ async def test_lost_tap_starts_its_delivery_from_the_ack(h):
     assert thread_of(h).handoff_status == "accepted" and thread_of(h).handoff_leg_id == leg_of(h, "ana").id
     _, ack, contact = h.graph.texts(TO["ana"])
     assert ack.startswith("Recibido.") and PERSON_PHONE in contact
+
+
+async def test_append_does_not_merge_with_an_owner_message(sessions):
+    """El aviso del agente no se une con lo que escribio el dueno: quedaria firmado "Dueño"."""
+    w = make_wa(sessions)
+    with sessions() as s:
+        state, _ = w.engine.new_conversation(w.agent_id, w.client_id, session=s, channel="whatsapp", opening=False)
+        state.messages.append(Message(role="assistant", text="Te llamo en un rato", person="Dueño", owner=True))
+        w.engine.store.save(state)
+        cid = state.conversation_id
+    w.service.handoffs._append(cid, "assistant", "El equipo ya te contacta.")
+    state = w.engine.store.get(cid)
+    assert [(m.text, m.person, m.owner) for m in state.messages] == [
+        ("Te llamo en un rato", "Dueño", True), ("El equipo ya te contacta.", None, False)]

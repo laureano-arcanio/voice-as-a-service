@@ -609,3 +609,131 @@ def test_recipient_quita_el_9_de_celulares_argentinos():
     assert recipient("543513962553") == "543513962553"
     assert recipient("15551456632") == "15551456632"
     assert recipient("549351") == "549351"
+
+
+# ---------- coexistencia: modo owner y ecos ----------
+
+def set_attendance(w: Wa, mode: str) -> None:
+    with w.sessions() as s:
+        s.get(WaAccount, w.account_id).attendance = mode
+        s.commit()
+
+
+def echo_payload(echo: dict, pnid: str = PNID) -> dict:
+    return {"object": "whatsapp_business_account",
+            "entry": [{"id": "100000000000001", "time": 1, "changes": [{
+                "field": "smb_message_echoes",
+                "value": {"messaging_product": "whatsapp", "metadata": {"phone_number_id": pnid},
+                          "message_echoes": [echo]}}]}]}
+
+
+def an_echo(wamid: str, to: str = WA_ID, **extra) -> dict:
+    return {"id": wamid, "to": to, "timestamp": "1760000000", "type": "text",
+            "text": {"body": "Te llamo en un rato"}, **extra}
+
+
+async def test_owner_never_calls_the_llm_or_marks_read(sessions):
+    """Modo owner: el numero lo atiende el dueno. Texto, audio, imagen y boton quedan received, sin conversacion."""
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    set_attendance(w, "owner")
+    image = copy.deepcopy(fixture("text.json"))
+    value = image["entry"][0]["changes"][0]["value"]
+    value["messages"] = [{"id": "wamid.img", "from": WA_ID, "timestamp": "1760000000", "type": "image",
+                          "image": {"id": "media1", "mime_type": "image/jpeg"}}]
+    button = copy.deepcopy(image)
+    button["entry"][0]["changes"][0]["value"]["messages"] = [
+        {"id": "wamid.btn", "from": WA_ID, "timestamp": "1760000000", "type": "button",
+         "button": {"text": "Sí", "payload": "si"}}]
+    audio = copy.deepcopy(image)
+    audio["entry"][0]["changes"][0]["value"]["messages"] = [
+        {"id": "wamid.aud", "from": WA_ID, "timestamp": "1760000000", "type": "audio",
+         "audio": {"id": "media2", "mime_type": "audio/ogg"}}]
+    await send(w, text_payload("hola", "wamid.t"), image, button, audio)
+    assert w.llm.calls == [] and w.graph.sent == [] and w.graph.read == [] and w.graph.downloaded == []
+    assert conversations(sessions) == []
+    assert [m.status for m in messages(sessions, direction="in")] == ["received"] * 4
+
+
+async def test_change_to_owner_during_debounce_ignores_the_turn(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    w.service.handle_payload(text_payload("hola", "wamid.in1"))
+    await asyncio.sleep(0.01)     # el mensaje ya esta en debounce
+    set_attendance(w, "owner")
+    await w.service.drain()
+    assert w.llm.calls == [] and w.graph.sent == [] and w.graph.read == []
+    (inb,) = messages(sessions, direction="in")
+    assert inb.status == "ignored" and conversations(sessions) == []
+
+
+async def test_owner_optout_replies_without_mark_read(sessions):
+    from app.models import ContactOptout
+    w = make_wa(sessions, llm=FakeLLM())
+    set_attendance(w, "owner")
+    with w.sessions() as s:
+        from app.whatsapp import campaigns
+        campaigns.add_optout(s, w.client_id, "5493515550009", "manual")   # no: otra persona
+        s.commit()
+        assert s.get(ContactOptout, (w.client_id, "+5493515550009", "whatsapp")) is not None
+    await send(w, text_payload("No me interesa", "wamid.in1"))
+    # Sin campaña previa no hay baja ni respuesta: la IA no contesta en owner.
+    assert w.graph.sent == [] and w.llm.calls == [] and w.graph.read == []
+
+
+async def test_echo_in_agent_joins_the_open_conversation(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply("Hola"), reply("Dale")))
+    await send(w, text_payload("hola", "wamid.in1"))
+    await send(w, echo_payload(an_echo("wamid.echo1")))
+    (conv,) = conversations(sessions)
+    assert [(m["role"], m["text"], m.get("person"), m.get("owner")) for m in conv.messages[-1:]] == [
+        ("assistant", "Te llamo en un rato", "Dueño", True)]
+    (echo,) = messages(sessions, origin="app")
+    assert (echo.direction, echo.status, echo.type, echo.conversation_id) == ("out", "sent", "text", conv.id)
+    assert w.graph.sent == [(PNID, SEND_TO, "Hola")]     # el eco no dispara respuesta
+    # El turno siguiente ve el eco como assistant con nombre.
+    await send(w, text_payload("perfecto", "wamid.in2"))
+    assert w.llm.calls[-1][0] == "perfecto"
+    state = w.engine.store.get(conv.id)
+    owner = [m for m in state.messages if m.owner]
+    assert len(owner) == 1 and owner[0].person == "Dueño" and owner[0].role == "assistant"
+
+
+async def test_repeated_echo_is_registered_once(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    await send(w, text_payload("hola", "wamid.in1"))
+    payload = echo_payload(an_echo("wamid.echo1"))
+    await send(w, payload, copy.deepcopy(payload))
+    (conv,) = conversations(sessions)
+    assert sum(1 for m in conv.messages if m.get("owner")) == 1
+    assert len(messages(sessions, origin="app")) == 1
+
+
+async def test_echo_without_thread_or_in_owner_only_registers(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    await send(w, echo_payload(an_echo("wamid.echo1")))
+    assert conversations(sessions) == [] and len(messages(sessions, origin="app")) == 1
+
+    await send(w, text_payload("hola", "wamid.in1"))
+    set_attendance(w, "owner")
+    await send(w, echo_payload(an_echo("wamid.echo2")))
+    (conv,) = conversations(sessions)
+    # El eco en owner no entra a la conversacion (la del turno anterior, en agent).
+    assert not any(m.get("owner") for m in conv.messages)
+    assert len(messages(sessions, origin="app")) == 2
+
+
+async def test_echo_completes_a_row_created_by_an_early_status(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    await send(w, status_payload("status_read.json", "wamid.echo1"))
+    await send(w, echo_payload(an_echo("wamid.echo1")))
+    (row,) = messages(sessions, wamid="wamid.echo1")
+    assert (row.direction, row.origin, row.type, row.status) == ("out", "app", "text", "read")
+
+
+async def test_edit_and_revoke_get_no_reply(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply()))
+    for wamid, kind in (("wamid.edit", "edit"), ("wamid.revoke", "revoke")):
+        p = copy.deepcopy(fixture("text.json"))
+        p["entry"][0]["changes"][0]["value"]["messages"] = [
+            {"id": wamid, "from": WA_ID, "timestamp": "1760000000", "type": kind, kind: {"message_id": "x"}}]
+        await send(w, p)
+    assert w.graph.sent == [] and w.llm.calls == []

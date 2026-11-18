@@ -101,8 +101,9 @@ async def connect(s: Session, *, client_id: str, agent_id: str, phone_number_id:
 
 
 def scoped_payload(payload: dict, account: WaAccount) -> dict:
-    """Solo lo de esa cuenta: los cambios de su WABA y, en los de mensajes, de su numero. Un webhook firmado
-    con el secret de un cliente no puede hacer pasar mensajes de otro numero."""
+    """Solo lo de esa cuenta: los cambios de su WABA y, los que traen metadata.phone_number_id (mensajes, ecos y
+    statuses), solo de su numero. Un webhook firmado con el secret de un cliente no puede hacer pasar mensajes ni
+    ecos de otro numero de la misma WABA."""
     entries = []
     for entry in payload.get("entry") or []:
         if not isinstance(entry, dict) or str(entry.get("id") or "") != account.waba_id:
@@ -114,7 +115,7 @@ def scoped_payload(payload: dict, account: WaAccount) -> dict:
                 continue
             meta = value.get("metadata")
             pnid = str(meta.get("phone_number_id") or "") if isinstance(meta, dict) else ""
-            if change.get("field") == "messages" and pnid != account.phone_number_id:
+            if pnid and pnid != account.phone_number_id:
                 continue
             changes.append(change)
         if changes:

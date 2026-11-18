@@ -131,6 +131,16 @@ def test_messages_no_loguea_texto_ni_telefono(client, caplog):
     assert "hola secreto" not in caplog.text and "5491155551234" not in caplog.text
 
 
+def test_echo_no_loguea_texto_ni_telefono(client, caplog):
+    caplog.set_level(logging.INFO)
+    p = change(message_echoes=[{"id": "wamid.ECO", "to": "5491155559999", "type": "text",
+                                "text": {"body": "te llamo secreto"}}])
+    p["entry"][0]["changes"][0]["field"] = "smb_message_echoes"
+    assert post(client, p).status_code == 200
+    assert "tipo=message_echoes" in caplog.text and "wamid.ECO" in caplog.text and "555" in caplog.text
+    assert "te llamo secreto" not in caplog.text and "5491155559999" not in caplog.text
+
+
 def test_access_log_tapa_verify_token():
     import logging
 

@@ -62,6 +62,20 @@ def connect(user, agent, **extra):
         "app_secret": SECRET, **extra})
 
 
+def test_scoped_payload_discards_echoes_of_another_number(api, meta, acme):  # noqa: F811
+    _, agent, user = acme
+    connect(user, agent)
+    with api.sessions() as s:
+        account = s.query(WaAccount).filter_by(phone_number_id=PNID).one()
+        def payload(pnid):
+            return {"object": "whatsapp_business_account", "entry": [{"id": WABA, "changes": [{
+                "field": "smb_message_echoes", "value": {"metadata": {"phone_number_id": pnid},
+                                                         "message_echoes": [{"id": "wamid.e", "to": "5493510000000"}]}}]}]}
+        assert own_app.scoped_payload(payload("999"), account)["entry"] == []
+        scoped = own_app.scoped_payload(payload(PNID), account)
+    assert len(scoped["entry"][0]["changes"]) == 1
+
+
 def test_alta_guarda_attendance(api, meta, acme):  # noqa: F811
     _, agent, user = acme
     out = connect(user, agent, attendance="owner").json()
