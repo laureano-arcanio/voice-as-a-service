@@ -290,7 +290,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
             />
             <Switch
               label="Reportes completos"
-              description="Resultados, Mensajes, Transferencias y Campañas en Reportes. Sin esto, solo Resumen y Llamadas."
+              description="Resultados, Mensajes, Transferencias, Reparto y Campañas en Reportes. Sin esto, solo Resumen y Llamadas."
               mt="md"
               {...form.getInputProps('advanced_reports', { type: 'checkbox' })}
             />

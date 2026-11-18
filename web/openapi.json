@@ -12776,6 +12776,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -12960,6 +13000,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -13144,6 +13224,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -13331,6 +13451,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -13518,6 +13678,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -13527,6 +13727,233 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ReportTransfersOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "El plan no incluye los reportes completos (advanced_reports_not_in_plan)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/split": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Split",
+    "description": "Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,\nderivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los\nllamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.\nPlan con reportes completos.",
+    "operationId": "split_api_v1_reports_split_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportSplitOut"
         }
        }
       }
@@ -13705,6 +14132,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -13892,6 +14359,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -14076,6 +14583,46 @@
        "title": "Include Tests"
       },
       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     },
+     {
+      "name": "split_arm",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo",
+       "title": "Split Arm"
+      },
+      "description": "Solo las llamadas del reparto agente/equipo que cayeron en ese brazo"
+     },
+     {
+      "name": "split_experiment",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa etiqueta de experimento del reparto",
+       "title": "Split Experiment"
+      },
+      "description": "Solo las llamadas de esa etiqueta de experimento del reparto"
      }
     ],
     "responses": {
@@ -25592,6 +26139,44 @@
       "type": "boolean",
       "title": "Record Full Call"
      },
+     "agent_percent": {
+      "type": "integer",
+      "title": "Agent Percent"
+     },
+     "split_experiment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Split Experiment"
+     },
+     "split_started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Split Started At"
+     },
+     "split_max_agent_calls": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Split Max Agent Calls"
+     },
      "members": {
       "items": {
        "$ref": "#/components/schemas/PhoneNumberMemberOut"
@@ -25624,7 +26209,8 @@
      "team_retry_message",
      "team_busy_message",
      "team_no_answer_message",
-     "record_full_call"
+     "record_full_call",
+     "agent_percent"
     ],
     "title": "PhoneNumberOut"
    },
@@ -25885,6 +26471,46 @@
       ],
       "title": "Record Full Call",
       "description": "Graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye), con el equipo o con el agente. No incluye el link para llamar, la prueba del panel ni WhatsApp"
+     },
+     "agent_percent": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Percent",
+      "description": "Con team: porcentaje de las entrantes que atiende el agente del número (sorteo independiente por llamada; 0, todas al equipo). Requiere agente; con answer_mode agent se guarda 0"
+     },
+     "split_max_agent_calls": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 50.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Split Max Agent Calls",
+      "description": "Con reparto: tope de llamadas activas a la vez del brazo agente; pasado el tope, las nuevas van al equipo. null = sin tope"
+     },
+     "new_experiment": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Experiment",
+      "description": "Arranca una etiqueta nueva de experimento (separa el análisis desde ahí; el sorteo no cambia)"
      }
     },
     "type": "object",
@@ -28280,6 +28906,342 @@
      "reason"
     ],
     "title": "ReportReasonOut"
+   },
+   "ReportSplitBothArmsOut": {
+    "properties": {
+     "experiment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Experiment"
+     },
+     "percent": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Percent"
+     },
+     "callers": {
+      "type": "integer",
+      "title": "Callers",
+      "description": "Llamantes distintos con llamadas en los dos brazos"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls",
+      "description": "Llamadas de esos llamantes"
+     },
+     "arms": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitGroupOut"
+      },
+      "type": "array",
+      "title": "Arms",
+      "description": "Los mismos campos, solo con sus llamadas"
+     },
+     "rest": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitGroupOut"
+      },
+      "type": "array",
+      "title": "Rest",
+      "description": "Los mismos campos, sin esas llamadas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "experiment",
+     "percent",
+     "callers",
+     "calls",
+     "arms",
+     "rest"
+    ],
+    "title": "ReportSplitBothArmsOut",
+    "description": "Los llamantes que pasaron por los dos brazos del mismo experimento y porcentaje."
+   },
+   "ReportSplitGroupOut": {
+    "properties": {
+     "experiment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Experiment",
+      "description": "Etiqueta del experimento; agrupa las llamadas, no cambia el sorteo"
+     },
+     "percent": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Percent",
+      "description": "Porcentaje al agente que tenía el número en esa llamada"
+     },
+     "arm": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "team"
+      ],
+      "title": "Arm"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "callers": {
+      "type": "integer",
+      "title": "Callers",
+      "description": "Llamantes distintos (últimos 10 dígitos del teléfono)"
+     },
+     "first_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First At"
+     },
+     "last_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last At"
+     },
+     "reasons": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "Reasons",
+      "description": "Por qué cayó en ese brazo (random, cap, agent_unavailable, team_unavailable)"
+     },
+     "statuses": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitStatusOut"
+      },
+      "type": "array",
+      "title": "Statuses"
+     },
+     "ended": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "Ended"
+     },
+     "duration_p25": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration P25",
+      "description": "Segundos, de las llamadas finalizadas"
+     },
+     "duration_p50": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration P50",
+      "description": "Segundos, de las llamadas finalizadas"
+     },
+     "duration_p75": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration P75",
+      "description": "Segundos, de las llamadas finalizadas"
+     },
+     "duration_p90": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration P90",
+      "description": "Segundos, de las llamadas finalizadas"
+     },
+     "early_hangups": {
+      "type": "integer",
+      "title": "Early Hangups",
+      "description": "Llamadas finalizadas en menos de 15 s"
+     },
+     "handoff_requested": {
+      "type": "integer",
+      "title": "Handoff Requested",
+      "description": "Llamadas con un pedido de derivación a una persona"
+     },
+     "handoff_connected": {
+      "type": "integer",
+      "title": "Handoff Connected",
+      "description": "Llamadas con una derivación atendida"
+     },
+     "callbacks_24h": {
+      "type": "integer",
+      "title": "Callbacks 24H",
+      "description": "Llamadas con otra entrante de los mismos 10 dígitos al mismo número dentro de 24 h del fin"
+     },
+     "outcomes": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitOutcomeOut"
+      },
+      "type": "array",
+      "title": "Outcomes",
+      "description": "Solo el brazo agente: resultados del análisis"
+     },
+     "goals": {
+      "type": "integer",
+      "title": "Goals",
+      "description": "Solo el brazo agente: conversaciones con objetivo cumplido"
+     }
+    },
+    "type": "object",
+    "required": [
+     "experiment",
+     "percent",
+     "arm",
+     "calls",
+     "callers",
+     "first_at",
+     "last_at",
+     "reasons",
+     "statuses",
+     "ended",
+     "duration_p25",
+     "duration_p50",
+     "duration_p75",
+     "duration_p90",
+     "early_hangups",
+     "handoff_requested",
+     "handoff_connected",
+     "callbacks_24h",
+     "outcomes",
+     "goals"
+    ],
+    "title": "ReportSplitGroupOut",
+    "description": "Un brazo del reparto en un experimento y porcentaje (docs/features/EQUIPO_TELEFONIA.md)."
+   },
+   "ReportSplitOut": {
+    "properties": {
+     "has_data": {
+      "type": "boolean",
+      "title": "Has Data",
+      "description": "El cliente tiene alguna llamada con brazo registrado (histórico)"
+     },
+     "groups": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitGroupOut"
+      },
+      "type": "array",
+      "title": "Groups"
+     },
+     "both_arms": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSplitBothArmsOut"
+      },
+      "type": "array",
+      "title": "Both Arms"
+     }
+    },
+    "type": "object",
+    "required": [
+     "has_data",
+     "groups",
+     "both_arms"
+    ],
+    "title": "ReportSplitOut"
+   },
+   "ReportSplitOutcomeOut": {
+    "properties": {
+     "outcome": {
+      "type": "string",
+      "title": "Outcome"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "goal": {
+      "type": "boolean",
+      "title": "Goal"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "outcome",
+     "label",
+     "goal",
+     "count"
+    ],
+    "title": "ReportSplitOutcomeOut"
+   },
+   "ReportSplitStatusOut": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status",
+     "count"
+    ],
+    "title": "ReportSplitStatusOut"
    },
    "ReportSummaryDayOut": {
     "properties": {
@@ -31666,7 +32628,7 @@
      "advanced_reports": {
       "type": "boolean",
       "title": "Advanced Reports",
-      "description": "Reportes completos: Resultados, Mensajes, Transferencias y Campañas (sin esto, Resumen y Llamadas)",
+      "description": "Reportes completos: Resultados, Mensajes, Transferencias, Reparto y Campañas (sin esto, Resumen y Llamadas)",
       "default": false
      },
      "internal": {

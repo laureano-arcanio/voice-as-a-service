@@ -201,6 +201,7 @@ const reportEndpoints = [
   { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
   { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
   { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo" },
+  { path: "GET /reports/split", plan: "Completos", text: "Reparto agente/equipo de las entrantes: por experimento, porcentaje y brazo, llamadas, llamantes, motivos, duración, derivaciones, rellamadas en 24 h y resultados del brazo agente; los llamantes que pasaron por los dos brazos" },
   { path: "GET /reports/campaigns", plan: "Completos", text: "Comparativo de campañas, embudo, motivos de no contacto y mejor horario para llamar" },
 ];
 
@@ -368,7 +369,9 @@ const phoneNumberTeam = `curl -X PATCH ${API}/phone-numbers/<id del número> \\
     "ring_seconds": 20,
     "schedule": {"week": {"mon": [["09:00", "18:00"]], "tue": [["09:00", "18:00"]]}},
     "team_fallback": "voicemail",
-    "team_fallback_message": "Ahora no podemos atenderte. Dejá tu mensaje después de la señal."
+    "team_fallback_message": "Ahora no podemos atenderte. Dejá tu mensaje después de la señal.",
+    "agent_percent": 50,
+    "split_max_agent_calls": 3
   }'`;
 
 const phoneNumberFields = [
@@ -387,6 +390,9 @@ const phoneNumberFields = [
   { field: "team_retry_seconds", text: "0 (por defecto): sin reintentos. De 15 a 300, de a 15: si nadie atiende (ocupado o sin atender), quien llama oye un aviso y música y se vuelve a llamar al equipo durante esos segundos; si nadie atiende, sigue el team_fallback. No reintenta fuera de horario" },
   { field: "team_retry_interval_seconds", text: "Espera entre un intento y el siguiente, de 15 a 120 segundos (30 por defecto)" },
   { field: "team_retry_message", text: "El aviso que oye quien llama al empezar a reintentar (hasta 500 caracteres). Vacío: un aviso por defecto" },
+  { field: "agent_percent", text: "Con team: el porcentaje de llamadas entrantes que atiende el agente del número, por sorteo independiente en cada llamada (0, por defecto: todas al equipo). Sin agente en el número, 422 agent_required; con answer_mode agent se guarda 0" },
+  { field: "split_max_agent_calls", text: "Con el reparto: máximo de llamadas activas a la vez del lado del agente (1 a 50). Las que entran pasado el tope van al equipo. null: sin tope" },
+  { field: "new_experiment", text: "true arranca una etiqueta nueva de experimento, para separar el análisis desde ahí (el sorteo no cambia). La respuesta de PATCH y GET trae split_experiment y split_started_at; cada llamada registrada lleva su brazo, motivo, porcentaje y etiqueta. Las llamadas de WhatsApp con regla por contacto nunca se sortean" },
 ];
 
 const requestEndpoints = [
@@ -861,6 +867,7 @@ const campaignEndpoints = [
         <li><strong>En el panel</strong> suena a quienes están Disponibles y pueden atender o rechazar. No gasta minutos salientes ni una línea extra.</li>
         <li><strong>La primera persona que atiende</strong> se queda con la llamada y a las demás se les corta el timbre. Si corta la persona, la llamada termina.</li>
         <li><strong>WhatsApp:</strong> las llamadas de WhatsApp al mismo número siguen este ruteo. Una regla por contacto que elige un agente sigue mandando.</li>
+        <li><strong>Reparto agente/equipo:</strong> con <code>agent_percent</code>, cada entrante se sortea entre el agente del número y el equipo, sin cuotas ni horarios: el mismo llamante puede caer en los dos. Pasar de 0 a un porcentaje arranca un experimento (etiqueta <code>split_experiment</code>); cambiar el porcentaje no lo cambia. El sorteo no agrega pasos de red: se decide en la misma admisión de la llamada.</li>
       </ul>
 
       <h3>Presencia y timbre en el panel</h3>
@@ -919,8 +926,8 @@ const campaignEndpoints = [
         </tbody>
       </table></div>
       <ul>
-        <li><strong>Qué plan los incluye:</strong> los reportes básicos (<code>summary</code> y <code>calls</code>, con el gráfico de consultas y transferencias) están en todos los planes, también en el Free. Los completos (<code>outcomes</code>, <code>messages</code>, <code>transfers</code> y <code>campaigns</code>) están en Mostrador, Sucursal y Red. Si tu plan no los incluye, el pedido responde 403 con <code>code</code> <code>advanced_reports_not_in_plan</code>; <code>GET /plan/features</code> dice si los tenés (clave <code>advanced_reports</code>).</li>
-        <li><strong>Llamadas directas:</strong> <code>GET /reports/calls</code> las cuenta aparte. <code>daily</code> suma <code>directa</code> a cada día; <code>by_type</code> trae siempre tres filas (<code>agent</code>, <code>direct</code> y <code>team</code>, las entrantes que atiende el equipo) con <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>; y <code>by_user</code> trae, por usuario, <code>direct</code> (las que hizo), <code>team</code> (las que atendió), <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>. Cuentan como llamadas y minutos, no en conversión ni en embudo. <code>total</code> son todas las llamadas del período (lo que suman <code>by_type</code> y <code>ended</code>), y <code>ended</code> suma los motivos de las directas: <code>person_hangup</code>, <code>team_no_answer</code>, <code>after_hours</code>, <code>no_answer</code>, <code>busy</code>, <code>user_not_joined</code>, <code>max_duration</code>, <code>quota_exhausted</code> y <code>worker_error</code>.</li>
+        <li><strong>Qué plan los incluye:</strong> los reportes básicos (<code>summary</code> y <code>calls</code>, con el gráfico de consultas y transferencias) están en todos los planes, también en el Free. Los completos (<code>outcomes</code>, <code>messages</code>, <code>transfers</code>, <code>split</code> y <code>campaigns</code>) están en Mostrador, Sucursal y Red. Si tu plan no los incluye, el pedido responde 403 con <code>code</code> <code>advanced_reports_not_in_plan</code>; <code>GET /plan/features</code> dice si los tenés (clave <code>advanced_reports</code>).</li>
+        <li><strong>Llamadas directas:</strong> <code>GET /reports/calls</code> las cuenta aparte. <code>daily</code> suma <code>directa</code> a cada día; <code>by_type</code> trae siempre tres filas (<code>agent</code>, <code>direct</code> y <code>team</code>, las entrantes que atiende el equipo) con <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>; y <code>by_user</code> trae, por usuario, <code>direct</code> (las que hizo), <code>team</code> (las que atendió), <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>. Los reportes aceptan <code>split_arm</code> (<code>agent</code> o <code>team</code>) para mirar solo un brazo del reparto; <code>GET /reports/split</code> lo compara por experimento y porcentaje. Cuentan como llamadas y minutos, no en conversión ni en embudo. <code>total</code> son todas las llamadas del período (lo que suman <code>by_type</code> y <code>ended</code>), y <code>ended</code> suma los motivos de las directas: <code>person_hangup</code>, <code>team_no_answer</code>, <code>after_hours</code>, <code>no_answer</code>, <code>busy</code>, <code>user_not_joined</code>, <code>max_duration</code>, <code>quota_exhausted</code> y <code>worker_error</code>.</li>
         <li><strong>Qué no incluyen:</strong> son datos de tu negocio. Los tiempos internos de respuesta y el detalle técnico de la plataforma no forman parte de los reportes.</li>
         <li><strong>Desde tu agente de IA:</strong> el <a href="/desarrolladores/docs/mcp">MCP</a> tiene una herramienta por reporte, con los mismos planes.</li>
       </ul>

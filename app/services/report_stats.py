@@ -15,6 +15,7 @@ PostgreSQL y SQLite (dias en otra zona, percentiles), se trae solo lo agregado o
 """
 import datetime
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from zoneinfo import ZoneInfo
@@ -106,6 +107,10 @@ class ReportFilter:
     date_to: datetime.date | None = None    # inclusive
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo(settings.billing_timezone))
     include_tests: bool = False
+    # Reparto agente/equipo (docs/features/EQUIPO_TELEFONIA.md): el brazo de las llamadas y la etiqueta
+    # del experimento. /reports/calls filtra por brazo; /reports/split, por los dos.
+    split_arm: str | None = None
+    split_experiment: str | None = None
 
     def with_defaults(self, now: datetime.datetime | None = None) -> "ReportFilter":
         """Los ultimos 30 dias hasta hoy (en tz) si faltan las fechas; valida el rango."""
@@ -232,6 +237,8 @@ def _conv_where(flt: ReportFilter, dates: bool = True) -> list:
         conds.append(and_(ConversationRow.channel != "whatsapp", or_(CallRow.mode.is_(None), CallRow.mode != "web")))
     if flt.phone_number_id:
         conds.append(CallRow.phone_number_id == flt.phone_number_id)
+    if flt.split_arm:
+        conds.append(CallRow.split_arm == flt.split_arm)
     return conds
 
 
@@ -734,6 +741,168 @@ def campaigns(s: Session, flt: ReportFilter) -> dict:
     return {"campaigns": rows, "no_contact": [{"reason": r, "count": reasons[r]} for r in NO_CONTACT_REASONS],
             "best_hours": [{"weekday": w, "hour": h, "attempts": a, "reached": r}
                            for (w, h), (a, r) in sorted(best.items())]}
+
+
+# ---------- reparto agente/equipo ----------
+
+SPLIT_ARMS = ("agent", "team")
+SPLIT_STATUSES = ("pendiente", "sonando", "en_curso", "finalizada", "fallida", "rechazada", "cancelada")
+CALLBACK_HOURS = 24
+
+
+def _last10(phone: str | None) -> str | None:
+    digits = re.sub(r"\D", "", phone or "")[-10:]
+    return digits if len(digits) == 10 else None
+
+
+def _split_has_data(s: Session, flt: ReportFilter) -> bool:
+    """El cliente tiene llamadas con brazo, aunque hoy ningún número reparta (el reporte es histórico)."""
+    q = select(func.count()).select_from(CallRow).where(CallRow.split_arm.is_not(None))
+    if flt.client_id:
+        q = q.where(CallRow.client_id == flt.client_id)
+    return bool(_n(s.scalar(q)))
+
+
+def _split_events(s: Session, ids: list[str]) -> dict[str, set[str]]:
+    out: dict[str, set[str]] = defaultdict(set)
+    if not ids:
+        return out
+    for cid, typ in s.execute(select(Event.conversation_id, Event.type).where(
+            Event.conversation_id.in_(ids), Event.type.in_((*REQUEST_EVENTS, *ANSWER_EVENTS)))):
+        out[cid].add(typ)
+    return out
+
+
+def _split_callbacks(s: Session, flt: ReportFilter, calls: list[dict]) -> dict[str, bool]:
+    """Otra entrante de los mismos últimos 10 dígitos al mismo número, a cualquier brazo, dentro de 24 h del fin."""
+    ends = [c["ended_at"] for c in calls if c["ended_at"] is not None]
+    if not ends:
+        return {}
+    lo, hi = min(ends), max(ends) + datetime.timedelta(hours=CALLBACK_HOURS)
+    q = select(CallRow.phone_number_id, CallRow.phone, CallRow.created_at).where(
+        CallRow.mode == "entrante", CallRow.created_at > lo, CallRow.created_at <= hi)
+    if flt.client_id:
+        q = q.where(CallRow.client_id == flt.client_id)
+    by_key: dict[tuple[str | None, str], list[datetime.datetime]] = defaultdict(list)
+    for number_id, phone, at in s.execute(q):
+        digits = _last10(phone)
+        if digits:
+            by_key[(number_id, digits)].append(at)
+    out = {}
+    for c in calls:
+        digits, end = _last10(c["phone"]), c["ended_at"]
+        out[c["cid"]] = bool(digits and end is not None and any(
+            end < at <= end + datetime.timedelta(hours=CALLBACK_HOURS)
+            for at in by_key.get((c["phone_number_id"], digits), ())))
+    return out
+
+
+def _split_counts(values, all_values=None) -> list[dict]:
+    counts: dict[str, int] = defaultdict(int)
+    for v in values:
+        if v:
+            counts[v] += 1
+    return [{"reason": k, "count": counts[k]} for k in sorted(counts, key=lambda k: (-counts[k], k))]
+
+
+def _split_outcomes(rows: list[dict], defs: dict[str, dict]) -> list[dict]:
+    counts: dict[str, int] = defaultdict(int)
+    for c in rows:
+        if c["outcome"]:
+            counts[c["outcome"]] += 1
+    out = []
+    for oid in sorted(counts, key=lambda k: (-counts[k], k)):
+        d = defs.get(oid) or {}
+        out.append({"outcome": oid, "label": d.get("label") or oid, "goal": bool(d.get("goal")),
+                    "count": counts[oid]})
+    return out
+
+
+def _split_group(rows: list[dict], events: dict[str, set[str]], callbacks: dict[str, bool],
+                 defs: dict[str, dict]) -> dict:
+    """Los campos de un grupo (experimento, porcentaje y brazo), calculados en Python: percentiles y llamantes."""
+    finished = [c["duration_seconds"] or 0 for c in rows if c["status"] == "finalizada"]
+    percentiles = [None if (p := _percentile(finished, q)) is None else int(round(p)) for q in (0.25, 0.5, 0.75, 0.9)]
+    callers = {d for d in (_last10(c["phone"]) for c in rows) if d} if rows else set()
+    return {
+        "calls": len(rows),
+        "callers": len(callers),
+        "first_at": min((c["created_at"] for c in rows), default=None),
+        "last_at": max((c["created_at"] for c in rows), default=None),
+        "reasons": _split_counts((c["reason"] for c in rows)),
+        "statuses": [{"status": x["reason"], "count": x["count"]}
+                     for x in _split_counts((c["status"] for c in rows))],
+        "ended": _split_counts((c["ended_reason"] for c in rows)),
+        "duration_p25": percentiles[0], "duration_p50": percentiles[1],
+        "duration_p75": percentiles[2], "duration_p90": percentiles[3],
+        "early_hangups": sum(1 for c in rows if c["status"] == "finalizada" and (c["duration_seconds"] or 0) < EARLY_SECONDS),
+        "handoff_requested": sum(1 for c in rows if events.get(c["cid"], set()) & set(REQUEST_EVENTS)),
+        "handoff_connected": sum(1 for c in rows if "handoff.connected" in events.get(c["cid"], set())),
+        "callbacks_24h": sum(1 for c in rows if callbacks.get(c["cid"])),
+        "outcomes": _split_outcomes([c for c in rows if c["arm"] == "agent"], defs),
+        "goals": sum(1 for c in rows if c["arm"] == "agent" and c["goal"]),
+    }
+
+
+def split(s: Session, flt: ReportFilter) -> dict:
+    """Reparto agente/equipo de la entrante (docs/features/EQUIPO_TELEFONIA.md): por experimento, porcentaje y
+    brazo. Sin significancia ni recomendaciones; los llamantes que pasaron por los dos brazos van aparte."""
+    has_data = _split_has_data(s, flt)
+    q = _calls(flt, CallRow.conversation_id, CallRow.phone, CallRow.split_arm, CallRow.split_reason,
+               CallRow.split_percent, CallRow.split_experiment, CallRow.status, CallRow.ended_reason,
+               CallRow.duration_seconds, CallRow.ended_at, CallRow.created_at, CallRow.phone_number_id,
+               ConversationRow.agent_id, ConversationRow.outcome, ConversationRow.goal).where(
+        CallRow.split_arm.is_not(None))
+    if flt.split_experiment:
+        q = q.where(CallRow.split_experiment == flt.split_experiment)
+    calls = [{"cid": cid, "phone": phone, "arm": arm, "reason": reason, "percent": percent,
+              "experiment": experiment, "status": status, "ended_reason": ended, "duration_seconds": duration,
+              "ended_at": ended_at, "created_at": created_at, "phone_number_id": number_id,
+              "agent_id": agent_id, "outcome": outcome, "goal": goal}
+             for cid, phone, arm, reason, percent, experiment, status, ended, duration, ended_at, created_at,
+             number_id, agent_id, outcome, goal in s.execute(q)]
+    events = _split_events(s, [c["cid"] for c in calls])
+    callbacks = _split_callbacks(s, flt, calls)
+    agent_ids = {c["agent_id"] for c in calls if c["agent_id"]}
+    agents = {a.id: a for a in s.scalars(select(Agent).where(Agent.id.in_(agent_ids)))} if agent_ids else {}
+    defs_per_agent = {aid: _outcome_defs(a.definition) for aid, a in agents.items()}
+
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for c in calls:
+        groups[(c["experiment"], c["percent"], c["arm"])].append(c)
+    out = []
+    for (experiment, percent, arm), rows in sorted(
+            groups.items(), key=lambda kv: (kv[0][0] or "", kv[0][1] or 0, kv[0][2])):
+        defs = {}
+        for aid in {c["agent_id"] for c in rows if c["agent_id"]}:
+            defs.update(defs_per_agent.get(aid, {}))
+        out.append({"experiment": experiment, "percent": percent, "arm": arm,
+                    **_split_group(rows, events, callbacks, defs)})
+
+    both = []
+    pairs: dict[tuple, list[dict]] = defaultdict(list)
+    for c in calls:
+        pairs[(c["experiment"], c["percent"])].append(c)
+    for (experiment, percent), rows in sorted(pairs.items(), key=lambda kv: (kv[0][0] or "", kv[0][1] or 0)):
+        by_arm = {a: {d for d in (_last10(c["phone"]) for c in rows if c["arm"] == a) if d} for a in SPLIT_ARMS}
+        shared = by_arm["agent"] & by_arm["team"]
+        if not shared:
+            continue
+        mine = [c for c in rows if _last10(c["phone"]) in shared]
+        rest = [c for c in rows if _last10(c["phone"]) not in shared]
+        defs = {}
+        for aid in {c["agent_id"] for c in rows if c["agent_id"]}:
+            defs.update(defs_per_agent.get(aid, {}))
+        arms = [{"experiment": experiment, "percent": percent, "arm": arm,
+                 **_split_group([c for c in mine if c["arm"] == arm], events, callbacks, defs)}
+                for arm in SPLIT_ARMS if any(c["arm"] == arm for c in mine)]
+        rest_arms = [{"experiment": experiment, "percent": percent, "arm": arm,
+                      **_split_group([c for c in rest if c["arm"] == arm], events, callbacks, defs)}
+                     for arm in SPLIT_ARMS if any(c["arm"] == arm for c in rest)]
+        both.append({"experiment": experiment, "percent": percent, "callers": len(shared), "calls": len(mine),
+                     "arms": arms, "rest": rest_arms})
+
+    return {"has_data": has_data, "groups": out, "both_arms": both}
 
 
 # ---------- tecnico (admin) ----------

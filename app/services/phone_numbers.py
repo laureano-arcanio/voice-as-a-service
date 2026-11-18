@@ -2,6 +2,7 @@
 cliente hasta el tope de su tier y el cliente elige quien atiende cada uno: un agente o
 el equipo (personas en orden, donde suena primero, timbre, horario y respaldo;
 docs/features/EQUIPO_TELEFONIA.md)."""
+import secrets
 from dataclasses import dataclass
 
 from sqlalchemy import delete, func, select
@@ -91,6 +92,9 @@ def _reset_answering(s: Session | None, number: PhoneNumber) -> None:
     number.team_retry_seconds, number.team_retry_interval_seconds, number.team_retry_message = 0, 30, ""
     number.team_busy_message, number.team_no_answer_message = "", ""
     number.record_full_call = False
+    # El reparto agente/equipo no sigue al cliente anterior ni a un numero liberado (las call_logs quedan).
+    number.agent_percent, number.split_max_agent_calls = 0, None
+    number.split_experiment, number.split_started_at = None, None
 
 
 def release(number: PhoneNumber) -> None:
@@ -146,27 +150,32 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     """Quien atiende las entrantes (PATCH del numero): answer_mode, member_ids (en orden), strategy, ring_first,
     ring_seconds, schedule, team_fallback, team_fallback_member_id, team_fallback_message, team_connect_on_answer,
     team_hold_music, team_retry_seconds, team_retry_interval_seconds, team_retry_message, team_busy_message,
-    team_no_answer_message y record_full_call (grabar la llamada completa; el marcador del spool lo escribe el router,
-    services/line_spool.py). Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el
+    team_no_answer_message, record_full_call (grabar la llamada completa; el marcador del spool lo escribe el router,
+    services/line_spool.py) y el reparto agente/equipo: agent_percent (0-100, solo con team),
+    split_max_agent_calls (tope de llamadas activas del brazo agente; null = sin tope) y new_experiment
+    (etiqueta nueva). Valida el resultado entero: con team, al menos una persona; con respaldo agent, un agente en el
     numero; con member, la persona. El agente se cambia antes (set_agent)."""
     keys = ("answer_mode", "member_ids", "ring_first", "ring_seconds", "schedule", "team_fallback",
             "team_fallback_member_id", "team_fallback_message", "strategy", "team_connect_on_answer", "team_hold_music",
             "team_retry_seconds", "team_retry_interval_seconds", "team_retry_message", "team_busy_message",
-            "team_no_answer_message", "record_full_call")
+            "team_no_answer_message", "record_full_call", "agent_percent", "split_max_agent_calls", "new_experiment")
     if not any(k in changes for k in keys):
-        if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente
+        if "agent_id" in changes:   # sacarle el agente a un numero cuyo respaldo es el agente, o con reparto
+            _check_split(number)
             _check_fallback(number)
         return
     if number.client_id is None:
         raise Invalid("Asigná el número a un cliente antes de elegir quién atiende", "number_unassigned")
     nulls = sorted(k for k in keys if k in changes and changes[k] is None
-                   and k not in ("schedule", "team_fallback_member_id"))
+                    and k not in ("schedule", "team_fallback_member_id", "split_max_agent_calls"))
     if nulls:
         raise Invalid(f"No pueden ir vacíos: {', '.join(nulls)}")
     if "answer_mode" in changes:
         if changes["answer_mode"] not in ANSWER_MODES:
             raise Invalid("answer_mode: team o agent")
         number.answer_mode = changes["answer_mode"]
+        if number.answer_mode == "agent":
+            number.agent_percent = 0    # el reparto solo vive con team
     if "strategy" in changes:
         if changes["strategy"] not in STRATEGIES:
             raise Invalid("strategy: sequential o round_robin")
@@ -227,6 +236,24 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
     for flag in ("team_connect_on_answer", "team_hold_music", "record_full_call"):
         if flag in changes:
             setattr(number, flag, bool(changes[flag]))
+    if "agent_percent" in changes:
+        percent = int(changes["agent_percent"])
+        if not 0 <= percent <= 100:
+            raise Invalid("agent_percent: de 0 a 100")
+        # Solo vale con team (con agent no hay reparto que hacer).
+        if number.answer_mode != "team":
+            percent = 0
+        if number.agent_percent == 0 < percent or changes.get("new_experiment"):
+            # Pasar de 0 a >0 o "experimento nuevo" arranca una etiqueta; cambiar el porcentaje, no.
+            number.split_experiment, number.split_started_at = secrets.token_hex(4), utcnow()
+        number.agent_percent = percent
+    elif changes.get("new_experiment"):
+        number.split_experiment, number.split_started_at = secrets.token_hex(4), utcnow()
+    if "split_max_agent_calls" in changes:
+        cap = changes["split_max_agent_calls"]
+        if cap is not None and not 1 <= int(cap) <= 50:
+            raise Invalid("split_max_agent_calls: de 1 a 50, o null para sin tope")
+        number.split_max_agent_calls = None if cap is None else int(cap)
     if "member_ids" in changes:
         _set_members(s, number, list(changes["member_ids"]))
     if number.answer_mode == "team":
@@ -234,8 +261,16 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         legal_gate.check_client_accepted(s, number.client_id)    # y graba siempre: condiciones 2026-10-28+ aceptadas
     if number.answer_mode == "team" and not member_ids(s, number.id):
         raise Invalid("Para que atienda el equipo, elegí al menos una persona", "members_required")
+    _check_split(number)
     _check_fallback(number)
     _check_fallback_member(s, number)
+
+
+def _check_split(number: PhoneNumber) -> None:
+    """Estado final del reparto: porcentaje > 0 solo con agente en el numero (el brazo agente lo atiende)."""
+    if number.agent_percent > 0 and number.agent_id is None:
+        raise Invalid("Para repartir la entrante entre el agente y el equipo, elegí el agente del número",
+                      "agent_required")
 
 
 def _check_fallback(number: PhoneNumber) -> None:

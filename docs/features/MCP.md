@@ -32,16 +32,16 @@ de `services/features.TIER_HAS` que corresponda. Catálogo generado: [`MCP_HERRA
 | `GET/DELETE /api/v1/oauth/grants[/{id}]` | "Agentes conectados" (exige sesión del panel) |
 | `GET /api/v1/mcp/usage` | uso por herramienta (el cliente, el suyo; el admin, uno o todos) |
 
-**Catálogo** (`app/mcp/catalog.py`): 154 herramientas (85 de lectura, 31 destructivas).
+**Catálogo** (`app/mcp/catalog.py`): 155 herramientas (86 de lectura, 31 destructivas).
 
 | Grupo | Herramientas | Por defecto |
 |---|---|---|
 | `account`, `agents`, `calls` (`core`) | 10 + 46 + 11 | sí |
-| `reports`, `call_links`, `whatsapp`, `contacts`, `campaigns`, `team` | 6 + 5 + 6 + 11 + 14 + 13 | sí |
+| `reports`, `call_links`, `whatsapp`, `contacts`, `campaigns`, `team` | 7 + 5 + 6 + 11 + 14 + 13 | sí |
 | `inference` | 3 (`transcribe_audio`, `synthesize_speech`, `get_inference_usage`) | no |
 | `admin` | 29 (`admin_*`, `get_report_technical`, `get_report_platform`) | solo token "Toda la plataforma" |
 
-Sin parámetro: 122 herramientas (~18k tokens de contexto); `core`: 67. Resources: `atentina://agents/schema`
+Sin parámetro: 123 herramientas (~18k tokens de contexto); `core`: 67. Resources: `atentina://agents/schema`
 (JSON Schema de la definición: `prompt`, `first_message`, `variables` y `analysis` con listas de `name`) y tres guías
 (`agentes`, `campanas`, `derivaciones`); prompts: `crear_agente`, `revisar_llamadas`, `lanzar_campana`
 (`app/mcp/guides.py`).
@@ -129,7 +129,7 @@ tier.
 
 ## Pendientes
 
-- `make mcp-eval` con el catálogo actual (154): falta medir, entre otras, que elija `start_direct_call` cuando habla
+- `make mcp-eval` con el catálogo actual (155): falta medir, entre otras, que elija `start_direct_call` cuando habla
   la persona y `start_call` cuando llama el agente.
 - Subir la versión de `deploy/mcp/server.json` y republicar en el registro.
 - Primera conexión OAuth real desde Claude.ai o Claude Code.

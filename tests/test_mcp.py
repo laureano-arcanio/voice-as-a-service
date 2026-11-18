@@ -499,7 +499,8 @@ def test_inference_tools_are_opt_in_and_need_their_scopes(api, admin, full):
 
 REPORT_TOOLS = {"get_report_summary": "/reports/summary", "get_report_calls": "/reports/calls",
                 "get_report_outcomes": "/reports/outcomes", "get_report_messages": "/reports/messages",
-                "get_report_transfers": "/reports/transfers", "get_report_campaigns": "/reports/campaigns"}
+                "get_report_transfers": "/reports/transfers", "get_split_report": "/reports/split",
+                "get_report_campaigns": "/reports/campaigns"}
 PERIOD = {"date_from": "2026-10-01", "date_to": "2026-10-24"}
 
 

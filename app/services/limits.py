@@ -91,7 +91,7 @@ class Limits:
     external_agent: bool = False
     code_tools: bool = False
     white_label: bool = False
-    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias y Campañas.
+    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias, Reparto y Campañas.
     advanced_reports: bool = False
     # Llamadas directas del equipo, sin agente (docs/features/EQUIPO_TELEFONIA.md).
     direct_calls: bool = False

@@ -308,6 +308,68 @@ const FIXTURES: Record<string, [unknown, string]> = {
     },
     'Juana',
   ],
+  split: [
+    {
+      has_data: true,
+      groups: [
+        {
+          experiment: 'ab12cd34',
+          percent: 30,
+          arm: 'agent',
+          calls: 4,
+          callers: 3,
+          first_at: '2026-10-27T12:00:00Z',
+          last_at: '2026-10-27T18:00:00Z',
+          reasons: [{ reason: 'random', count: 3 }, { reason: 'cap', count: 1 }],
+          statuses: [{ status: 'ended', count: 4 }],
+          ended: [{ reason: 'completed', count: 3 }, { reason: 'customer_hangup', count: 1 }],
+          duration_p25: 30,
+          duration_p50: 95,
+          duration_p75: 180,
+          duration_p90: 240,
+          early_hangups: 0,
+          handoff_requested: 2,
+          handoff_connected: 1,
+          callbacks_24h: 1,
+          outcomes: [{ outcome: 'demo', label: 'Pide demo', goal: true, count: 2 }],
+          goals: 2,
+        },
+        {
+          experiment: 'ab12cd34',
+          percent: 30,
+          arm: 'team',
+          calls: 6,
+          callers: 5,
+          first_at: '2026-10-27T12:00:00Z',
+          last_at: '2026-10-27T19:00:00Z',
+          reasons: [{ reason: 'random', count: 6 }],
+          statuses: [{ status: 'ended', count: 6 }],
+          ended: [{ reason: 'person_hangup', count: 4 }, { reason: 'team_no_answer', count: 2 }],
+          duration_p25: 40,
+          duration_p50: 120,
+          duration_p75: 200,
+          duration_p90: 300,
+          early_hangups: 1,
+          handoff_requested: 0,
+          handoff_connected: 0,
+          callbacks_24h: 0,
+          outcomes: [],
+          goals: 0,
+        },
+      ],
+      both_arms: [
+        {
+          experiment: 'ab12cd34',
+          percent: 30,
+          callers: 2,
+          calls: 5,
+          arms: [],
+          rest: [],
+        },
+      ],
+    },
+    'Por brazo',
+  ],
   campaigns: [
     {
       campaigns: [
@@ -438,6 +500,61 @@ describe('ReportsPage, pestañas con datos', () => {
     await screen.findByText('Por agente');
     expect(screen.queryByText('Por tipo')).not.toBeInTheDocument();
     expect(screen.queryByText('Por usuario')).not.toBeInTheDocument();
+  });
+
+  it('reparto: agrupa por experimento y porcentaje, con motivos, resultados y los dos brazos', async () => {
+    const urls = mockApi({
+      '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
+      '/api/v1/agents': [],
+      '/api/v1/reports/split': FIXTURES.split![0],
+    });
+    renderWithProviders(<ReportsPage />, {
+      me: ADMIN,
+      path: '/reports?client=c-1&tab=split&number=n-1&experiment=ab12cd34',
+    });
+    expect(await screen.findByText('Reparto 30 % al agente · experimento ab12cd34')).toBeInTheDocument();
+    expect(screen.getByText('Por brazo')).toBeInTheDocument();
+    expect(screen.getByText('Cómo se repartió')).toBeInTheDocument();
+    expect(screen.getAllByText('Sorteo').length).toBeGreaterThan(0);
+    expect(screen.getByText('Tope del brazo agente')).toBeInTheDocument();
+    expect(screen.getByText('Resultados del brazo agente')).toBeInTheDocument();
+    expect(screen.getByText('Pide demo (objetivo)')).toBeInTheDocument();
+    expect(screen.getByText('Llamantes que pasaron por los dos brazos')).toBeInTheDocument();
+    const req = urls.find((u) => u.pathname === '/api/v1/reports/split')!;
+    expect(req.searchParams.get('phone_number_id')).toBe('n-1');
+    expect(req.searchParams.get('split_experiment')).toBe('ab12cd34');
+  });
+
+  it('reparto sin experimento muestra el porcentaje solo', async () => {
+    const body = FIXTURES.split![0] as {
+      has_data: boolean;
+      groups: Record<string, unknown>[];
+      both_arms: unknown[];
+    };
+    mockApi({
+      '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
+      '/api/v1/agents': [],
+      '/api/v1/reports/split': {
+        ...body,
+        groups: body.groups.map((g) => ({ ...g, experiment: null })),
+        both_arms: [],
+      },
+    });
+    renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?client=c-1&tab=split' });
+    expect(await screen.findByText('Reparto 30 % al agente')).toBeInTheDocument();
+    expect(screen.queryByText(/· experimento/)).not.toBeInTheDocument();
+  });
+
+  it('sin llamadas con reparto no muestra la pestaña Reparto y vuelve al Resumen', async () => {
+    mockApi({
+      '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
+      '/api/v1/agents': [],
+      '/api/v1/reports/split': { has_data: false, groups: [], both_arms: [] },
+      '/api/v1/reports/summary': SUMMARY,
+    });
+    renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?client=c-1&tab=split' });
+    expect(await screen.findByText('Consultas por día')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Reparto/ })).not.toBeInTheDocument();
   });
 
   it('plataforma: alertas, sin tabla de clientes', async () => {

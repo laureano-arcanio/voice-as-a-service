@@ -94,7 +94,7 @@ entrantes y salientes, números y clientes; el resto se ve en **Editar**.
 | | Agente propio | Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono. |
 | | Llamadas directas (teléfono del equipo) | Que las personas llamen desde el panel y el equipo atienda las entrantes de un número. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. |
 | | Marca blanca | El panel con el logo y los colores del cliente (se configuran en su ficha). |
-| | Reportes completos | Resultados, Mensajes, Transferencias y Campañas; sin esto, solo Resumen y Llamadas. |
+| | Reportes completos | Resultados, Mensajes, Transferencias, Reparto y Campañas; sin esto, solo Resumen y Llamadas. |
 | Herramientas de los agentes | Herramientas | Cuántas (0: no incluye). |
 | | Herramientas de código | Además de llamar a una API, una función en JavaScript. |
 | Venta por el dashboard | Precio por mes ($) | Vacío: no se vende por el dashboard; 0: gratis (el del registro). |
@@ -275,10 +275,11 @@ agente**.
      después, en la fila del número. Un número asignado arranca en **Agente** y atiende apenas se le
      elige el agente en la columna **Quién atiende**; sin agente no atiende nadie. **No lo dejes sin agente.**
 3. **Quién atiende:** en la columna **Quién atiende** de cada fila (Números, ficha del cliente o la
-   pantalla Números del cliente) hay un toggle **Agente / Equipo**. Con **Agente** aparece el desplegable con
-   los agentes del cliente; con **Equipo**, sus personas. Pasar a **Equipo** un número sin personas abre el
+   pantalla Números del cliente) hay tres opciones: **Agente**, **Equipo** y **Agente y equipo**. Con **Agente**
+   aparece el desplegable con los agentes del cliente; con **Equipo**, sus personas; **Agente y equipo** abre el
+   editor para elegir el agente, el porcentaje y el tope (ver abajo). Pasar a **Equipo** un número sin personas abre el
    editor (lápiz de **Editar**, sección **Quién atiende las entrantes**) para elegirlas, y con un plan sin
-   llamadas directas el toggle no deja elegir Equipo. Lo puede cambiar el admin o el propio cliente.
+   llamadas directas no se puede elegir Equipo. Lo puede cambiar el admin o el propio cliente.
    - **El agente:** elegís el agente del cliente que atiende las entrantes a ese número (el selector también
      está directo en la fila). El agente puede derivar al equipo con sus áreas, como siempre.
    - **El equipo** (planes con llamadas directas; en el Free queda deshabilitado y se explica por qué): atienden
@@ -322,9 +323,17 @@ agente**.
      "En este momento no podemos atenderle. Por favor, espere en línea." y respaldo **Dice el mensaje y corta** con
      "No lo hemos podido conectar. Por favor, vuelva a intentar más tarde." Las líneas de la central se desvían a este número;
      la línea que marcamos no puede desviarse de vuelta (la entrante de ese número se rechaza). Ver
-     [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md).
+     [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md). Para repartir entre el agente y la central, el agente del número
+     necesita un área que derive a la central (el escape): se configura en el agente, no en el número.
    - Con el equipo elegido y el cliente sin las condiciones nuevas aceptadas (ver Problemas frecuentes), la
      entrante va al agente del número.
+   - **Agente y equipo** (planes con llamadas directas): un porcentaje de las entrantes va al agente del número y el
+     resto al equipo, por sorteo independiente en cada llamada. Se elige el **Agente del reparto**, el **Porcentaje al
+     agente** (1-100; botones de 5, 10, 25, 50, 75 y 100) y un **Tope a la vez del brazo agente** opcional (1-50; vacío,
+     sin tope). **Empezar experimento nuevo** pide confirmación y separa el análisis desde ahí: no cambia el sorteo ni
+     el porcentaje. El editor muestra la etiqueta del experimento y desde cuándo corre. La fila dice "30 % al agente"
+     (y el tope, si tiene). Para volver al equipo, elegí **Equipo** (deja el porcentaje en 0). El resultado se lee en
+     **Reportes > Reparto**.
    - **Grabar la llamada completa** (al final del editor, con el agente o el equipo; apagado por defecto): guarda el
      audio entero de las llamadas por teléfono del número, de quien llama y de quien atiende, como respaldo. No incluye
      el link para llamar, la prueba del panel ni WhatsApp. La fila dice "Graba la llamada completa"; liberar el número
@@ -429,11 +438,16 @@ alcanza. En la navegación, arriba de todo.
     capturados por campo y comparación por versión del agente.
   - **Mensajes:** WhatsApp por día y hora, texto o nota de voz, entrega y estado de la cuenta.
   - **Transferencias:** pedidas, atendidas y no atendidas, por área y por persona del equipo.
+  - **Reparto** (aparece si el cliente ya tuvo llamadas con reparto, aunque hoy ningún número reparta): compara los
+    brazos del mismo experimento y porcentaje: llamadas, llamantes distintos, por qué cayó en cada brazo (sorteo, tope,
+    agente o equipo no disponible), cómo terminaron, duración, cortes antes de 15 s, derivaciones, rellamadas en 24 h y,
+    en el brazo agente, resultados y objetivo. Aparte, los llamantes que pasaron por los dos brazos. Filtra por **Número**
+    y **Experimento**; sin recomendaciones ni umbrales.
   - **Campañas:** comparativo, embudo, motivos de no contacto y mejor horario.
   - **Técnico** y **Plataforma** (solo en `/admin/reports`; Plataforma, con cliente en Todos): latencia,
     herramientas, errores y tokens; clientes con alertas ("cerca del cupo" y "inactivo"), negocio y operación.
     No están en el panel del cliente, tampoco entrando como él.
-- **Plan:** Resumen y Llamadas están en todos los planes. Resultados, Mensajes, Transferencias y Campañas son
+- **Plan:** Resumen y Llamadas están en todos los planes. Resultados, Mensajes, Transferencias, Reparto y Campañas son
   de los planes con reportes completos: en el Free se ve el aviso con **Mejorar mi plan** y el panel
   atenuado. En `/admin/reports` se ven siempre.
 - **Descargar CSV:** cada tabla o gráfico tiene su botón, con los datos tal como se ven con los filtros

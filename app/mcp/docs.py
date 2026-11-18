@@ -30,7 +30,7 @@ FEATURES: dict[str, tuple[str, dict[str, str]]] = {
     "custom_tools": ("Herramientas: llamadas a tus APIs", {"Sucursal": "10", "Red": "sin tope"}),
     "code_tools": ("Herramientas en código (JavaScript)", {"Sucursal": "", "Red": ""}),
     "white_label": ("Panel con tu marca (logo y colores)", {"Red": ""}),
-    "advanced_reports": ("Reportes completos (resultados, mensajes, transferencias y campañas)",
+    "advanced_reports": ("Reportes completos (resultados, mensajes, transferencias, reparto y campañas)",
                          {"Mostrador": "", "Sucursal": "", "Red": ""}),
     "direct_calls": ("Llamadas directas: tu equipo llama y atiende desde el panel, sin el agente",
                      {"Mostrador": "", "Sucursal": "", "Red": ""}),

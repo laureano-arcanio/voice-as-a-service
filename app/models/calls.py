@@ -5,7 +5,7 @@ ConversationRow; esta tabla la complementa y es la base del consumo por tier.
 import datetime
 import enum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, false
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -87,6 +87,13 @@ class CallRow(Base):
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     answered_by: Mapped[str | None] = mapped_column(String(8), nullable=True)
     opted_out_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Reparto agente/equipo de la entrante (docs/features/EQUIPO_TELEFONIA.md): brazo sorteado (agent/team),
+    # motivo (random, cap, agent_unavailable, team_unavailable), porcentaje al momento de la llamada y etiqueta
+    # del experimento. NULL en las llamadas sin reparto (tambien queda en las rechazadas, si llego a sortearse).
+    split_arm: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    split_reason: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    split_percent: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    split_experiment: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 

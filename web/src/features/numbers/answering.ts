@@ -5,6 +5,8 @@ import { type ScheduleDraft, toDraft, toSchedule } from '@/features/team/schedul
 // personas del número, en orden) o el agente.
 
 export type AnswerMode = 'team' | 'agent';
+/** La opcion de la UI: el reparto (team con agent_percent > 0) se muestra aparte del equipo. */
+export type AnswerChoice = 'agent' | 'team' | 'split';
 export type RingFirst = 'phone' | 'panel';
 export type TeamFallback = 'agent' | 'member' | 'voicemail' | 'hangup';
 export type Strategy = NonNullable<PhoneNumberUpdate['strategy']>;
@@ -13,6 +15,14 @@ export const RING_FIRST_OPTIONS: { value: RingFirst; label: string }[] = [
   { value: 'phone', label: 'En su teléfono' },
   { value: 'panel', label: 'En el panel' },
 ];
+
+/** Porcentajes rapidos del reparto; el numero acepta cualquiera de 1 a 100. */
+export const SPLIT_PERCENT_OPTIONS = [5, 10, 25, 50, 75, 100];
+export const SPLIT_HELP =
+  'Cada llamada entrante se sortea sola entre el agente y el equipo, sin cuotas ni horarios: el mismo llamante puede caer en los dos. El equipo suena como está configurado abajo.';
+export const SPLIT_AGENT_HELP = 'Atiende el agente del número; puede derivar al equipo con sus áreas.';
+export const SPLIT_CAP_HELP =
+  'Máximo de llamadas activas a la vez del brazo agente. Pasado el tope, las nuevas van al equipo. Vacío: sin tope.';
 
 export const RING_FIRST_HELP: Record<RingFirst, string> = {
   phone:
@@ -104,6 +114,12 @@ export const retrySummary = (n: Pick<PhoneNumber, 'team_retry_seconds' | 'team_r
 export interface AnsweringDraft {
   label: string;
   answer_mode: AnswerMode;
+  /** Con team: 0-100. 0 se ve como Equipo; > 0, como Agente y equipo. */
+  agent_percent: number | string;
+  /** Tope de activas del brazo agente; vacío o null, sin tope. */
+  split_max_agent_calls: number | string;
+  /** Boton "Empezar experimento nuevo": se manda al guardar. */
+  new_experiment: boolean;
   agent_id: string;
   member_ids: string[];
   strategy: Strategy;
@@ -129,6 +145,9 @@ export function toAnsweringDraft(n: PhoneNumber): AnsweringDraft {
   return {
     label: n.label,
     answer_mode: n.answer_mode,
+    agent_percent: n.agent_percent ?? 0,
+    split_max_agent_calls: n.split_max_agent_calls ?? '',
+    new_experiment: false,
     agent_id: n.agent_id ?? '',
     member_ids: (n.members ?? []).map((m) => m.id),
     strategy: n.strategy,
@@ -163,6 +182,9 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
   if (v.answer_mode === 'agent') return base;
   return {
     ...base,
+    agent_percent: Number(v.agent_percent) || 0,
+    split_max_agent_calls: v.split_max_agent_calls === '' ? null : Number(v.split_max_agent_calls),
+    ...(v.new_experiment && { new_experiment: true }),
     member_ids: v.member_ids,
     strategy: v.strategy,
     ring_first: v.ring_first,
@@ -180,6 +202,10 @@ export function toAnsweringBody(v: AnsweringDraft): PhoneNumberUpdate {
     team_fallback_message: v.team_fallback_message.trim(),
   };
 }
+
+/** La opcion que se ve: el reparto solo existe con team y un porcentaje mayor que 0. */
+export const answerChoice = (v: Pick<AnsweringDraft, 'answer_mode' | 'agent_percent'>): AnswerChoice =>
+  v.answer_mode === 'agent' ? 'agent' : Number(v.agent_percent) > 0 ? 'split' : 'team';
 
 /** Las personas del número, en orden. */
 export const numberMembers = (n: PhoneNumber) => n.members ?? [];

@@ -6,7 +6,7 @@ import type { PhoneNumber, TeamMember } from '@/api/types';
 import { NumbersSection } from '@/features/clients/NumbersSection';
 import { toDraft } from '@/features/team/schedule';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
-import { toAnsweringBody, toAnsweringDraft } from './answering';
+import { answerChoice, toAnsweringBody, toAnsweringDraft } from './answering';
 import { answeringErrorField } from './errors';
 
 const ANA: TeamMember = {
@@ -41,6 +41,10 @@ const base = {
   schedule: null,
   team_fallback: 'voicemail',
   team_fallback_message: '',
+  agent_percent: 0,
+  split_experiment: null,
+  split_started_at: null,
+  split_max_agent_calls: null,
 } as const;
 
 const TEAM_NUMBER = {
@@ -84,6 +88,18 @@ const AGENT_NUMBER = {
   agent_name: 'Comercial',
   answer_mode: 'agent',
   members: [],
+} as PhoneNumber;
+
+const SPLIT_NUMBER = {
+  ...TEAM_NUMBER,
+  id: 'n10',
+  e164: '+541155550010',
+  agent_id: 'ag1',
+  agent_name: 'Comercial',
+  agent_percent: 25,
+  split_experiment: 'ab12cd34',
+  split_started_at: '2026-10-01T12:00:00Z',
+  split_max_agent_calls: 2,
 } as PhoneNumber;
 
 const AGENTS = [
@@ -235,6 +251,8 @@ describe('números: quién atiende', () => {
       label: 'Soporte',
       answer_mode: 'team',
       agent_id: 'ag1',
+      agent_percent: 0,
+      split_max_agent_calls: null,
       record_full_call: false,
       member_ids: ['m2', 'm1'],
       strategy: 'round_robin',
@@ -512,6 +530,62 @@ describe('números: quién atiende', () => {
     });
   });
 
+  it('el reparto se ve como tercera opción, con el porcentaje y el tope en la fila y en el editor', async () => {
+    mockApi([SPLIT_NUMBER]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const row = await screen.findByRole('row', { name: /\+541155550010/ });
+    expect(within(row).getByRole('radio', { name: 'Agente y equipo' })).toBeChecked();
+    expect(within(row).getByText('25 % al agente · tope 2 a la vez')).toBeInTheDocument();
+
+    const dialog = await openEdit('+541155550010');
+    expect(within(dialog).getByRole('radio', { name: /Agente y equipo/ })).toBeChecked();
+    expect(within(dialog).getByText(/Experimento ab12cd34/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Porcentaje al agente/)).toHaveValue('25 %');
+    expect(within(dialog).getByLabelText(/Tope a la vez/)).toHaveValue('2');
+  });
+
+  it('guardar el reparto manda el agente, el porcentaje y el tope', async () => {
+    const saved = { ...SPLIT_NUMBER, agent_percent: 75, split_max_agent_calls: 3 } as PhoneNumber;
+    const calls = mockApi([SPLIT_NUMBER], {
+      'PATCH /api/v1/phone-numbers/n10': () => jsonResponse(saved),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const dialog = await openEdit('+541155550010');
+    await userEvent.click(within(dialog).getByRole('button', { name: '75 %' }));
+    const cap = within(dialog).getByLabelText(/Tope a la vez/);
+    await userEvent.clear(cap);
+    await userEvent.type(cap, '3');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(patched(calls, 'n10')).toBeDefined());
+    expect(patched(calls, 'n10')).toMatchObject({
+      answer_mode: 'team',
+      agent_id: 'ag1',
+      agent_percent: 75,
+      split_max_agent_calls: 3,
+    });
+  });
+
+  it('elegir Agente y equipo en la fila abre el editor con 50 % y no toca la API', async () => {
+    const calls = mockApi([{ ...AGENT_NUMBER, members: TEAM_NUMBER.members }]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const row = await screen.findByRole('row', { name: /\+541155550004/ });
+    await userEvent.click(within(row).getByRole('radio', { name: 'Agente y equipo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar +541155550004' });
+    expect(within(dialog).getByRole('radio', { name: /Agente y equipo/ })).toBeChecked();
+    expect(within(dialog).getByLabelText(/Porcentaje al agente/)).toHaveValue('50 %');
+    expect(patched(calls, 'n4')).toBeUndefined();
+  });
+
+  it('volver a Equipo apaga el reparto', async () => {
+    const calls = mockApi([SPLIT_NUMBER], {
+      'PATCH /api/v1/phone-numbers/n10': () => jsonResponse({ ...SPLIT_NUMBER, agent_percent: 0 }),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const row = await screen.findByRole('row', { name: /\+541155550010/ });
+    await userEvent.click(within(row).getByRole('radio', { name: 'Equipo' }));
+    await waitFor(() => expect(patched(calls, 'n10')).toEqual({ answer_mode: 'team', agent_percent: 0 }));
+  });
+
   it('pasa al agente: manda el modo y el agente, sin lo del equipo', async () => {
     const calls = mockApi([EMPTY_WITH_AGENT], {
       'PATCH /api/v1/phone-numbers/n3': () => jsonResponse(AGENT_NUMBER),
@@ -625,6 +699,8 @@ describe('números: formulario y errores', () => {
       label: 'Ventas',
       answer_mode: 'team',
       agent_id: null,
+      agent_percent: 0,
+      split_max_agent_calls: null,
       record_full_call: false,
       member_ids: ['m1', 'm2'],
       strategy: 'sequential',
@@ -648,6 +724,14 @@ describe('números: formulario y errores', () => {
       agent_id: 'ag2',
       record_full_call: false,
     });
+    // El reparto: el porcentaje y el tope, y el experimento nuevo cuando se pide.
+    const splitDraft = toAnsweringDraft(SPLIT_NUMBER);
+    expect(answerChoice(splitDraft)).toBe('split');
+    expect(splitDraft.agent_percent).toBe(25);
+    expect(splitDraft.split_max_agent_calls).toBe(2);
+    expect(
+      toAnsweringBody({ ...splitDraft, agent_percent: 75, split_max_agent_calls: 3, new_experiment: true }),
+    ).toMatchObject({ answer_mode: 'team', agent_id: 'ag1', agent_percent: 75, split_max_agent_calls: 3, new_experiment: true });
   });
 
   it('cada error de la API cae en su campo', () => {
@@ -676,6 +760,12 @@ describe('números: formulario y errores', () => {
     );
     expect(answeringErrorField(err(422, 'El aviso si no atiende va hasta 500 caracteres'))).toBe(
       'team_no_answer_message',
+    );
+    expect(answeringErrorField(err(422, 'agent_percent: Input should be less than or equal to 100'))).toBe(
+      'agent_percent',
+    );
+    expect(answeringErrorField(err(422, 'split_max_agent_calls: de 1 a 50, o null para sin tope'))).toBe(
+      'split_max_agent_calls',
     );
     expect(answeringErrorField(err(409, 'otra cosa'))).toBeUndefined();
     expect(answeringErrorField(new Error('red'))).toBeUndefined();

@@ -1,8 +1,9 @@
 # Reportes
 
 Estadísticas por cliente (las ve el cliente y el admin eligiendo uno) y de toda la plataforma (admin): consultas,
-llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Estado: en producción desde el
-27-oct-2026. Plan: Resumen, Consumo y Llamadas en todos; el resto con `tiers.advanced_reports`.
+llamadas, resultados, mensajes, transferencias, campañas, reparto agente/equipo y consumo del plan. Estado: en
+producción desde el 27-oct-2026; el reparto, verificado en dev (17-nov-2026). Plan: Resumen, Consumo y Llamadas en
+todos; el resto con `tiers.advanced_reports`.
 
 ## Definiciones
 
@@ -12,6 +13,7 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 | Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, objetivo, % de transferencia, embudo ni turnos |
 | Transferencia | conversación (llamada o WhatsApp de texto) con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
 | Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
+| Brazo del reparto | `call_logs.split_arm` (`agent`/`team`) de una entrante al número con `agent_percent > 0`; el motivo (`split_reason`) y el porcentaje/etiqueta de esa llamada quedan congelados aunque el número cambie ([EQUIPO_TELEFONIA.md](EQUIPO_TELEFONIA.md#reparto-agenteequipo-ab)) |
 | Conversión | `complete`: el agente terminó la conversación y no fue `fuera_de_tema`; `partial`: algún dato del análisis capturado (sin precarga, no se descuenta nada); `empty`: ningún dato (`app/conversation/workflow.py`, `conversion`) |
 
 ## Modelo de datos (migración 0036)
@@ -21,13 +23,16 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 - `tool_runs`: una fila por ejecución de una herramienta del cliente (ok, código HTTP, ms, error).
 - `wa_account_status_log`: una fila por cambio de estado, calidad o límite de una cuenta de WhatsApp.
 - `tiers.advanced_reports` (clave `advanced_reports` de `services/features.TIER_HAS`): Free no; pagos e Interno sí.
+- `call_logs.split_arm`, `split_reason`, `split_percent` y `split_experiment` (migración 0060): el brazo sorteado de
+  cada entrante y las condiciones de ese momento. NULL sin reparto; se conservan en las llamadas rechazadas si llegó
+  a sortearse.
 
 ## API
 
 `app/api/routers/reports.py`; consultas en `app/services/report_stats.py`.
 
 Filtros comunes (query): `client_id` (solo admin; vacío = todos), `agent_id`, `channel` (`voice` | `whatsapp` |
-`web`), `phone_number_id`, `date_from`/`date_to` (días locales inclusive; por defecto los últimos 30 días), `tz`
+`web`), `phone_number_id`, `split_arm` (`agent`/`team`), `date_from`/`date_to` (días locales inclusive; por defecto los últimos 30 días), `tz`
 (por defecto `BILLING_TIMEZONE`), `include_tests` (default false: sin `prueba` ni conversaciones por API (el chat de la pestaña Probar);
 el `loadtest` nunca entra).
 
@@ -38,6 +43,7 @@ el `loadtest` nunca entra).
 | `GET /reports/outcomes` | `advanced_reports` | conversión diaria y por agente, resultados, embudo, captura de cada dato del análisis (versión vigente), por versión del agente |
 | `GET /reports/messages` | `advanced_reports` | mensajes por día (texto y audio), heatmap, entrega (`sent`, `delivered`, `read`, `failed`), fallas por código, promedio por conversación, cuentas con historial de calidad |
 | `GET /reports/transfers` | `advanced_reports` | KPIs (pedidas, atendidas, no atendidas, sin nadie, tiempo de respuesta, minutos), por día, área y persona; WhatsApp (asignadas, primera respuesta, reasignadas) |
+| `GET /reports/split` | `advanced_reports` | `has_data` (hay alguna llamada con brazo en la historia, no solo en el período); `groups` por experimento, porcentaje y brazo: llamadas, llamantes distintos, `reasons` (sorteo, tope, agente o equipo no disponible), `statuses`, `ended`, duración p25/p50/p75/p90, cortes antes de 15 s, derivaciones pedidas y atendidas, rellamadas en 24 h y, solo en el brazo agente, `outcomes` y `goals`; `both_arms`: llamantes con llamadas en los dos brazos del mismo experimento y porcentaje, con `arms` y `rest` |
 | `GET /reports/campaigns` | `advanced_reports` | por campaña (contactos, intentos, alcanzados, completos, objetivo, bajas, minutos), motivos de no contacto, mejores horarios |
 | `GET /reports/technical` | admin | latencia p50/p95 por día y etapa (STT, EOU, LLM, TTS), por proveedor del LLM, herramientas (errores, p50/p95), errores, mails de resumen fallidos, tokens |
 | `GET /reports/platform` | admin, sin `client_id` | tabla por cliente, alertas (`near_quota` ≥ 80 % de los minutos entrantes; `inactive` 14 días sin conversaciones), negocio (planes, altas, MRR, pagos, morosos, Free → pago), operación (pico de simultáneas, fallas, rechazos) |
@@ -46,8 +52,9 @@ Sin el plan: 403 `advanced_reports_not_in_plan` (el admin no tiene el corte). El
 `GET /clients/{id}/usage` (con `projected_minutes` a fin de mes). Los minutos de los reportes y del consumo son enteros: cada llamada y cada tramo de derivación, por minuto iniciado; la duración media sigue en segundos reales.
 
 **MCP** (`app/mcp/catalog.py`, grupo `reports`, también con la key `mcp_read`): `get_report_summary` y
-`get_report_calls` en todos los planes; `get_report_outcomes`, `get_report_messages`, `get_report_transfers` y
-`get_report_campaigns` con `features=("advanced_reports",)`. `get_report_technical` y `get_report_platform` están
+`get_report_calls` en todos los planes; `get_report_outcomes`, `get_report_messages`, `get_report_transfers`, `get_report_split` y
+`get_report_campaigns` con `features=("advanced_reports",)`. Todos los reportes aceptan `split_arm`; el del reparto,
+`split_experiment`. `get_report_technical` y `get_report_platform` están
 en el toolset `admin`. Ver [`MCP.md`](MCP.md).
 
 ## Flujo
@@ -57,7 +64,10 @@ en el toolset `admin`. Ver [`MCP.md`](MCP.md).
 - UI en `web/src/features/reports/`, ruta `/reports` (es la portada del panel: `/` redirige ahí). Filtros arriba
   (admin: selector de cliente con "Todos"; agente, canal, período, "Incluir pruebas").
 - Pestañas: Resumen, Consumo (del mes de facturación, con su selector de mes; sin los filtros de período, agente ni
-  canal), Llamadas, Resultados, Mensajes, Transferencias, Campañas; admin: Técnico y, con "Todos", Plataforma.
+  canal), Llamadas, Resultados, Mensajes, Transferencias, Reparto, Campañas; admin: Técnico y, con "Todos", Plataforma. Reparto
+aparece solo si el cliente tuvo alguna llamada con brazo (aunque hoy no reparta) y suma los filtros **Número** y
+**Experimento**; compara los brazos del mismo experimento y porcentaje (una tarjeta por combinación) y muestra los
+llamantes que pasaron por los dos.
 - Las del plan muestran candado y el aviso de "Mejorar mi plan"; la UI no las pide hasta saber el plan
   (`/plan/features`), así no da 403.
 - CSV: lo arma el navegador con los datos de cada tabla o gráfico ("Descargar CSV").
@@ -86,7 +96,8 @@ en el toolset `admin`. Ver [`MCP.md`](MCP.md).
 
 - `make reports-backfill`: completa `outcome`, `goal` y `conversion` de conversaciones anteriores a la 0036
   (idempotente, después de `make migrate`).
-- Tests: `tests/test_reports.py`, `tests/test_reports_data.py`, `tests/test_migration_0036.py` y
+- Tests: `tests/test_reports.py` (incluye `split_report_groups_and_both_arms` y el borde de 24 h con un número ya
+  liberado), `tests/test_reports_data.py`, `tests/test_migration_0036.py` y
   `web/src/features/reports/ReportsPage.test.tsx` (`make test`, `make web-check`).
 - Cambios en la API o el servicio: `make calls-active && make up-agent` (recrea `app`, que trae la UI).
 

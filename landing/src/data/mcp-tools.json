@@ -20,7 +20,7 @@
   },
   {
    "id": "reports",
-   "title": "Reportes: consultas, llamadas, resultados, mensajes, transferencias y campañas",
+   "title": "Reportes: consultas, llamadas, resultados, mensajes, transferencias, reparto y campañas",
    "core": false,
    "default": true
   },
@@ -163,7 +163,7 @@
   },
   {
    "id": "advanced_reports",
-   "name": "Reportes completos (resultados, mensajes, transferencias y campañas)",
+   "name": "Reportes completos (resultados, mensajes, transferencias, reparto y campañas)",
    "plans": {
     "Mostrador": "",
     "Sucursal": "",
@@ -877,7 +877,7 @@
    "name": "route_phone_number",
    "toolset": "calls",
    "title": "Rutear un número",
-   "description": "Elige quién atiende las llamadas entrantes de un número del cliente y cómo, o le cambia la etiqueta. `answer_mode`: `agent` (lo atiende el agente `agent_id`, que puede derivar con sus áreas) o `team` (suena a las personas del equipo `member_ids`, en ese orden; cada una con celular o usuario del panel). Con `team`: `strategy` (`sequential`: los celulares siempre desde la primera; `round_robin`: desde la siguiente a la última que atendió en su celular), `ring_first` (`phone`: el celular de cada una, en orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` de timbre por persona, `schedule` (horario; null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; `member`: una vez al teléfono de la persona `team_fallback_member_id`, del equipo, con teléfono y que no esté en `member_ids`, y si no atiende, mensaje y graba; `voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`. `team_connect_on_answer` (por defecto false): en los teléfonos conecta apenas atienden, sin mensaje ni tecla y sin detectar contestadores (para destinos que siempre atienden, como una central). `team_hold_music` (por defecto true): música mientras suena; false, silencio. `team_retry_seconds` (0 a 300, de a 15; por defecto 0): si nadie atiende, segundos durante los que se vuelve a llamar, con un aviso y música; 0, no reintenta. `team_retry_interval_seconds` (15 a 120, por defecto 30): espera entre un intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre). `team_busy_message` y `team_no_answer_message`: lo que se dice apenas una persona da ocupado o no atiende, antes de seguir con la siguiente (vacío, el de siempre); se dice una vez por motivo. `record_full_call` (por defecto false), con equipo o agente: graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye); no incluye el link para llamar, la prueba del panel ni WhatsApp.",
+   "description": "Elige quién atiende las llamadas entrantes de un número del cliente y cómo, o le cambia la etiqueta. `answer_mode`: `agent` (lo atiende el agente `agent_id`, que puede derivar con sus áreas) o `team` (suena a las personas del equipo `member_ids`, en ese orden; cada una con celular o usuario del panel). Con `team`: `strategy` (`sequential`: los celulares siempre desde la primera; `round_robin`: desde la siguiente a la última que atendió en su celular), `ring_first` (`phone`: el celular de cada una, en orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` de timbre por persona, `schedule` (horario; null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; `member`: una vez al teléfono de la persona `team_fallback_member_id`, del equipo, con teléfono y que no esté en `member_ids`, y si no atiende, mensaje y graba; `voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`. `team_connect_on_answer` (por defecto false): en los teléfonos conecta apenas atienden, sin mensaje ni tecla y sin detectar contestadores (para destinos que siempre atienden, como una central). `team_hold_music` (por defecto true): música mientras suena; false, silencio. `team_retry_seconds` (0 a 300, de a 15; por defecto 0): si nadie atiende, segundos durante los que se vuelve a llamar, con un aviso y música; 0, no reintenta. `team_retry_interval_seconds` (15 a 120, por defecto 30): espera entre un intento y el siguiente. `team_retry_message`: el aviso (vacío, el de siempre). `team_busy_message` y `team_no_answer_message`: lo que se dice apenas una persona da ocupado o no atiende, antes de seguir con la siguiente (vacío, el de siempre); se dice una vez por motivo. `record_full_call` (por defecto false), con equipo o agente: graba el audio entero de las llamadas por teléfono del número (lo que dice quien llama y lo que oye); no incluye el link para llamar, la prueba del panel ni WhatsApp. Con `team`, el reparto agente/equipo: `agent_percent` (0 a 100, por defecto 0; 0, todas al equipo) es el porcentaje de entrantes que sortea al agente del número (sorteo independiente por llamada, sin cuotas ni horarios; requiere agente). `split_max_agent_calls` (1 a 50 o null, sin tope): máximo de llamadas activas a la vez del brazo agente; pasada esa cantidad, las nuevas van al equipo. `new_experiment` (true): etiqueta nueva de experimento para separar el análisis (el sorteo no cambia); la respuesta trae `split_experiment` y `split_started_at`. Las llamadas de WhatsApp con regla de ruteo por contacto nunca se sortean.",
    "kind": "escritura",
    "features": [],
    "oauth": false,
@@ -964,6 +964,18 @@
    "toolset": "reports",
    "title": "Reporte: campañas",
    "description": "Las campañas que corrieron en el período, comparadas: contactos, intentos, alcanzados, conversión, objetivo, bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número inválido) y en qué horarios se atiende más. Para el detalle de una sola campaña, get_campaign_stats.",
+   "kind": "lectura",
+   "features": [
+    "advanced_reports"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_split_report",
+   "toolset": "reports",
+   "title": "Reporte: reparto agente/equipo",
+   "description": "El reparto agente/equipo de las entrantes de un número (route_phone_number): por experimento, porcentaje y brazo, las llamadas, los llamantes distintos, por qué cayeron en cada brazo (sorteo, tope, agente archivado, equipo sin personas), estados, cómo terminaron, duración (p25/p50/p75/p90), cortes tempranos, derivaciones pedidas y atendidas, rellamadas en 24 h y, en el brazo agente, los resultados. Aparte, los llamantes que pasaron por los dos brazos. Sin recomendaciones ni significancia; es histórico, aunque el número ya no reparta.",
    "kind": "lectura",
    "features": [
     "advanced_reports"

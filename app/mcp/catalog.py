@@ -17,7 +17,7 @@ TOOLSETS = {
     "account": "Cuenta, plan y uso",
     "agents": "Agentes, voces y plantillas",
     "calls": "Llamadas, transcripciones, estadísticas, números y bloqueados",
-    "reports": "Reportes: consultas, llamadas, resultados, mensajes, transferencias y campañas",
+    "reports": "Reportes: consultas, llamadas, resultados, mensajes, transferencias, reparto y campañas",
     "call_links": "Link para llamar desde el navegador",
     "whatsapp": "Cuentas y plantillas de WhatsApp",
     "contacts": "Agenda de contactos y bajas",
@@ -152,7 +152,11 @@ _REPORT = {
     "phone_number_id": _s("Solo las llamadas de esta línea (list_phone_numbers)."),
     "include_tests": {"type": "boolean", "description": "Incluir las llamadas de prueba y las conversaciones por "
                                                          "API (default false; el loadtest nunca entra)."},
+    "split_arm": _s("Solo las llamadas del reparto agente/equipo que cayeron en ese brazo.",
+                    enum=["agent", "team"]),
 }
+_REPORT_SPLIT = {**_REPORT, "split_experiment": _s(
+    "Solo las llamadas de esa etiqueta de experimento del reparto (la que trae route_phone_number).")}
 _REPORT_ADMIN = {k: v for k, v in _REPORT.items() if k in ("date_from", "date_to", "tz", "include_tests")}
 _PAGE = {"offset": _i("Cuántos saltear (paginación).", minimum=0),
          "limit": _i("Cuántos devolver como máximo.", minimum=1, maximum=100)}
@@ -311,6 +315,14 @@ _READ: tuple[Tool, ...] = (
          "objetivo, bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número "
          "inválido) y en qué horarios se atiende más. Para el detalle de una sola campaña, get_campaign_stats.",
          path="/reports/campaigns", params=_REPORT, features=("advanced_reports",)),
+    Tool("get_split_report", "reports", "Reporte: reparto agente/equipo",
+         "El reparto agente/equipo de las entrantes de un número (route_phone_number): por experimento, "
+         "porcentaje y brazo, las llamadas, los llamantes distintos, por qué cayeron en cada brazo (sorteo, tope, "
+         "agente archivado, equipo sin personas), estados, cómo terminaron, duración (p25/p50/p75/p90), cortes "
+         "tempranos, derivaciones pedidas y atendidas, rellamadas en 24 h y, en el brazo agente, los resultados. "
+         "Aparte, los llamantes que pasaron por los dos brazos. Sin recomendaciones ni significancia; es histórico, "
+         "aunque el número ya no reparta.", path="/reports/split", params=_REPORT_SPLIT,
+         features=("advanced_reports",)),
 
     # ---------- call_links ----------
     Tool("get_call_link", "call_links", "Link para llamar",
@@ -610,7 +622,13 @@ _WRITE: tuple[Tool, ...] = (
          "antes de seguir con la siguiente (vacío, el de siempre); se dice una vez por motivo. "
          "`record_full_call` (por defecto false), con equipo o agente: graba el audio entero de las llamadas por "
          "teléfono del número (lo que dice quien llama y lo que oye); no incluye el link para llamar, la prueba "
-         "del panel ni WhatsApp.",
+         "del panel ni WhatsApp. "
+         "Con `team`, el reparto agente/equipo: `agent_percent` (0 a 100, por defecto 0; 0, todas al equipo) es el "
+         "porcentaje de entrantes que sortea al agente del número (sorteo independiente por llamada, sin cuotas ni "
+         "horarios; requiere agente). `split_max_agent_calls` (1 a 50 o null, sin tope): máximo de llamadas activas "
+         "a la vez del brazo agente; pasada esa cantidad, las nuevas van al equipo. `new_experiment` (true): etiqueta "
+         "nueva de experimento para separar el análisis (el sorteo no cambia); la respuesta trae `split_experiment` "
+         "y `split_started_at`. Las llamadas de WhatsApp con regla de ruteo por contacto nunca se sortean.",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},
          required=("number_id",), body="PhoneNumberUpdate"),
     Tool("block_number", "calls", "Bloquear un número",

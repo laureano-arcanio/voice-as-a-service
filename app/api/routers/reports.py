@@ -1,7 +1,7 @@
 """Reportes del panel (docs/features/REPORTES.md): agregados por cliente, agente, canal, linea y periodo.
 
 El cliente ve solo lo suyo; el admin elige el cliente o ve todos (client_id vacio). Resultados, Mensajes,
-Transferencias y Campañas piden el plan con `advanced_reports`; Tecnico y Plataforma son del admin."""
+Transferencias, Reparto y Campañas piden el plan con `advanced_reports`; Tecnico y Plataforma son del admin."""
 import datetime
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -21,6 +21,7 @@ from ..schemas import (
     ReportMessagesOut,
     ReportOutcomesOut,
     ReportPlatformOut,
+    ReportSplitOut,
     ReportSummaryOut,
     ReportTechnicalOut,
     ReportTransfersOut,
@@ -44,6 +45,10 @@ def report_filter(
     tz: Annotated[str | None, Query(description="Zona IANA de los días y horas; default BILLING_TIMEZONE")] = None,
     include_tests: Annotated[bool, Query(description="Con las llamadas de prueba y las conversaciones por API "
                                                      "(el loadtest nunca)")] = False,
+    split_arm: Annotated[Literal["agent", "team"] | None,
+                         Query(description="Solo las llamadas del reparto agente/equipo que cayeron en ese brazo")] = None,
+    split_experiment: Annotated[str | None,
+                               Query(description="Solo las llamadas de esa etiqueta de experimento del reparto")] = None,
 ) -> ReportFilter:
     try:
         zone = ZoneInfo(tz or settings.billing_timezone)
@@ -51,20 +56,21 @@ def report_filter(
         raise Invalid(f"Zona horaria inexistente: {tz}") from None
     return ReportFilter(client_id=scoped_client_id(p, client_id), agent_id=agent_id, channel=channel,
                         phone_number_id=phone_number_id, date_from=date_from, date_to=date_to, tz=zone,
-                        include_tests=include_tests).with_defaults()
+                        include_tests=include_tests, split_arm=split_arm,
+                        split_experiment=split_experiment).with_defaults()
 
 
 Filter = Annotated[ReportFilter, Depends(report_filter)]
 
 
 def _advanced(p, db) -> None:
-    """Resultados, Mensajes, Transferencias y Campañas: el plan del cliente tiene que incluirlos."""
+    """Resultados, Mensajes, Transferencias, Reparto y Campañas: el plan del cliente tiene que incluirlos."""
     if p.is_admin:
         return
     client = db.get(Client, p.client_id)
     if client is None or not limits_service.effective_limits(db, client).advanced_reports:
-        raise Forbidden("Tu plan no incluye los reportes completos (resultados, mensajes, transferencias y "
-                        "campañas).", "advanced_reports_not_in_plan")
+        raise Forbidden("Tu plan no incluye los reportes completos (resultados, mensajes, transferencias, "
+                        "reparto y campañas).", "advanced_reports_not_in_plan")
 
 
 @router.get("/summary", response_model=ReportSummaryOut)
@@ -105,6 +111,16 @@ def transfers(flt: Filter, p: CurrentPrincipal, db: DB):
     persona (tiempo hasta atender, minutos), y el puente de WhatsApp. Plan con reportes completos."""
     _advanced(p, db)
     return service.transfers(db, flt)
+
+
+@router.get("/split", response_model=ReportSplitOut, responses=PLAN_ERROR)
+def split(flt: Filter, p: CurrentPrincipal, db: DB):
+    """Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,
+    derivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los
+    llamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.
+    Plan con reportes completos."""
+    _advanced(p, db)
+    return service.split(db, flt)
 
 
 @router.get("/campaigns", response_model=ReportCampaignsOut, responses=PLAN_ERROR)

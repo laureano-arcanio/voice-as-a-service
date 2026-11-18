@@ -23,6 +23,19 @@ export const CALL_TYPE: Record<string, string> = {
   team: 'Entrantes del equipo',
 };
 
+/** Reproductor del reparto agente/equipo: por qué una llamada cayó en su brazo. */
+export const SPLIT_ARM: Record<string, string> = {
+  agent: 'Agente',
+  team: 'Equipo',
+};
+
+export const SPLIT_REASON: Record<string, string> = {
+  random: 'Sorteo',
+  cap: 'Tope del brazo agente',
+  agent_unavailable: 'Agente no disponible',
+  team_unavailable: 'Equipo no disponible',
+};
+
 /** Motivos de no contacto de las campañas. */
 export const NO_CONTACT_REASON: Record<string, string> = {
   busy: 'Ocupado',
