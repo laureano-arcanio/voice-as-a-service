@@ -8,8 +8,9 @@ equipo, y por WhatsApp de texto se rota entre ellas con plantillas ([WHATSAPP.md
 
 Estado: en producción (derivación desde el 23-oct-2026; llamadas directas desde el 27-oct-2026; app `telefono.`
 desde el 28-oct-2026). La derivación está probada con llamadas reales en producción (30-oct-2026); las llamadas
-directas y la entrante al equipo, todavía no. El reparto agente/equipo de la entrante está implementado y verificado
-en dev (17-nov-2026), sin deploy. Plan: `tiers.max_team_members` (`TIER_HAS["team"]`; Free 0,
+directas y la entrante al equipo, todavía no. El reparto agente/equipo de la entrante está desplegado en producción
+desde el 18-nov-2026 (verificado en dev el 17-nov-2026); todavía no está configurado en ningún número. Plan:
+`tiers.max_team_members` (`TIER_HAS["team"]`; Free 0,
 Mostrador 1, Sucursal 5, Interno sin tope) y `tiers.direct_calls` (`TIER_HAS["direct_calls"]`; todos menos Free; la
 saliente necesita además `outbound_calls`).
 
