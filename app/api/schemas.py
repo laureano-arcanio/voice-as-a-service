@@ -590,11 +590,16 @@ class WaAccountIn(BaseModel):
     display_phone_number: str = Field(min_length=1, max_length=32, examples=["+1 555 145 6632"])
     name: str = Field(default="", max_length=128)
     access_token: str | None = Field(default=None, description="Sin token: el del system user (WA_ACCESS_TOKEN)")
+    attendance: Literal["agent", "owner"] = Field(
+        default="agent", description="Quién atiende el número: agent (responde el agente) u owner (lo atiende el "
+                                     "dueño desde su app o su teléfono y el agente no contesta)")
 
 
 class WaAccountPatch(BaseModel):
-    """Usuario del cliente: solo agent_id, name y active. El resto, admin."""
+    """Usuario del cliente: solo agent_id, name, attendance y active. El resto, admin."""
     agent_id: str | None = None
+    attendance: Literal["agent", "owner"] | None = Field(
+        default=None, description="agent: responde el agente. owner: lo atiende el dueño y el agente no contesta")
     display_phone_number: str | None = Field(default=None, min_length=1, max_length=32)
     name: str | None = Field(default=None, max_length=128)
     access_token: str | None = Field(default=None, description="\"\" lo borra: vuelve al token global")
@@ -630,6 +635,9 @@ class WaAccountOut(BaseModel):
     has_token: bool
     has_pin: bool = False
     active: bool
+    attendance: Literal["agent", "owner"] = "agent"
+    on_biz_app: bool | None = Field(
+        default=None, description="Coexistencia: el número sigue en la app de WhatsApp Business del dueño")
     status: Literal["connected", "pending", "disconnected"] = Field(
         description="connected: atiende. pending: falta suscribir o registrar (reintentar). "
                     "disconnected: Meta rechazo el token o el cliente quito el acceso")
@@ -659,6 +667,8 @@ class WaOwnAppIn(BaseModel):
                                           "y whatsapp_business_management sobre la WABA")
     app_secret: str = Field(min_length=16, max_length=128, description="Clave secreta de la app (firma de los webhooks)")
     client_id: str | None = Field(default=None, description="Solo admin; a un usuario de cliente se le fuerza el suyo")
+    attendance: Literal["agent", "owner"] = Field(
+        default="agent", description="Quién atiende el número: agent (responde el agente) u owner (el dueño)")
 
 
 class WaConfigOut(BaseModel):
@@ -670,6 +680,7 @@ class WaConfigOut(BaseModel):
     config_id: str | None = None
     graph_version: str
     sdk_locale: str
+    coexistence: bool = Field(default=True, description="El alta ofrece conectar un número que ya está en la app")
 
 
 class WaSignupIn(BaseModel):
@@ -686,6 +697,8 @@ class WaSignupIn(BaseModel):
     client_id: str | None = Field(default=None, description="Solo admin; a un usuario de cliente se le fuerza el suyo")
     pin: str | None = Field(default=None, pattern=r"^\d{6}$",
                             description="PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado")
+    attendance: Literal["agent", "owner"] = Field(
+        default="agent", description="Quién atiende el número: agent (responde el agente) u owner (el dueño)")
 
 
 class WaRegisterIn(BaseModel):
@@ -1470,6 +1483,8 @@ class MessageOut(BaseModel):
     # Llamada derivada: lo hablado con la persona del equipo lleva el tramo; lo que dijo ella, su nombre.
     handoff_leg: str | None = None
     person: str | None = None
+    # WhatsApp con coexistencia: lo escribio el dueno del numero desde la app de WhatsApp Business.
+    owner: bool = False
     # Teclas (DTMF) que marco esa parte, tal cual: el texto es "Marcó <dtmf>" (docs/features/EQUIPO_TELEFONIA.md).
     dtmf: str | None = None
 

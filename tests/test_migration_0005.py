@@ -53,7 +53,9 @@ def test_0005_upgrade_downgrade_upgrade(tmp_path):
     # Las tablas y columnas de migraciones posteriores no cuentan (welcomed_at: 0027; app propia de WhatsApp: 0038;
     # celular del usuario: 0044).
     later = ("welcomed_at", "'app_secret'", "'verify_token'", "'webhook_key'", "ix_wa_accounts_webhook_key",
-             "Column('phone',", "Column('phone_verified_at',")
+             "Column('phone',", "Column('phone_verified_at',",
+             # 0061 (coexistencia).
+             "Column('attendance',", "Column('on_biz_app',")
     touched = [d for d in diff if not (isinstance(d, tuple) and d[0] == "add_table")
                and ("wa_accounts" in repr(d) or "'users'" in repr(d)) and not any(c in repr(d) for c in later)]
     assert touched == []

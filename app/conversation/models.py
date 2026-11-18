@@ -381,6 +381,8 @@ class Message(BaseModel):
     # tramo (handoff_legs.id); lo que dijo la persona va como assistant con su nombre en person.
     handoff_leg: str | None = None
     person: str | None = None
+    # WhatsApp con coexistencia: lo escribio el dueno del numero desde la app de WhatsApp Business (eco).
+    owner: bool = False
     # Respuesta del agente que llamo a transfer_call: el area. El historial del LLM la reconstruye como la
     # llamada a la herramienta y su resultado (app/llm/prompt.py), para que el modelo vea que derivar es la herramienta.
     handoff: str | None = None

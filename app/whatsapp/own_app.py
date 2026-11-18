@@ -39,7 +39,7 @@ def app_secret_for(account: WaAccount) -> str | None:
 
 
 async def connect(s: Session, *, client_id: str, agent_id: str, phone_number_id: str, waba_id: str,
-                  access_token: str, app_secret: str, user_id: str | None = None,
+                  access_token: str, app_secret: str, attendance: str = "agent", user_id: str | None = None,
                   graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Alta, o cambio de token y secret de una cuenta own_app del mismo cliente (la URL de webhook y el verify
     token no cambian: lo configurado en Meta sigue andando). Hace commit."""
@@ -83,12 +83,14 @@ async def connect(s: Session, *, client_id: str, agent_id: str, phone_number_id:
         account = store.create_account(
             s, client_id=client_id, agent_id=agent_id, phone_number_id=phone_number_id, waba_id=waba_id,
             display_phone_number=display, name=name, access_token=access_token, source=SOURCE,
-            quality_rating=quality, connected_by=user_id, app_secret=crypto.encrypt(app_secret),
+            attendance=attendance, quality_rating=quality, connected_by=user_id,
+            app_secret=crypto.encrypt(app_secret),
             verify_token=crypto.encrypt(secrets.token_urlsafe(24)), webhook_key=secrets.token_urlsafe(24))
     else:
         account = existing
         store.update_account(s, account, agent_id=agent_id, waba_id=waba_id, display_phone_number=display,
-                             name=name or account.name, access_token=access_token, active=True)
+                             name=name or account.name, access_token=access_token, active=True,
+                             attendance=attendance)
         account.app_secret = crypto.encrypt(app_secret)
         account.quality_rating = quality
     store.mark_status(s, account, status, reason)

@@ -215,3 +215,40 @@ def test_close_whatsapp_conversation(api, admin, setup):
     assert admin.post(f"{V1}/whatsapp/threads/{cid}/close").status_code == 204
     assert admin.get(f"{V1}/calls/{cid}").json()["whatsapp"]["closed_at"] == closed
     assert admin.post(f"{V1}/whatsapp/threads/no-existe/close").status_code == 404
+
+
+def test_account_attendance_default_patch_and_config(api, admin, setup):
+    """Modo de atencion por numero (coexistencia): por defecto agent, lo edita el usuario del cliente y
+    /whatsapp/config dice si el alta ofrece coexistencia."""
+    c, _, acc = setup
+    assert acc["attendance"] == "agent" and acc["on_biz_app"] is None
+    assert admin.get(f"{V1}/whatsapp/config").json()["coexistence"] is True
+
+    user = client_user(api, admin, c)
+    upd = user.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"attendance": "owner"}).json()
+    assert upd["attendance"] == "owner"
+    with api.sessions() as s:
+        assert s.get(WaAccount, acc["id"]).attendance == "owner"
+
+    assert user.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"attendance": "both"}).status_code == 422
+    other = client_user(api, admin, make_client(admin, slug="otro"), email="b@otro.com")
+    assert other.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"attendance": "owner"}).status_code == 404
+
+
+def test_manual_account_saves_attendance(api, admin, setup):
+    c, agent, _ = setup
+    r = admin.post(f"{V1}/whatsapp/accounts",
+                   json=account_body(c, agent, phone_number_id="777", attendance="owner"))
+    assert r.status_code == 201 and r.json()["attendance"] == "owner"
+    assert admin.post(f"{V1}/whatsapp/accounts",
+                      json=account_body(c, agent, phone_number_id="778", attendance="both")).status_code == 422
+
+
+def test_whatsapp_owner_message_in_detail(api, admin, setup):
+    _, _, acc = setup
+    cid = wa_conversation(api, acc["id"])
+    state = api.engine.store.get(cid)
+    state.messages.append(Message(role="assistant", text="Te llamo en un rato", person="Dueño", owner=True))
+    api.engine.store.save(state)
+    messages = admin.get(f"{V1}/calls/{cid}").json()["messages"]
+    assert messages[-1]["owner"] is True and messages[0]["owner"] is False

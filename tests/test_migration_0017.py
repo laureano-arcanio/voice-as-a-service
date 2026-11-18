@@ -75,7 +75,9 @@ def _diff(engine):
              # 0056 (canal de Asterisk de la grabacion completa).
              "'line_id'", "ix_call_logs_line_id",
              # 0040 (contactos con nota, sin etiquetas ni datos).
-             "'notes'", "'tags'", "'attributes'", "'external_id'")
+             "'notes'", "'tags'", "'attributes'", "'external_id'",
+             # 0060 (reparto agente/equipo de la entrante).
+             "'split_arm'", "'split_reason'", "'split_percent'", "'split_experiment'")
     return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 

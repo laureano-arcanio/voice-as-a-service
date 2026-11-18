@@ -275,6 +275,9 @@ class Settings(BaseSettings):
     # clientes conectan su numero con su propia app de Meta (docs/ARQUITECTURA.md).
     wa_embedded_signup: bool = False
     wa_config_id: str = ""
+    # Coexistencia (Embedded Signup v5): el cliente conecta el numero que ya usa en la app de WhatsApp Business y
+    # lo sigue usando en el telefono. Apagado, el alta pide un numero nuevo.
+    wa_coexistence: bool = True
     # Claves Fernet separadas por coma (la primera cifra; las otras solo descifran, para rotar).
     wa_token_key: str = ""
     wa_signup_per_hour: int = 10      # por cliente

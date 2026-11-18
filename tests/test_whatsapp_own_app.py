@@ -62,6 +62,14 @@ def connect(user, agent, **extra):
         "app_secret": SECRET, **extra})
 
 
+def test_alta_guarda_attendance(api, meta, acme):  # noqa: F811
+    _, agent, user = acme
+    out = connect(user, agent, attendance="owner").json()
+    assert out["attendance"] == "owner"
+    with api.sessions() as s:
+        assert s.query(WaAccount).filter_by(phone_number_id=PNID).one().attendance == "owner"
+
+
 def test_alta_cifra_y_devuelve_webhook(api, meta, acme):  # noqa: F811
     c, agent, user = acme
     r = connect(user, agent)

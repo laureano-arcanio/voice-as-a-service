@@ -127,6 +127,17 @@ def signup_ok(user, agent, **extra) -> dict:
 
 # ---------- alta ----------
 
+def test_signup_saves_attendance(api, meta, acme):
+    _, agent, user = acme
+    acc = signup_ok(user, agent, attendance="owner")
+    assert acc["attendance"] == "owner"
+    with api.sessions() as s:
+        assert s.get(WaAccount, acc["id"]).attendance == "owner"
+    # Reconectar sin modo vuelve al default agent.
+    acc = signup_ok(user, agent)
+    assert acc["attendance"] == "agent"
+
+
 def test_signup_happy_path_encrypts_secrets(api, meta, acme, caplog):
     c, agent, user = acme
     caplog.set_level(logging.DEBUG)
@@ -348,7 +359,8 @@ def test_config_endpoint(api, meta, acme, monkeypatch):
     _, agent, user = acme
     cfg = user.get(f"{V1}/whatsapp/config").json()
     assert cfg == {"enabled": True, "reason": None, "app_id": "2192489028351511", "config_id": "cfg-123",
-                   "graph_version": settings.wa_graph_version, "sdk_locale": settings.wa_sdk_locale}
+                   "graph_version": settings.wa_graph_version, "sdk_locale": settings.wa_sdk_locale,
+                   "coexistence": True}
     monkeypatch.setattr(settings, "wa_config_id", "")
     cfg = user.get(f"{V1}/whatsapp/config").json()
     assert cfg["enabled"] is False and "WA_CONFIG_ID" in cfg["reason"]

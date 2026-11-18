@@ -1,8 +1,8 @@
 """Numeros de WhatsApp conectados (wa_accounts): cada uno lo atiende un agente del cliente.
 
 - Admin: ve y administra todas; alta manual (numeros de nuestro portafolio) y token.
-- Usuario del cliente: conecta los suyos por Embedded Signup (/signup), elige el agente,
-  los activa o desactiva, reintenta el registro, maneja sus plantillas y el ruteo por
+- Usuario del cliente: conecta los suyos por Embedded Signup (/signup), elige el agente y quien atiende el
+  numero (attendance: agent u owner), los activa o desactiva, reintenta el registro, maneja sus plantillas y el ruteo por
   contacto (PUT /routes: los contactos de cada regla los atiende ese agente, en mensajes
   y llamadas de WhatsApp, en vez del agente por defecto de la cuenta). Una cuenta de
   otro cliente da 404; registro, /refresh y plantillas en una cuenta sin token propio
@@ -49,7 +49,7 @@ from ..schemas import (
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
 # Lo que puede cambiar un usuario del cliente en su cuenta (el resto es de admin).
-CLIENT_PATCH_FIELDS = {"agent_id", "name", "active"}
+CLIENT_PATCH_FIELDS = {"agent_id", "name", "attendance", "active"}
 
 signup_limit = rate_limit("wa_signup", lambda: Limit(settings.wa_signup_per_hour, 3600), per="client",
                           message="Demasiados intentos de conectar WhatsApp. Probá en una hora.")
@@ -73,7 +73,8 @@ def _out(db, a: WaAccount) -> WaAccountOut:
         id=a.id, client_id=a.client_id, client_name=client.name if client else None, agent_id=a.agent_id,
         agent_name=agent.name if agent else None, phone_number_id=a.phone_number_id, waba_id=a.waba_id,
         business_id=a.business_id, display_phone_number=a.display_phone_number, name=a.name,
-        has_token=bool(a.access_token), has_pin=bool(a.pin_enc), active=a.active, status=a.status,
+        has_token=bool(a.access_token), has_pin=bool(a.pin_enc), active=a.active, attendance=a.attendance,
+        on_biz_app=a.on_biz_app, status=a.status,
         status_reason=a.status_reason, status_changed_at=a.status_changed_at, quality_rating=a.quality_rating,
         messaging_limit=a.messaging_limit, source=a.source, webhook_url=own_app.webhook_url(a),
         verify_token=own_app.verify_token_for(a) if a.webhook_key else None, has_app_secret=bool(a.app_secret),
@@ -105,7 +106,7 @@ def get_config(_: UserPrincipal):
     problem = signup.config_problem()
     return WaConfigOut(enabled=problem is None, reason=problem, app_id=settings.wa_app_id or None,
                        config_id=settings.wa_config_id or None, graph_version=settings.wa_graph_version,
-                       sdk_locale=settings.wa_sdk_locale)
+                       sdk_locale=settings.wa_sdk_locale, coexistence=settings.wa_coexistence)
 
 
 @router.get("/accounts", response_model=list[WaAccountOut])
@@ -131,7 +132,7 @@ def create_account(body: WaAccountIn, p: CurrentPrincipal, db: DB):
 @router.patch("/accounts/{account_id}", response_model=WaAccountOut)
 def update_account(account_id: str, body: WaAccountPatch, p: CurrentPrincipal, db: DB):
     """access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:
-    solo agent_id, name y active."""
+    solo agent_id, name, attendance y active."""
     a = _get(db, account_id, p)
     changes = body.model_dump(exclude_unset=True)
     if not (p.is_admin or p.support) and set(changes) - CLIENT_PATCH_FIELDS:
@@ -175,7 +176,7 @@ async def connect_own_app(body: WaOwnAppIn, p: UserPrincipal, db: DB):
         raise Invalid("Falta client_id")
     a = await own_app.connect(db, client_id=client_id, agent_id=body.agent_id, phone_number_id=body.phone_number_id,
                               waba_id=body.waba_id, access_token=body.access_token, app_secret=body.app_secret,
-                              user_id=p.id)
+                              attendance=body.attendance, user_id=p.id)
     return _out(db, a)
 
 
@@ -190,7 +191,7 @@ async def signup_account(body: WaSignupIn, p: UserPrincipal, db: DB):
         raise NotFound("Falta client_id")
     a = await signup.connect(db, client_id=client_id, agent_id=body.agent_id, code=body.code,
                              waba_id=body.waba_id, phone_number_id=body.phone_number_id, event=body.event,
-                             business_id=body.business_id, pin=body.pin, user_id=p.id)
+                             business_id=body.business_id, pin=body.pin, attendance=body.attendance, user_id=p.id)
     return _out(db, a)
 
 

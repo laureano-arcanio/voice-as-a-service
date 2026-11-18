@@ -18,7 +18,8 @@ def test_0038_upgrade_downgrade_upgrade(tmp_path):
     _run(engine, command.upgrade, "0038")
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if "wa_accounts" in repr(d)] == []
+    later = ("Column('attendance',", "Column('on_biz_app',")     # 0061 (coexistencia)
+    assert [d for d in diff if "wa_accounts" in repr(d) and not any(c in repr(d) for c in later)] == []
     cols = {c["name"] for c in sa.inspect(engine).get_columns("wa_accounts")}
     assert cols >= NEW
     idx = {i["name"]: i for i in sa.inspect(engine).get_indexes("wa_accounts")}

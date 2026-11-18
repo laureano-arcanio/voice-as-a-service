@@ -27,7 +27,9 @@ def test_0020_upgrade_downgrade_upgrade(tmp_path):
     later = ("'from_landing'", "'room'", "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id",
              "'line_id'", "ix_call_logs_line_id",
              "'direct_recording_notice'", "Column('industry',", "Column('website',",
-             "Column('store_api_content',", "Column('api_content_retention_days',")
+             "Column('store_api_content',", "Column('api_content_retention_days',",
+             # 0060 (reparto agente/equipo de la entrante).
+             "'split_arm'", "'split_reason'", "'split_percent'", "'split_experiment'")
     assert [d for d in diff if ("'clients'" in repr(d) or "call_logs" in repr(d))
             and not any(c in repr(d) for c in later)] == []
 

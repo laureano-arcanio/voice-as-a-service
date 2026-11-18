@@ -4428,7 +4428,7 @@
      "whatsapp"
     ],
     "summary": "Update Account",
-    "description": "access_token \"\" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:\nsolo agent_id, name y active.",
+    "description": "access_token \"\" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:\nsolo agent_id, name, attendance y active.",
     "operationId": "update_account_api_v1_whatsapp_accounts__account_id__patch",
     "security": [
      {
@@ -24997,6 +24997,11 @@
       ],
       "title": "Person"
      },
+     "owner": {
+      "type": "boolean",
+      "title": "Owner",
+      "default": false
+     },
      "dtmf": {
       "anyOf": [
        {
@@ -34482,6 +34487,16 @@
       ],
       "title": "Access Token",
       "description": "Sin token: el del system user (WA_ACCESS_TOKEN)"
+     },
+     "attendance": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "owner"
+      ],
+      "title": "Attendance",
+      "description": "Quién atiende el número: agent (responde el agente) u owner (lo atiende el dueño desde su app o su teléfono y el agente no contesta)",
+      "default": "agent"
      }
     },
     "type": "object",
@@ -34568,6 +34583,27 @@
      "active": {
       "type": "boolean",
       "title": "Active"
+     },
+     "attendance": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "owner"
+      ],
+      "title": "Attendance",
+      "default": "agent"
+     },
+     "on_biz_app": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "On Biz App",
+      "description": "Coexistencia: el número sigue en la app de WhatsApp Business del dueño"
      },
      "status": {
       "type": "string",
@@ -34715,6 +34751,22 @@
       ],
       "title": "Agent Id"
      },
+     "attendance": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "agent",
+         "owner"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Attendance",
+      "description": "agent: responde el agente. owner: lo atiende el dueño y el agente no contesta"
+     },
      "display_phone_number": {
       "anyOf": [
        {
@@ -34766,7 +34818,7 @@
     },
     "type": "object",
     "title": "WaAccountPatch",
-    "description": "Usuario del cliente: solo agent_id, name y active. El resto, admin."
+    "description": "Usuario del cliente: solo agent_id, name, attendance y active. El resto, admin."
    },
    "WaCampaignCreated": {
     "properties": {
@@ -35254,6 +35306,12 @@
      "sdk_locale": {
       "type": "string",
       "title": "Sdk Locale"
+     },
+     "coexistence": {
+      "type": "boolean",
+      "title": "Coexistence",
+      "description": "El alta ofrece conectar un número que ya está en la app",
+      "default": true
      }
     },
     "type": "object",
@@ -35369,6 +35427,16 @@
       ],
       "title": "Client Id",
       "description": "Solo admin; a un usuario de cliente se le fuerza el suyo"
+     },
+     "attendance": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "owner"
+      ],
+      "title": "Attendance",
+      "description": "Quién atiende el número: agent (responde el agente) u owner (el dueño)",
+      "default": "agent"
      }
     },
     "type": "object",
@@ -35771,6 +35839,16 @@
       ],
       "title": "Pin",
       "description": "PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado"
+     },
+     "attendance": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "owner"
+      ],
+      "title": "Attendance",
+      "description": "Quién atiende el número: agent (responde el agente) u owner (el dueño)",
+      "default": "agent"
      }
     },
     "type": "object",

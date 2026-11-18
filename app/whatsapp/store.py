@@ -20,7 +20,8 @@ from . import crypto
 
 # Estados de un saliente: nunca retrocede (los statuses llegan fuera de orden); failed gana.
 OUT_RANK = {"sent": 1, "delivered": 2, "read": 3}
-ACCOUNT_FIELDS = ("agent_id", "display_phone_number", "name", "access_token", "active", "waba_id")
+ACCOUNT_FIELDS = ("agent_id", "display_phone_number", "name", "access_token", "active", "waba_id",
+                  "attendance")
 ACCOUNT_STATUSES = ("connected", "pending", "disconnected")
 
 

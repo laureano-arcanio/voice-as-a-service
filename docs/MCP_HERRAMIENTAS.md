@@ -141,9 +141,9 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 
 | Herramienta | Qué hace | Tipo | Plan | API |
 |---|---|---|---|---|
-| `list_whatsapp_accounts` | Las cuentas de WhatsApp del cliente, con su agente por defecto y sus reglas por contacto. | lectura | `whatsapp` | `GET /whatsapp/accounts` |
+| `list_whatsapp_accounts` | Las cuentas de WhatsApp del cliente, con su agente por defecto, quién atiende el número (attendance: agent u owner) y sus reglas por contacto. | lectura | `whatsapp` | `GET /whatsapp/accounts` |
 | `list_whatsapp_templates` | Las plantillas de mensaje de una cuenta, en vivo desde Meta, con su estado de aprobación. | lectura | `whatsapp` | `GET /whatsapp/accounts/{account_id}/templates` |
-| `update_whatsapp_account` | Cambia el agente por defecto o el nombre de una cuenta de WhatsApp. | escritura | `whatsapp` | `PATCH /whatsapp/accounts/{account_id}` |
+| `update_whatsapp_account` | Cambia el agente por defecto, el nombre o quién atiende una cuenta de WhatsApp (attendance: agent, responde el agente; owner, lo atiende el dueño y el agente no contesta). | escritura | `whatsapp` | `PATCH /whatsapp/accounts/{account_id}` |
 | `set_whatsapp_routes` | Reemplaza las reglas de ruteo de una cuenta: los contactos de cada regla los atiende ese agente (el resto, el agente por defecto). Mandar todas las reglas: las que no van se borran. | escritura | `whatsapp` | `PUT /whatsapp/accounts/{account_id}/routes` |
 | `create_whatsapp_template` | Crea una plantilla de mensaje en la cuenta; Meta la revisa y queda PENDING hasta que la aprueba. | escritura | `whatsapp` | `POST /whatsapp/accounts/{account_id}/templates` |
 | `close_whatsapp_thread` | Da por terminada una conversación de WhatsApp: el próximo mensaje del contacto empieza otra. | escritura | `whatsapp` | `POST /whatsapp/threads/{conversation_id}/close` |

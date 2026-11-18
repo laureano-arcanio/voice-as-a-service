@@ -1361,7 +1361,7 @@ export interface paths {
         /**
          * Update Account
          * @description access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:
-         *     solo agent_id, name y active.
+         *     solo agent_id, name, attendance y active.
          */
         patch: operations["update_account_api_v1_whatsapp_accounts__account_id__patch"];
         trace?: never;
@@ -7952,6 +7952,11 @@ export interface components {
             handoff_leg?: string | null;
             /** Person */
             person?: string | null;
+            /**
+             * Owner
+             * @default false
+             */
+            owner?: boolean;
             /** Dtmf */
             dtmf?: string | null;
         };
@@ -11419,6 +11424,13 @@ export interface components {
              * @description Sin token: el del system user (WA_ACCESS_TOKEN)
              */
             access_token?: string | null;
+            /**
+             * Attendance
+             * @description Quién atiende el número: agent (responde el agente) u owner (lo atiende el dueño desde su app o su teléfono y el agente no contesta)
+             * @default agent
+             * @enum {string}
+             */
+            attendance?: "agent" | "owner";
         };
         /**
          * WaAccountOut
@@ -11454,6 +11466,17 @@ export interface components {
             has_pin?: boolean;
             /** Active */
             active: boolean;
+            /**
+             * Attendance
+             * @default agent
+             * @enum {string}
+             */
+            attendance?: "agent" | "owner";
+            /**
+             * On Biz App
+             * @description Coexistencia: el número sigue en la app de WhatsApp Business del dueño
+             */
+            on_biz_app?: boolean | null;
             /**
              * Status
              * @description connected: atiende. pending: falta suscribir o registrar (reintentar). disconnected: Meta rechazo el token o el cliente quito el acceso
@@ -11507,11 +11530,16 @@ export interface components {
         };
         /**
          * WaAccountPatch
-         * @description Usuario del cliente: solo agent_id, name y active. El resto, admin.
+         * @description Usuario del cliente: solo agent_id, name, attendance y active. El resto, admin.
          */
         WaAccountPatch: {
             /** Agent Id */
             agent_id?: string | null;
+            /**
+             * Attendance
+             * @description agent: responde el agente. owner: lo atiende el dueño y el agente no contesta
+             */
+            attendance?: ("agent" | "owner") | null;
             /** Display Phone Number */
             display_phone_number?: string | null;
             /** Name */
@@ -11709,6 +11737,12 @@ export interface components {
             graph_version: string;
             /** Sdk Locale */
             sdk_locale: string;
+            /**
+             * Coexistence
+             * @description El alta ofrece conectar un número que ya está en la app
+             * @default true
+             */
+            coexistence?: boolean;
         };
         /** WaOptoutIn */
         WaOptoutIn: {
@@ -11773,6 +11807,13 @@ export interface components {
              * @description Solo admin; a un usuario de cliente se le fuerza el suyo
              */
             client_id?: string | null;
+            /**
+             * Attendance
+             * @description Quién atiende el número: agent (responde el agente) u owner (el dueño)
+             * @default agent
+             * @enum {string}
+             */
+            attendance?: "agent" | "owner";
         };
         /** WaRecipientIn */
         WaRecipientIn: {
@@ -11926,6 +11967,13 @@ export interface components {
              * @description PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado
              */
             pin?: string | null;
+            /**
+             * Attendance
+             * @description Quién atiende el número: agent (responde el agente) u owner (el dueño)
+             * @default agent
+             * @enum {string}
+             */
+            attendance?: "agent" | "owner";
         };
         /**
          * WaTemplateButton

@@ -88,7 +88,7 @@ async def _close(graph) -> None:
 
 async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_id: str, phone_number_id: str,
                   event: str, business_id: str | None = None, pin: str | None = None,
-                  user_id: str | None = None,
+                  attendance: str = "agent", user_id: str | None = None,
                   graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Alta o reconexion de un numero del cliente. Hace commit."""
     factory = graph_factory or graph_for
@@ -176,7 +176,7 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
     # 5. Alta o actualizacion de la cuenta.
     display = str(number.get("display_phone_number") or phone_number_id)[:32]
     name = str(number.get("verified_name") or "")[:128]
-    fields = {"waba_id": waba_id, "business_id": business_id or None, "source": source,
+    fields = {"waba_id": waba_id, "business_id": business_id or None, "source": source, "attendance": attendance,
               "quality_rating": str(number.get("quality_rating") or "") or None, "connected_by": user_id}
     account = store.account_by_pnid(s, phone_number_id)
     if account is not None and account.client_id != client_id:
@@ -186,7 +186,7 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
                                        display_phone_number=display, name=name, access_token=token, **fields)
     else:
         store.update_account(s, account, agent_id=agent_id, display_phone_number=display, active=True,
-                             access_token=token, name=name or account.name)
+                             access_token=token, name=name or account.name, attendance=attendance)
         for key, value in fields.items():
             setattr(account, key, value)
     # Un PIN que fallo no pisa el que ya habia (si no, se pierde el bueno).

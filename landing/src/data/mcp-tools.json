@@ -1047,7 +1047,7 @@
    "name": "list_whatsapp_accounts",
    "toolset": "whatsapp",
    "title": "Cuentas de WhatsApp",
-   "description": "Las cuentas de WhatsApp del cliente, con su agente por defecto y sus reglas por contacto.",
+   "description": "Las cuentas de WhatsApp del cliente, con su agente por defecto, quién atiende el número (attendance: agent u owner) y sus reglas por contacto.",
    "kind": "lectura",
    "features": [
     "whatsapp"
@@ -1071,7 +1071,7 @@
    "name": "update_whatsapp_account",
    "toolset": "whatsapp",
    "title": "Editar una cuenta de WhatsApp",
-   "description": "Cambia el agente por defecto o el nombre de una cuenta de WhatsApp.",
+   "description": "Cambia el agente por defecto, el nombre o quién atiende una cuenta de WhatsApp (attendance: agent, responde el agente; owner, lo atiende el dueño y el agente no contesta).",
    "kind": "escritura",
    "features": [
     "whatsapp"

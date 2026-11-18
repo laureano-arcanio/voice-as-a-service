@@ -332,7 +332,8 @@ _READ: tuple[Tool, ...] = (
 
     # ---------- whatsapp ----------
     Tool("list_whatsapp_accounts", "whatsapp", "Cuentas de WhatsApp",
-         "Las cuentas de WhatsApp del cliente, con su agente por defecto y sus reglas por contacto.",
+         "Las cuentas de WhatsApp del cliente, con su agente por defecto, quién atiende el número "
+         "(attendance: agent u owner) y sus reglas por contacto.",
          path="/whatsapp/accounts", features=("whatsapp",)),
     Tool("list_whatsapp_templates", "whatsapp", "Plantillas de WhatsApp",
          "Las plantillas de mensaje de una cuenta, en vivo desde Meta, con su estado de aprobación.",
@@ -658,7 +659,8 @@ _WRITE: tuple[Tool, ...] = (
 
     # ---------- whatsapp ----------
     Tool("update_whatsapp_account", "whatsapp", "Editar una cuenta de WhatsApp",
-         "Cambia el agente por defecto o el nombre de una cuenta de WhatsApp.", method="PATCH",
+         "Cambia el agente por defecto, el nombre o quién atiende una cuenta de WhatsApp (attendance: agent, responde "
+         "el agente; owner, lo atiende el dueño y el agente no contesta).", method="PATCH",
          path="/whatsapp/accounts/{account_id}", params={"account_id": _s("ID de la cuenta.")},
          required=("account_id",), body="WaAccountPatch", features=("whatsapp",)),
     Tool("set_whatsapp_routes", "whatsapp", "Ruteo por contacto de WhatsApp",

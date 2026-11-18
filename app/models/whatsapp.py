@@ -31,6 +31,7 @@ class WaAccount(IdMixin, TimestampMixin, Base):
     __tablename__ = "wa_accounts"
     __table_args__ = (
         CheckConstraint("status IN ('connected', 'pending', 'disconnected')", name="ck_wa_accounts_status"),
+        CheckConstraint("attendance IN ('agent', 'owner')", name="ck_wa_accounts_attendance"),
         Index("ix_wa_accounts_waba_id", "waba_id"),
     )
     client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="RESTRICT"), index=True)
@@ -43,6 +44,11 @@ class WaAccount(IdMixin, TimestampMixin, Base):
     # Si no, "fernet:<token>" (business token del cliente); sin prefijo, legado en claro.
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Quien atiende el numero (independiente de como se conecto): agent = el agente responde; owner = lo atiende
+    # el dueno desde su app o su telefono y la IA no contesta (coexistencia, docs/features/WHATSAPP.md).
+    attendance: Mapped[str] = mapped_column(String(8), default="agent", server_default="agent")
+    # Coexistencia: el numero sigue en la app de WhatsApp Business del dueno (is_on_biz_app de Meta). NULL: no se leyo.
+    on_biz_app: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # connected: atiende. pending: falta suscribir o registrar (reintento desde la UI).
     # disconnected: Meta rechazo el token (190) o el cliente nos quito el acceso; no se usa mas.
     status: Mapped[str] = mapped_column(String(16), default="connected", server_default="connected")
@@ -124,6 +130,8 @@ class WaMessage(IdMixin, Base):
     wa_id: Mapped[str] = mapped_column(String(32))
     # text, audio, image, document, sticker, video, location, template, other, team_notice, team_relay
     type: Mapped[str] = mapped_column(String(16))
+    # 'app': el eco de un mensaje que el dueno mando desde la app de WhatsApp Business (coexistencia). NULL: resto.
+    origin: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # in: received, answered, ignored, error. out: sent, delivered, read, failed.
     status: Mapped[str] = mapped_column(String(16))
     error: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)   # {code, subcode, message}

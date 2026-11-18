@@ -23,9 +23,9 @@ Modelos en `app/models/whatsapp.py`. El texto de los mensajes no está acá: va 
 
 | Tabla | Qué guarda | Migración |
 |---|---|---|
-| `wa_accounts` | Un número conectado: `client_id`, `agent_id` (agente por defecto), `phone_number_id` (único), `waba_id`, `display_phone_number`, `access_token` (cifrado; NULL = `WA_ACCESS_TOKEN`), `status` (`connected`, `pending`, `disconnected`) y `status_reason`, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`, `own_app`), `pin_enc`; en `own_app`, `app_secret` y `verify_token` cifrados y `webhook_key` única | 0004, 0005, 0038 |
+| `wa_accounts` | Un número conectado: `client_id`, `agent_id` (agente por defecto), `phone_number_id` (único), `waba_id`, `display_phone_number`, `access_token` (cifrado; NULL = `WA_ACCESS_TOKEN`), `attendance` (`agent` u `owner`: quién atiende), `on_biz_app` (sigue en la app de WhatsApp Business), `status` (`connected`, `pending`, `disconnected`) y `status_reason`, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`, `own_app`), `pin_enc`; en `own_app`, `app_secret` y `verify_token` cifrados y `webhook_key` única | 0004, 0005, 0038, 0061 |
 | `wa_threads` | Una fila por conversación de WhatsApp: `account_id`, `wa_id` (como lo manda Meta, `549…`), `contact_name`, `last_user_at`, `closed_at` (cerrada: el próximo mensaje abre otra). La derivación a una persona del equipo vive acá: `handoff_status`, `handoff_area_id`, `handoff_leg_id`, `handoff_started_at`, `handoff_closed_at`, `handoff_deadline`, `handoff_voice_note`, `handoff_delivery_tries` y `handoff_retakes` | 0004, 0007, 0048, 0049 |
-| `wa_messages` | Por `wamid` (único): dedupe y estados. `direction` (`in`/`out`), `type` (`text`, `audio`, `template`…; `team_notice` y `team_relay` para lo que se le envía al equipo), `status` (entrante: `received`, `answered`, `ignored`, `error`; saliente: `sent`, `delivered`, `read`, `failed`), `error` de Meta | 0004 |
+| `wa_messages` | Por `wamid` (único): dedupe y estados. `direction` (`in`/`out`), `type` (`text`, `audio`, `template`…; `team_notice` y `team_relay` para lo que se le envía al equipo), `origin` (`app` en el eco de lo que el dueño manda desde la app), `status` (entrante: `received`, `answered`, `ignored`, `error`; saliente: `sent`, `delivered`, `read`, `failed`), `error` de Meta | 0004, 0061 |
 | `wa_routes` | Ruteo por contacto: `account_id`, `agent_id` y `contacts` (lista de `wa_id`) | 0015 |
 | `wa_account_status_log` | Historial de estado, calidad y límite de cada cuenta (para Reportes) | 0036 |
 | `tiers.whatsapp` | Si el plan incluye WhatsApp (cuentas, mensajes y llamadas) | 0025 |
@@ -38,8 +38,8 @@ de una cuenta sin token propio (alta manual, WABA de Atentina) son solo de admin
 
 | Ruta | Qué hace |
 |---|---|
-| `GET /config` | Si Embedded Signup está disponible y por qué no (`enabled`, `reason`), `app_id`, `config_id` |
-| `GET/POST /accounts`, `PATCH /accounts/{id}` | Lista; alta manual (admin); cambiar agente o nombre |
+| `GET /config` | Si Embedded Signup está disponible y por qué no (`enabled`, `reason`), `app_id`, `config_id`, y si ofrece coexistencia (`coexistence`) |
+| `GET/POST /accounts`, `PATCH /accounts/{id}` | Lista; alta manual (admin); cambiar agente, nombre o quién atiende (`attendance`: `agent` u `owner`) |
 | `POST /accounts/{id}/deactivate` | Desactiva el número (deja de atender) |
 | `POST /accounts/own-app` | Alta con la app de Meta del cliente: devuelve URL de webhook y verify token |
 | `POST /signup` | Alta por Embedded Signup (solo sesión de usuario, tope `WA_SIGNUP_PER_HOUR` por cliente) |
