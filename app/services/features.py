@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Client, PhoneNumber, Tier
 from . import limits as limits_service
+from .limits import Limits
 
 
 @dataclass
@@ -28,9 +29,14 @@ class PlanFeatures:
     features: dict[str, Feature]
 
 
+def _has_minutes(t: Tier | Limits) -> bool:
+    """Si el plan incluye minutos de llamada: la bolsa unificada o los salientes, segun el modo."""
+    return (t.call_minutes if t.unified_minutes else t.outbound_minutes) != 0
+
+
 # Que tier incluye cada funcion: los mismos campos que lee plan_features(), sin los ajustes de un cliente.
 TIER_HAS: dict[str, Callable[[Tier], bool]] = {
-    "outbound_calls": lambda t: t.outbound_minutes != 0 and t.max_phone_numbers != 0,
+    "outbound_calls": lambda t: _has_minutes(t) and t.max_phone_numbers != 0,
     "campaigns_voice": lambda t: "voice" in (t.campaign_channels or ()),
     "campaigns_whatsapp": lambda t: "whatsapp" in (t.campaign_channels or ()),
     "whatsapp": lambda t: bool(t.whatsapp),
@@ -70,7 +76,7 @@ def plan_features(s: Session, client: Client) -> PlanFeatures:
     lim = limits_service.effective_limits(s, client)
     numbers = s.scalar(select(func.count()).select_from(PhoneNumber).where(PhoneNumber.client_id == client.id)) or 0
     enabled = {
-        "outbound_calls": lim.outbound_minutes != 0 and numbers > 0,
+        "outbound_calls": _has_minutes(lim) and numbers > 0,
         "campaigns_voice": "voice" in lim.campaign_channels,
         "campaigns_whatsapp": "whatsapp" in lim.campaign_channels,
         "whatsapp": lim.whatsapp,
@@ -89,7 +95,7 @@ def plan_features(s: Session, client: Client) -> PlanFeatures:
     for key, on in enabled.items():
         if on:
             features[key] = Feature(True)
-        elif key == "outbound_calls" and lim.outbound_minutes != 0:
+        elif key == "outbound_calls" and _has_minutes(lim):
             features[key] = Feature(False, "Hace falta un número asignado a tu cuenta.")
         elif key == "outbound_calls":
             features[key] = Feature(False, f"{_where(tiers, key)}, con números asignados.")

@@ -73,14 +73,13 @@ en `/admin`; los agentes, las herramientas, WhatsApp y el resto, **entrando como
 ### 1. Crear o elegir un tier (Tiers)
 
 **Tiers > Nuevo tier**: nombre, descripción y límites, en secciones. Un campo numérico vacío significa
-ilimitado y 0, que el plan no lo incluye. La lista de tiers muestra solo nombre, precio, simultáneas, minutos
-entrantes y salientes, números y clientes; el resto se ve en **Editar**.
+ilimitado y 0, que el plan no lo incluye. La lista de tiers muestra solo nombre, precio, simultáneas, minutos (de la bolsa unificada o los dos topes), números y clientes; el resto se ve en **Editar**.
 
 | Sección | Campo | Qué limita |
 |---|---|---|
 | Llamadas | Simultáneas | Llamadas en curso a la vez, de cualquier modalidad (incluye pruebas y loadtest). |
 | Llamadas | Por hora, por día, por mes | Llamadas (entrantes y salientes juntas) que se pueden empezar en la hora, el día o el mes calendario (hora de Buenos Aires). No cuentan las rechazadas ni las de prueba o loadtest. Son independientes: alcanza con agotar una. |
-| Minutos, números, links y equipo | Minutos entrantes / salientes | Minutos por mes calendario de llamadas recibidas / hechas (las salientes incluyen las derivaciones a personas y las llamadas directas). Cada llamada se cuenta por minuto iniciado, sin fracciones: 12 s = 1 min, 61 s = 2 min. |
+| Minutos, números, links y equipo | Bolsa unificada / Dos bolsas | Por defecto, **Minutos del plan** (`call_minutes`): una sola bolsa por mes calendario de la que salen las entrantes, las web, las salientes, las directas y los tramos de derivación. Con **Dos bolsas**, los minutos se separan en entrantes y salientes (`inbound_minutes`/`outbound_minutes`) y `call_minutes` se conserva para volver. Cada llamada se cuenta por minuto iniciado, sin fracciones: 12 s = 1 min, 61 s = 2 min. |
 | | Números | Números de teléfono asignados al cliente. |
 | | Links (uno por agente) | Links para llamar ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | | Personas del equipo | Personas a las que el agente puede derivar y que atienden el teléfono del equipo. |
@@ -92,7 +91,7 @@ entrantes y salientes, números y clientes; el resto se ve en **Editar**.
 | | Seguimiento por WhatsApp | Escribirle por WhatsApp a quien no atendió una llamada de campaña. |
 | | WhatsApp | Conectar números y que el agente atienda sus mensajes y llamadas. |
 | | Agente propio | Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono. |
-| | Llamadas directas (teléfono del equipo) | Que las personas llamen desde el panel y el equipo atienda las entrantes de un número. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. |
+| | Llamadas directas (teléfono del equipo) | Que las personas llamen desde el panel y el equipo atienda las entrantes de un número. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos del plan. |
 | | Marca blanca | El panel con el logo y los colores del cliente (se configuran en su ficha). |
 | | Reportes completos | Resultados, Mensajes, Transferencias, Reparto y Campañas; sin esto, solo Resumen y Llamadas. |
 | Herramientas de los agentes | Herramientas | Cuántas (0: no incluye). |
@@ -127,7 +126,7 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys y Marca blanca.
 
 - **Consumo y datos:** el mismo consumo que ve el cliente en Reportes > Consumo, con selector de mes (llamadas activas contra el tope,
-  minutos entrantes y salientes, números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
+  minutos del plan (o entrantes y salientes en el modo separado), números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
   el consumo de **síntesis, transcripción y LLM** del mes contra el tier (tokens de
   entrada y salida del LLM, minutos de transcripción y de síntesis, que suman la API y el Estudio, pedidos por minuto y el desglose
   por key, con una fila Estudio al final; no incluye lo que consumen los agentes integrados), los **datos de registro** (empresa, y nombre, email y celular
@@ -135,7 +134,7 @@ estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys
   origen del alta) y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene. Los ajustes del cliente se conservan.
   - **Ajustes de límites:** para darle algo distinto a un solo cliente sin tocar su tier (que comparten otros) ni
-    armar uno nuevo. **Nuevo ajuste**: elegí el límite, si **suma** al del tier (ej. 10 minutos más, una línea más) o lo
+    armar uno nuevo. **Nuevo ajuste**: elegí el límite (con bolsa unificada, el de minutos es **Minutos del plan**), si **suma** al del tier (ej. 10 minutos más, una línea más) o lo
     **reemplaza** (un tope propio; vacío = ilimitado), la cantidad, la vigencia (permanente, solo este mes o hasta una
     fecha) y un motivo. El modal muestra cómo queda ("Hoy: 100 min → 110 min"). Rige desde ya y los vencidos dejan de
     aplicar solos. Varios ajustes del mismo límite se suman. En la lista de clientes aparece "Ajustado". Quitar un ajuste
@@ -306,7 +305,7 @@ agente**.
        minutos**. Si da ocupado o no atiende (todo lo que no conecta), le avisa a quien llama, lo deja en espera y vuelve
        a llamar a todas las personas, en orden. Aparecen **Cada** (la espera con música entre intentos: 15 s, 30 s por
        defecto, o 1 minuto) y el **Aviso de espera** (se dice una vez; vacío usa el de siempre, 500 caracteres). La
-       espera gasta minutos entrantes y ocupa una línea de la cuenta. Al terminar, o fuera de horario, se aplica el
+       espera gasta minutos del plan y ocupa una línea de la cuenta. Al terminar, o fuera de horario, se aplica el
        respaldo de abajo. La fila lo muestra como "· reintenta 3 min cada 30 s".
      - **Si nadie atiende o es fuera de horario** (con reintentos, **Si sigue sin atender, o fuera de horario**): **Pasa al agente** (el **Agente de respaldo**, que arranca
        sabiendo que nadie del equipo contestó), **Llama a una persona** (la **Persona**, con teléfono, activa y que no
@@ -314,7 +313,7 @@ agente**.
        número; si no atiende, deja un mensaje y graba), **Deja un mensaje y graba lo que dice quien llama** o **Dice el
        mensaje y corta**; en estos dos, el **Mensaje** es opcional (vacío usa el de siempre).
    - **Pasar todas las llamadas a una central telefónica** (sin whisper ni "marcá 1", grabada y transcripta): el plan
-     con llamadas directas y minutos salientes y las condiciones aceptadas; en Mi cuenta, **Avisar que la llamada se
+     con llamadas directas y minutos del plan y las condiciones aceptadas; en Mi cuenta, **Avisar que la llamada se
      graba** apagado; en Tu equipo, una persona "Central" con el teléfono de la central, sin usuario del panel ni
      WhatsApp; en el número, **El equipo** con esa persona, **Suena primero En su teléfono**, timbre de 20 a 30 s,
      **Conectar al atender** prendido, **Música mientras suena** a gusto, sin horario y respaldo **Deja un mensaje y
@@ -429,8 +428,9 @@ alcanza. En la navegación, arriba de todo.
   - **Consumo** (todos los planes): el estado de la cuenta en un solo lugar, del **mes de facturación** (con selector
     de mes; no depende de los filtros de período, y el admin elige un cliente). Arriba, una línea de estado:
     *Todo en orden*, *Cerca de un tope* (desde el 70 %) o *Llegaste a un tope*, y si los minutos van a pasar el
-    tope al ritmo actual. Abajo, las barras de **Llamadas y minutos** (minutos entrantes y salientes con la
-    proyección a fin de mes, llamadas simultáneas, por hora, por día y por mes, y números) y, en una tarjeta aparte,
+    tope al ritmo actual. Abajo, las barras de **Llamadas y minutos** (con la bolsa unificada, una barra de **Minutos del plan**
+    con el desglose de entrantes y salientes, y la proyección a fin de mes; en el modo separado, las dos barras;
+    además, llamadas simultáneas, por hora, por día y por mes, y números) y, en una tarjeta aparte,
     **Síntesis, transcripción y LLM** (tokens de entrada y salida del LLM, minutos de transcripción y de síntesis
     de la API y del Estudio, pedidos por minuto, y el desglose por API key con la fila *Estudio* al final). No cuenta
     lo que consumen los agentes integrados (llamadas y WhatsApp).
@@ -945,9 +945,9 @@ Registro y cobro por transferencia ([`COBROS.md`](features/COBROS.md)):
 - **Lo que el plan no incluye** ([`ARQUITECTURA.md`](ARQUITECTURA.md#funciones-por-plan)): el cliente ve
   un candado en la navegación (Llamadas del agente, WhatsApp, Tus clientes, Teléfono del equipo, Tu equipo, Campañas) y, en esa pantalla, un aviso
   con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
-  al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
+  al lado de Plan. Sale de los campos del tier (minutos del plan y números, canales de campañas, contactos,
   equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
-  salientes, la pantalla Llamadas del agente queda bloqueada.
+  minutos del plan, la pantalla Llamadas del agente queda bloqueada.
 - **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
   mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
 - **Cobros (`/admin/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").
@@ -972,7 +972,7 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | Síntoma | Causa y solución |
 |---|---|
 | Las entrantes suenan y cortan ("ocupado") | El número no tiene agente, o está libre; o lo atiende "Equipo sin personas" y no tiene agente. Elegí quién atiende en Números o en la ficha del cliente. Log del agente: `no tiene cliente o agente asignado`. |
-| Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, de llamadas por hora, día o mes, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
+| Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, de llamadas por hora, día o mes, minutos del plan agotados o cliente inactivo. Mirá el consumo del cliente. |
 | Todas las entrantes van al mismo agente | No llega el número marcado y cae al principal (`ANURA_DID`). Mirar el log de Asterisk (`Entrante de Anura: ... (marcado: ...)`) y que cada número tenga su agente. |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
 | Un número nuevo no recibe llamadas | No entró al trunk de LiveKit (ver el log de `app`; se arregla con `make livekit-sip`), o Anura no lo entrega a esta troncal. |
@@ -986,7 +986,7 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | El navegador dice "El micrófono está bloqueado" al llamar o atender | No deja usar el micrófono en la página. Candado de la barra de direcciones, Micrófono, Permitir, y volvé a llamar. Si dice "No encontramos un micrófono" o "El micrófono está en uso", conectá uno o cerrá la otra aplicación que lo usa. |
 | "Todas las líneas están ocupadas" al llamar (`no_channel`) | No hay canales libres en la troncal de Anura para marcar. Probá en unos minutos; si es siempre, mirá las llamadas activas (Conversaciones, filtro En vivo) y el tope de canales de la cuenta de Anura. |
 | "Falta aceptar las condiciones nuevas" (`terms_pending`) | Las llamadas directas exigen la versión vigente de las condiciones y la política de privacidad, y el cliente todavía no la aceptó. Un usuario del cliente (no el admin en soporte) las acepta en el aviso **Condiciones del servicio** al entrar al panel. Mientras tanto no se llama, no se atiende y no se puede poner un número en el equipo; las entrantes de un número del equipo van a su agente. |
-| "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos salientes. |
+| "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos del plan. |
 | "No tenés un número para llamar" | El cliente no tiene números asignados: los asigna el admin (Números). |
 | No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su teléfono** primero, suena en el teléfono y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
 | Una entrante del equipo cae al agente, al mensaje o se corta | Nadie atendió o es fuera de horario (`team_no_answer`, `after_hours`): se aplica **Si nadie atiende o es fuera de horario** del número. También si el número está en el equipo pero sin personas activas con celular o usuario del panel. |

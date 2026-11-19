@@ -35,6 +35,7 @@ def adj(field, mode, value, starts_on=None, ends_on=None, n=0) -> ClientLimitAdj
 
 
 def resolve(tier_kwargs, *adjustments, day=DAY) -> limits.Limits:
+    tier_kwargs.setdefault("unified_minutes", False)
     return limits.apply(Tier(name="Pyme", **tier_kwargs), adjustments, day)
 
 
@@ -44,12 +45,12 @@ def test_limit_fields_are_the_numeric_limits_of_tier():
     numeric = {c.name for c in inspect(Tier).columns if c.name not in
                {"id", "name", "description", "created_at", "updated_at", "price_ars", "public", "sort",
                 "campaign_channels", "campaign_followup", "whatsapp", "external_agent", "code_tools", "white_label",
-                "advanced_reports", "internal", "direct_calls"}}  # no son numericos
+                "advanced_reports", "internal", "direct_calls", "unified_minutes"}}  # no son numericos
     assert set(limits.LIMIT_FIELDS) == numeric
     assert set(LimitField.__args__) == numeric
     assert ({f for f in limits.Limits.__dataclass_fields__}
             - {"tier_name", "adjusted", "campaign_channels", "campaign_followup", "whatsapp", "external_agent",
-               "code_tools", "white_label", "advanced_reports", "direct_calls"} == numeric)
+               "code_tools", "white_label", "advanced_reports", "direct_calls", "unified_minutes"} == numeric)
 
 
 def test_without_adjustments_it_is_the_tier():
@@ -79,6 +80,15 @@ def test_add_over_not_included_makes_it_included():
     assert resolve({"api_tts_minutes": 0}, adj("api_tts_minutes", "add", 30)).api_tts_minutes == 30
 
 
+def test_call_minutes_is_adjustable_and_the_mode_comes_from_the_tier():
+    r = resolve({"call_minutes": 300, "unified_minutes": True},
+                adj("call_minutes", "add", 50, n=1), adj("call_minutes", "set", 400, n=2))
+    assert r.call_minutes == 450 and r.unified_minutes and r.adjusted == {"call_minutes"}
+    # El modo es del tier, no un campo ajustable.
+    assert "unified_minutes" not in limits.LIMIT_FIELDS
+    assert resolve({"unified_minutes": False}).unified_minutes is False
+
+
 @pytest.mark.parametrize(("starts_on", "ends_on", "applies"), [
     (None, None, True),
     (DAY, DAY, True),                                              # los extremos son inclusivos
@@ -94,6 +104,7 @@ def test_adjustment_window(starts_on, ends_on, applies):
 # ---------- aplicacion ----------
 
 def _client(s, **tier_limits) -> Client:
+    tier_limits.setdefault("unified_minutes", False)
     client = Client(name="C", slug="c", tier=Tier(name="t", **tier_limits))
     s.add(client)
     s.flush()
@@ -134,6 +145,16 @@ def test_call_admission_sees_extra_minutes(api, admin):
     # Otro cliente del mismo tier no se entera.
     other = make_client(admin, "otro", tier=c["tier"])
     assert admin.get(f"{V1}/clients/{other['id']}/usage").json()["outbound"]["limit_minutes"] == 1
+
+
+def test_call_minutes_adjustment_via_api(api, admin):
+    c = make_client(admin, "uni", unified_minutes=True, call_minutes=300)
+    r = admin.post(f"{V1}/clients/{c['id']}/limit-adjustments",
+                   json={"field": "call_minutes", "mode": "add", "value": 50, "note": "prueba"})
+    assert r.status_code == 201, r.text
+    rows = {row["field"]: row for row in admin.get(f"{V1}/clients/{c['id']}/limits").json()["limits"]}
+    assert (rows["call_minutes"]["tier"], rows["call_minutes"]["effective"]) == (300, 350)
+    assert admin.get(f"{V1}/clients/{c['id']}/usage").json()["minutes"]["limit_minutes"] == 350
 
 
 def test_phone_numbers_extra_line(api, admin):

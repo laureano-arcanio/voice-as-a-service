@@ -176,10 +176,13 @@ _READ: tuple[Tool, ...] = (
          "usá get_plan_tools.", path="/auth/me"),
     Tool("get_plan_features", "account", "Funciones del plan",
          "Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para "
-         "llamar) con `enabled` y, si no está, `reason`: lo que hace falta.", path="/plan/features"),
+         "llamar) con `enabled` y, si no está, `reason`: lo que hace falta. Los minutos del plan pueden ser "
+         "una bolsa compartida o dos (entrantes y salientes): lo dice `unified_minutes`.", path="/plan/features"),
     Tool("get_usage", "account", "Consumo del mes",
-         "Minutos entrantes y salientes (con su proyección a fin de mes), llamadas y demás consumo del mes contra "
-         "los límites del plan. Es lo primero a consultar para \"¿alcanza el plan?\".",
+         "Minutos del plan (con su proyección a fin de mes), llamadas y demás consumo del mes contra los límites "
+         "del plan. Con la bolsa unificada (`unified_minutes: true`), `minutes` es la fuente de verdad y "
+         "`inbound`/`outbound` son el desglose con el tope y el restante compartidos. Es lo primero a consultar "
+         "para \"¿alcanza el plan?\".",
          path="/clients/{client_id}/usage",
          params={"month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")}),
     Tool("get_call_emails", "account", "Resumen por email",
@@ -585,7 +588,7 @@ _WRITE: tuple[Tool, ...] = (
     # ---------- calls ----------
     Tool("start_call", "calls", "Llamar a un número",
          "Hace una llamada saliente: el agente llama al teléfono indicado (`phone`, E.164, ej. +5491155551234) o "
-         "al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos salientes: "
+         "al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos del plan: "
          "confirmalo con el usuario antes.", method="POST", path="/calls", body="CallIn",
          omit=("caller_phone", "workflows"), features=("outbound_calls",), destructive=True),
     Tool("start_direct_call", "calls", "Llamar con una persona del equipo",
@@ -594,7 +597,7 @@ _WRITE: tuple[Tool, ...] = (
          "de la empresa y devuelve `join_url`: la página del panel que la persona abre, con su sesión, para hablar "
          "desde el navegador. Hay que pasar `user_id` (el usuario que va a hablar; list_team_presence muestra quién "
          "está disponible) y la persona tiene 2 minutos para abrir el link. Llama a una persona real y gasta "
-         "minutos salientes: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, "
+         "minutos del plan: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, "
          "responde `opted_out`; solo se repite con `confirm_opted_out` si el usuario lo confirma.",
          method="POST", path="/direct-calls", body="DirectCallIn", features=("direct_calls",), destructive=True),
     Tool("hangup_call", "calls", "Cortar una llamada",
@@ -642,7 +645,7 @@ _WRITE: tuple[Tool, ...] = (
     # ---------- call_links ----------
     Tool("create_call_link", "call_links", "Crear el link para llamar",
          "Crea el link público para hablar con el agente desde el navegador (uno por agente), con el nombre y "
-         "la empresa que ve quien llama. Gasta minutos entrantes.", method="POST",
+         "la empresa que ve quien llama. Gasta minutos del plan.", method="POST",
          path="/agents/{agent_id}/call-link", params=_AGENT, required=("agent_id",), body="CallLinkIn",
          features=("call_links",)),
     Tool("update_call_link", "call_links", "Editar el link para llamar",
@@ -809,7 +812,8 @@ _ADMIN: tuple[Tool, ...] = (
          "Los límites efectivos de un cliente: los del plan más los ajustes vigentes.",
          path="/clients/{client_id}/limits", params=_CLIENT, required=("client_id",)),
     Tool("admin_get_client_usage", "admin", "Consumo de un cliente",
-         "Minutos, llamadas y demás consumo del mes de un cliente contra sus límites.",
+         "Minutos del plan (con la bolsa unificada, `minutes`), llamadas y demás consumo del mes de un cliente "
+         "contra sus límites.",
          path="/clients/{client_id}/usage",
          params={**_CLIENT, "month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")},
          required=("client_id",)),

@@ -104,7 +104,7 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    eso el modelo veía "te paso con X" sin herramienta y en la segunda derivación no la llamaba.
 2. El worker dice lo que el modelo escribió en ese turno (si no dijo nada, el mensaje `transfer`) y revisa el
    área (activa, en horario, con miembros con teléfono) y `quota.handoff_check` (cliente activo, minutos
-   salientes, canal libre). Si no se puede: evento `handoff.unavailable` y el mensaje que corresponde.
+   del plan, canal libre). Si no se puede: evento `handoff.unavailable` y el mensaje que corresponde.
 3. Música de espera solo al cliente (`BackgroundAudioPlayer`, tema y volumen del agente) mientras pide el resumen
    del whisper al LLM del turno (JSON `{"resumen"}`, sin razonamiento; si tarda más de 4 s o falla: "una
    consulta").
@@ -122,7 +122,7 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    tramo como mensajes con su rol y nombre.
 7. Termina con: el código de vuelta del área (`return_digits`, `2`) → el agente vuelve con `resume`; la persona
    corta → `resume` o `goodbye` y corta, según `on_person_hangup`; el cliente corta → se borra la room; sin
-   minutos salientes.
+   minutos del plan.
 8. Si nadie de los miembros acepta y el área tiene persona de «Si nadie atiende» (`no_answer_member_id`), se la llama
    una vez como un miembro más (timbre, whisper y el 1 del área; `handoff.dialing` con `no_answer: true`), en lugar
    de pasar a otra área. Un área sin miembros llamables pero con esa persona la llama. Si es de otro cliente, está
@@ -200,7 +200,7 @@ Código: `Transfer` en `app/voice/handoff.py` (voz) y `app/whatsapp/team_notify.
 texto).
 
 - **Rutas:** `Transfer.run` es un bucle sobre las áreas con un conjunto de visitadas. Fuera de horario sigue por
-  `after_hours_area_id`; si nadie acepta, no hay personas, no hay canal o faltan minutos salientes, por
+  `after_hours_area_id`; si nadie acepta, no hay personas, no hay canal o faltan minutos del plan, por
   `no_answer_area_id`, o, si el área tiene persona de «Si nadie atiende», se la llama solo cuando nadie acepta o no hay
   miembros (sin canal o sin minutos no se llama a nadie; fuera de horario sigue `after_hours_area_id`). La música sigue entre pases y el mensaje (`no_answer`, `after_hours`) sale solo al final. Un ciclo
   se corta al volver a un área ya visitada, y una ruta a un área inactiva o de otro cliente se ignora. Cada pase emite
@@ -248,10 +248,10 @@ principio de `entrypoint` en `app/voice/worker.py`), `web/src/features/phone/`.
 2. El worker espera al usuario en la room (`user-<user_id>`): 30 s desde el panel, 120 s por API/MCP; si no entra,
    `fallida` / `user_not_joined`. Después marca al contacto (`contact`) con un timbre de 40 s y publica el estado
    por datos de la room (tema `call_status`: `joining`, `dialing`, `ringing`, `active`, `ended` con `result`).
-3. Al atender: `en_curso`, minutos salientes desde ahí, el aviso de grabación si el cliente lo prendió (WAV
+3. Al atender: `en_curso`, minutos del plan desde ahí, el aviso de grabación si el cliente lo prendió (WAV
    sintetizado una vez en `storage/notices/<voz>.wav`). Cada frase es un mensaje con su WAV: el contacto como
    `user`, el usuario como `assistant` con `person`; también al panel por el tema `transcript`.
-4. Termina cuando corta cualquiera, por la duración máxima o sin minutos. Si el usuario sale (recarga, red), se lo
+4. Termina cuando corta cualquiera, por la duración máxima o sin minutos del plan. Si el usuario sale (recarga, red), se lo
    espera `PANEL_REJOIN_GRACE_SECONDS` (30) para **Volver a entrar**. Al salir alguien se le pasa silencio al VAD
    y se esperan 3 s el STT de su última frase.
 
@@ -308,7 +308,7 @@ Resultado en `call_logs`: atendida → `finalizada` (`customer_hangup`, `person_
    `team_retry_interval_seconds` de música, otra pasada completa (todas las personas, en el mismo orden), hasta
    `team_retry_seconds` desde el aviso: un intento que empieza antes del tope termina su timbre; después no se empieza
    otro, y si no entra ni uno no hay aviso. También termina la etapa: 150 s antes del tope de duración (deja el buzón
-   y los mensajes), sin minutos entrantes, si la pasada no pudo llamar por minutos salientes, plan o tope de intentos
+   y los mensajes), sin minutos del plan, si la pasada no pudo llamar por minutos, plan o tope de intentos
    (sin canal libre sí se reintenta), y al llegar a `MAX_ATTEMPTS` (30 tramos por llamada) dejando uno para la
    persona de respaldo. A quien atendió en el panel y no entró no se le vuelve a sonar. Si el que llama corta en la
    espera, `customer_hung_up` sin respaldo. Ej.: timbre 60 s, 3 min cada 30 s, con una persona que no atiende: 3
@@ -495,11 +495,12 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   entrante va al respaldo (o al siguiente reintento). Con reintentos, quien espera ocupa su canal hasta ~4 min (timbre,
   `team_retry_seconds` y mensajes) y cada intento suma otro mientras suena: con la central de un cliente saturada,
   6 entrantes esperando y sus intentos pueden ocupar los 10 canales de toda la plataforma.
-- **Minutos:** el tramo del cliente consume los de su tipo toda la llamada; el de la persona, salientes desde que
-  atiende hasta que se cierra, acepte o no, como los cobra Anura (`quota.handoff_seconds` suma `handoff_legs`; los
-  en curso, desde `answered_at`). Ej.: 3 min con la IA y 5 con la persona = 8 entrantes y 5 salientes. Un tramo
-  atendido que no marca 1 (`not_confirmed`) o en el que se detecta un buzón (`machine`) descuenta su minuto; sin
-  atender u ocupado, nada. El de la persona de «Si nadie atiende» se cobra igual. Con reintentos, la espera suma
+- **Minutos:** el tramo del cliente consume los del plan toda la llamada; el de la persona, minutos del plan (en el
+  modo separado, salientes) desde que atiende hasta que se cierra, acepte o no, como los cobra Anura
+  (`quota.handoff_seconds` suma `handoff_legs`; los en curso, desde `answered_at`). Con la bolsa unificada (default),
+  ej.: 3 min con la IA y 5 con la persona = 8 minutos de la misma bolsa; en el modo separado, 8 entrantes y 5
+  salientes. Un tramo atendido que no marca 1 (`not_confirmed`) o en el que se detecta un buzón (`machine`)
+  descuenta su minuto; sin atender u ocupado, nada. El de la persona de «Si nadie atiende» se cobra igual. Con reintentos, la espera suma
   entrantes, y un celular sin «Conectar al atender» con timbre de más de ~33 s cae en el buzón (`machine`) en cada
   intento: un minuto saliente por intento. Con 0 salientes en el plan no se deriva. `directa` está en `MINUTE_MODES` como `outbound`; en el panel la
   entrante del equipo no gasta salientes ni canal extra.

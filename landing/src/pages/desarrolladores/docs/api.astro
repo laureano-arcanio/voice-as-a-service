@@ -167,6 +167,7 @@ const pollOut = `{
 }`;
 
 const planFeatures = [
+  { feature: "Minutos del plan por mes (entrantes y salientes)", free: "20", mostrador: "300", sucursal: "1.200", red: "A medida" },
   { feature: "Llamadas salientes (POST /calls)", free: "No", mostrador: "Sí", sucursal: "Sí", red: "Sí" },
   { feature: "WhatsApp", free: "No", mostrador: "Sí", sucursal: "Sí", red: "Sí" },
   { feature: "Contactos activos", free: "No", mostrador: "500", sucursal: "5.000", red: "Sin tope" },
@@ -182,7 +183,7 @@ const planFeatures = [
 ];
 
 const planErrors = [
-  { code: "outbound_minutes", text: "Se acabaron los minutos salientes del mes (o el plan no tiene)" },
+  { code: "outbound_minutes", text: "Se acabaron los minutos del plan del mes (o el plan no tiene)" },
   { code: "concurrency_limit", text: "Ya tenés todas las llamadas a la vez que permite el plan" },
   { code: "whatsapp_not_in_plan", text: "El plan no incluye WhatsApp" },
   { code: "contacts_limit", text: "La agenda está llena: archivá contactos para desarchivar otros. En una carga, los que no entran vuelven en invalid con el motivo" },
@@ -354,7 +355,7 @@ const directErrors = [
   { http: "409", code: "call_not_active · already_answered · not_ringing", text: "La llamada ya terminó, ya la tomó otra persona o ya no te suena" },
   { http: "422", code: "user_required · invalid_user", text: "Falta user_id, o no es un usuario activo de tu cuenta" },
   { http: "429", code: "direct_calls_not_in_plan", text: "El plan no incluye llamadas directas" },
-  { http: "429", code: "outbound_minutes · concurrency_limit", text: "Se acabaron los minutos salientes del mes, o ya tenés todas las llamadas a la vez del plan" },
+  { http: "429", code: "outbound_minutes · concurrency_limit", text: "Se acabaron los minutos del plan del mes, o ya tenés todas las llamadas a la vez del plan" },
   { http: "429", code: "no_channel", text: "Todas las líneas de salida están ocupadas: probá en unos minutos" },
 ];
 
@@ -642,7 +643,7 @@ const campaignEndpoints = [
           {planFeatures.map((f) => <tr><td>{f.feature}</td><td>{f.free}</td><td>{f.mostrador}</td><td>{f.sucursal}</td><td>{f.red}</td></tr>)}
         </tbody>
       </table></div>
-      <p>Las llamadas salientes, las campañas de llamadas y las derivaciones usan los minutos salientes del plan y necesitan un número asignado a tu cuenta. Para saber qué tiene tu cuenta, con el motivo de lo que no:</p>
+      <p>Las llamadas salientes, las campañas de llamadas y las derivaciones usan los minutos del plan (en los planes con una bolsa unificada, los mismos que las entrantes) y necesitan un número asignado a tu cuenta. Para saber qué tiene tu cuenta, con el motivo de lo que no:</p>
       <CodeBlock label="curl" code={features} />
       <CodeBlock label="Respuesta" code={featuresOut} />
       <div class="table-wrap"><table>
@@ -783,7 +784,7 @@ const campaignEndpoints = [
       <CodeBlock label="curl" code={report} />
 
       <h3>Límites</h3>
-      <p>Las campañas son parte del plan: qué canales, cuántas campañas por mes, cuántos contactos por campaña, cuántas llamadas a la vez y el tamaño de la agenda (<code>GET /campaigns/plan</code>). Las llamadas de una campaña usan los minutos salientes del plan; si se acaban, la campaña se pausa sola y la retomás con <code>/resume</code> cuando haya minutos.</p>
+      <p>Las campañas son parte del plan: qué canales, cuántas campañas por mes, cuántos contactos por campaña, cuántas llamadas a la vez y el tamaño de la agenda (<code>GET /campaigns/plan</code>). Las llamadas de una campaña usan los minutos del plan; si se acaban, la campaña se pausa sola y la retomás con <code>/resume</code> cuando haya minutos.</p>
     </section>
 
     <section id="webhook" class="grid gap-4">
@@ -808,7 +809,7 @@ const campaignEndpoints = [
       <ul>
         <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
         <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
-        <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende, por minuto iniciado; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
+        <li><strong>Minutos:</strong> el tramo con la persona gasta minutos del plan desde que atiende, por minuto iniciado; los intentos sin atender no se cobran. Sin minutos en el plan, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
         <li><strong>Dónde no hay derivación:</strong> en las campañas ni en la respuesta de WhatsApp a una campaña. Sí en las entrantes por tu línea o por WhatsApp, en las salientes que lanzás con <code>POST /calls</code> y en los mensajes de texto de WhatsApp, solo hacia las áreas con una plantilla: se le manda a una persona por vez y quien toca el botón recibe los datos y el reenvío de lo que escribe el cliente durante 24 horas, sin que conteste el agente.</li>
       </ul>
       <div class="table-wrap"><table>
@@ -841,7 +842,7 @@ const campaignEndpoints = [
       </table></div>
       <ul>
         <li><strong>Cuándo marca:</strong> el contacto recibe la llamada cuando la persona entra a la llamada. Espera hasta 2 minutos si la creaste por API u OAuth (30 segundos si fue desde el panel); si no entra, la llamada queda <code>fallida</code> con <code>ended_reason</code> <code>user_not_joined</code>.</li>
-        <li><strong>Minutos y líneas:</strong> gasta minutos salientes desde que el contacto atiende, por minuto iniciado, y ocupa una de las llamadas a la vez del plan y una línea de salida.</li>
+        <li><strong>Minutos y líneas:</strong> gasta minutos del plan desde que el contacto atiende, por minuto iniciado, y ocupa una de las llamadas a la vez del plan y una línea de salida.</li>
         <li><strong>Contactos que pidieron la baja:</strong> se pueden llamar, pero hay que confirmarlo (<code>confirm_opted_out</code>). Queda registrado en la llamada. Los números bloqueados no se pueden llamar.</li>
         <li><strong>Cómo termina:</strong> corta la persona, corta el contacto, <code>POST /calls/{"{"}id{"}"}/hangup</code> o se acaban los minutos. <code>ended_reason</code> es <code>person_hangup</code>, <code>customer_hangup</code>, <code>hangup_by_user</code>, <code>max_duration</code> o <code>quota_exhausted</code>; sin atender, <code>no_answer</code>, <code>busy</code> o <code>sip_call_failed</code>.</li>
       </ul>
@@ -863,8 +864,8 @@ const campaignEndpoints = [
       </table></div>
       <p>La respuesta (y <code>GET /phone-numbers</code>) trae esos campos y <code>members</code>, con <code>id</code>, <code>name</code>, <code>phone</code> y <code>user_id</code> de cada persona. Poner un número en <code>team</code> pide el plan (429 <code>direct_calls_not_in_plan</code>), las <a href="/terminos">condiciones</a> que cubren las llamadas del equipo aceptadas (403 <code>terms_pending</code>) y al menos una persona (422 <code>members_required</code>); con <code>team_fallback</code> <code>agent</code>, un agente en el número (422 <code>agent_required</code>). Si el plan deja de incluir las llamadas directas, o tu cuenta todavía no aceptó esas condiciones, las entrantes de un número del equipo van al agente del número. Una versión posterior de las condiciones no las corta.</p>
       <ul>
-        <li><strong>En el celular</strong>, la persona escucha de qué línea es la llamada y marca 1 para atender, como en una derivación. Gasta minutos salientes desde que atiende.</li>
-        <li><strong>En el panel</strong> suena a quienes están Disponibles y pueden atender o rechazar. No gasta minutos salientes ni una línea extra.</li>
+        <li><strong>En el celular</strong>, la persona escucha de qué línea es la llamada y marca 1 para atender, como en una derivación. Gasta minutos del plan desde que atiende.</li>
+        <li><strong>En el panel</strong> suena a quienes están Disponibles y pueden atender o rechazar. No gasta minutos del plan ni una línea extra.</li>
         <li><strong>La primera persona que atiende</strong> se queda con la llamada y a las demás se les corta el timbre. Si corta la persona, la llamada termina.</li>
         <li><strong>WhatsApp:</strong> las llamadas de WhatsApp al mismo número siguen este ruteo. Una regla por contacto que elige un agente sigue mandando.</li>
         <li><strong>Reparto agente/equipo:</strong> con <code>agent_percent</code>, cada entrante se sortea entre el agente del número y el equipo, sin cuotas ni horarios: el mismo llamante puede caer en los dos. Pasar de 0 a un porcentaje arranca un experimento (etiqueta <code>split_experiment</code>); cambiar el porcentaje no lo cambia. El sorteo no agrega pasos de red: se decide en la misma admisión de la llamada.</li>

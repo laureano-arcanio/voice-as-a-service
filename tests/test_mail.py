@@ -74,6 +74,15 @@ def test_create_client_with_owner_sends_welcome(api, admin, outbox):
         assert user.role == Role.client and user.client_id == client["id"] and user.name == "Ana Pérez"
 
 
+def test_welcome_mail_with_unified_minutes(api, admin, outbox):
+    tier = make_tier(admin, name="plan-uni", unified_minutes=True, call_minutes=300, max_phone_numbers=1)
+    r = admin.post(f"{V1}/clients", json={"name": "Acme SA", "slug": "acme", "tier_id": tier["id"], **CLIENT_BODY})
+    assert r.status_code == 201, r.text
+    mail = outbox[0]
+    assert "Minutos del plan por mes" in mail.text and "300" in mail.text
+    assert "Minutos entrantes por mes" not in mail.text
+
+
 def test_create_client_without_owner_sends_nothing(api, admin, outbox):
     r = admin.post(f"{V1}/clients", json={"name": "Sola", "slug": "sola", "tier_id": make_tier(admin)["id"]})
     assert r.status_code == 201 and r.json()["invite"] is None

@@ -633,7 +633,7 @@ def test_webhook_contact_has_summary_and_visible_variables(sessions):
     from app.campaigns.callbacks import payload
 
     with sessions() as s:
-        tier = Tier(name="T")
+        tier = Tier(name="T", unified_minutes=False)
         s.add(tier)
         s.flush()
         client = Client(name="Acme", slug="acme", tier_id=tier.id)

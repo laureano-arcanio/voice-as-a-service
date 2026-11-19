@@ -41,10 +41,12 @@ def _greeting(name: str) -> str:
 
 
 def tier_rows(tier: Tier) -> list[tuple[str, str]]:
+    minutes = ([("Minutos del plan por mes", _count(tier.call_minutes))] if tier.unified_minutes else
+               [("Minutos entrantes por mes", _count(tier.inbound_minutes)),
+                ("Minutos salientes por mes", _count(tier.outbound_minutes))])
     return [
         ("Llamadas simultáneas", _count(tier.max_concurrent_calls)),
-        ("Minutos entrantes por mes", _count(tier.inbound_minutes)),
-        ("Minutos salientes por mes", _count(tier.outbound_minutes)),
+        *minutes,
         ("Números de teléfono", _count(tier.max_phone_numbers)),
     ]
 

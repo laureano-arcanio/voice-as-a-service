@@ -762,7 +762,7 @@ class Transfer:
                 except asyncio.TimeoutError:
                     next_check = time.monotonic() + settings.quota_check_seconds
                     with self.sessions() as s:
-                        if quota.handoff_check(s, self.client_id) == "outbound_minutes":
+                        if quota.handoff_check(s, self.client_id, running_exact=True) == "outbound_minutes":
                             ended = "quota"
                     if not ended and self.limit is not None:
                         ended = self.limit() or ""

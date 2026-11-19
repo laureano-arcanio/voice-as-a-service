@@ -542,6 +542,21 @@ def test_platform_report(api, data):
     assert {"date": "2026-10-05", "reason": "busy", "count": 1} in op["failures"]
 
 
+def test_platform_quota_pct_uses_the_unified_pool(api, admin, monkeypatch):
+    monkeypatch.setattr(report_stats, "utcnow", lambda: NOW)
+    c = make_client(admin, "uni", unified_minutes=True, call_minutes=2)
+    a = make_agent(admin, c)["id"]
+    with api.sessions() as s:
+        conv(s, c["id"], a, T(2, 10), duration=60)
+        conv(s, c["id"], a, T(2, 11), mode="saliente", duration=120)
+        s.commit()
+    out = report(admin, "platform")
+    row = next(r for r in out["clients"] if r["name"] == "Uni")
+    assert row["quota_pct"] == 150.0          # 3 min de la bolsa de 2, entrantes y salientes juntas
+    alert = next(a for a in out["alerts"] if a["kind"] == "near_quota" and a["name"] == "Uni")
+    assert alert["detail"] == "150 % de los minutos del plan del mes"
+
+
 def test_platform_alerts_skip_internal_tier(api, data):
     """El tier interno es una marca (tiers.internal), no el nombre: "Casa" sin actividad no alerta; un tier
     llamado "Interno" sin la marca, si."""

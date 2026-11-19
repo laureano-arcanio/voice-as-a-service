@@ -26,7 +26,8 @@ def test_0032_upgrade_downgrade_upgrade(tmp_path):
     assert [d for d in diff if any(f"'{t}'" in repr(d) or f"table_name='{t}'" in repr(d) for t in TABLES)
             and "'white_label'" not in repr(d) and "'advanced_reports'" not in repr(d)
             and "'internal'" not in repr(d) and "'direct_calls'" not in repr(d)
-            and "'definition_legacy'" not in repr(d)] == []   # 0034, 0036, 0037, 0039 y 0057
+            and "'call_minutes'" not in repr(d) and "'unified_minutes'" not in repr(d)
+            and "'definition_legacy'" not in repr(d)] == []   # 0034, 0036, 0037, 0039, 0057 y 0062
     assert rows == {"Free": (0, 0), "Mostrador": (0, 0), "Sucursal": (10, 0), "Central": (None, 1), "Interno": (None, 1)}
     _run(engine, command.downgrade, "0031")
     inspector = sa.inspect(engine)

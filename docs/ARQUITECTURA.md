@@ -109,7 +109,7 @@ crm/                 FastAPI propio: routes (leads, outreach, reminders), servic
 apps/                apps aparte, cada una con su imagen, su base y su compose: registros/ (fichas; no importa app/ ni crm/)
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0058
+migrations/          Alembic, 0001 a 0062
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -127,7 +127,8 @@ marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tie
 propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
 pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación, 0050 orden o rotativa en la
 entrante al equipo, 0057 definiciones guardadas a la forma con `prompt` (y `definition_legacy` para la vuelta atrás), 0058 contenido de la API
-(ajuste en `clients` y `api_requests.content_bytes`).
+(ajuste en `clients` y `api_requests.content_bytes`), 0060 reparto agente/equipo de la entrante, 0061 coexistencia
+de WhatsApp y 0062 minutos unificados (`tiers.call_minutes` y `tiers.unified_minutes`).
 
 ## Modelo de datos
 
@@ -163,7 +164,7 @@ incluido.
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | Límites de llamadas: `max_concurrent_calls`, `max_calls_per_hour`/`_day`/`_month`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`. Campañas y agenda: `campaign_channels` (`[]`, `whatsapp`, `voice`), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts`, `campaign_followup`. Inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes`, `api_rate_limit`. Funciones: `max_call_links`, `max_team_members`, `max_tools`, `code_tools`, `whatsapp`, `external_agent`, `white_label`, `advanced_reports`, `direct_calls`. Venta: `price_ars` (NULL = no se vende por el dashboard, 0 = el gratis del registro), `public` (se ofrece en el registro y en Plan), `sort`. `internal`: el tier de Atentina, no se ofrece ni cuenta en las estadísticas. Ver "Funciones por plan". |
+| `tiers` | Límites de llamadas: `max_concurrent_calls`, `max_calls_per_hour`/`_day`/`_month`, `call_minutes` (bolsa unificada, `unified_minutes=true`) o `inbound_minutes`/`outbound_minutes` (`unified_minutes=false`), `max_phone_numbers`. Campañas y agenda: `campaign_channels` (`[]`, `whatsapp`, `voice`), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts`, `campaign_followup`. Inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes`, `api_rate_limit`. Funciones: `max_call_links`, `max_team_members`, `max_tools`, `code_tools`, `whatsapp`, `external_agent`, `white_label`, `advanced_reports`, `direct_calls`. Venta: `price_ars` (NULL = no se vende por el dashboard, 0 = el gratis del registro), `public` (se ofrece en el registro y en Plan), `sort`. `internal`: el tier de Atentina, no se ofrece ni cuenta en las estadísticas. Ver "Funciones por plan". |
 | `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)), contenido de la API (`store_api_content`, `true`; `api_content_retention_days`, 30, NULL = indefinido). |
 | `client_limit_adjustments` | Ajuste de un límite numérico del tier para un cliente: `field`, `mode` (`add`/`set`), `value`, `starts_on`/`ends_on` (inclusive, `BILLING_TIMEZONE`), `note`, `created_by`. Ver "Límites por tier". |
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
@@ -196,7 +197,7 @@ incluido.
 | `contact_optouts` | Bajas por `(client_id, phone, channel)` (`whatsapp`, `voice`, `all`) y `source`; siguen aunque el contacto se archive. | ídem |
 | `campaigns`, `campaign_contacts`, `campaign_callbacks` | Campaña por `channel` (`whatsapp` o `voice`, CHECK por canal) con `status`, horario, programación, `purpose`, webhook (`callback_url`, secreto cifrado); cada contacto con `vars`, `status`, `result`, intentos y seguimiento; cola del webhook. | ídem |
 | `team_members`, `handoff_areas`, `handoff_area_members` | Personas (`phone`, `user_id`, `whatsapp_notify`), áreas con estrategia, timbre, horario, respaldo, `return_digits`, mensajes, rutas (`after_hours_area_id`, `no_answer_area_id`) o persona de «si nadie atiende» (`no_answer_member_id`), `delivery` (`call`/`whatsapp`) y `whatsapp` (cuenta y plantillas); miembros en orden. | [`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md) |
-| `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result` (con la rotación por WhatsApp, también `whatsapp_sent` e `interrupted`), `sip_status`, tiempos, `billed_seconds` (minutos salientes) y `wamid` (la plantilla enviada). | ídem |
+| `handoff_legs` | Cada intento de pasar la llamada a una persona (o de sonar el celular en una entrante al equipo): `result` (con la rotación por WhatsApp, también `whatsapp_sent` e `interrupted`), `sip_status`, tiempos, `billed_seconds` (minutos del plan; en el modo separado, salientes) y `wamid` (la plantilla enviada). | ídem |
 | `user_presence`, `call_rings` | Disponible en el panel (pulso, TTL 60 s); timbre de una entrante al equipo por usuario (el primero que atiende se queda). | ídem |
 | `events` | Línea de tiempo (`call.*`, con `call.dtmf` por tecla de quien llama, `handoff.*`, `hold.*`, `team.*`, `workflow.*`), `id` incremental para leer con cursor. Por WhatsApp de texto, los `handoff.*` llevan `channel: whatsapp`; `handoff.ignored` (una segunda derivación con otra viva) trae `area`, `live_area`, `live_status` y `other_conversation`. | ídem |
 | `tools`, `tool_versions`, `tool_runs` | Herramienta del cliente (`slug`, `type` `http`/`code`, `definition`, `revision`, última prueba), cada revisión (las dos con `definition_legacy`) y cada ejecución (`ok`, `status_code`, `ms`). | [`HERRAMIENTAS.md`](features/HERRAMIENTAS.md) |
@@ -479,7 +480,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   diario, `calls.start_call` con un `Principal` del cliente `atentina` solo para `DEMO_AGENTS`, tope
   `DEMO_MAX_CONCURRENT_CALLS`. También el formulario de contacto, el registro y los pedidos de baja
   ([`features/LANDING.md`](features/LANDING.md)).
-- **Link para llamar** (`llamar.<dominio>/<token>`): `CallMode.web`, gasta minutos entrantes, Turnstile y topes por
+- **Link para llamar** (`llamar.<dominio>/<token>`): `CallMode.web`, gasta minutos del plan, Turnstile y topes por
   link ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)).
 - **Campañas** (`/campaigns`, `whatsapp` o `voice`): `app/campaigns/loop.py` en el lifespan delega en el sender
   de WhatsApp y el dialer de voz (cada `CALL_CAMPAIGN_TICK_SECONDS`), que respeta horario, `concurrency`,
@@ -493,7 +494,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   derivación ya reservada ([`features/WHATSAPP.md`](features/WHATSAPP.md)).
 - **Derivación a una persona** (`transfer_call`): transferencia atendida en la misma room, con música, whisper,
   confirmación con `1`, modo escucha y vuelta a la IA con el código del área; cada intento es un `handoff_legs`
-  y gasta minutos salientes y canales de Anura. Un área puede pasar a otra (fuera de horario o si nadie acepta), a una persona (si nadie acepta) o solo
+  y gasta minutos del plan y canales de Anura. Un área puede pasar a otra (fuera de horario o si nadie acepta), a una persona (si nadie acepta) o solo
   avisar por WhatsApp. Por WhatsApp de texto: rotación por plantillas con botón, entrega de los datos al operador que
   toca y reenvío de 24 h de lo que escribe la persona; el estado vive en `wa_threads` y lo mueve el `handoff_loop`
   ([`features/WHATSAPP.md`](features/WHATSAPP.md#derivación-a-personas-del-equipo)).
@@ -512,7 +513,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 |---|---|---|
 | Simultáneas | `quota.admit` (todas las modalidades) | Llamadas del cliente `pendiente`, `sonando` o `en_curso` creadas hace menos de `CALL_MAX_DURATION_SECONDS` + 10 min (las más viejas se consideran colgadas). |
 | Llamadas por hora, día y mes | `quota.admit` | Entrantes y salientes por `created_at`, sin las `rechazada`. |
-| Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Cada llamada por minuto iniciado, igual que Anura (12 s = 1, 60,02 s = 2; `call_logs` guarda los segundos reales redondeados hacia arriba), también las en curso; prueba y loadtest no consumen. El corte de una llamada mira los segundos reales de las en curso, para que use entero el minuto ya descontado. Las salientes suman las directas y los tramos de derivación desde que la persona atiende, acepte o no (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
+| Minutos del plan | `quota.admit`, el watchdog del worker y `quota.handoff_check` | Cada llamada por minuto iniciado, igual que Anura (12 s = 1, 60,02 s = 2; `call_logs` guarda los segundos reales redondeados hacia arriba), también las en curso; prueba y loadtest no consumen. El corte de una llamada mira los segundos reales de las en curso, para que use entero el minuto ya descontado. Con `tiers.unified_minutes` (default) entrantes, web, salientes, directas y tramos salen de una sola bolsa (`tiers.call_minutes`); sin él, cada sentido tiene la suya (`inbound_minutes`/`outbound_minutes`). Las salientes suman las directas y los tramos de derivación desde que la persona atiende, acepte o no (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
 | Canales de Anura | `quota.busy_channels` contra `ANURA_CHANNELS` (10), en la saliente directa y antes de cada derivación | Entrantes, salientes y directas activas más tramos abiertos; sin canal: 429 `no_channel` en la directa, la derivación no se intenta. Las demás llamadas no lo miran. |
 | Números | `phone_numbers.assign`, cambio de tier o de tope | Números asignados; asignar toma el lock del cliente y el del número. |
 | Campañas | `limits.check_campaign_*` | Canal en `campaign_channels`, campañas iniciadas en el mes, contactos por campaña, `concurrency` de voz, seguimiento. Al perder un canal, sus campañas pasan a `paused`. |
@@ -558,7 +559,7 @@ Qué incluye un plan sale de los campos del tier, nunca del nombre.
 |---|---|---|---|---|
 | Precio/mes | $ 0 (registro) | $ 29.000 | $ 99.000 | no se vende (`internal`) |
 | Simultáneas | 1 | 1 | 3 | sin tope |
-| Minutos entrantes / salientes | 20 / 0 | 300 / 300 | 1.200 / 1.200 | sin tope |
+| Minutos del plan (bolsa unificada) | 20 | 300 | 1.200 | sin tope |
 | Números | 0 | 1 | 3 | sin tope |
 | WhatsApp | No | Sí | Sí | Sí |
 | Campañas | No | WhatsApp y voz (3/mes, 50 contactos; concurrencia de voz 0) | WhatsApp y voz (concurrencia 1) | sin tope |

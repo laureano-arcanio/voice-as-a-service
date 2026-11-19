@@ -30,6 +30,7 @@ def admin(api):
 
 
 def make_tier(admin, **limits):
+    limits.setdefault("unified_minutes", False)     # como el modo separado de siempre
     r = admin.post(f"{V1}/tiers", json={"name": limits.pop("name", "Pyme"), **limits})
     assert r.status_code == 201, r.text
     return r.json()
@@ -204,6 +205,29 @@ def test_tier_crud_and_in_use(api, admin):
     upd = admin.patch(f"{V1}/tiers/{free['id']}", json={"max_calls_per_day": None, "max_calls_per_month": 100}).json()
     assert (upd["max_calls_per_hour"], upd["max_calls_per_day"], upd["max_calls_per_month"]) == (20, None, 100)
     assert admin.post(f"{V1}/tiers", json={"name": "y", "max_calls_per_hour": -1}).status_code == 422
+
+
+def test_tier_minutes_modes_and_derivation(api, admin):
+    # Unificado sin call_minutes: el mayor de los dos sentidos. Con alguno ilimitado, ilimitado.
+    t = admin.post(f"{V1}/tiers", json={"name": "Uni", "inbound_minutes": 100, "outbound_minutes": 300})
+    assert t.status_code == 201, t.text
+    assert (t.json()["unified_minutes"], t.json()["call_minutes"]) == (True, 300)
+    assert admin.post(f"{V1}/tiers", json={"name": "Uni2", "inbound_minutes": None, "outbound_minutes": 300}
+                      ).json()["call_minutes"] is None
+    # Dos bolsas: call_minutes se guarda pero no se deriva ni se pisa.
+    sep = admin.post(f"{V1}/tiers", json={"name": "Sep", "unified_minutes": False, "inbound_minutes": 20,
+                                          "outbound_minutes": 30})
+    assert (sep.json()["unified_minutes"], sep.json()["call_minutes"]) == (False, None)
+    # Pasar a unificado sin call_minutes lo deriva de los valores vigentes...
+    upd = admin.patch(f"{V1}/tiers/{sep.json()['id']}", json={"unified_minutes": True}).json()
+    assert (upd["call_minutes"], upd["inbound_minutes"], upd["outbound_minutes"]) == (30, 20, 30)
+    # ...y no pisa uno existente.
+    upd = admin.patch(f"{V1}/tiers/{sep.json()['id']}", json={"unified_minutes": False, "call_minutes": 5}
+                      ).json()
+    upd = admin.patch(f"{V1}/tiers/{sep.json()['id']}", json={"unified_minutes": True}).json()
+    assert upd["call_minutes"] == 5
+    # Se lee y se ajusta como cualquier limite numerico.
+    assert admin.get(f"{V1}/tiers/{t.json()['id']}").json()["call_minutes"] == 300
 
 
 def test_client_create_and_change_tier(api, admin):
@@ -504,6 +528,43 @@ def test_outbound_minutes_limit(api, admin):
     past = admin.get(f"{V1}/clients/{c['id']}/usage", params={"month": "2020-01"}).json()
     assert past["outbound"]["projected_minutes"] is None
     assert usage["inbound"]["limit_minutes"] is None and usage["active_calls"] == 1
+
+
+def test_usage_endpoint_unified_and_separated(api, admin):
+    import datetime
+
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    c = make_client(admin, "uni", unified_minutes=True, call_minutes=300, inbound_minutes=10, outbound_minutes=10)
+    with api.sessions() as s:
+        for mode, seconds in ((CallMode.entrante, 6000), (CallMode.saliente, 9000)):
+            conv = ConversationRow(id=f"u-{mode.value}", client_id=c["id"], status="active", fields={}, messages=[])
+            s.add(conv)
+            s.flush()
+            s.add(CallRow(conversation_id=conv.id, client_id=c["id"], mode=mode, status=CallStatus.finalizada,
+                          duration_seconds=seconds, started_at=now, created_at=now))
+        s.commit()
+    u = admin.get(f"{V1}/clients/{c['id']}/usage").json()
+    assert u["unified_minutes"] is True
+    # 100 entrantes + 150 salientes: la bolsa de 300 queda con el restante compartido en los tres.
+    assert (u["minutes"]["used_minutes"], u["minutes"]["limit_minutes"], u["minutes"]["remaining_minutes"]) == (
+        250, 300, 50)
+    for side, used in (("inbound", 100), ("outbound", 150)):
+        assert u[side]["used_minutes"] == used
+        assert (u[side]["limit_minutes"], u[side]["remaining_minutes"]) == (300, 50)
+    # En separado, cada uno con su tope y sin bolsa.
+    sep = make_client(admin, "sep", unified_minutes=False, inbound_minutes=300, outbound_minutes=300)
+    with api.sessions() as s:
+        for mode, seconds in ((CallMode.entrante, 6000), (CallMode.saliente, 9000)):
+            conv = ConversationRow(id=f"s-{mode.value}", client_id=sep["id"], status="active", fields={},
+                                   messages=[])
+            s.add(conv)
+            s.flush()
+            s.add(CallRow(conversation_id=conv.id, client_id=sep["id"], mode=mode, status=CallStatus.finalizada,
+                          duration_seconds=seconds, started_at=now, created_at=now))
+        s.commit()
+    u = admin.get(f"{V1}/clients/{sep['id']}/usage").json()
+    assert u["unified_minutes"] is False and u["minutes"] is None
+    assert (u["inbound"]["remaining_minutes"], u["outbound"]["remaining_minutes"]) == (200, 150)
 
 
 def test_inactive_client_cannot_call(api, admin):

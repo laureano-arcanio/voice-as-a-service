@@ -38,6 +38,7 @@ LIMIT_FIELDS = (
     "max_calls_per_hour",
     "max_calls_per_day",
     "max_calls_per_month",
+    "call_minutes",
     "inbound_minutes",
     "outbound_minutes",
     "max_phone_numbers",
@@ -65,6 +66,8 @@ class Limits:
     max_calls_per_hour: int | None = None
     max_calls_per_day: int | None = None
     max_calls_per_month: int | None = None
+    # Bolsa unificada de minutos (entrantes y salientes juntas). None = ilimitado, 0 = no incluido.
+    call_minutes: int | None = None
     inbound_minutes: int | None = None
     outbound_minutes: int | None = None
     max_phone_numbers: int | None = None
@@ -87,6 +90,8 @@ class Limits:
     # No son numericos, asi que no se ajustan por cliente: salen del tier.
     campaign_channels: tuple[str, ...] = ()
     campaign_followup: bool = False
+    # Una bolsa de minutos (entrantes y salientes) o dos. Es del tier, no se ajusta por cliente.
+    unified_minutes: bool = True
     whatsapp: bool = True
     external_agent: bool = False
     code_tools: bool = False
@@ -138,7 +143,8 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
             values[a.field] += a.value
     adjusted = frozenset(f for f, v in values.items() if v != getattr(tier, f))
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
-                  campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
+                  campaign_followup=bool(tier.campaign_followup), unified_minutes=bool(tier.unified_minutes),
+                  whatsapp=bool(tier.whatsapp),
                   external_agent=bool(tier.external_agent), code_tools=bool(tier.code_tools),
                   white_label=bool(tier.white_label), advanced_reports=bool(tier.advanced_reports),
                   direct_calls=bool(tier.direct_calls), tier_name=tier.name, adjusted=adjusted)

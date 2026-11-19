@@ -16,6 +16,14 @@ def _out(db, tier: Tier) -> TierOut:
     return TierOut.model_validate(tier).model_copy(update={"clients_count": count})
 
 
+def _derived_call_minutes(inbound: int | None, outbound: int | None) -> int | None:
+    """El mayor de los dos sentidos, o NULL si alguno es ilimitado (un tier unificado nace acotado como
+    el separado que reemplaza)."""
+    if inbound is None or outbound is None:
+        return None
+    return max(inbound, outbound)
+
+
 def _get(db, tier_id: str) -> Tier:
     tier = db.get(Tier, tier_id)
     if tier is None:
@@ -32,6 +40,8 @@ def list_tiers(_: AdminPrincipal, db: DB):
 def create_tier(body: TierIn, _: AdminPrincipal, db: DB):
     data = body.model_dump()
     data["campaign_channels"] = list(dict.fromkeys(data["campaign_channels"]))
+    if data["unified_minutes"] and data["call_minutes"] is None:
+        data["call_minutes"] = _derived_call_minutes(data["inbound_minutes"], data["outbound_minutes"])
     tier = Tier(**data)
     db.add(tier)
     try:
@@ -55,11 +65,13 @@ def update_tier(tier_id: str, body: TierUpdate, _: AdminPrincipal, db: DB):
     for k, v in changes.items():
         if v is None and k in ("name", "description", "campaign_channels", "campaign_followup", "whatsapp",
                              "external_agent", "code_tools", "white_label", "advanced_reports", "internal",
-                             "direct_calls"):
+                             "direct_calls", "unified_minutes"):
             continue    # no son nulables: null = no cambiar
         if k == "campaign_channels":
             v = list(dict.fromkeys(v))
         setattr(tier, k, v)
+    if changes.get("unified_minutes") is True and "call_minutes" not in changes and tier.call_minutes is None:
+        tier.call_minutes = _derived_call_minutes(tier.inbound_minutes, tier.outbound_minutes)
     if tier.max_phone_numbers is not None:
         for client in db.scalars(select(Client).where(Client.tier_id == tier.id)):
             phone_numbers.check_tier_fits(db, client, tier)

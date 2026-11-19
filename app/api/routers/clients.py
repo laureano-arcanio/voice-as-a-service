@@ -232,7 +232,9 @@ def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:
 def _minutes(m: quota.MinutesUsage) -> MinutesUsageOut:
     # Sin fracciones: cada llamada se descuenta por minuto iniciado.
     used = math.ceil(m.used_seconds / 60)
-    remaining = None if m.limit_minutes is None else max(m.limit_minutes - used, 0)
+    # En el desglose de una bolsa unificada, el restante es el compartido, no el del sentido.
+    pool = m.used_seconds if m.pool_used_seconds is None else m.pool_used_seconds
+    remaining = None if m.limit_minutes is None else max(m.limit_minutes - math.ceil(pool / 60), 0)
     projected = None if m.projected_seconds is None else math.ceil(m.projected_seconds / 60)
     return MinutesUsageOut(used_seconds=m.used_seconds, used_minutes=used, limit_minutes=m.limit_minutes,
                            remaining_minutes=remaining, projected_minutes=projected)
@@ -247,6 +249,8 @@ def client_usage(client_id: str, p: CurrentPrincipal, db: DB,
     u = quota.usage(db, client, month)
     return UsageOut(month=u.month, period_start=u.period_start, period_end=u.period_end,
                     active_calls=u.active_calls, max_concurrent_calls=u.max_concurrent_calls,
+                    unified_minutes=u.unified_minutes,
+                    minutes=None if u.minutes is None else _minutes(u.minutes),
                     inbound=_minutes(u.inbound), outbound=_minutes(u.outbound),
                     phone_numbers=NumbersUsageOut(used=phone_numbers.numbers_count(db, client.id),
                                                   limit=limits.effective_limits(db, client).max_phone_numbers),

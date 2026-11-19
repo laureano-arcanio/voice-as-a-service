@@ -130,7 +130,11 @@ function ClientDataCard({ client }: { client: Client }) {
           allowDeselect={false}
           description={
             tier
-              ? `${formatLimit(tier.max_concurrent_calls)} simultáneas · ${formatLimit(tier.inbound_minutes, ' min')} entrantes · ${formatLimit(tier.outbound_minutes, ' min')} salientes por mes · ${formatLimit(tier.max_phone_numbers)} números`
+              ? `${formatLimit(tier.max_concurrent_calls)} simultáneas · ${
+                  tier.unified_minutes
+                    ? `${formatLimit(tier.call_minutes, ' min')} del plan`
+                    : `${formatLimit(tier.inbound_minutes, ' min')} entrantes · ${formatLimit(tier.outbound_minutes, ' min')} salientes`
+                } por mes · ${formatLimit(tier.max_phone_numbers)} números`
               : undefined
           }
         />

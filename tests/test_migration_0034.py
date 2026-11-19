@@ -23,7 +23,8 @@ def test_0034_upgrade_downgrade_upgrade(tmp_path):
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     assert [d for d in diff if ("tiers" in repr(d) or "client_branding" in repr(d))
             and "'advanced_reports'" not in repr(d) and "'internal'" not in repr(d)
-            and "'direct_calls'" not in repr(d)] == []      # 0036, 0037 y 0039
+            and "'direct_calls'" not in repr(d)
+            and "'call_minutes'" not in repr(d) and "'unified_minutes'" not in repr(d)] == []   # 0036, 0037, 0039 y 0062
     assert rows == {"Free": 0, "Mostrador": 0, "Sucursal": 0, "Central": 1, "Interno": 1}
     _run(engine, command.downgrade, "0033")
     assert "white_label" not in {c["name"] for c in sa.inspect(engine).get_columns("tiers")}

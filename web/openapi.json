@@ -23972,6 +23972,7 @@
        "max_calls_per_hour",
        "max_calls_per_day",
        "max_calls_per_month",
+       "call_minutes",
        "inbound_minutes",
        "outbound_minutes",
        "max_phone_numbers",
@@ -24064,6 +24065,7 @@
        "max_calls_per_hour",
        "max_calls_per_day",
        "max_calls_per_month",
+       "call_minutes",
        "inbound_minutes",
        "outbound_minutes",
        "max_phone_numbers",
@@ -24178,6 +24180,7 @@
        "max_calls_per_hour",
        "max_calls_per_day",
        "max_calls_per_month",
+       "call_minutes",
        "inbound_minutes",
        "outbound_minutes",
        "max_phone_numbers",
@@ -26646,6 +26649,22 @@
        }
       ],
       "title": "Max Concurrent Calls"
+     },
+     "unified_minutes": {
+      "type": "boolean",
+      "title": "Unified Minutes",
+      "default": true
+     },
+     "call_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Minutes"
      },
      "inbound_minutes": {
       "anyOf": [
@@ -32347,6 +32366,25 @@
       ],
       "title": "Max Concurrent Calls"
      },
+     "unified_minutes": {
+      "type": "boolean",
+      "title": "Unified Minutes",
+      "description": "Una bolsa de minutos para entrantes y salientes; false: dos, inbound_minutes y outbound_minutes",
+      "default": true
+     },
+     "call_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Minutes",
+      "description": "Minutos del plan por mes (bolsa unificada). null: ilimitado"
+     },
      "inbound_minutes": {
       "anyOf": [
        {
@@ -32358,7 +32396,7 @@
        }
       ],
       "title": "Inbound Minutes",
-      "description": "Minutos entrantes por mes"
+      "description": "Minutos entrantes por mes (modo separado)"
      },
      "outbound_minutes": {
       "anyOf": [
@@ -32371,7 +32409,7 @@
        }
       ],
       "title": "Outbound Minutes",
-      "description": "Minutos salientes por mes"
+      "description": "Minutos salientes por mes (modo separado)"
      },
      "max_phone_numbers": {
       "anyOf": [
@@ -32705,6 +32743,21 @@
       ],
       "title": "Max Concurrent Calls"
      },
+     "unified_minutes": {
+      "type": "boolean",
+      "title": "Unified Minutes"
+     },
+     "call_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Minutes"
+     },
      "inbound_minutes": {
       "anyOf": [
        {
@@ -32982,6 +33035,8 @@
      "name",
      "description",
      "max_concurrent_calls",
+     "unified_minutes",
+     "call_minutes",
      "inbound_minutes",
      "outbound_minutes",
      "max_phone_numbers",
@@ -33053,6 +33108,29 @@
        }
       ],
       "title": "Max Concurrent Calls"
+     },
+     "unified_minutes": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unified Minutes"
+     },
+     "call_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Minutes"
      },
      "inbound_minutes": {
       "anyOf": [
@@ -34027,6 +34105,22 @@
        }
       ],
       "title": "Max Concurrent Calls"
+     },
+     "unified_minutes": {
+      "type": "boolean",
+      "title": "Unified Minutes",
+      "description": "Una bolsa de minutos o dos (el desglose inbound/outbound)",
+      "default": true
+     },
+     "minutes": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/MinutesUsageOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "inbound": {
       "$ref": "#/components/schemas/MinutesUsageOut"

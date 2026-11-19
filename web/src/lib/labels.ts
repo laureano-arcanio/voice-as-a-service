@@ -150,8 +150,8 @@ export function isLiveStatus(status: string | null | undefined): boolean {
 /** Motivos del 429 de POST /calls. */
 export const QUOTA_TITLES: Record<string, string> = {
   concurrency_limit: 'Tope de llamadas simultáneas',
-  inbound_minutes: 'Sin minutos entrantes este mes',
-  outbound_minutes: 'Sin minutos salientes este mes',
+  inbound_minutes: 'Sin minutos del plan este mes',
+  outbound_minutes: 'Sin minutos del plan este mes',
   client_inactive: 'Cliente inactivo',
   number_suspended: 'Número suspendido',
 };

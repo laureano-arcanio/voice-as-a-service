@@ -135,7 +135,7 @@ async def test_horario_described_when_missing(team):
 
 async def test_account_of_another_client_is_refused(team, sessions):
     with sessions() as s:
-        tier = Tier(name="Otro")
+        tier = Tier(name="Otro", unified_minutes=False)
         s.add(tier)
         s.flush()
         other = Client(name="Otro", slug="otro", tier_id=tier.id)
@@ -155,7 +155,7 @@ async def test_area_or_member_of_another_client_is_refused(team):
 
 def _second_client(w):
     with w.sessions() as s:
-        tier = Tier(name="Dos")
+        tier = Tier(name="Dos", unified_minutes=False)
         s.add(tier)
         s.flush()
         other = Client(name="Dos", slug="dos", tier_id=tier.id)

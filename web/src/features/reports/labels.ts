@@ -55,8 +55,8 @@ export const NO_CONTACT_REASON: Record<string, string> = {
 /** Rechazos por limite del plan (operacion del admin). */
 export const REJECT_REASON: Record<string, string> = {
   concurrency_limit: 'Tope de llamadas simultáneas',
-  inbound_minutes: 'Sin minutos entrantes',
-  outbound_minutes: 'Sin minutos salientes',
+  inbound_minutes: 'Sin minutos del plan',
+  outbound_minutes: 'Sin minutos del plan',
   client_inactive: 'Cliente inactivo',
   number_suspended: 'Número suspendido',
   blocked_number: 'Número bloqueado',
