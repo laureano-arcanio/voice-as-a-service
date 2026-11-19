@@ -1093,6 +1093,10 @@ texto = client.audio.transcriptions.create(
     faq: [
       { q: "¿Qué numeración tienen?", a: "Numeración regional argentina, 0800 y 0810." },
       {
+        q: "¿El 0800 y el 0810 son gratis para quien llama, también desde un celular?",
+        a: "El 0800 es de cobro revertido: la llamada la paga la empresa que tiene el número, no quien llama. El 0810 es de costo compartido: quien llama paga como una llamada local, aunque llame desde otra provincia, y la empresa paga el resto. Desde un celular, lo que se cobra depende del plan de cada compañía. En Atentina, los planes con telefonía incluyen 0800 y 0810, y esas llamadas se cuentan en los minutos del plan.",
+      },
+      {
         q: "¿Puedo usar mi número o mi central telefónica?",
         a: "La plataforma corre sobre SIP. Si tenés una central (PBX) o un proveedor SIP propio, consultanos: hoy lo armamos con vos, no se activa solo desde el panel.",
       },
