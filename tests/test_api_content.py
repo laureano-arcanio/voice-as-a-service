@@ -23,7 +23,7 @@ def store(monkeypatch, tmp_path):
 def _client(sessions, slug="acme", days=30):
     with sessions() as s:
         from app.models import Tier
-        tier = s.query(Tier).first() or Tier(name=f"t-{slug}", description="")
+        tier = s.query(Tier).first() or Tier(name=f"t-{slug}", description="", unified_minutes=False)
         c = Client(name=slug, slug=slug, tier=tier)
         s.add(c)
         s.flush()

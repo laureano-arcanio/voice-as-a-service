@@ -25,26 +25,39 @@ type PlanInference = { api_tts_minutes?: number | null; api_stt_minutes?: number
 export function planFeatures(p: Plan & PlanInference): string[] {
   const out: string[] = [];
   // Lo que vale 0 el plan no lo incluye: no se lista.
-  if (p.inbound_minutes !== 0)
-    out.push(
-      amount(
-        p.inbound_minutes,
-        'minuto entrante',
-        'minutos entrantes',
-        'Minutos entrantes sin límite',
-        ' por mes',
-      ),
-    );
-  if (p.outbound_minutes !== 0)
-    out.push(
-      amount(
-        p.outbound_minutes,
-        'minuto saliente',
-        'minutos salientes',
-        'Minutos salientes sin límite',
-        ' por mes',
-      ),
-    );
+  if (p.unified_minutes) {
+    if (p.call_minutes !== 0)
+      out.push(
+        amount(
+          p.call_minutes,
+          'minuto del plan',
+          'minutos del plan',
+          'Minutos del plan sin límite',
+          ' por mes',
+        ),
+      );
+  } else {
+    if (p.inbound_minutes !== 0)
+      out.push(
+        amount(
+          p.inbound_minutes,
+          'minuto entrante',
+          'minutos entrantes',
+          'Minutos entrantes sin límite',
+          ' por mes',
+        ),
+      );
+    if (p.outbound_minutes !== 0)
+      out.push(
+        amount(
+          p.outbound_minutes,
+          'minuto saliente',
+          'minutos salientes',
+          'Minutos salientes sin límite',
+          ' por mes',
+        ),
+      );
+  }
   out.push(
     amount(p.max_concurrent_calls, 'llamada', 'llamadas', 'Llamadas simultáneas sin límite', ' a la vez'),
   );

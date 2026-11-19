@@ -31,7 +31,9 @@ LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'s
                       # 0037 (tier interno).
                       "'internal'",
                       # 0039 (llamadas directas).
-                      "'direct_calls'")
+                      "'direct_calls'",
+                      # 0062 (minutos unificados).
+                      "'call_minutes'", "'unified_minutes'")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

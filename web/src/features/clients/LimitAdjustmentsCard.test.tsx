@@ -9,7 +9,12 @@ const ROW = (field: string, tier: number | null, effective: number | null) => ({
 
 const LIMITS = {
   tier_name: 'Pyme',
-  limits: [ROW('inbound_minutes', 100, 110), ROW('outbound_minutes', null, null), ROW('max_phone_numbers', 1, 1)],
+  limits: [
+    ROW('call_minutes', 300, 300),
+    ROW('inbound_minutes', 100, 110),
+    ROW('outbound_minutes', null, null),
+    ROW('max_phone_numbers', 1, 1),
+  ],
   adjustments: [
     {
       id: 'a1',
@@ -57,6 +62,22 @@ describe('LimitAdjustmentsCard', () => {
     expect(screen.getByText('+10 min')).toBeInTheDocument();
     expect(screen.getByText('promo octubre')).toBeInTheDocument();
     expect(screen.getByText('Vigente')).toBeInTheDocument();
+  });
+
+  it('ajusta los minutos del plan (bolsa unificada)', async () => {
+    const { posted } = mockApi();
+    renderWithProviders(<LimitAdjustmentsCard clientId="c-1" />, { me: ADMIN });
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo ajuste/ }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('textbox', { name: 'Límite' }));
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Minutos del plan por mes (bolsa unificada)', hidden: true }),
+    );
+    await userEvent.type(within(dialog).getByLabelText(/Cantidad a sumar/), '50');
+    expect(within(dialog).getByText('Hoy: 300 min → 350 min')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cargar ajuste' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({ field: 'call_minutes', mode: 'add', value: 50 });
   });
 
   it('sin ajustes dice que rige el tier', async () => {

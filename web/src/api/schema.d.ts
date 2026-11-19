@@ -7593,7 +7593,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "call_minutes" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Mode
              * @enum {string}
@@ -7623,7 +7623,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "call_minutes" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Mode
              * @enum {string}
@@ -7656,7 +7656,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "call_minutes" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Tier
              * @description Valor del tier (null = ilimitado)
@@ -8573,6 +8573,13 @@ export interface components {
             price_ars: number;
             /** Max Concurrent Calls */
             max_concurrent_calls: number | null;
+            /**
+             * Unified Minutes
+             * @default true
+             */
+            unified_minutes?: boolean;
+            /** Call Minutes */
+            call_minutes?: number | null;
             /** Inbound Minutes */
             inbound_minutes: number | null;
             /** Outbound Minutes */
@@ -10613,13 +10620,24 @@ export interface components {
             /** Max Concurrent Calls */
             max_concurrent_calls?: number | null;
             /**
+             * Unified Minutes
+             * @description Una bolsa de minutos para entrantes y salientes; false: dos, inbound_minutes y outbound_minutes
+             * @default true
+             */
+            unified_minutes?: boolean;
+            /**
+             * Call Minutes
+             * @description Minutos del plan por mes (bolsa unificada). null: ilimitado
+             */
+            call_minutes?: number | null;
+            /**
              * Inbound Minutes
-             * @description Minutos entrantes por mes
+             * @description Minutos entrantes por mes (modo separado)
              */
             inbound_minutes?: number | null;
             /**
              * Outbound Minutes
-             * @description Minutos salientes por mes
+             * @description Minutos salientes por mes (modo separado)
              */
             outbound_minutes?: number | null;
             /**
@@ -10790,6 +10808,10 @@ export interface components {
             description: string;
             /** Max Concurrent Calls */
             max_concurrent_calls: number | null;
+            /** Unified Minutes */
+            unified_minutes: boolean;
+            /** Call Minutes */
+            call_minutes: number | null;
             /** Inbound Minutes */
             inbound_minutes: number | null;
             /** Outbound Minutes */
@@ -10869,6 +10891,10 @@ export interface components {
             description?: string | null;
             /** Max Concurrent Calls */
             max_concurrent_calls?: number | null;
+            /** Unified Minutes */
+            unified_minutes?: boolean | null;
+            /** Call Minutes */
+            call_minutes?: number | null;
             /** Inbound Minutes */
             inbound_minutes?: number | null;
             /** Outbound Minutes */
@@ -11236,6 +11262,13 @@ export interface components {
             active_calls: number;
             /** Max Concurrent Calls */
             max_concurrent_calls: number | null;
+            /**
+             * Unified Minutes
+             * @description Una bolsa de minutos o dos (el desglose inbound/outbound)
+             * @default true
+             */
+            unified_minutes?: boolean;
+            minutes?: components["schemas"]["MinutesUsageOut"] | null;
             inbound: components["schemas"]["MinutesUsageOut"];
             outbound: components["schemas"]["MinutesUsageOut"];
             phone_numbers: components["schemas"]["NumbersUsageOut"];

@@ -9,6 +9,7 @@ import {
   Modal,
   NumberInput,
   type NumberInputProps,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Switch,
@@ -71,6 +72,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     name: string;
     description: string;
     max_concurrent_calls: Limit;
+    unified_minutes: boolean;
+    call_minutes: Limit;
     inbound_minutes: Limit;
     outbound_minutes: Limit;
     max_phone_numbers: Limit;
@@ -106,6 +109,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       name: tier?.name ?? '',
       description: tier?.description ?? '',
       max_concurrent_calls: tier?.max_concurrent_calls ?? '',
+      unified_minutes: tier?.unified_minutes ?? true,
+      call_minutes: tier?.call_minutes ?? '',
       inbound_minutes: tier?.inbound_minutes ?? '',
       outbound_minutes: tier?.outbound_minutes ?? '',
       max_phone_numbers: tier?.max_phone_numbers ?? '',
@@ -158,6 +163,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 name: v.name.trim(),
                 description: v.description.trim(),
                 max_concurrent_calls: toLimit(v.max_concurrent_calls),
+                unified_minutes: v.unified_minutes,
+                call_minutes: toLimit(v.call_minutes),
                 inbound_minutes: toLimit(v.inbound_minutes),
                 outbound_minutes: toLimit(v.outbound_minutes),
                 max_phone_numbers: toLimit(v.max_phone_numbers),
@@ -215,8 +222,26 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
             <LimitInput label="Por mes" {...form.getInputProps('max_calls_per_month')} />
           </Section>
           <Section title="Minutos por mes, números, links para llamar y equipo" cols={4}>
-            <LimitInput label="Minutos entrantes" {...form.getInputProps('inbound_minutes')} />
-            <LimitInput label="Minutos salientes" {...form.getInputProps('outbound_minutes')} />
+            <SegmentedControl
+              data={[
+                { value: 'unified', label: 'Bolsa unificada' },
+                { value: 'split', label: 'Dos bolsas' },
+              ]}
+              value={form.values.unified_minutes ? 'unified' : 'split'}
+              onChange={(v) => form.setFieldValue('unified_minutes', v === 'unified')}
+            />
+            {form.values.unified_minutes ? (
+              <LimitInput
+                label="Minutos del plan"
+                description="Entrantes y salientes salen de la misma bolsa."
+                {...form.getInputProps('call_minutes')}
+              />
+            ) : (
+              <>
+                <LimitInput label="Minutos entrantes" {...form.getInputProps('inbound_minutes')} />
+                <LimitInput label="Minutos salientes" {...form.getInputProps('outbound_minutes')} />
+              </>
+            )}
             <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
             <LimitInput label="Links (uno por agente)" {...form.getInputProps('max_call_links')} />
             <LimitInput
@@ -401,7 +426,7 @@ export function TiersPage() {
                       <Table.Th>Nombre</Table.Th>
                       <Table.Th ta="right">Precio/mes</Table.Th>
                       <Table.Th ta="right">Simultáneas</Table.Th>
-                      <Table.Th ta="right">Minutos ent. / sal.</Table.Th>
+                      <Table.Th ta="right">Minutos</Table.Th>
                       <Table.Th ta="right">Números</Table.Th>
                       <Table.Th ta="right">Clientes</Table.Th>
                       <Table.Th />
@@ -429,7 +454,11 @@ export function TiersPage() {
                         </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_concurrent_calls)}</Table.Td>
                         <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                          {formatLimit(t.inbound_minutes)} / {formatLimit(t.outbound_minutes)}
+                          {t.unified_minutes
+                            ? t.call_minutes == null
+                              ? 'Ilimitado'
+                              : `${formatLimit(t.call_minutes)} unificados`
+                            : `${formatLimit(t.inbound_minutes)} / ${formatLimit(t.outbound_minutes)}`}
                         </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_phone_numbers)}</Table.Td>
                         <Table.Td ta="right">{t.clients_count ?? 0}</Table.Td>

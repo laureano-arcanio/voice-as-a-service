@@ -154,6 +154,18 @@ describe('PlanPage', () => {
 });
 
 describe('planFeatures', () => {
+  it('unificado: un solo ítem de minutos del plan', () => {
+    expect(
+      planFeatures({
+        ...PLAN,
+        unified_minutes: true,
+        call_minutes: 1200,
+        inbound_minutes: 0,
+        outbound_minutes: 0,
+      }),
+    ).toEqual(['1.200 minutos del plan por mes', '3 llamadas a la vez', '3 números de teléfono']);
+  });
+
   it('dice sin límite y omite lo que el plan no incluye', () => {
     expect(planFeatures(PLAN)).toEqual([
       '1.200 minutos entrantes por mes',

@@ -126,7 +126,7 @@ def make_wa(sessions, template="demo_booking", llm=None, graph=None, audio=None,
             record_audio=False, wa_session_minutes=None) -> Wa:
     w = Wa()
     with sessions() as s:
-        tier = Tier(name="T")
+        tier = Tier(name="T", unified_minutes=False)
         s.add(tier)
         s.flush()
         client = Client(name="Acme", slug="acme", tier_id=tier.id)

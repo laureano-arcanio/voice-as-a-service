@@ -48,6 +48,35 @@ describe('UsageMeter', () => {
     expect(screen.getByRole('progressbar', { name: 'Números: 100% usado' })).toBeInTheDocument();
   });
 
+  it('unificado: una barra del plan y el desglose sin barras propias', () => {
+    const usage: Usage = {
+      month: recentMonths(1)[0],
+      period_start: '2026-10-01T03:00:00Z',
+      period_end: '2026-11-01T03:00:00Z',
+      active_calls: 0,
+      max_concurrent_calls: null,
+      unified_minutes: true,
+      minutes: {
+        used_seconds: 2400,
+        used_minutes: 40,
+        limit_minutes: 100,
+        remaining_minutes: 60,
+        projected_minutes: 80,
+      },
+      inbound: { used_seconds: 600, used_minutes: 10, limit_minutes: 100, remaining_minutes: 60 },
+      outbound: { used_seconds: 1800, used_minutes: 30, limit_minutes: 100, remaining_minutes: 60 },
+      phone_numbers: { used: 0, limit: null },
+      calls_hour: { used: 0, limit: null },
+      calls_day: { used: 0, limit: null },
+      calls_month: { used: 0, limit: null },
+    };
+    wrap(<UsageMeters usage={usage} />);
+    expect(screen.getByRole('progressbar', { name: 'Minutos del plan: 40% usado' })).toBeInTheDocument();
+    expect(screen.getByText(/Entrantes 10 · Salientes 30/)).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: /Minutos entrantes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: /Minutos salientes/ })).not.toBeInTheDocument();
+  });
+
   it('muestra los topes de cantidad de llamadas solo si el tier los tiene', () => {
     const month = recentMonths(1)[0];
     const usage: Usage = {

@@ -766,7 +766,7 @@ async def test_tap_from_other_client_has_no_effect(h, sessions):
     with h.sessions() as s:
         leg = s.scalar(select(HandoffLeg))
         from app.models import Client, Tier
-        tier = Tier(name="O")
+        tier = Tier(name="O", unified_minutes=False)
         s.add(tier)
         s.flush()
         other = Client(name="Otro", slug="otro", tier_id=tier.id)
@@ -1921,7 +1921,7 @@ async def test_area_of_other_client_is_not_used(h):
     h.llm.turns[:] = [reply("Hola")]
     await send(h, text_payload("hola", "wamid.first"))
     with h.sessions() as s:
-        tier = Tier(name="O")
+        tier = Tier(name="O", unified_minutes=False)
         s.add(tier)
         s.flush()
         other = Client(name="Otro", slug="otro", tier_id=tier.id)

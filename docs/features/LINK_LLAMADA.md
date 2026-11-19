@@ -15,7 +15,7 @@ una firma de mail o la web del cliente. Estado: en producción desde el 19-oct-2
 | `call_logs.call_link_id` | Por qué link entró la llamada (filtros y uso) | 0018 |
 | `call_links.image` | Logo o foto propia, en `storage/call-links/` (`CALL_LINK_IMAGES_DIR`, en el backup) | 0019 |
 
-- `CallMode.web`: consume **minutos entrantes** (`MINUTE_MODES`). La conversación sigue en el canal `voice`.
+- `CallMode.web`: consume minutos del plan, los de la bolsa unificada o los entrantes en el modo separado (`MINUTE_MODES`). La conversación sigue en el canal `voice`.
 
 ## API
 

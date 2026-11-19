@@ -6,6 +6,7 @@ export const LIMIT_META: Record<LimitField, { label: string; unit: string; group
   max_calls_per_hour: { label: 'Llamadas por hora', unit: '', group: 'Llamadas' },
   max_calls_per_day: { label: 'Llamadas por día', unit: '', group: 'Llamadas' },
   max_calls_per_month: { label: 'Llamadas por mes', unit: '', group: 'Llamadas' },
+  call_minutes: { label: 'Minutos del plan por mes (bolsa unificada)', unit: ' min', group: 'Minutos y números' },
   inbound_minutes: { label: 'Minutos entrantes por mes', unit: ' min', group: 'Minutos y números' },
   outbound_minutes: { label: 'Minutos salientes por mes', unit: ' min', group: 'Minutos y números' },
   max_phone_numbers: { label: 'Números de teléfono', unit: '', group: 'Minutos y números' },

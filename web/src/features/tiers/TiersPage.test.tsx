@@ -12,6 +12,8 @@ const TIER = {
   max_calls_per_hour: 20,
   max_calls_per_day: 20,
   max_calls_per_month: null,
+  unified_minutes: true,
+  call_minutes: null,
   inbound_minutes: null,
   outbound_minutes: null,
   max_phone_numbers: 1,
@@ -58,12 +60,12 @@ describe('TiersPage', () => {
       'Nombre',
       'Precio/mes',
       'Simultáneas',
-      'Minutos ent. / sal.',
+      'Minutos',
       'Números',
       'Clientes',
       '',
     ]);
-    expect(screen.getByText('Ilimitado / Ilimitado')).toBeInTheDocument();
+    expect(screen.getByText('Ilimitado')).toBeInTheDocument();
     expect(screen.queryByText('20 / 20 / Ilimitado')).not.toBeInTheDocument();
   });
 
@@ -86,6 +88,28 @@ describe('TiersPage', () => {
       api_rate_limit: 60,
       max_team_members: 3,
       max_call_links: null,
+    });
+  });
+
+  it('minutos: bolsa unificada por defecto y dos bolsas al elegirlo', async () => {
+    const created = mockApi();
+    renderWithProviders(<TiersPage />, { me: ADMIN });
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo tier/ }));
+    await userEvent.type(screen.getByLabelText(/Nombre/), 'Pro');
+    // Por defecto, una sola bolsa: se carga "Minutos del plan" y no hay entrantes/salientes.
+    await userEvent.type(screen.getByLabelText('Minutos del plan'), '300');
+    expect(screen.queryByLabelText('Minutos entrantes')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'Dos bolsas' }));
+    expect(screen.queryByLabelText('Minutos del plan')).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Minutos entrantes'), '100');
+    await userEvent.type(screen.getByLabelText('Minutos salientes'), '50');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({
+      unified_minutes: false,
+      call_minutes: 300,
+      inbound_minutes: 100,
+      outbound_minutes: 50,
     });
   });
 

@@ -69,20 +69,34 @@ export function UsageMeters({ usage, limitsName = 'tier' }: { usage: Usage; limi
   const isCurrentMonth = usage.month === recentMonths(1)[0];
   return (
     <SimpleGrid type="container" cols={{ base: 1, '420px': 2, '900px': 4 }} spacing="lg">
-      <UsageMeter
-        label="Minutos entrantes"
-        used={usage.inbound.used_minutes}
-        limit={usage.inbound.limit_minutes}
-        unit=" min"
-        hint={minutesHint(usage.inbound, noLimit)}
-      />
-      <UsageMeter
-        label="Minutos salientes"
-        used={usage.outbound.used_minutes}
-        limit={usage.outbound.limit_minutes}
-        unit=" min"
-        hint={minutesHint(usage.outbound, noLimit)}
-      />
+      {usage.unified_minutes && usage.minutes ? (
+        <UsageMeter
+          label="Minutos del plan"
+          used={usage.minutes.used_minutes}
+          limit={usage.minutes.limit_minutes}
+          unit=" min"
+          hint={`${minutesHint(usage.minutes, noLimit)} Entrantes ${formatNumber(
+            usage.inbound.used_minutes,
+          )} · Salientes ${formatNumber(usage.outbound.used_minutes)}.`}
+        />
+      ) : (
+        <>
+          <UsageMeter
+            label="Minutos entrantes"
+            used={usage.inbound.used_minutes}
+            limit={usage.inbound.limit_minutes}
+            unit=" min"
+            hint={minutesHint(usage.inbound, noLimit)}
+          />
+          <UsageMeter
+            label="Minutos salientes"
+            used={usage.outbound.used_minutes}
+            limit={usage.outbound.limit_minutes}
+            unit=" min"
+            hint={minutesHint(usage.outbound, noLimit)}
+          />
+        </>
+      )}
       <UsageMeter
         label="Llamadas simultáneas"
         used={usage.active_calls}

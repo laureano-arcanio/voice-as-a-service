@@ -1029,9 +1029,10 @@ def platform(s: Session, flt: ReportFilter) -> dict:
         n, minutes, complete, errors = map(_n, stats.get(c.id, [0, 0, 0, 0]))
         lim = limits_service.effective_limits(s, c, now)
         quota_pct = None
-        if lim.inbound_minutes:
-            used = quota.used_seconds(s, c.id, "entrante", start, end, now) / 60
-            quota_pct = round(100 * used / lim.inbound_minutes, 1)
+        minutes_limit = lim.call_minutes if lim.unified_minutes else lim.inbound_minutes
+        if minutes_limit:
+            used = quota.used_for_limit(s, c.id, "entrante", start, end, now, lim) / 60
+            quota_pct = round(100 * used / minutes_limit, 1)
         before = _n(prev.get(c.id))
         last_at = _as_dt(last[c.id]) if last.get(c.id) else None
         clients.append({"client_id": c.id, "name": c.name, "tier": c.tier.name, "conversations": n,
@@ -1042,7 +1043,8 @@ def platform(s: Session, flt: ReportFilter) -> dict:
             continue
         if quota_pct is not None and quota_pct >= NEAR_QUOTA_PCT:
             alerts.append({"client_id": c.id, "name": c.name, "kind": "near_quota",
-                           "detail": f"{quota_pct:g} % de los minutos entrantes del mes"})
+                           "detail": f"{quota_pct:g} % de los minutos "
+                                     f"{'del plan' if lim.unified_minutes else 'entrantes'} del mes"})
         idle_since = last_at or c.created_at
         if idle_since is not None and now - idle_since >= datetime.timedelta(days=INACTIVE_DAYS):
             days = (now - idle_since).days

@@ -78,7 +78,7 @@ const FAILURES: Record<string, string> = {
   after_hours: 'Fuera de horario',
   no_members: 'No había nadie a quien llamar',
   no_channel: 'No había líneas libres',
-  outbound_minutes: 'Sin minutos de salida',
+  outbound_minutes: 'Sin minutos del plan',
   too_many_attempts: 'Demasiados intentos',
   unknown_area: 'El área no existe',
   customer_hung_up: 'Cortaste antes de que atendieran',

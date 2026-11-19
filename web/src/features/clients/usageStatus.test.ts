@@ -44,6 +44,26 @@ const API: InferenceUsage = {
 };
 
 describe('usageStatus', () => {
+  it('unificado: vigila la bolsa compartida, no las dos barras', () => {
+    const unified: Usage = {
+      ...USAGE,
+      unified_minutes: true,
+      minutes: {
+        used_seconds: 3000,
+        used_minutes: 50,
+        limit_minutes: 50,
+        remaining_minutes: 0,
+        projected_minutes: 80,
+      },
+      inbound: { ...USAGE.inbound, limit_minutes: 50, remaining_minutes: 0 },
+      outbound: { ...USAGE.outbound, limit_minutes: 50, remaining_minutes: 0 },
+    };
+    const s = usageStatus(unified);
+    expect(s.full).toEqual(['Minutos del plan']);
+    expect(s.willExceed).toEqual(['minutos del plan']);
+    expect(s.near.map((n) => n.label)).not.toContain('Minutos entrantes');
+  });
+
   it('todo en orden: nada pasa del 70 %', () => {
     expect(usageStatus(USAGE, API)).toEqual({ level: 'ok', full: [], near: [], willExceed: [] });
   });

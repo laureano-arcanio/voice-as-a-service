@@ -17,9 +17,15 @@ export interface UsageStatus {
 /** El estado de toda la cuenta de un vistazo: qué topes del plan se llegaron, están cerca o se van a pasar. */
 export function usageStatus(usage: Usage, api?: InferenceUsage): UsageStatus {
   const current = usage.month === recentMonths(1)[0];
+  const minutes: [string, number | null][] =
+    usage.unified_minutes && usage.minutes
+      ? [['Minutos del plan', usagePercent(usage.minutes.used_minutes, usage.minutes.limit_minutes)]]
+      : [
+          ['Minutos entrantes', usagePercent(usage.inbound.used_minutes, usage.inbound.limit_minutes)],
+          ['Minutos salientes', usagePercent(usage.outbound.used_minutes, usage.outbound.limit_minutes)],
+        ];
   const meters: [string, number | null][] = [
-    ['Minutos entrantes', usagePercent(usage.inbound.used_minutes, usage.inbound.limit_minutes)],
-    ['Minutos salientes', usagePercent(usage.outbound.used_minutes, usage.outbound.limit_minutes)],
+    ...minutes,
     ['Llamadas simultáneas', usagePercent(usage.active_calls, usage.max_concurrent_calls)],
     ['Llamadas del mes', usagePercent(usage.calls_month.used, usage.calls_month.limit)],
     ['Números', usagePercent(usage.phone_numbers.used, usage.phone_numbers.limit)],
@@ -47,12 +53,14 @@ export function usageStatus(usage: Usage, api?: InferenceUsage): UsageStatus {
     if (pct >= 100) full.push(label);
     else if (pct >= NEAR_PCT) near.push({ label, pct });
   }
-  const willExceed = (
-    [
-      ['minutos entrantes', usage.inbound],
-      ['minutos salientes', usage.outbound],
-    ] as const
-  )
+  const projections: [string, Usage['inbound']][] =
+    usage.unified_minutes && usage.minutes
+      ? [['minutos del plan', usage.minutes]]
+      : [
+          ['minutos entrantes', usage.inbound],
+          ['minutos salientes', usage.outbound],
+        ];
+  const willExceed = projections
     .filter(
       ([, m]) =>
         m.limit_minutes != null && m.projected_minutes != null && m.projected_minutes > m.limit_minutes,

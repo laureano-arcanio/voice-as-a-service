@@ -205,7 +205,7 @@
    "name": "get_plan_features",
    "toolset": "account",
    "title": "Funciones del plan",
-   "description": "Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para llamar) con `enabled` y, si no está, `reason`: lo que hace falta.",
+   "description": "Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para llamar) con `enabled` y, si no está, `reason`: lo que hace falta. Los minutos del plan pueden ser una bolsa compartida o dos (entrantes y salientes): lo dice `unified_minutes`.",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -215,7 +215,7 @@
    "name": "get_usage",
    "toolset": "account",
    "title": "Consumo del mes",
-   "description": "Minutos entrantes y salientes (con su proyección a fin de mes), llamadas y demás consumo del mes contra los límites del plan. Es lo primero a consultar para \"¿alcanza el plan?\".",
+   "description": "Minutos del plan (con su proyección a fin de mes), llamadas y demás consumo del mes contra los límites del plan. Con la bolsa unificada (`unified_minutes: true`), `minutes` es la fuente de verdad y `inbound`/`outbound` son el desglose con el tope y el restante compartidos. Es lo primero a consultar para \"¿alcanza el plan?\".",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -843,7 +843,7 @@
    "name": "start_call",
    "toolset": "calls",
    "title": "Llamar a un número",
-   "description": "Hace una llamada saliente: el agente llama al teléfono indicado (`phone`, E.164, ej. +5491155551234) o al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos salientes: confirmalo con el usuario antes.",
+   "description": "Hace una llamada saliente: el agente llama al teléfono indicado (`phone`, E.164, ej. +5491155551234) o al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos del plan: confirmalo con el usuario antes.",
    "kind": "confirmar",
    "features": [
     "outbound_calls"
@@ -855,7 +855,7 @@
    "name": "start_direct_call",
    "toolset": "calls",
    "title": "Llamar con una persona del equipo",
-   "description": "Crea una llamada directa: la hace una PERSONA del equipo, no el agente (para que llame el agente, start_call). Llama al teléfono indicado (`phone`, E.164) o al de un contacto (`contact_id`) con el número de la empresa y devuelve `join_url`: la página del panel que la persona abre, con su sesión, para hablar desde el navegador. Hay que pasar `user_id` (el usuario que va a hablar; list_team_presence muestra quién está disponible) y la persona tiene 2 minutos para abrir el link. Llama a una persona real y gasta minutos salientes: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, responde `opted_out`; solo se repite con `confirm_opted_out` si el usuario lo confirma.",
+   "description": "Crea una llamada directa: la hace una PERSONA del equipo, no el agente (para que llame el agente, start_call). Llama al teléfono indicado (`phone`, E.164) o al de un contacto (`contact_id`) con el número de la empresa y devuelve `join_url`: la página del panel que la persona abre, con su sesión, para hablar desde el navegador. Hay que pasar `user_id` (el usuario que va a hablar; list_team_presence muestra quién está disponible) y la persona tiene 2 minutos para abrir el link. Llama a una persona real y gasta minutos del plan: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, responde `opted_out`; solo se repite con `confirm_opted_out` si el usuario lo confirma.",
    "kind": "confirmar",
    "features": [
     "direct_calls"
@@ -999,7 +999,7 @@
    "name": "create_call_link",
    "toolset": "call_links",
    "title": "Crear el link para llamar",
-   "description": "Crea el link público para hablar con el agente desde el navegador (uno por agente), con el nombre y la empresa que ve quien llama. Gasta minutos entrantes.",
+   "description": "Crea el link público para hablar con el agente desde el navegador (uno por agente), con el nombre y la empresa que ve quien llama. Gasta minutos del plan.",
    "kind": "escritura",
    "features": [
     "call_links"

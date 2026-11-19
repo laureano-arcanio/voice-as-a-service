@@ -53,6 +53,19 @@ def test_paid_plan_without_numbers_has_no_outbound(api, admin):
     assert features(admin, client_id=c["id"])["features"]["outbound_calls"] == {"enabled": True, "reason": None}
 
 
+def test_outbound_calls_follows_the_unified_pool(api, admin):
+    # Unificado con 0 salientes y 300 de bolsa: las salientes salen de la bolsa, no de outbound_minutes.
+    c = make_client(admin, tier=make_tier(admin, name="Unificado", unified_minutes=True, call_minutes=300,
+                                          outbound_minutes=0, max_phone_numbers=1))
+    admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+541152630861"}).raise_for_status()
+    assert features(admin, client_id=c["id"])["features"]["outbound_calls"]["enabled"]
+    # En separado, 0 salientes sigue siendo "no incluido".
+    c2 = make_client(admin, slug="sep", tier=make_tier(admin, name="Separado", unified_minutes=False,
+                                                       call_minutes=300, outbound_minutes=0, max_phone_numbers=1))
+    admin.post(f"{V1}/phone-numbers", json={"client_id": c2["id"], "e164": "+541152630862"}).raise_for_status()
+    assert not features(admin, client_id=c2["id"])["features"]["outbound_calls"]["enabled"]
+
+
 def test_adjustment_opens_a_feature(api, admin):
     c = make_client(admin, tier=make_tier(admin, **FREE))
     r = admin.post(f"{V1}/clients/{c['id']}/limit-adjustments",

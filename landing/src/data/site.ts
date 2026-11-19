@@ -1158,7 +1158,7 @@ texto = client.audio.transcriptions.create(
       {
         title: "Disponible para atender",
         paragraphs: [
-          "Cada persona tiene un interruptor Disponible en el panel. Mientras está prendido y el panel está abierto, le suenan las entrantes del número con los botones Atender y Rechazar, el número que llama y el contacto si está en tu agenda. La primera persona que atiende se queda con la llamada y a las demás se les corta el timbre. Atender en el panel no gasta minutos salientes.",
+          "Cada persona tiene un interruptor Disponible en el panel. Mientras está prendido y el panel está abierto, le suenan las entrantes del número con los botones Atender y Rechazar, el número que llama y el contacto si está en tu agenda. La primera persona que atiende se queda con la llamada y a las demás se les corta el timbre. Atender en el panel no gasta minutos del plan.",
         ],
       },
       {

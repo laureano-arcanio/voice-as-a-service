@@ -6,7 +6,8 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
 - Cantidad: entrantes y salientes juntas que se crearon en la hora, el dia o el mes calendario en
   settings.billing_timezone (se renuevan al empezar la hora, a las 00:00 y el dia 1). Cuentan
   las atendidas o falladas; no las rechazadas por el tier ni las de prueba o loadtest.
-- Minutos: entrantes y salientes por separado, por mes calendario en
+- Minutos: por plan, de una bolsa unificada (tiers.call_minutes, entrantes y salientes juntas) o de dos
+  (tiers.inbound_minutes y outbound_minutes), por mes calendario en
   settings.billing_timezone. Cada llamada se descuenta por minuto iniciado, sin fracciones (12 s = 1 min,
   61 s = 2 min), igual que Anura; call_logs guarda los segundos reales redondeados hacia arriba
   (elapsed_seconds). Una llamada cuenta en el mes en que empezo; la que esta en curso cuenta los minutos
@@ -193,13 +194,15 @@ def busy_channels(s: Session, now: datetime.datetime | None = None) -> int:
     return calls + legs
 
 
-def handoff_check(s: Session, client_id: str) -> str | None:
-    """Si se puede intentar una derivacion ahora: None, o el motivo por el que no (sin minutos salientes en el
-    plan o sin canal libre en Anura). El tramo es saliente: con 0 salientes en el plan no se deriva."""
+def handoff_check(s: Session, client_id: str, running_exact: bool = False) -> str | None:
+    """Si se puede intentar una derivacion ahora: None, o el motivo por el que no (sin minutos en el
+    plan o sin canal libre en Anura). El tramo es saliente: con 0 minutos en el plan no se deriva; en
+    unificado controla la bolsa compartida. `running_exact`: el corte del tramo conectado, que no puede
+    contar redondeada la entrante en curso de la misma llamada."""
     client = s.get(Client, client_id)
     if client is None or not client.active:
         return "client_inactive"
-    remaining = remaining_seconds(s, client, CallMode.saliente)
+    remaining = remaining_seconds(s, client, CallMode.saliente, running_exact=running_exact)
     if remaining is not None and remaining <= 0:
         return "outbound_minutes"
     if busy_channels(s) >= settings.anura_channels:
@@ -214,12 +217,31 @@ def same_minutes(mode: str) -> list[str]:
 
 
 def limit_seconds(limits: Limits, mode: str) -> int | None:
-    """Tope de minutos del cliente (tier y ajustes) para esa modalidad, en segundos. None: sin tope."""
+    """Tope de minutos del cliente (tier y ajustes) para esa modalidad, en segundos. None: sin tope.
+    En unificado es la bolsa compartida; en separado, el campo del sentido."""
     kind = MINUTE_MODES.get(mode)
     if kind is None:
         return None
+    if limits.unified_minutes:
+        return None if limits.call_minutes is None else limits.call_minutes * 60
     minutes = getattr(limits, f"{kind}_minutes")
     return None if minutes is None else minutes * 60
+
+
+def used_for_limit(s: Session, client_id: str, mode: str, start: datetime.datetime, end: datetime.datetime,
+                   now: datetime.datetime | None = None, limits: Limits | None = None,
+                   running_exact: bool = False) -> int:
+    """Lo consumido contra el tope de `mode`: en unificado, entrantes mas salientes (incluye web, directas
+    y tramos) de la misma bolsa; en separado, el sentido."""
+    if limits is None:
+        client = s.get(Client, client_id)
+        if client is None:
+            return used_seconds(s, client_id, mode, start, end, now, running_exact=running_exact)
+        limits = limits_service.effective_limits(s, client, now)
+    if limits.unified_minutes:
+        return (used_seconds(s, client_id, CallMode.entrante, start, end, now, running_exact=running_exact)
+                + used_seconds(s, client_id, CallMode.saliente, start, end, now, running_exact=running_exact))
+    return used_seconds(s, client_id, mode, start, end, now, running_exact=running_exact)
 
 
 def remaining_seconds(s: Session, client: Client, mode: str, now: datetime.datetime | None = None,
@@ -227,11 +249,12 @@ def remaining_seconds(s: Session, client: Client, mode: str, now: datetime.datet
     """Lo que queda del tope. Para admitir, las en curso cuentan los minutos iniciados; el corte de una llamada
     usa `running_exact`, o la ultima se cortaria al empezar el minuto que ya se le desconto."""
     now = now or utcnow()
-    limit = limit_seconds(limits or limits_service.effective_limits(s, client, now), mode)
+    limits = limits or limits_service.effective_limits(s, client, now)
+    limit = limit_seconds(limits, mode)
     if limit is None:
         return None
     start, end = month_bounds(now.replace(tzinfo=datetime.UTC))
-    return limit - used_seconds(s, client.id, mode, start, end, now, running_exact=running_exact)
+    return limit - used_for_limit(s, client.id, mode, start, end, now, limits, running_exact)
 
 
 def admit(s: Session, client_id: str, mode: str) -> int | None:
@@ -261,6 +284,8 @@ def admit(s: Session, client_id: str, mode: str) -> int | None:
     remaining = remaining_seconds(s, client, mode, now, limits)
     if remaining is not None and remaining <= 0:
         kind = MINUTE_MODES[mode]
+        if limits.unified_minutes:
+            raise QuotaExceeded("No quedan minutos del plan este mes", f"{kind}_minutes")
         label = "entrantes" if kind == "inbound" else "salientes"
         raise QuotaExceeded(f"No quedan minutos {label} en el plan este mes", f"{kind}_minutes")
     return remaining
@@ -272,6 +297,9 @@ class MinutesUsage:
     limit_minutes: int | None
     # A fin de mes, al ritmo del mes en curso; None en un mes pasado o futuro.
     projected_seconds: float | None = None
+    # En unificado, el usado de la bolsa compartida (el desglose por sentido lo usa para el restante);
+    # None en separado.
+    pool_used_seconds: int | None = None
 
 
 @dataclass
@@ -289,6 +317,9 @@ class Usage:
     max_concurrent_calls: int | None
     inbound: MinutesUsage
     outbound: MinutesUsage
+    # Una bolsa unificada (None en modo separado) y el modo del tier.
+    minutes: MinutesUsage | None
+    unified_minutes: bool
     # La hora y el dia son los en curso; el mes, el pedido.
     calls_hour: CallsUsage
     calls_day: CallsUsage
@@ -313,13 +344,22 @@ def usage(s: Session, client: Client, month: str | None = None) -> Usage:
     limits = limits_service.effective_limits(s, client, now)
     start, end = month_bounds(now.replace(tzinfo=datetime.UTC), month)
     local = start.replace(tzinfo=datetime.UTC).astimezone(ZoneInfo(settings.billing_timezone))
+    inbound_used = used_seconds(s, client.id, CallMode.entrante, start, end, now)
+    outbound_used = used_seconds(s, client.id, CallMode.saliente, start, end, now)
+    if limits.unified_minutes:
+        pool = inbound_used + outbound_used
+        minutes = _minutes_usage(pool, limits.call_minutes, start, end, now)
+        # El desglose no tiene tope propio: su restante es el de la bolsa (pool_used_seconds).
+        inbound = MinutesUsage(inbound_used, limits.call_minutes, None, pool)
+        outbound = MinutesUsage(outbound_used, limits.call_minutes, None, pool)
+    else:
+        minutes = None
+        inbound = _minutes_usage(inbound_used, limits.inbound_minutes, start, end, now)
+        outbound = _minutes_usage(outbound_used, limits.outbound_minutes, start, end, now)
     return Usage(
         month=f"{local.year:04d}-{local.month:02d}", period_start=start, period_end=end,
         active_calls=active_calls(s, client.id, now), max_concurrent_calls=limits.max_concurrent_calls,
-        inbound=_minutes_usage(used_seconds(s, client.id, CallMode.entrante, start, end, now),
-                               limits.inbound_minutes, start, end, now),
-        outbound=_minutes_usage(used_seconds(s, client.id, CallMode.saliente, start, end, now),
-                                limits.outbound_minutes, start, end, now),
+        inbound=inbound, outbound=outbound, minutes=minutes, unified_minutes=limits.unified_minutes,
         calls_hour=CallsUsage(calls_started(s, client.id, period_start("hour", now)), limits.max_calls_per_hour),
         calls_day=CallsUsage(calls_started(s, client.id, period_start("day", now)), limits.max_calls_per_day),
         calls_month=CallsUsage(calls_started(s, client.id, start, end), limits.max_calls_per_month),

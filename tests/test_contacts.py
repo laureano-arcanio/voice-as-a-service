@@ -47,7 +47,7 @@ def test_wa_id_and_whatsapp():
 @pytest.fixture
 def client_id(sessions):
     with sessions() as s:
-        tier = Tier(name="T")
+        tier = Tier(name="T", unified_minutes=False)
         s.add(tier)
         s.flush()
         c = Client(name="Acme", slug="acme", tier_id=tier.id)

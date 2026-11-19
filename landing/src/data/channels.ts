@@ -119,7 +119,7 @@ export const channels: Channel[] = [
       { q: "¿Hace falta un número de teléfono?", a: "No. El link funciona solo, desde el navegador del celular o la computadora." },
       { q: "¿Lo puedo poner en mi web?", a: "Sí, como un link o un botón. También en tu Instagram, la firma de mail o un código QR." },
       { q: "¿Está en el plan gratis?", a: "Sí. El plan Free incluye un link para llamar, con sus minutos del mes." },
-      { q: "¿Consume minutos?", a: "Sí, los minutos entrantes del plan. Podés poner topes por link: duración, llamadas a la vez y minutos por día." },
+      { q: "¿Consume minutos?", a: "Sí, los minutos del plan. Podés poner topes por link: duración, llamadas a la vez y minutos por día." },
     ],
   },
 ];

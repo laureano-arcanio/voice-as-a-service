@@ -133,7 +133,7 @@ def setup_db():
     Base.metadata.create_all(engine)
     sessions = sessionmaker(bind=engine, expire_on_commit=False)
     with sessions() as s:
-        tier = Tier(name="e2e", direct_calls=True)
+        tier = Tier(name="e2e", unified_minutes=False, direct_calls=True)
         s.add(tier)
         s.flush()
         client = Client(name="E2E", slug="e2e", tier_id=tier.id)

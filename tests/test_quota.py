@@ -3,7 +3,7 @@ import datetime
 import pytest
 from sqlalchemy import select
 
-from app.models import CallMode, CallRow, CallStatus, Client, ConversationRow, PhoneNumber, Tier
+from app.models import CallMode, CallRow, CallStatus, Client, ConversationRow, HandoffLeg, PhoneNumber, Tier
 from app.services import quota
 from app.services.errors import QuotaExceeded
 
@@ -23,6 +23,7 @@ def test_month_bounds_in_billing_timezone():
 
 
 def _client(s, slug="c", **limits) -> Client:
+    limits.setdefault("unified_minutes", False)
     tier = Tier(name=f"t-{slug}", **limits)
     client = Client(name=slug, slug=slug, tier=tier)
     s.add(client)
@@ -40,6 +41,114 @@ def _call(s, client, mode, status, started_ago=None, duration=0, created_ago=0, 
                   started_at=None if started_ago is None else now - datetime.timedelta(seconds=started_ago),
                   created_at=now - datetime.timedelta(seconds=created_ago)))
     s.flush()
+
+
+def _leg(s, client, billed_seconds, started_ago=500):
+    """Un tramo de derivacion cerrado, cobrado por minuto iniciado."""
+    now = datetime.datetime.now(UTC).replace(tzinfo=None)
+    conv = ConversationRow(id=f"leg{len(s.new) + s.query(ConversationRow).count()}", client_id=client.id,
+                           status="active", fields={}, messages=[])
+    s.add(conv)
+    s.flush()
+    answered = now - datetime.timedelta(seconds=started_ago)
+    s.add(HandoffLeg(client_id=client.id, conversation_id=conv.id, phone="+5493511111111", result="connected",
+                     created_at=answered, answered_at=answered, connected_at=answered,
+                     ended_at=answered + datetime.timedelta(seconds=billed_seconds), billed_seconds=billed_seconds))
+    s.flush()
+
+
+def test_unified_pool_sums_inbound_web_outbound_direct_and_legs(sessions):
+    with sessions() as s:
+        c = _client(s, unified_minutes=True, call_minutes=10, inbound_minutes=100, outbound_minutes=0)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=120)
+        _call(s, c, CallMode.web, CallStatus.finalizada, started_ago=500, duration=60)
+        _call(s, c, CallMode.saliente, CallStatus.finalizada, started_ago=500, duration=60)
+        _call(s, c, CallMode.directa, CallStatus.finalizada, started_ago=500, duration=60)
+        _leg(s, c, billed_seconds=60)
+        start, end = quota.month_bounds()
+        assert quota.used_seconds(s, c.id, CallMode.entrante, start, end) == 3 * 60
+        assert quota.used_seconds(s, c.id, CallMode.saliente, start, end) == 3 * 60
+        # 10 min de bolsa: lo usado por los dos sentidos son 6 min y quedan 4, en cualquiera de las dos.
+        assert quota.used_for_limit(s, c.id, CallMode.entrante, start, end) == 6 * 60
+        assert quota.remaining_seconds(s, c, CallMode.entrante) == 4 * 60
+        assert quota.remaining_seconds(s, c, CallMode.saliente) == 4 * 60
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=240)
+        for mode in (CallMode.entrante, CallMode.saliente):
+            with pytest.raises(QuotaExceeded) as e:
+                quota.admit(s, c.id, mode)
+            assert e.value.code == f"{quota.MINUTE_MODES[mode]}_minutes"
+            assert "No quedan minutos del plan este mes" in str(e.value)
+
+
+def test_separated_pools_still_count_by_side(sessions):
+    with sessions() as s:
+        c = _client(s, inbound_minutes=10, outbound_minutes=0)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=240)
+        start, end = quota.month_bounds()
+        assert quota.used_for_limit(s, c.id, CallMode.entrante, start, end) == 4 * 60
+        assert quota.remaining_seconds(s, c, CallMode.entrante) == 6 * 60
+        with pytest.raises(QuotaExceeded) as e:
+            quota.admit(s, c.id, CallMode.saliente)
+        assert e.value.code == "outbound_minutes"
+        assert "minutos salientes" in str(e.value)
+
+
+@pytest.mark.parametrize("unified", [True, False])
+def test_derived_inbound_pays_the_inbound_and_the_leg(sessions, unified):
+    """La entrante derivada paga entrante por toda la llamada y saliente por el tramo (61 s + 61 s = 4 min)."""
+    with sessions() as s:
+        c = _client(s, unified_minutes=unified, call_minutes=10, inbound_minutes=4, outbound_minutes=4)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=61)
+        _leg(s, c, billed_seconds=61)
+        start, end = quota.month_bounds()
+        assert quota.used_seconds(s, c.id, CallMode.entrante, start, end) == 2 * 60
+        assert quota.used_seconds(s, c.id, CallMode.saliente, start, end) == 2 * 60
+        if unified:
+            assert quota.remaining_seconds(s, c, CallMode.entrante) == 6 * 60
+            assert quota.remaining_seconds(s, c, CallMode.saliente) == 6 * 60
+        else:
+            assert quota.remaining_seconds(s, c, CallMode.entrante) == 2 * 60
+            assert quota.remaining_seconds(s, c, CallMode.saliente) == 2 * 60
+
+
+def test_unified_running_call_keeps_the_minute_it_started(sessions):
+    with sessions() as s:
+        c = _client(s, unified_minutes=True, call_minutes=1)
+        _call(s, c, CallMode.entrante, CallStatus.en_curso, started_ago=10)
+        assert quota.remaining_seconds(s, c, CallMode.entrante) == 0
+        assert quota.remaining_seconds(s, c, CallMode.saliente) == 0
+        assert 45 <= quota.remaining_seconds(s, c, CallMode.saliente, running_exact=True) <= 50
+
+
+def test_handoff_check_on_the_pool_with_running_exact(sessions):
+    with sessions() as s:
+        c = _client(s, unified_minutes=True, call_minutes=1)
+        _call(s, c, CallMode.entrante, CallStatus.en_curso, started_ago=40)
+        assert quota.handoff_check(s, c.id) == "outbound_minutes"          # el minuto ya se desconto
+        assert quota.handoff_check(s, c.id, running_exact=True) is None    # todavia quedan segundos
+
+
+def test_usage_shows_the_pool_and_the_breakdown(sessions):
+    from app.api.routers.clients import _minutes
+
+    with sessions() as s:
+        c = _client(s, unified_minutes=True, call_minutes=10, inbound_minutes=1, outbound_minutes=1)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=120)
+        _call(s, c, CallMode.saliente, CallStatus.finalizada, started_ago=500, duration=60)
+        u = quota.usage(s, c)
+        assert u.unified_minutes and u.minutes is not None
+        assert (u.minutes.used_seconds, u.minutes.limit_minutes) == (3 * 60, 10)
+        assert u.minutes.projected_seconds is not None and u.minutes.pool_used_seconds is None
+        assert (u.inbound.limit_minutes, u.inbound.pool_used_seconds) == (10, 3 * 60)
+        assert (u.outbound.limit_minutes, u.outbound.pool_used_seconds) == (10, 3 * 60)
+        assert u.inbound.projected_seconds is None and u.outbound.projected_seconds is None
+        # El desglose lleva el tope compartido y el restante compartido, no el del sentido.
+        assert (_minutes(u.inbound).remaining_minutes, _minutes(u.outbound).remaining_minutes) == (7, 7)
+    with sessions() as s:
+        c = _client(s, inbound_minutes=10, outbound_minutes=10)
+        u = quota.usage(s, c)
+        assert u.minutes is None and not u.unified_minutes
+        assert u.inbound.pool_used_seconds is None
 
 
 def test_running_calls_count_elapsed_time(sessions):

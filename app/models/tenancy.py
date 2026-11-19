@@ -32,6 +32,7 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("max_concurrent_calls IS NULL OR max_concurrent_calls >= 0", name="ck_tiers_concurrency"),
         CheckConstraint("inbound_minutes IS NULL OR inbound_minutes >= 0", name="ck_tiers_inbound"),
         CheckConstraint("outbound_minutes IS NULL OR outbound_minutes >= 0", name="ck_tiers_outbound"),
+        CheckConstraint("call_minutes IS NULL OR call_minutes >= 0", name="ck_tiers_call_minutes"),
         CheckConstraint("max_phone_numbers IS NULL OR max_phone_numbers >= 0", name="ck_tiers_phone_numbers"),
         CheckConstraint("max_calls_per_hour IS NULL OR max_calls_per_hour >= 0", name="ck_tiers_calls_hour"),
         CheckConstraint("max_calls_per_day IS NULL OR max_calls_per_day >= 0", name="ck_tiers_calls_day"),
@@ -54,7 +55,11 @@ class Tier(IdMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
     max_concurrent_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Minutos por mes calendario (settings.billing_timezone).
+    # Minutos por mes calendario (settings.billing_timezone). `call_minutes` es la bolsa unificada
+    # (entrantes y salientes juntas); NULL = ilimitado, 0 = no incluido. Se ignora en modo separado.
+    call_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # true: una bolsa (`call_minutes`); false: dos, `inbound_minutes` y `outbound_minutes`.
+    unified_minutes: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     inbound_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     outbound_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Numeros de telefono que puede tener asignados el cliente.

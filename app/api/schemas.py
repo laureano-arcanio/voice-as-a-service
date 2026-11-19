@@ -165,8 +165,12 @@ class TierIn(BaseModel):
     description: str = ""
     # None: ilimitado.
     max_concurrent_calls: int | None = Field(default=None, ge=0)
-    inbound_minutes: int | None = Field(default=None, ge=0, description="Minutos entrantes por mes")
-    outbound_minutes: int | None = Field(default=None, ge=0, description="Minutos salientes por mes")
+    unified_minutes: bool = Field(default=True, description="Una bolsa de minutos para entrantes y salientes; "
+                                                           "false: dos, inbound_minutes y outbound_minutes")
+    call_minutes: int | None = Field(default=None, ge=0,
+                                     description="Minutos del plan por mes (bolsa unificada). null: ilimitado")
+    inbound_minutes: int | None = Field(default=None, ge=0, description="Minutos entrantes por mes (modo separado)")
+    outbound_minutes: int | None = Field(default=None, ge=0, description="Minutos salientes por mes (modo separado)")
     max_phone_numbers: int | None = Field(default=None, ge=0, description="Numeros que puede tener el cliente")
     max_calls_per_hour: int | None = Field(default=None, ge=0, description="Llamadas por hora calendario")
     max_calls_per_day: int | None = Field(default=None, ge=0, description="Llamadas por dia calendario")
@@ -211,6 +215,8 @@ class TierUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=64)
     description: str | None = None
     max_concurrent_calls: int | None = Field(default=None, ge=0)
+    unified_minutes: bool | None = None
+    call_minutes: int | None = Field(default=None, ge=0)
     inbound_minutes: int | None = Field(default=None, ge=0)
     outbound_minutes: int | None = Field(default=None, ge=0)
     max_phone_numbers: int | None = Field(default=None, ge=0)
@@ -248,6 +254,8 @@ class TierOut(ORM):
     name: str
     description: str
     max_concurrent_calls: int | None
+    unified_minutes: bool
+    call_minutes: int | None
     inbound_minutes: int | None
     outbound_minutes: int | None
     max_phone_numbers: int | None
@@ -354,7 +362,7 @@ class CallEmailsOut(CallEmailsIn):
 # Los campos de Tier que se pueden ajustar (igual a services/limits.LIMIT_FIELDS; un test lo verifica).
 LimitField = Literal[
     "max_concurrent_calls", "max_calls_per_hour", "max_calls_per_day", "max_calls_per_month",
-    "inbound_minutes", "outbound_minutes", "max_phone_numbers",
+    "call_minutes", "inbound_minutes", "outbound_minutes", "max_phone_numbers",
     "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
     "max_campaigns_per_month", "max_campaign_contacts", "max_campaign_concurrency", "max_contacts",
     "max_call_links", "max_team_members", "max_tools",
@@ -441,6 +449,9 @@ class UsageOut(BaseModel):
     period_end: UTCDateTime
     active_calls: int
     max_concurrent_calls: int | None
+    unified_minutes: bool = Field(default=True, description="Una bolsa de minutos o dos (el desglose inbound/outbound)")
+    # La bolsa unificada (None en modo separado). En unificado es la fuente de verdad del consumo.
+    minutes: MinutesUsageOut | None = None
     inbound: MinutesUsageOut
     outbound: MinutesUsageOut
     phone_numbers: NumbersUsageOut
@@ -1908,6 +1919,8 @@ class PlanOut(ORM):
     description: str
     price_ars: int
     max_concurrent_calls: int | None
+    unified_minutes: bool = True
+    call_minutes: int | None = None
     inbound_minutes: int | None
     outbound_minutes: int | None
     max_phone_numbers: int | None
