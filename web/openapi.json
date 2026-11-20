@@ -22926,6 +22926,12 @@
       "description": "call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación",
       "default": "call"
      },
+     "connect_on_answer": {
+      "type": "boolean",
+      "title": "Connect On Answer",
+      "description": "Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`",
+      "default": false
+     },
      "whatsapp": {
       "anyOf": [
        {
@@ -23057,6 +23063,11 @@
       "type": "string",
       "title": "Delivery"
      },
+     "connect_on_answer": {
+      "type": "boolean",
+      "title": "Connect On Answer",
+      "description": "Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`"
+     },
      "whatsapp": {
       "anyOf": [
        {
@@ -23094,6 +23105,7 @@
      "no_answer_area_id",
      "no_answer_member_id",
      "delivery",
+     "connect_on_answer",
      "whatsapp",
      "created_at"
     ],
@@ -23290,6 +23302,18 @@
        }
       ],
       "title": "Delivery"
+     },
+     "connect_on_answer": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Connect On Answer",
+      "description": "Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`"
      },
      "whatsapp": {
       "anyOf": [

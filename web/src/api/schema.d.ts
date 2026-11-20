@@ -7148,6 +7148,12 @@ export interface components {
              * @enum {string}
              */
             delivery?: "call" | "whatsapp";
+            /**
+             * Connect On Answer
+             * @description Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`
+             * @default false
+             */
+            connect_on_answer?: boolean;
             whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
         };
         /** HandoffAreaOut */
@@ -7200,6 +7206,11 @@ export interface components {
             no_answer_member_id: string | null;
             /** Delivery */
             delivery: string;
+            /**
+             * Connect On Answer
+             * @description Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`
+             */
+            connect_on_answer: boolean;
             whatsapp: components["schemas"]["HandoffWhatsapp"] | null;
             /**
              * Created At
@@ -7243,6 +7254,11 @@ export interface components {
             no_answer_member_id?: string | null;
             /** Delivery */
             delivery?: ("call" | "whatsapp") | null;
+            /**
+             * Connect On Answer
+             * @description Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`
+             */
+            connect_on_answer?: boolean | null;
             whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
         };
         /** HandoffDefaultsOut */

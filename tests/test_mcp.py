@@ -391,7 +391,11 @@ def test_team_and_areas(api, full):
     member = ok(mcp.call("create_team_member", name="Juan", phone="+5491155550005"))
     ok(mcp.call("update_team_member", member_id=member["id"], name="Juan Pérez"))
     assert ok(mcp.call("get_handoff_area_defaults")) and ok(mcp.call("list_hold_music")) is not None
-    area = ok(mcp.call("create_handoff_area", name="Ventas", description="Precios y planes", member_ids=[member["id"]]))
+    area = ok(mcp.call("create_handoff_area", name="Ventas", description="Precios y planes", member_ids=[member["id"]],
+                       connect_on_answer=True))
+    assert area["connect_on_answer"] is True
+    assert ok(mcp.call("get_handoff_area", area_id=area["id"]))["connect_on_answer"] is True
+    assert ok(mcp.call("update_handoff_area", area_id=area["id"], connect_on_answer=False))["connect_on_answer"] is False
     ok(mcp.call("update_handoff_area", area_id=area["id"], active=False))
     ok(mcp.call("delete_handoff_area", area_id=area["id"]))
     ok(mcp.call("delete_team_member", member_id=member["id"]))

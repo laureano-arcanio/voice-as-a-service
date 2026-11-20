@@ -421,6 +421,13 @@ def _check_no_answer(s: Session, area: HandoffArea) -> None:
         raise _no_answer_error("La persona de «si nadie atiende» ya está en el área: sacala de una de las dos")
 
 
+def _check_connect_on_answer(area: HandoffArea) -> None:
+    """Estado final: conectar al atender es llamar a una central; un área que solo avisa por WhatsApp no conecta."""
+    if area.delivery == "whatsapp" and area.connect_on_answer:
+        message = "Un área que avisa por WhatsApp no puede conectar al atender"
+        raise Invalid(message, details=[{"path": "connect_on_answer", "message": message}])
+
+
 def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
     if "name" in changes:
         name = (changes["name"] or "").strip()
@@ -464,6 +471,8 @@ def _apply(s: Session, area: HandoffArea, changes: dict) -> None:
         if changes["delivery"] not in DELIVERIES:
             raise Invalid(f"Envío desconocido (son {', '.join(DELIVERIES)})")
         area.delivery = changes["delivery"]
+    if "connect_on_answer" in changes:
+        area.connect_on_answer = bool(changes["connect_on_answer"])
     # Se valida junto: `cliente` y la plantilla obligatoria dependen de delivery.
     if "delivery" in changes or "whatsapp" in changes:
         area.whatsapp = validate_whatsapp(s, area.client_id, changes.get("whatsapp", area.whatsapp), area.delivery)
@@ -488,6 +497,7 @@ def create_area(s: Session, client_id: str, *, member_ids: list[str] | None = No
     _set_members(s, area, member_ids or [])
     s.flush()
     _check_no_answer(s, area)
+    _check_connect_on_answer(area)
     return area
 
 
@@ -500,6 +510,7 @@ def update_area(s: Session, area: HandoffArea, *, member_ids: list[str] | None =
         _set_members(s, area, member_ids)
     s.flush()
     _check_no_answer(s, area)
+    _check_connect_on_answer(area)
     return area
 
 
