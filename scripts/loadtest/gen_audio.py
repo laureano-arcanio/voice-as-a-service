@@ -25,7 +25,7 @@ AUDIO_DIR = Path(__file__).resolve().parent / "audio"
 # despues de generarlas, por si el TTS se extiende de mas.
 LONG_CAP_S = 5.0
 
-# El VAD del agente (app/livekit_agent.py) usa min_silence_duration=0.3: una
+# El VAD del agente (app/voice/worker.py) usa min_silence_duration=0.45: una
 # pausa interna mas larga que eso CIERRA el turno del usuario. El TTS mete
 # pausas en cada coma, asi que sin este post-proceso una frase como
 # "No, la verdad que todavia no lo lleve al service." se generaba con 0.78s de
@@ -33,11 +33,12 @@ LONG_CAP_S = 5.0
 # "La verdad que...") -- respondiendo al fragmento mientras el usuario todavia
 # hablaba. Medido sobre el corpus anterior: las 3 frases medium se partian
 # siempre, ~14% de los turnos del load test quedaban contaminados.
-# 0.15s deja margen de sobra por debajo del umbral del VAD.
+# 0.15s deja margen de sobra por debajo del umbral del VAD (0.45: el corpus
+# cacheado no se regenera, sigue siendo valido).
 MAX_INTERNAL_SILENCE_S = 0.15
-# Espejo de min_silence_duration del VAD en app/livekit_agent.py -- solo se usa
+# Espejo de min_silence_duration del VAD en app/voice/worker.py -- solo se usa
 # para verificar el corpus generado. Si alla se cambia, cambiar aca.
-VAD_MIN_SILENCE_S = 0.3
+VAD_MIN_SILENCE_S = 0.45
 # Umbral de "esto es silencio" para el recorte. Mas bajo que el del detector
 # del caller (150) a proposito: conviene equivocarse conservando audio antes
 # que comerse el arranque suave de una palabra.

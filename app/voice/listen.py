@@ -13,7 +13,7 @@ from livekit import rtc
 logger = logging.getLogger("agent.listen")
 
 SAMPLE_RATE = 16000
-# Al terminar una pista (salio de la room): silencio al VAD para que cierre la frase en curso (min_silence 0,3 s).
+# Al terminar una pista (salio de la room): silencio al VAD para que cierre la frase en curso (min_silence 0,45 s).
 FLUSH_SILENCE_SECONDS = 0.6
 
 
