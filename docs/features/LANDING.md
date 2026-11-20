@@ -111,7 +111,7 @@ en la primera fila, también en celular (debajo de 360 px queda solo, sin la acc
 las industrias y las páginas por necesidad (solo CSS; Tailwind aplica el hover solo con mouse, así que Chrome headless
 no lo abre sin `--blink-settings=primaryHoverType=2,availableHoverTypes=2`). En celular, el link de siempre.
 
-**Sección de voces** (`Voices.astro`, `#voces`; el nav tiene "Voces" y lleva ahí): las 12 destacadas (`voices` en
+**Sección de voces** (`Voices.astro`, `#voces`; el menú "Voces" lleva a `/plataforma/voces-argentinas`; las verticales enlazan `#voces` desde "Escuchar las voces"): las 12 destacadas (`voices` en
 `site.ts`) en tarjetas chicas de tres por fila con su retrato, y al lado un reproductor compacto con el retrato de la
 elegida. Las 41 voces tienen retrato (`public/voces/<voz>.svg`): son los mismos del dashboard y
 de cada voz en toda la aplicación: los genera `make voces-retratos` (`scripts/brand/voces_retratos.py`) en las dos

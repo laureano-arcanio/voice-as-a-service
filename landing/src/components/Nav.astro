@@ -14,11 +14,11 @@ interface Props {
 const { current = "other" } = Astro.props;
 // Las anclas que existen en cada pagina; el resto va a la home.
 const local: Record<NonNullable<Props["current"]>, string[]> = {
-  home: ["voces", "precios", "demo"],
+  home: ["precios", "demo"],
   dev: ["precios", "demo"],
   docs: ["demo"],
   casos: ["precios", "demo"],
-  sector: ["voces", "precios", "demo"],
+  sector: ["precios", "demo"],
   platform: ["precios", "demo"],
   canal: ["precios", "demo"],
   other: [],
@@ -29,7 +29,7 @@ const hasCall = current === "home" || current === "casos" || current === "sector
 const links = [
   { href: "/desarrolladores", label: "Desarrolladores", short: "Desarrolladores", active: current === "dev" },
   { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" || current === "sector" || current === "canal", menu: true },
-  { href: anchor("voces"), label: "Voces", short: "Voces" },
+  { href: "/plataforma/voces-argentinas", label: "Voces", short: "Voces", active: Astro.url.pathname.replace(/(\.html)?\/*$/, "") === "/plataforma/voces-argentinas" },
   { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
