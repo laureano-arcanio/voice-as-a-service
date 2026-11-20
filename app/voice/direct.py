@@ -782,7 +782,7 @@ class Voice:
     def build(cls, voice: str) -> "Voice":
         from livekit.plugins import silero
 
-        vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)   # como build_session
+        vad = silero.VAD.load(min_silence_duration=0.45, min_speech_duration=0.2)   # como build_session
         return cls(vad, stt_client(vad), tts_client(voice))
 
     async def publish(self, room: rtc.Room) -> None:
