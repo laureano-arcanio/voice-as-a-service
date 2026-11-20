@@ -6,7 +6,9 @@ El agente llama a la herramienta transfer_call con el area (app/llm/platform_too
 2. Le avisa al cliente (mensaje "transfer" del area, si el LLM no dijo nada) y lo deja en espera con musica.
 3. Llama a cada miembro, en orden, con el timbre del area. El cliente no lo escucha.
 4. Al atender: mira si es un contestador (STT de los primeros segundos y las frases de las campañas) y, en
-   paralelo, le pasa el resumen solo a la persona (whisper) y espera el 1. Sin el 1, siguiente miembro.
+   paralelo, le pasa el resumen solo a la persona (whisper) y espera el 1. Sin el 1, siguiente miembro. Un area con
+   `connect_on_answer` (una centralita) saltea todo eso en sus miembros: conecta apenas atiende, el pasajero escucha
+   el mensaje de la centralita y marca el interno.
 5. Con el 1, los conecta y se queda escuchando (modo escucha): transcribe y graba cada lado en la
    conversacion, y espera el codigo de vuelta a la IA (return_digits) o que corte alguno.
 6. Si nadie atiende o al volver, el agente retoma con el mensaje que corresponda.
@@ -458,16 +460,25 @@ class Transfer:
                     self._phase_to("announcing")
                     await self._say(handoff.render(texts["transfer"], **values))
                     self._phase_to(None, emit=False)
-                summary = self._shared_summary()
+                # Conectar al atender (una centralita): los miembros se conectan apenas atienden, sin whisper ni 1. Va
+                # en una copia porque sin area `texts` es el propio DEFAULT_MESSAGES. La persona de "Si nadie
+                # atiende" es una persona: mantiene el whisper y el 1.
+                member_texts = {**texts, "whisper": None} if area.connect_on_answer else texts
+                # El resumen solo si alguien lo va a oir (el whisper de los miembros o de la persona de respaldo) o
+                # lo lleva la plantilla de WhatsApp que acompaña la llamada.
+                needs_summary = (member_texts["whisper"] is not None or step.backup is not None
+                                 or _uses_summary((area.whatsapp or {}).get("call_template")))
+                summary = self._shared_summary() if needs_summary else None
                 if self.hold_music and not holding:
                     holding = True
                     await self.line.hold(True)
                     self._event("hold.started", area_id=area.id)
                 # Los miembros y al final la persona de "Si nadie atiende", que va en lugar de pasar a otra area (son
                 # excluyentes): si no acepta, vuelve el agente. No entra en el round robin.
-                people = [(m, False) for m in step.members] + ([(step.backup, True)] if step.backup else [])
-                for n, (member, backup) in enumerate(people, 1):
-                    result, leg_id, identity = await self._attempt(area, member, texts, values, summary,
+                people = [(m, False, member_texts) for m in step.members] + (
+                    [(step.backup, True, texts)] if step.backup else [])
+                for n, (member, backup, person_texts) in enumerate(people, 1):
+                    result, leg_id, identity = await self._attempt(area, member, person_texts, values, summary,
                                                                    position=(n, len(people)), no_answer=backup)
                     outcome.legs.append(leg_id)
                     outcome.result = result
@@ -475,7 +486,7 @@ class Transfer:
                         self._finish("connected", result)
                         await self._stop_hold(area.id)
                         outcome.status = "connected"
-                        outcome.ended = await self._connected(area, member, leg_id, identity, texts, values,
+                        outcome.ended = await self._connected(area, member, leg_id, identity, person_texts, values,
                                                               rotate=not backup)
                         return outcome
                     await self._announce(area, result, texts, values)
@@ -541,14 +552,14 @@ class Transfer:
                                              self.conversation_id)
 
     async def _complement(self, area: HandoffArea, member: TeamMember, template_cfg: dict, values: dict,
-                          summary: asyncio.Task) -> None:
+                          summary: asyncio.Task | None) -> None:
         if _uses_summary(template_cfg):
-            values = values | {"resumen": await summary}
+            values = values | {"resumen": await summary if summary is not None else FALLBACK_SUMMARY}
         await team_notify.send(self.sessions, self.client_id, area, member, template_cfg, self._team(values),
                                self.conversation_id)
 
     def _spawn_complement(self, area: HandoffArea | TeamRing, member: TeamMember, values: dict,
-                          summary: asyncio.Task) -> None:
+                          summary: asyncio.Task | None) -> None:
         """WhatsApp que acompaña la llamada, una vez por persona. send registra member_not_notified como falla: sin el
         toggle no se lo llama, o quedaria una falla por cada tramo."""
         template_cfg = (area.whatsapp or {}).get("call_template")
@@ -611,10 +622,10 @@ class Transfer:
             return FALLBACK_SUMMARY
 
     async def _attempt(self, area: HandoffArea | TeamRing, member: TeamMember, texts: dict, values: dict,
-                       summary: asyncio.Task, position: tuple[int, int] = (1, 1),
+                       summary: asyncio.Task | None, position: tuple[int, int] = (1, 1),
                        no_answer: bool = False) -> tuple[str, str, str]:
         """Un miembro: (resultado, tramo, identidad). confirmed, no_answer, busy, failed, machine o not_confirmed.
-        no_answer: es la persona de "Si nadie atiende"."""
+        no_answer: es la persona de "Si nadie atiende". summary None: nadie va a usar el resumen."""
         self._leg_start(area.name, member, position, no_answer=no_answer)
         try:
             result, leg_id, identity = await self._dial_member(area, member, texts, values, summary, no_answer)
@@ -625,7 +636,7 @@ class Transfer:
         return result, leg_id, identity
 
     async def _dial_member(self, area: HandoffArea | TeamRing, member: TeamMember, texts: dict, values: dict,
-                           summary: asyncio.Task, no_answer: bool = False) -> tuple[str, str, str]:
+                           summary: asyncio.Task | None, no_answer: bool = False) -> tuple[str, str, str]:
         self.attempt += 1
         identity = f"{PERSON_PREFIX}{self.attempt}"
         leg_id = self._new_leg(area, member)
@@ -651,6 +662,8 @@ class Transfer:
             await self.line.listen(identity)
             return "confirmed", leg_id, identity
         self._phase_to("summary")
+        # El whisper necesita el resumen: se pide aca si nadie lo pidio antes.
+        summary = self._shared_summary() if summary is None else summary
         try:
             result = await self._confirm(identity, texts, values | {"persona": member.name}, summary)
         except CustomerGone:

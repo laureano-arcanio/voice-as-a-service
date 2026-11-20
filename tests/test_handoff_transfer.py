@@ -1148,3 +1148,106 @@ def test_with_no_answer_area_everything_stays_the_same(chain):
     line = FakeLine({ANA: "no_answer", JUAN: "confirm"}, connected=[("dtmf", "PERSON", "2")])
     assert chain.run(line, "Entrada")[0].status == "connected" and dials(line) == [ANA, JUAN]
     assert [e.data.get("no_answer") for e in chain.events("handoff.dialing")] == [None, None]
+
+
+# ---------- conectar al atender en un area (connect_on_answer) ----------
+
+class Hearing(FakeLine):
+    """FakeLine que anota cuando se le pide el STT de los primeros segundos (la deteccion de contestador)."""
+
+    def __init__(self, script, connected=()):
+        super().__init__(script, connected)
+        self.heard: list[str] = []
+
+    async def first_words(self, identity, seconds):
+        self.heard.append(identity)
+        return await super().first_words(identity, seconds)
+
+
+def summary_counter():
+    """El resumen del LLM: cuenta cuantas veces se lo pidio."""
+    calls: list[int] = []
+
+    async def summary():
+        calls.append(1)
+        return "una consulta"
+
+    return calls, summary
+
+
+def test_area_that_connects_on_answer_skips_whisper_the_1_and_the_summary(chain):
+    """Una centralita: atendido es la senal SIP, se conecta y se transcribe desde ya."""
+    chain.area("Central", ("Ana",), connect_on_answer=True)
+    calls, summary = summary_counter()
+    line = Hearing({ANA: "silent"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = chain.run(line, "Central", summary=summary)
+    assert (outcome.status, outcome.ended) == ("connected", "returned_to_ai")
+    assert line.heard == []                                        # sin contestador: no se escucha a la persona
+    assert not [x for x in line.log if x[0] == "whisper"]          # ni whisper
+    assert ("connect", "persona-1") in line.log
+    assert calls == []                                             # ni resumen: nadie lo iba a oir
+    [confirmed] = chain.events("handoff.confirmed")
+    assert confirmed.data.get("auto") is True
+    [ana] = legs(chain)
+    assert (ana.result, ana.connected_at is not None) == ("connected", True)
+    assert ana.answered_at is not None and ana.answered_at <= ana.connected_at
+
+
+def test_connect_on_answer_keeps_the_whisper_and_the_1_for_the_no_answer_person(chain):
+    """La persona de "Si nadie atiende" es una persona: whisper y 1 aunque el area conecte al atender."""
+    lucia = backup_person(chain)
+    chain.area("Central", ("Ana",), connect_on_answer=True, no_answer_member_id=lucia)
+    calls, summary = summary_counter()
+    line = FakeLine({ANA: "no_answer", LUCIA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = chain.run(line, "Central", summary=summary)
+    assert outcome.status == "connected" and dials(line) == [ANA, LUCIA]
+    whisper = next(x[1] for x in line.log if x[0] == "whisper")
+    assert whisper == handoff.render(handoff.DEFAULT_MESSAGES["whisper"], area="Central", resumen="una consulta")
+    assert [e.data.get("auto") for e in chain.events("handoff.confirmed")] == [None]   # la marco el 1
+    assert calls == [1]
+
+
+def test_return_digit_from_the_central_brings_the_ai_back(chain):
+    chain.area("Central", ("Ana",), connect_on_answer=True, return_digits="#9")
+    line = FakeLine({ANA: "silent"}, connected=[("dtmf", "PERSON", "#"), ("dtmf", "PERSON", "9")])
+    outcome, _ = chain.run(line, "Central")
+    assert outcome.status == "connected" and outcome.ended == "returned_to_ai"
+    assert "handoff.returned_to_ai" in chain.types()
+    assert says(line)[-1] == "¿Te puedo ayudar con algo más?"
+
+
+def test_connect_on_answer_asks_for_the_summary_when_the_template_uses_it(chain):
+    calls, summary = summary_counter()
+    chain.area("Central", ("Ana",), connect_on_answer=True,
+               whatsapp=chain.whatsapp(call_template={"name": "c", "language": "es_AR", "params": ["resumen"]}))
+    line = FakeLine({ANA: "silent"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Central", summary=summary)[0].status == "connected"
+    assert calls == [1] and chain.graph.sent[-1][2] == ["una consulta"]
+
+
+def test_the_no_answer_area_uses_its_own_connect_on_answer(chain):
+    guardia = chain.area("Guardia", ("Juan",), connect_on_answer=True)
+    chain.area("Entrada", ("Ana",), no_answer_area_id=guardia)
+    line = FakeLine({ANA: "silent", JUAN: "silent"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = chain.run(line, "Entrada")
+    assert outcome.status == "connected" and dials(line) == [ANA, JUAN]
+    assert [leg.result for leg in legs(chain)] == ["not_confirmed", "connected"]
+    assert len([x for x in line.log if x[0] == "whisper"]) == 1     # solo la de Entrada, que no conecta al atender
+    assert [e.data.get("auto") for e in chain.events("handoff.confirmed")] == [True]
+
+
+def test_area_without_the_option_asks_for_the_1_like_always(chain):
+    chain.area("Ventas", ("Ana",))
+    calls, summary = summary_counter()
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Ventas", summary=summary)[0].status == "connected"
+    assert len([x for x in line.log if x[0] == "whisper"]) == 1 and calls == [1]
+    assert chain.events("handoff.confirmed")[0].data.get("auto") is None
+
+
+def test_default_messages_are_not_modified_in_an_area_that_connects_on_answer(chain):
+    before = dict(handoff.DEFAULT_MESSAGES)
+    chain.area("Central", ("Ana",), connect_on_answer=True)
+    line = FakeLine({ANA: "silent"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Central")[0].status == "connected"
+    assert handoff.DEFAULT_MESSAGES == before and handoff.DEFAULT_MESSAGES["whisper"] is not None
