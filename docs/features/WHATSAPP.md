@@ -398,6 +398,11 @@ Apagar: `make wa-calling-disable` (Meta borra la config SIP y el ícono desapare
   los topea, y los mensajes no consumen cuota del tier (solo se exige el plan con WhatsApp y el cliente activo).
 - **Límites de Meta:** 2 números por WABA hasta verificar el negocio; el portfolio de Atentina tiene 2.000
   conversaciones iniciadas por el negocio cada 24 h (el número todavía dice `TIER_250` por la API).
+- **Select en un celular, dentro de una ventana:** los combobox de todos los modales usan `ModalSelect` /
+  `ModalMultiSelect` / `ModalAutocomplete` / `ModalTagsInput` (`web/src/components/ModalDropdown.tsx`). Mantine 8
+  vuelve a elegir el lado de la lista en cada cuadro y, en un modal centrado con el teclado abierto, la lista salta
+  de arriba a abajo sin parar (lo arreglaron recién en Mantine 9.3, mantine#8255); el wrapper elige el lado una vez
+  por apertura. En un modal nuevo, usar los `Modal*`, no los `Select` de Mantine.
 - **Tope del tier:** `max_phone_numbers` no cuenta los números de WhatsApp (cuenta DID de Anura).
 - **Capacidad:** un turno de texto es un pedido al LLM; uno con audio usa además STT y TTS. Una nota de 120 s llena
   sola un batch del STT y demora el STT de las llamadas en curso. Sin medir con carga.

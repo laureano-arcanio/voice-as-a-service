@@ -5,7 +5,6 @@ import {
   Modal,
   NumberInput,
   Paper,
-  Select,
   Stack,
   Tabs,
   Text,
@@ -17,6 +16,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { Campaign, ContactRejected, WaAccount, WaCampaignCreated } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { CsvFileInput, RejectedTable } from '@/features/contacts/ContactModals';
 import { useWaTemplates } from '@/features/whatsapp/api';
@@ -116,7 +116,7 @@ export function NewCampaignModal({ accounts, onClose }: { accounts: WaAccount[];
             data-autofocus
             {...form.getInputProps('name')}
           />
-          <Select
+          <ModalSelect
             label="Número que envía"
             data={accounts.map((a) => ({
               value: a.id,
@@ -130,7 +130,7 @@ export function NewCampaignModal({ accounts, onClose }: { accounts: WaAccount[];
               form.setFieldValue('agent_id', '');
             }}
           />
-          <Select
+          <ModalSelect
             label="Plantilla"
             description="Solo las aprobadas por Meta. Se crean en WhatsApp → Plantillas."
             placeholder={templates.isFetching ? 'Leyendo de Meta…' : 'Elegí una plantilla'}
@@ -155,7 +155,7 @@ export function NewCampaignModal({ accounts, onClose }: { accounts: WaAccount[];
               </Text>
             </Paper>
           )}
-          <Select
+          <ModalSelect
             label="Agente que responde"
             description="Atiende a los contactos que contestan, con el mensaje de la plantilla como inicio de la charla."
             placeholder={account ? `El del número (${account.agent_name ?? 'agente'})` : 'El del número'}

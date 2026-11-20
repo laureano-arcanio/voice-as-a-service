@@ -1,7 +1,8 @@
-import { Alert, Button, Checkbox, Group, Modal, PasswordInput, Select, Stack, TextInput } from '@mantine/core';
+import { Alert, Button, Checkbox, Group, Modal, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import type { WaAccount, WaAccountPatch } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateWaAccount, useUpdateWaAccount } from './api';
@@ -66,7 +67,7 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
         )}
       >
         <Stack>
-          <Select
+          <ModalSelect
             label="Quién responde"
             description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
             data={[
@@ -77,7 +78,7 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
             data-autofocus
             {...form.getInputProps('attendance')}
           />
-          <Select
+          <ModalSelect
             label="Agente que responde"
             description="Responde cuando el modo es Agente."
             data={agentOptions(agents.data)}
@@ -171,7 +172,7 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
         })}
       >
         <Stack>
-          <Select
+          <ModalSelect
             label="Quién responde"
             description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
             data={[
@@ -188,7 +189,7 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
               del dueño a la conversación y la IA también contesta.
             </Alert>
           )}
-          <Select
+          <ModalSelect
             label="Agente por defecto"
             description="Responde cuando el modo es Agente. Los contactos sin regla de ruteo; las conversaciones en curso siguen con su agente y el cambio vale para las nuevas."
             data={agentOptions(agents.data, account)}

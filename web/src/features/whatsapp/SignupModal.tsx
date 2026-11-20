@@ -6,7 +6,6 @@ import {
   Group,
   Modal,
   PasswordInput,
-  Select,
   Stack,
   Text,
 } from '@mantine/core';
@@ -14,6 +13,7 @@ import { IconAlertTriangle, IconBrandWhatsapp, IconCheck, IconInfoCircle } from 
 import { useState } from 'react';
 import { errorMessage } from '@/api/errors';
 import type { WaAccount, WaConfig } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { useWaSignup } from './api';
 import { WA_ATTENDANCE, WA_MANAGER_URL, waStatusReason } from './labels';
@@ -149,7 +149,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
               Desde esta dirección la ventana va a fallar.
             </Alert>
           )}
-          <Select
+          <ModalSelect
             label="Quién responde"
             description="Agente: contesta la IA. Dueño: lo atendés vos desde la app o el teléfono y la IA no contesta."
             data={[
@@ -161,7 +161,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
             allowDeselect={false}
             disabled={busy}
           />
-          <Select
+          <ModalSelect
             label="Agente que responde"
             description="Responde cuando el modo es Agente."
             placeholder="Elegí el agente"

@@ -25,6 +25,7 @@ import { Link, useNavigate } from 'react-router';
 import { Dash } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
   LEADS_PAGE,
@@ -120,12 +121,12 @@ function NewLeadModal({ opened, onClose }: { opened: boolean; onClose: () => voi
           />
           <Textarea label="Rubro" autosize minRows={2} {...form.getInputProps('description')} />
           <Group grow>
-            <Select label="Tipo" data={LEAD_KIND_OPTIONS} clearable {...form.getInputProps('kind')} />
+            <ModalSelect label="Tipo" data={LEAD_KIND_OPTIONS} clearable {...form.getInputProps('kind')} />
             <TextInput label="Industria" {...form.getInputProps('industry')} />
           </Group>
           <Group grow>
             <TextInput label="Email ★" {...form.getInputProps('email')} />
-            <Select
+            <ModalSelect
               label="De quién"
               data={[
                 { value: 'persona', label: 'Persona' },
@@ -180,7 +181,7 @@ function StageModal({ ids, onClose }: { ids: number[]; onClose: (done: boolean) 
   return (
     <Modal opened={ids.length > 0} onClose={() => onClose(false)} title="Cambiar etapa">
       <Stack>
-        <Select label="Etapa" data={STAGE_OPTIONS} value={stage} onChange={setStage} />
+        <ModalSelect label="Etapa" data={STAGE_OPTIONS} value={stage} onChange={setStage} />
         <Group justify="flex-end">
           <Button variant="default" onClick={() => onClose(false)}>
             Cancelar

@@ -6,7 +6,6 @@ import {
   Modal,
   NumberInput,
   Radio,
-  Select,
   SegmentedControl,
   Stack,
   Switch,
@@ -18,6 +17,7 @@ import { useForm } from '@mantine/form';
 import { ApiError } from '@/api/errors';
 import type { TeamMember } from '@/api/types';
 import { VariableField, useAgentVariables, useVariableCatalog } from '@/components/variables';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { useCurrentUser } from '@/features/auth/api';
 import { notifyError, notifyInvalid, notifySuccess } from '@/lib/notify';
@@ -428,7 +428,7 @@ export function AreaModal({
             En vez de tomar el mensaje, el agente puede pasar a otra área o, si nadie acepta, a una persona.
           </Text>
           <Group align="flex-start" grow>
-            <Select
+            <ModalSelect
               label="Fuera de horario, pasa a"
               description="Cuando el área está cerrada. Vacío: lo que dice el mensaje «Fuera de horario»."
               placeholder="Ninguna"

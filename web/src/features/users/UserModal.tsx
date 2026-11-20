@@ -4,7 +4,6 @@ import {
   Modal,
   PasswordInput,
   SegmentedControl,
-  Select,
   Stack,
   Switch,
   Text,
@@ -12,6 +11,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { Role, User } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useClients } from '@/features/clients/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateUser, useUpdateUser } from './api';
@@ -118,7 +118,7 @@ export function UserModal({
             </Stack>
           )}
           {!user && !clientId && form.values.role === 'client' && (
-            <Select
+            <ModalSelect
               label="Cliente"
               data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
               searchable

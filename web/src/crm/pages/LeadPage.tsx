@@ -38,6 +38,7 @@ import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
   type ActivityIn,
@@ -510,7 +511,7 @@ function ContactModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
         )}
       >
         <Stack gap="sm">
-          <Select
+          <ModalSelect
             label="Tipo"
             data={Object.entries(CONTACT_KIND).map(([value, label]) => ({ value, label }))}
             allowDeselect={false}
@@ -518,7 +519,7 @@ function ContactModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           />
           <TextInput label="Valor" required {...form.getInputProps('value')} />
           <Group grow>
-            <Select
+            <ModalSelect
               label="De quién"
               data={[
                 { value: 'persona', label: 'Persona' },
@@ -528,7 +529,7 @@ function ContactModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
               clearable
               {...form.getInputProps('label')}
             />
-            <Select
+            <ModalSelect
               label="Persona"
               data={lead.people.map((p) => p.name)}
               clearable
@@ -713,7 +714,7 @@ function InboundModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           <Text size="xs" c="dimmed">
             Cambia la etapa a Respondió y cancela lo que estaba por salir a este lead.
           </Text>
-          <Select
+          <ModalSelect
             label="Canal"
             data={MESSAGE_CHANNEL_OPTIONS}
             value={form.values.channel}
@@ -785,7 +786,7 @@ function ComposeModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           Queda como borrador: no sale hasta que lo apruebes.
         </Text>
         <Group grow>
-          <Select
+          <ModalSelect
             label="Campaña"
             data={(campaigns.data ?? []).map((c) => ({ value: String(c.id), label: c.slug }))}
             value={campaignId}
@@ -794,7 +795,7 @@ function ComposeModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
             searchable
             placeholder="Sin campaña"
           />
-          <Select
+          <ModalSelect
             label="Tipo"
             data={MESSAGE_KIND_OPTIONS}
             value={kind}
@@ -802,7 +803,7 @@ function ComposeModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
             allowDeselect={false}
           />
         </Group>
-        <Select
+        <ModalSelect
           label="Para"
           data={emails}
           value={to || null}
@@ -819,7 +820,7 @@ function ComposeModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           ]}
         />
         {mode === 'template' ? (
-          <Select
+          <ModalSelect
             label="Plantilla"
             data={(templates.data ?? [])
               .filter((t) => t.kind === kind || t.kind === 'other')

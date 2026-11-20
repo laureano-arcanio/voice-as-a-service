@@ -5,7 +5,6 @@ import {
   Group,
   List,
   Modal,
-  Select,
   Stack,
   Text,
   Textarea,
@@ -14,6 +13,7 @@ import {
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { PhoneNumber } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { useClients } from '@/features/clients/api';
 import { useTiers } from '@/features/tiers/api';
@@ -203,7 +203,7 @@ export function AssignNumberModal({ number, onClose }: { number: PhoneNumber; on
   return (
     <Modal opened onClose={onClose} title={`Asignar ${number.e164}`}>
       <Stack>
-        <Select
+        <ModalSelect
           label="Cliente"
           description="Usados / tope de números de su tier."
           data={clientOptions}
@@ -215,7 +215,7 @@ export function AssignNumberModal({ number, onClose }: { number: PhoneNumber; on
           searchable
           data-autofocus
         />
-        <Select
+        <ModalSelect
           label="Agente que atiende (opcional)"
           placeholder={clientId ? 'Ninguno' : 'Elegí primero el cliente'}
           data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}

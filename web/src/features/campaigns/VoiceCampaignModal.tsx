@@ -5,8 +5,6 @@ import {
   Divider,
   Group,
   Modal,
-  MultiSelect,
-  Select,
   Stack,
   Switch,
   Text,
@@ -20,6 +18,7 @@ import { useNavigate } from 'react-router';
 import type { CampaignCreated, CampaignIn } from '@/api/types';
 import { useVariableCatalog } from '@/components/variables';
 import { CopyIcon } from '@/components/Copy';
+import { ModalMultiSelect, ModalSelect } from '@/components/ModalDropdown';
 import { useAgent, useAgents } from '@/features/agents/api';
 import { readWorkflow } from '@/features/agents/definition';
 import { RejectedTable } from '@/features/contacts/ContactModals';
@@ -263,7 +262,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
             {...form.getInputProps('name')}
           />
           <Group grow align="flex-start">
-            <Select
+            <ModalSelect
               label="Agente que llama"
               placeholder="Elegí un agente"
               disabled={disabled}
@@ -272,7 +271,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
               nothingFoundMessage="No hay agentes"
               {...form.getInputProps('agent_id')}
             />
-            <Select
+            <ModalSelect
               label="Número de origen"
               description="El que ve quien recibe la llamada."
               placeholder="El predeterminado"
@@ -285,7 +284,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
               {...form.getInputProps('from_number_id')}
               onChange={(val) => form.setFieldValue('from_number_id', val ?? '')}
             />
-            <Select
+            <ModalSelect
               label="Voz"
               placeholder="La del agente"
               disabled={disabled}
@@ -296,7 +295,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
               onChange={(val) => form.setFieldValue('voice', val ?? '')}
             />
           </Group>
-          <Select
+          <ModalSelect
             label="Finalidad"
             description="Para qué se llama. Las comerciales piden confirmar el Registro No Llame antes de iniciar."
             placeholder="Sin definir"
@@ -371,7 +370,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
           {v.followup && (
             <Stack gap="sm">
               <Group grow align="flex-start">
-                <Select
+                <ModalSelect
                   label="Número de WhatsApp"
                   placeholder={connected.length ? 'Elegí un número' : 'No hay números conectados'}
                   data={connected.map((a) => ({ value: a.id, label: a.display_phone_number }))}
@@ -381,7 +380,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
                     form.setFieldValue('f_template', '');
                   }}
                 />
-                <Select
+                <ModalSelect
                   label="Plantilla"
                   placeholder={templates.isFetching ? 'Leyendo de Meta…' : 'Elegí una plantilla'}
                   disabled={!account}
@@ -413,12 +412,12 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
                   }}
                 />
               ))}
-              <MultiSelect
+              <ModalMultiSelect
                 label="Se manda si el resultado fue"
                 data={FOLLOWUP_AFTER.map((r) => ({ value: r, label: CONTACT_RESULT[r].label }))}
                 {...form.getInputProps('f_after')}
               />
-              <Select
+              <ModalSelect
                 label="Agente que responde"
                 description="Atiende a quien conteste el WhatsApp."
                 placeholder="El de la campaña"

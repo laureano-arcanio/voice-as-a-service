@@ -1,8 +1,9 @@
-import { Alert, Badge, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
 import type { Billing, Subscription, TaxCondition } from '@/api/types';
 import { CopyIcon } from '@/components/Copy';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { formatArs } from '@/lib/format';
 import { SUBSCRIPTION_STATUS, TAX_CONDITION } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -118,7 +119,7 @@ export function FiscalForm({
           disabled={readOnly}
           {...form.getInputProps('tax_id')}
         />
-        <Select
+        <ModalSelect
           label="Condición frente al IVA"
           data={TAX_OPTIONS}
           allowDeselect={false}

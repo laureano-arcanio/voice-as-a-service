@@ -6,7 +6,6 @@ import {
   Group,
   Modal,
   NumberInput,
-  Select,
   Stack,
   Table,
   Text,
@@ -19,6 +18,7 @@ import { useState } from 'react';
 import type { ClientLimits, LimitAdjustment, LimitField } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { formatDate, formatLimit, fromIsoDate } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -114,14 +114,14 @@ function AdjustmentModal({
   return (
     <Modal opened onClose={onClose} title="Ajustar un límite del cliente">
       <Stack>
-        <Select
+        <ModalSelect
           label="Límite"
           data={FIELD_OPTIONS}
           value={field}
           onChange={(v) => v && setField(v as LimitField)}
           allowDeselect={false}
         />
-        <Select
+        <ModalSelect
           label="Tipo de ajuste"
           data={[
             { value: 'add', label: 'Sumar al tier (ej. 10 minutos más)' },
@@ -144,7 +144,7 @@ function AdjustmentModal({
           onChange={(v) => setValue(typeof v === 'number' ? v : '')}
           data-autofocus
         />
-        <Select
+        <ModalSelect
           label="Vigencia"
           data={[
             { value: 'always', label: 'Permanente' },

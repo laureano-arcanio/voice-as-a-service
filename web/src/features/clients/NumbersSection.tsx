@@ -4,7 +4,6 @@ import {
   Card,
   Group,
   Modal,
-  Select,
   Stack,
   Table,
   Text,
@@ -16,6 +15,7 @@ import { useState } from 'react';
 import type { PhoneNumber } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { NumberAnswers } from '@/features/numbers/NumberAnswers';
 import { useAssignNumber, usePhoneNumbers, useReleaseNumber } from '@/features/numbers/api';
 import { numberErrorTitle } from '@/features/numbers/errors';
@@ -35,7 +35,7 @@ function AssignFromInventoryModal({ clientId, onClose }: { clientId: string; onC
   return (
     <Modal opened onClose={onClose} title="Asignar número">
       <Stack>
-        <Select
+        <ModalSelect
           label="Número libre del inventario"
           placeholder={
             free.isPending ? 'Cargando…' : options.length ? 'Buscá por número' : 'No hay números libres'

@@ -1,7 +1,8 @@
-import { Alert, Anchor, Autocomplete, NumberInput, Select, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, NumberInput, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import type { WaTemplate } from '@/api/types';
 import { QueryState } from '@/components/QueryState';
+import { ModalAutocomplete, ModalSelect } from '@/components/ModalDropdown';
 import { useFeatureLock } from '@/features/billing/features';
 import { useWaAccounts, useWaTemplates } from '@/features/whatsapp/api';
 import { placeholderNumbers, templateBody } from '@/features/whatsapp/templates';
@@ -67,7 +68,7 @@ function TemplateField({
 
   return (
     <Stack gap="xs">
-      <Select
+      <ModalSelect
         label={label}
         description={description}
         placeholder="Ninguna"
@@ -96,7 +97,7 @@ function TemplateField({
       )}
       {value &&
         Array.from({ length: count }, (_, i) => (
-          <Autocomplete
+          <ModalAutocomplete
             key={i}
             label={`Valor de {{${i + 1}}}`}
             description={
@@ -186,7 +187,7 @@ function WhatsappConnected({
           );
         return (
           <Stack gap="sm">
-            <Select
+            <ModalSelect
               label="Número que envía"
               description={
                 notice

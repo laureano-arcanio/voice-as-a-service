@@ -7,7 +7,6 @@ import {
   NumberInput,
   Radio,
   SegmentedControl,
-  Select,
   SimpleGrid,
   Stack,
   Switch,
@@ -19,6 +18,7 @@ import { useForm } from '@mantine/form';
 import type { PhoneNumber, TeamMember } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PlanAlert } from '@/components/PlanGate';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { useFeatureLock } from '@/features/billing/features';
 import { useTeam } from '@/features/team/api';
@@ -261,7 +261,7 @@ export function EditNumberModal({
               </Radio.Group>
 
               {v.answer_mode === 'agent' && (
-                <Select
+                <ModalSelect
                   label="Agente que atiende"
                   placeholder="Ninguno (no atiende)"
                   data={agentOptions}
@@ -278,7 +278,7 @@ export function EditNumberModal({
                   <Text size="xs" c="dimmed">
                     {SPLIT_HELP}
                   </Text>
-                  <Select
+                  <ModalSelect
                     label="Agente del reparto"
                     description={SPLIT_AGENT_HELP}
                     placeholder="Elegí un agente"
@@ -468,7 +468,7 @@ export function EditNumberModal({
 
                   <Divider label="Si nadie atiende" labelPosition="left" mt="xs" />
                   <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-                    <Select
+                    <ModalSelect
                       label="Volver a intentar"
                       description={RETRY_HELP}
                       allowDeselect={false}
@@ -478,7 +478,7 @@ export function EditNumberModal({
                       error={form.errors.team_retry_seconds}
                     />
                     {v.team_retry_seconds > 0 && (
-                      <Select
+                      <ModalSelect
                         label="Cada"
                         description={RETRY_INTERVAL_HELP}
                         allowDeselect={false}

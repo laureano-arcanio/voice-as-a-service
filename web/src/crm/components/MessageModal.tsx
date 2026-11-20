@@ -1,6 +1,7 @@
-import { Button, Group, Modal, Select, Stack, Text, TextInput, Textarea } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, TextInput, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useApprove, useCancelMessage, useEditDraft, useEditInbound } from '../api';
 import { MESSAGE_CHANNEL, MESSAGE_CHANNEL_OPTIONS, fmtDateTime, messageLabel } from '../format';
@@ -192,7 +193,7 @@ function InboundEdit({ m, onCancel, onSaved }: { m: Message; onCancel: () => voi
   const isEmail = channel === 'email';
   return (
     <Stack gap="sm">
-      <Select
+      <ModalSelect
         label="Canal"
         data={MESSAGE_CHANNEL_OPTIONS}
         value={channel}

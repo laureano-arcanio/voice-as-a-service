@@ -1,7 +1,8 @@
-import { ActionIcon, Badge, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconPlus, IconX } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import type { TeamMember } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 
 /**
  * Personas del equipo en orden (areas de derivacion y numeros que atiende el equipo): subir, bajar, quitar y
@@ -94,7 +95,7 @@ export function MemberPicker({
         </Text>
       ) : (
         available.length > 0 && (
-          <Select
+          <ModalSelect
             aria-label={addLabel}
             placeholder="Agregar persona"
             data={available.map((m) => ({ value: m.id, label: m.name }))}

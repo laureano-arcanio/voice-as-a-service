@@ -8,7 +8,6 @@ import {
   List,
   Modal,
   PasswordInput,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import {
 import { useState } from 'react';
 import { ApiError, errorMessage } from '@/api/errors';
 import type { WaAccount } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { CopyIcon } from '@/components/Copy';
 import { useAgents } from '@/features/agents/api';
 import { useConnectOwnApp } from './api';
@@ -281,7 +281,7 @@ export function OwnAppModal({ account, onClose }: { account?: WaAccount; onClose
             <Collapse in={guide}>
               <Guide />
             </Collapse>
-            <Select
+            <ModalSelect
               label="Agente que responde"
               placeholder="Elegí el agente"
               data={agentData}

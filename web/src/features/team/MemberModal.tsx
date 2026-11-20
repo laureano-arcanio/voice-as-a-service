@@ -1,7 +1,8 @@
-import { Button, Group, Modal, Select, Stack, Switch, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Stack, Switch, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { ApiError } from '@/api/errors';
 import type { TeamMember } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useMemberPresence, useSaveMember } from './api';
 
@@ -83,7 +84,7 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
             checked={hasPhone && form.values.whatsapp_notify}
             onChange={(e) => form.setFieldValue('whatsapp_notify', e.currentTarget.checked)}
           />
-          <Select
+          <ModalSelect
             label="Usuario del panel"
             description="Para que atienda llamadas desde el panel, con Disponible. Puede ser lo único que cargues."
             placeholder={users.isPending ? 'Cargando…' : 'Ninguno'}

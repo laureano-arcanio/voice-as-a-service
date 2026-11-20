@@ -5,7 +5,6 @@ import {
   Group,
   Modal,
   NumberInput,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -17,6 +16,7 @@ import { useDisclosure } from '@mantine/hooks';
 import type { Billing } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useTiers } from '@/features/tiers/api';
 import { formatArs, toIsoDate } from '@/lib/format';
 import { PAYMENT_METHOD, TAX_CONDITION } from '@/lib/labels';
@@ -81,7 +81,7 @@ function PaymentModal({
             Activa el plan, o lo renueva, por un mes desde el vencimiento actual (o desde hoy). Al cliente le
             llega un mail.
           </Text>
-          <Select
+          <ModalSelect
             label="Tier"
             data={sellable.map((t) => ({ value: t.id, label: `${t.name} · ${formatArs(t.price_ars)}` }))}
             allowDeselect={false}

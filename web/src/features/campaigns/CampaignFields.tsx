@@ -5,7 +5,6 @@ import {
   Group,
   NumberInput,
   SegmentedControl,
-  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -13,6 +12,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { ModalSelect } from '@/components/ModalDropdown';
 import type { VariableSpec } from '@/features/agents/definition';
 import type { CsvColumn, MappingAlerts } from './campaignVariables';
 import type { FieldApi, VoiceRunValues } from './campaignForm';
@@ -231,7 +231,7 @@ export function VariableMappingFields({
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Select
+                        <ModalSelect
                           size="xs"
                           aria-label={`Columna para ${x.name}`}
                           allowDeselect={false}

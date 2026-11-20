@@ -1,4 +1,5 @@
-import { Select, Stack, Textarea } from '@mantine/core';
+import { Stack, Textarea } from '@mantine/core';
+import { ModalSelect } from '@/components/ModalDropdown';
 import type { ReactNode } from 'react';
 
 /** Lo que pide un destino al elegirlo: un selector (área, persona, agente) o un texto (el mensaje). */
@@ -59,7 +60,7 @@ export function NoAnswerField({
   const detail = current?.detail;
   return (
     <Stack gap="xs">
-      <Select
+      <ModalSelect
         label={label}
         description={description}
         data={destinations.map((d) => ({ value: d.value, label: d.label, disabled: d.disabled }))}
@@ -72,7 +73,7 @@ export function NoAnswerField({
         }}
       />
       {detail?.type === 'select' && (
-        <Select
+        <ModalSelect
           label={detail.label}
           description={detail.description}
           placeholder={detail.placeholder}

@@ -1,6 +1,7 @@
-import { Button, Divider, Group, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { Campaign, CampaignPatch } from '@/api/types';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -76,7 +77,7 @@ export function EditCampaignModal({ campaign: c, onClose }: { campaign: Campaign
       >
         <Stack>
           <TextInput label="Nombre" {...form.getInputProps('name')} />
-          <Select
+          <ModalSelect
             label={voice ? 'Agente que llama' : 'Agente que responde'}
             placeholder="El del número"
             data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
@@ -86,7 +87,7 @@ export function EditCampaignModal({ campaign: c, onClose }: { campaign: Campaign
             onChange={(val) => form.setFieldValue('agent_id', val ?? '')}
           />
           {voice && (
-            <Select
+            <ModalSelect
               label="Número de origen"
               placeholder="El predeterminado"
               data={(numbers.data ?? [])
@@ -97,7 +98,7 @@ export function EditCampaignModal({ campaign: c, onClose }: { campaign: Campaign
               onChange={(val) => form.setFieldValue('from_number_id', val ?? '')}
             />
           )}
-          <Select
+          <ModalSelect
             label="Finalidad"
             description={
               c.status === 'running' || c.status === 'scheduled'

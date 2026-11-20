@@ -1,7 +1,8 @@
-import { ActionIcon, Button, Group, Modal, Select, Stack, TagsInput, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WaAccount } from '@/api/types';
+import { ModalSelect, ModalTagsInput } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useSetWaRoutes } from './api';
@@ -36,7 +37,7 @@ export function WaRoutesModal({ account, onClose }: { account: WaAccount; onClos
         </Text>
         {rows.map((row, i) => (
           <Group key={i} align="flex-end" wrap="nowrap">
-            <Select
+            <ModalSelect
               label={i === 0 ? 'Agente' : undefined}
               placeholder="Elegí el agente"
               data={options}
@@ -45,7 +46,7 @@ export function WaRoutesModal({ account, onClose }: { account: WaAccount; onClos
               value={row.agent_id || null}
               onChange={(v) => setRow(i, { ...row, agent_id: v ?? '' })}
             />
-            <TagsInput
+            <ModalTagsInput
               label={i === 0 ? 'Contactos que atiende' : undefined}
               placeholder="5491155551234"
               description={i === 0 ? 'WhatsApp con código de país; Enter después de cada uno' : undefined}

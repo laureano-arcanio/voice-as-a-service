@@ -19,6 +19,7 @@ import { useForm } from '@mantine/form';
 import { IconPlus, IconRefresh } from '@tabler/icons-react';
 import type { WaAccount, WaTemplateIn } from '@/api/types';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateWaTemplate, useWaTemplates } from './api';
 import { TEMPLATE_CATEGORY, TEMPLATE_STATUS } from './labels';
@@ -129,9 +130,9 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
               {...form.getInputProps('name')}
               onChange={(e) => form.setFieldValue('name', normalizeTemplateName(e.currentTarget.value))}
             />
-            <Select label="Idioma" data={LANGUAGES} searchable {...form.getInputProps('language')} />
+            <ModalSelect label="Idioma" data={LANGUAGES} searchable {...form.getInputProps('language')} />
           </Group>
-          <Select
+          <ModalSelect
             label="Categoría"
             data={CATEGORIES}
             allowDeselect={false}

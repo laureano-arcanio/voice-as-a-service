@@ -1,10 +1,8 @@
 import {
-  Autocomplete,
   Button,
   Group,
   Modal,
   PasswordInput,
-  Select,
   SimpleGrid,
   Stack,
   Text,
@@ -12,6 +10,7 @@ import {
 } from '@mantine/core';
 import { useState } from 'react';
 import type { Credential } from '@/api/types';
+import { ModalAutocomplete, ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClientSecrets, useCreateCredential, useUpdateCredential } from './api';
 import { CREDENTIAL_VALUE, slugify } from './credentials';
@@ -127,7 +126,7 @@ export function CredentialModal({
             error={err('slug')}
           />
         </SimpleGrid>
-        <Select
+        <ModalSelect
           label="Tipo"
           data={AUTH_TYPES}
           value={type}
@@ -160,7 +159,7 @@ export function CredentialModal({
               onChange={(e) => set('name', e.currentTarget.value)}
               error={err('api_name')}
             />
-            <Select
+            <ModalSelect
               label="Va en"
               description="Dónde se manda la key."
               data={[
@@ -207,7 +206,7 @@ export function CredentialModal({
               value={v('audience')}
               onChange={(e) => set('audience', e.currentTarget.value)}
             />
-            <Select
+            <ModalSelect
               label="Cómo se manda el client secret"
               data={[
                 { value: 'body', label: 'En el body' },
@@ -232,7 +231,7 @@ export function CredentialModal({
             onChange={(e) => setValue(e.currentTarget.value)}
             error={err('value')}
           />
-          <Autocomplete
+          <ModalAutocomplete
             label="Se guarda en el secreto"
             description="Uno nuevo o uno que ya cargaste."
             classNames={{ input: 'mono' }}

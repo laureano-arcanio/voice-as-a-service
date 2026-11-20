@@ -1,6 +1,7 @@
-import { Button, Group, Modal, Select, Stack, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useNavigate } from 'react-router';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { useTiers } from '@/features/tiers/api';
 import { SLUG_RE, slugify } from '@/lib/format';
 import { notifyError, notifyInvite, notifySuccess } from '@/lib/notify';
@@ -67,7 +68,7 @@ export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: 
               form.setFieldValue('slugEdited', true);
             }}
           />
-          <Select
+          <ModalSelect
             label="Tier"
             placeholder={tiers.isPending ? 'Cargando…' : 'Elegí un tier'}
             data={(tiers.data ?? []).map((t) => ({ value: t.id, label: t.name }))}

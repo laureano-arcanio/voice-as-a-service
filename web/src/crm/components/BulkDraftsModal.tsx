@@ -1,5 +1,6 @@
-import { Alert, Button, Group, List, Modal, Select, Stack, Text } from '@mantine/core';
+import { Alert, Button, Group, List, Modal, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useBulkDrafts, useCampaigns, useFollowUpDrafts, useTemplates } from '../api';
 import { MESSAGE_KIND_OPTIONS } from '../format';
@@ -106,7 +107,7 @@ export function BulkDraftsModal({
           </Text>
           {!followUps && (
             <>
-              <Select
+              <ModalSelect
                 label="Campaña"
                 data={campOptions}
                 value={campaignId}
@@ -114,7 +115,7 @@ export function BulkDraftsModal({
                 searchable
                 placeholder="Elegí una campaña"
               />
-              <Select
+              <ModalSelect
                 label="Tipo"
                 data={MESSAGE_KIND_OPTIONS}
                 value={kind}
@@ -126,7 +127,7 @@ export function BulkDraftsModal({
               />
             </>
           )}
-          <Select
+          <ModalSelect
             label="Plantilla"
             data={tplOptions}
             value={templateId}

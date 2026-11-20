@@ -10,7 +10,6 @@ import {
   Menu,
   Modal,
   SegmentedControl,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -23,6 +22,7 @@ import { IconBell, IconCalendarEvent, IconDots, IconPhone } from '@tabler/icons-
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { EmptyState } from '@/components/QueryState';
+import { ModalSelect } from '@/components/ModalDropdown';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
   useCancelReminder,
@@ -169,7 +169,7 @@ export function ReminderModal({
           />
         </Group>
         {meeting && (
-          <Select
+          <ModalSelect
             label="Duración"
             data={DURATIONS}
             value={duration}
@@ -178,7 +178,7 @@ export function ReminderModal({
           />
         )}
         {people.length > 0 && (
-          <Select
+          <ModalSelect
             label="Con quién"
             data={people.map((p) => ({
               value: String(p.id),
