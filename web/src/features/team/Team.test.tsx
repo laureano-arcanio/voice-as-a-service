@@ -675,7 +675,7 @@ describe('equipo: conectar al atender', () => {
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
     const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
-    const whisper = /Aviso a la persona del equipo/;
+    const whisper = 'Aviso a la persona del equipo';
     expect(within(dialog).getByLabelText(whisper)).toHaveValue(
       'Derivación de {{area}}: {{resumen}}',
     );
