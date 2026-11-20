@@ -16,6 +16,12 @@ pista propia. Casos:
    atender; el snapshot final dice conectada, con las fases de cada intento y sin telefonos.
 7. "Si nadie atiende" con una persona (`no_answer_member_id`): dos miembros que no atienden y la persona, que marca 1
    (conectada, intento con `no_answer` en el progreso, sin pase de area) o que corta (vuelve el agente).
+8. Area con "Conectar al atender" (una centralita): conecta apenas atiende, sin whisper ni 1 ni contestador; el
+   pasajero marca 1 y 2 (el interno) y la central falsa los lee y no los devuelve. Con `return_digits="#9"`, el 2
+   del pasajero no vuelve a la IA, el worker no reenvia las teclas y la llamada sigue conectada hasta que corta la
+   central.
+9. Early media (183 con audio y sin contestar nunca): livekit-sip lo da por atendido, asi que con "Conectar al
+   atender" el pasajero queda conectado con el IVR central; no cae en el respaldo.
 """
 import json
 import asyncio
@@ -51,6 +57,7 @@ from livekit import api, rtc
 
 TTS_RATE = 24000
 CUSTOMER_PHONE = "+5493519999999"   # cualquier otro numero del Anura falso: atiende y habla
+PASSENGER_DTMF = "+5493519000002"   # atiende, espera la conexion, marca 1 y 2 (el interno) y espera el corte
 
 
 def tone(seconds: float, rate: int, hz: int = 440) -> bytes:
@@ -169,11 +176,16 @@ def setup_db():
             s.add(backup)
             s.flush()
             make_area(name, ["+5493510000003", "+5493510000003"], no_answer_member_id=backup.id)
+        # Centralita: un solo miembro que atiende y lee el interno, con la tecla de vuelta fuera de los digitos.
+        make_area("Centralita", ["+5493510000011"], connect_on_answer=True, return_digits="#9")
+        # Early media: una central que manda 183 y su IVR y nunca contesta; si no atiende, respaldo a una persona.
+        repuesto = make_area("Respaldo early media", ["+5493510000001"])
+        make_area("Early media", ["+5493510000012"], connect_on_answer=True, no_answer_area_id=repuesto.id)
         s.commit()
         return sessions, client.id, areas
 
 
-async def call_with_customer(lk, trunk_id, name: str):
+async def call_with_customer(lk, trunk_id, name: str, passenger: str = CUSTOMER_PHONE):
     """Room con el "agente" (pista de voz propia) y el cliente ya atendido."""
     room = rtc.Room()
     token = (api.AccessToken(smoke.KEY, smoke.SECRET).with_identity("agente")
@@ -181,7 +193,7 @@ async def call_with_customer(lk, trunk_id, name: str):
     await room.connect(smoke.URL, token)
     voice = transfer.Speaker("agente", TTS_RATE)
     await voice.publish(room)
-    result, status, _ = await smoke.dial(lk, trunk_id, name, CUSTOMER_PHONE, "cliente", ring=8)
+    result, status, _ = await smoke.dial(lk, trunk_id, name, passenger, "cliente", ring=8)
     assert result == "answered", (result, status)
     deadline = time.monotonic() + 5
     while not any(p.identity == "cliente" and p.track_publications for p in room.remote_participants.values()):
@@ -197,10 +209,16 @@ def post_call_agent() -> SimpleNamespace:
 
 
 async def case(lk, trunk_id, sessions, client_id, areas, area: str, conv: str, *, probe: dict | None = None,
-               with_post_call: bool = False, **transfer_kw):
+               with_post_call: bool = False, passenger: str = CUSTOMER_PHONE, **transfer_kw):
     """probe: si viene, se llena con lo que paso en la linea (musica, whispers), los eventos con sus datos y el
-    estado del post-call de la conversacion."""
-    room, voice = await call_with_customer(lk, trunk_id, f"e2e-transfer-{conv}")
+    estado del post-call de la conversacion. Devuelve, ademas, las teclas que vio la room de cada participante."""
+    room, voice = await call_with_customer(lk, trunk_id, f"e2e-transfer-{conv}", passenger)
+    dtmf: list[tuple[str, str]] = []
+
+    def on_dtmf(ev) -> None:
+        if ev.participant is not None:
+            dtmf.append((ev.participant.identity, ev.digit))
+    room.on("sip_dtmf_received", on_dtmf)
     session = FakeSession(voice)
     line = transfer.RoomLine(SimpleNamespace(room=room, api=lk), session, customer="cliente", trunk_id=trunk_id,
                              caller_id=smoke.FROM_NUMBER, hold_music=SimpleNamespace(track="default", volume=0.3),
@@ -236,15 +254,19 @@ async def case(lk, trunk_id, sessions, client_id, areas, area: str, conv: str, *
         live = {p.identity for p in (await lk.room.list_participants(
             api.ListParticipantsRequest(room=room.name))).participants}
         with sessions() as s:
-            legs = [(leg.result, leg.sip_status, leg.billed_seconds > 0)
-                    for leg in s.scalars(select(HandoffLeg).where(HandoffLeg.conversation_id == conv)
-                                         .order_by(HandoffLeg.created_at))]
+            leg_rows = list(s.scalars(select(HandoffLeg).where(HandoffLeg.conversation_id == conv)
+                                      .order_by(HandoffLeg.created_at)))
+            legs = [(leg.result, leg.sip_status, leg.billed_seconds > 0) for leg in leg_rows]
             rows = list(s.scalars(select(Event).where(Event.conversation_id == conv).order_by(Event.id)))
             types = [e.type for e in rows]
             if probe is not None:
                 post = s.get(ConversationRow, conv)
                 probe.update(holds=holds, whispers=whispers, events=[(e.type, e.data) for e in rows],
-                             post_call=post.post_call_status if post else None)
+                             post_call=post.post_call_status if post else None, dtmf=dtmf,
+                             # Cuanto duro cada tramo: la central que lee el interno corta despues de las teclas.
+                             leg_seconds=[round((leg.ended_at - leg.answered_at).total_seconds(), 1)
+                                          for leg in leg_rows
+                                          if leg.ended_at is not None and leg.answered_at is not None])
         return outcome, legs, types, live, session.said, round(time.monotonic() - t, 1)
     finally:
         await line.aclose()
@@ -363,6 +385,40 @@ async def main() -> int:
         said[-1].startswith("No pude comunicarte")
     smoke.check("si nadie atiende: la persona corta y vuelve el agente", ok,
                 f"{outcome.status}/{outcome.result} en {secs} s; tramos {legs}; en la room {sorted(live)}; dijo {said}")
+
+    # 8. Area con "Conectar al atender" (una centralita): conecta apenas atiende, sin whisper ni 1; el pasajero marca
+    #    1 y 2 y la central los lee (lo deja ver con la tecla 5) sin devolverlos. Con return_digits="#9" el 2 del
+    #    pasajero no vuelve a la IA y la llamada sigue conectada hasta que corta la central.
+    probe = {}
+    outcome, legs, types, live, said, secs = await case(
+        lk, trunk_id, sessions, client_id, areas, "Centralita", "c9", probe=probe, passenger=PASSENGER_DTMF)
+    confirmed = next((d for t, d in probe["events"] if t == "handoff.confirmed"), {})
+    from_customer = [d for who, d in probe["dtmf"] if who == "cliente"]
+    from_person = [d for who, d in probe["dtmf"] if who.startswith(transfer.PERSON_PREFIX)]
+    ok = (outcome.status, outcome.ended) == ("connected", "person_hung_up") and \
+        [r[:2] for r in legs] == [("connected", None)] and legs[0][2] and \
+        not probe["whispers"] and confirmed.get("auto") is True and \
+        from_customer == ["1", "2"] and from_person == ["5"] and \
+        probe["leg_seconds"] and probe["leg_seconds"][0] >= 10 and \
+        "handoff.returned_to_ai" not in types and "cliente" in live and \
+        said[-1] == "¿Te puedo ayudar con algo más?"
+    smoke.check("area con centralita: conecta al atender, el pasajero marca 1 y 2 y la central los recibe", ok,
+                f"{outcome.status}/{outcome.ended} en {secs} s; tramos {legs} ({probe['leg_seconds']} s); "
+                f"whispers {probe['whispers']}; confirmado {confirmed}; teclas del pasajero {from_customer}, "
+                f"de la central {from_person}; dijo {said}")
+
+    # 9. Early media (183 con audio, sin contestar nunca): livekit-sip da por atendido el tramo y, con "Conectar al
+    #    atender", el pasajero queda conectado con el IVR central; no cae en el respaldo.
+    probe = {}
+    outcome, legs, types, live, said, secs = await case(lk, trunk_id, sessions, client_id, areas, "Early media",
+                                                        "c10", probe=probe)
+    confirmed = next((d for t, d in probe["events"] if t == "handoff.confirmed"), {})
+    ok = outcome.status == "connected" and [r[0] for r in legs] == ["connected"] and legs[0][2] and \
+        not probe["whispers"] and confirmed.get("auto") is True and \
+        "handoff.answered" in types and "handoff.rerouted" not in types and "cliente" in live
+    smoke.check("early media: livekit-sip lo da por atendido y conecta sin respaldo", ok,
+                f"{outcome.status}/{outcome.ended} en {secs} s; tramos {legs}; confirmado {confirmed}; "
+                f"whispers {probe['whispers']}; dijo {said}")
     await lk.aclose()
 
     failed = [n for n, ok, _ in smoke.RESULTS if not ok]
