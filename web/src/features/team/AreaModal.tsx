@@ -24,6 +24,7 @@ import { notifyError, notifyInvalid, notifySuccess } from '@/lib/notify';
 import { type AreaRow, useAreaDefaults, useSaveArea } from './api';
 import { AreaWhatsapp } from './AreaWhatsapp';
 import {
+  CONNECT_ON_ANSWER_AREA_HELP,
   DELIVERY_OPTIONS,
   MESSAGE_FIELDS,
   type MessageField,
@@ -51,6 +52,8 @@ interface AreaValues {
   schedule: ScheduleDraft;
   on_person_hangup: 'resume' | 'end';
   return_digits: string;
+  /** Conecta apenas atiende la persona (una centralita o IVR), sin aviso ni tecla 1. Solo con `call`. */
+  connect_on_answer: boolean;
   messages: Record<string, string>;
   delivery: 'call' | 'whatsapp';
   after_hours_area_id: string | null;
@@ -67,10 +70,15 @@ function noAnswerKind(area: AreaRow | null): AreaValues['no_answer_kind'] {
 
 /** Los mensajes que se ven según cómo entrega el área, si rota por WhatsApp de texto y qué hace al cortar la persona. */
 function shownMessageFields(
-  v: Pick<AreaValues, 'delivery' | 'on_person_hangup' | 'whatsapp'>,
+  v: Pick<
+    AreaValues,
+    'delivery' | 'on_person_hangup' | 'whatsapp' | 'connect_on_answer' | 'no_answer_kind' | 'no_answer_member_id'
+  >,
 ): MessageField[] {
   const rotation = v.delivery !== 'whatsapp' && !!v.whatsapp.template;
-  return messageFieldsFor(v.delivery, rotation).filter(
+  // La persona de «Si nadie atiende» mantiene el aviso aunque el área conecte al atender: es una persona, no la central.
+  const backupPerson = v.no_answer_kind === 'member' && !!v.no_answer_member_id;
+  return messageFieldsFor(v.delivery, rotation, v.connect_on_answer && !backupPerson).filter(
     (f) =>
       (f.key !== 'resume' || v.on_person_hangup === 'resume') &&
       (f.key !== 'goodbye' || v.on_person_hangup === 'end'),
@@ -122,6 +130,7 @@ export function AreaModal({
       schedule: toDraft(area ? area.schedule : null),
       on_person_hangup: area?.on_person_hangup === 'end' ? 'end' : 'resume',
       return_digits: area?.return_digits ?? '2',
+      connect_on_answer: area?.connect_on_answer ?? false,
       messages: { ...(area?.messages ?? {}) },
       delivery: area?.delivery === 'whatsapp' ? 'whatsapp' : 'call',
       after_hours_area_id: area?.after_hours_area_id ?? null,
@@ -205,6 +214,8 @@ export function AreaModal({
           schedule: toSchedule(values.schedule),
           on_person_hangup: values.on_person_hangup,
           return_digits: returnDigits,
+          // Un área de aviso no conecta al atender (la API lo rechaza): el switch no se ve y se guarda apagado.
+          connect_on_answer: values.delivery === 'whatsapp' ? false : values.connect_on_answer,
           messages,
           delivery: values.delivery,
           after_hours_area_id: values.after_hours_area_id,
@@ -412,6 +423,13 @@ export function AreaModal({
               />
             )}
           </Group>
+          {!notice && (
+            <Switch
+              label="Conectar al atender"
+              description={CONNECT_ON_ANSWER_AREA_HELP}
+              {...form.getInputProps('connect_on_answer', { type: 'checkbox' })}
+            />
+          )}
 
           <Divider label="Horario" labelPosition="left" mt="xs" />
           <ScheduleFields

@@ -384,6 +384,7 @@ describe('equipo: áreas', () => {
       },
       on_person_hangup: 'resume',
       return_digits: '2',
+      connect_on_answer: false,
       messages: { transfer: 'Ya te paso.' },
       delivery: 'call',
       after_hours_area_id: null,
@@ -574,6 +575,130 @@ describe('equipo: Recibe WhatsApp', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toBeDefined());
     expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toMatchObject({ phone: null, whatsapp_notify: false });
+  });
+});
+
+// ---------- Conectar al atender: una centralita o IVR contesta y el pasajero marca el interno ----------
+
+describe('equipo: conectar al atender', () => {
+  it('prende el switch, lo guarda, la fila lo dice y al reabrir sigue prendido', async () => {
+    let ventas = VENTAS;
+    const calls = mockApi({
+      'GET /api/v1/handoff-areas': () => jsonResponse([ventas, POSVENTA]),
+      'PATCH /api/v1/handoff-areas/a1': () => {
+        ventas = { ...VENTAS, connect_on_answer: true };
+        return jsonResponse(ventas);
+      },
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    const toggle = within(dialog).getByRole('switch', { name: /Conectar al atender/ });
+    expect(toggle).not.toBeChecked();
+    // La ayuda dice qué saltea, los minutos de la cola y el riesgo del *.
+    expect(within(dialog).getByText(/centralita o IVR/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/consume minutos/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/El \* que marque el pasajero/)).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toMatchObject({ connect_on_answer: true });
+
+    const row = await screen.findByRole('row', { name: /^Ventas/ });
+    expect(within(row).getByText(/conecta al atender/)).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Editar el área Ventas' }));
+    dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    expect(within(dialog).getByRole('switch', { name: /Conectar al atender/ })).toBeChecked();
+  });
+
+  it('un área que solo avisa por WhatsApp no lo muestra', async () => {
+    mockApi();
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    expect(within(dialog).getByRole('switch', { name: /Conectar al atender/ })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Solo aviso por WhatsApp' }));
+    expect(
+      within(dialog).queryByRole('switch', { name: /Conectar al atender/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('un área que conecta y pasa a solo aviso se guarda sin conectar al atender', async () => {
+    // Lo guardado puede ser un área de llamada con WhatsApp de texto: al pasarla a aviso, la API rechaza la
+    // opción prendida, así que se manda apagada.
+    const conAviso = {
+      ...VENTAS,
+      connect_on_answer: true,
+      whatsapp: {
+        account_id: 'wa1',
+        template: { name: 'equipo_rotacion', language: 'es_AR', params: ['area'] },
+        wait_seconds: 90,
+      },
+    };
+    const calls = mockApi({
+      ...waRoutes(),
+      'GET /api/v1/plan/features': PLAN_WA(true),
+      'GET /api/v1/handoff-areas': () => jsonResponse([conAviso, POSVENTA]),
+      'PATCH /api/v1/handoff-areas/a1': () => jsonResponse(conAviso),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    expect(within(dialog).getByRole('switch', { name: /Conectar al atender/ })).toBeChecked();
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Solo aviso por WhatsApp' }));
+    expect(
+      within(dialog).queryByRole('switch', { name: /Conectar al atender/ }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toMatchObject({
+      delivery: 'whatsapp',
+      connect_on_answer: false,
+    });
+  });
+
+  it('sin persona de «si nadie atiende» oculta el aviso a la persona y conserva lo guardado', async () => {
+    const withWhisper = { ...VENTAS, messages: { whisper: 'Derivación de {{area}}: {{resumen}}' } };
+    const calls = mockApi({
+      'GET /api/v1/handoff-areas': () => jsonResponse([withWhisper, POSVENTA]),
+      'GET /api/v1/team': () =>
+        jsonResponse([
+          ANA,
+          LUIS,
+          { ...ANA, id: 'm3', name: 'Marta Sosa', phone: '+5493515550000' },
+        ]),
+      'PATCH /api/v1/handoff-areas/a1': () => jsonResponse(withWhisper),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el área Ventas' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar área Ventas' });
+    const whisper = /Aviso a la persona del equipo/;
+    expect(within(dialog).getByLabelText(whisper)).toHaveValue(
+      'Derivación de {{area}}: {{resumen}}',
+    );
+
+    await userEvent.click(within(dialog).getByRole('switch', { name: /Conectar al atender/ }));
+    expect(within(dialog).queryByLabelText(whisper)).not.toBeInTheDocument();
+
+    // La persona de respaldo es una persona y sí recibe el aviso: vuelve a mostrarse.
+    await choose(dialog, 'Si nadie atiende', 'Una persona');
+    await choose(dialog, 'Persona', /Marta Sosa/);
+    expect(await within(dialog).findByLabelText(whisper)).toHaveValue(
+      'Derivación de {{area}}: {{resumen}}',
+    );
+
+    // Vuelve a ocultarse, y lo guardado se manda igual (no se pierde por no verse).
+    await choose(dialog, 'Si nadie atiende', 'El agente toma el mensaje');
+    expect(within(dialog).queryByLabelText(whisper)).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/handoff-areas/a1')).toMatchObject({
+      connect_on_answer: true,
+      messages: { whisper: 'Derivación de {{area}}: {{resumen}}' },
+    });
   });
 });
 

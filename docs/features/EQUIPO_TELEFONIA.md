@@ -450,7 +450,12 @@ panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y 
   rápida, de la llamada o del aviso, sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
   de «Antes de la conversación»; si no llega, va «-») y la espera por persona. En un área de aviso no se validan ni se
   envían como inválidos el timbre, la tecla ni los mensajes ocultos: se conserva lo guardado. La ayuda de los cuatro
-  mensajes de antes de aceptar dice qué variables admiten.
+  mensajes de antes de aceptar dice qué variables admiten. El área con **Se llama** tiene también **Conectar al
+  atender** (apagado por defecto), para una centralita o IVR: el pasajero escucha el mensaje de la central y marca el
+  interno, sin aviso a la persona (no le llega el resumen) ni tecla 1, y la primera que atiende queda conectada
+  (también un buzón: va en un área de una sola persona); la ayuda dice los minutos de la cola de la central y el
+  riesgo del `*`. La fila dice "· conecta al atender", y con la opción prendida y sin persona de «Si nadie atiende» el
+  aviso a la persona no se muestra (con persona de respaldo vuelve: lo usa ella); lo guardado se conserva.
 - **Teléfono del equipo** (Canales, `/telefono`, `PlanGate direct_calls`): agenda con búsqueda, "marcá un número",
   bajas con confirmación, bloqueados apagados; `/telefono/llamada/:id` entra a una llamada creada por API o MCP.
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
