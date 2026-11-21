@@ -121,9 +121,11 @@ class Settings(BaseSettings):
     llm_top_k: int | None = None
     llm_min_p: float | None = None
     # Voz: espera de silencio para dar el turno por terminado, con el turn detector seguro (min) o dudando
-    # (max). Es configuracion del detector de turno (modelo), no del codigo.
-    voice_min_endpointing_delay: float = 0.4
-    voice_max_endpointing_delay: float = 1.0
+    # (max). Es configuracion del detector de turno (modelo), no del codigo. 0,55/1,3 (y el 0,45 del VAD en
+    # build_session) son los del perfil "equilibrado" del plan scratch/planes/perfiles-escucha.md; sin perfiles
+    # por cliente implementados todavia.
+    voice_min_endpointing_delay: float = 0.55
+    voice_max_endpointing_delay: float = 1.3
     vllm_stt_base_url: str = "http://stt-parakeet:8000/v1"
     vllm_stt_model: str = "nvidia/parakeet-tdt-0.6b-v3"
     vllm_tts_base_url: str = "http://vllm-tts:8000/v1"

@@ -382,10 +382,11 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`
-  (1,5 s en `app/voice/worker.py`: ~1 s de respuesta más los 0,5 s de voz que LiveKit exige para interrumpir), es
+  (1,5 s en `app/voice/worker.py`: ~1 s de respuesta más los 0,55 s de voz que exige para interrumpir), es
   la misma frase: `retract_last_turn` deshace el turno (y su extracción) y el siguiente recibe todo junto. Los
   turnos se procesan de a uno, porque LiveKit genera antes de confirmar el fin de turno (preemptive generation).
-  Endpointing: 0,4 s si el turn detector cree que la frase terminó y hasta 1 s si duda
+  El VAD cierra la frase con 0,45 s de silencio (`min_silence_duration` en `build_session`) y el endpointing
+  espera 0,55 s si el turn detector cree que la frase terminó y hasta 1,3 s si duda
   (`VOICE_MIN_ENDPOINTING_DELAY`, `VOICE_MAX_ENDPOINTING_DELAY`).
 - **WhatsApp:** junta los mensajes seguidos en un turno (`WA_DEBOUNCE_SECONDS`, el equivalente de la ventana de
   continuación).

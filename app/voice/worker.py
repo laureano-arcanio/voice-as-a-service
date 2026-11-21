@@ -52,8 +52,8 @@ openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 
 # Si el cliente vuelve a hablar cuando la respuesta sono menos que esto, sigue
 # con la misma frase: se deshace el turno aunque haya sonado un pedazo y el
-# siguiente lo recibe todo junto. Incluye los 0,5 s de voz que LiveKit exige
-# para cortar al agente (interruption min_duration): ~1 s de respuesta.
+# siguiente lo recibe todo junto. Incluye los 0,55 s de voz que exige para
+# cortar al agente (interruption.min_duration en build_session): ~1 s de respuesta.
 CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
@@ -424,7 +424,7 @@ async def resolve_voice(workflow: Workflow, override: str | None = None) -> str:
 def build_session(voice: str, conversation_id: str | None = None) -> AgentSession:
     """conversation_id: va en X-Atentina-Conversation-Id a vllm-llm, para que el balanceador (llm-lb) mande toda
     la llamada a la misma replica (app/llm/client.py hace lo mismo con los turnos del motor)."""
-    vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
+    vad = silero.VAD.load(min_silence_duration=0.45, min_speech_duration=0.2)
     affinity = {"extra_headers": {"X-Atentina-Conversation-Id": conversation_id}} if conversation_id else {}
     # STT y TTS: los mismos clientes que las llamadas directas (app/voice/direct.py).
     return AgentSession(
@@ -436,6 +436,8 @@ def build_session(voice: str, conversation_id: str | None = None) -> AgentSessio
             "turn_detection": inference.TurnDetector(version="v1-mini"),
             "endpointing": {"min_delay": settings.voice_min_endpointing_delay,
                             "max_delay": settings.voice_max_endpointing_delay},
+            # 0,55 s de voz para registrar una interrupcion; sin fijarlo, LiveKit usa 0,5.
+            "interruption": {"min_duration": 0.55},
         },
         stt=direct.stt_client(vad),
         llm=openai.LLM(model=settings.vllm_llm_model, base_url=settings.vllm_llm_base_url, api_key=settings.vllm_api_key,
