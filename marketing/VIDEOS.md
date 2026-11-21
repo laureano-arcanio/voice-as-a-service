@@ -20,7 +20,7 @@ marketing/videos/
     src/                    timeline.ts (duración de escenas y momentos de cada voz), escenas y Video.tsx
     versiones/vN/           <slug>-vN.mp4, NOTAS.md y, al cerrarla, fuente/ (código, guion y locución)
   public/                   fonts/, marca/ (logos) y proyectos/<slug>/{vo/, musica.wav}
-  scripts/                  voces.py, musica.py, candidatas.py, revisar.py, cerrar.sh
+  scripts/                  voces.py, musica.py, imagen.py, candidatas.py, revisar.py, cerrar.sh
 ```
 
 Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el video de Atentina para empresas),
@@ -84,6 +84,8 @@ cursor y, desde la v5, sin texto y con poco zoom).
 | Ver y ajustar en vivo | `make video-studio` |
 | Locución (mejor de N tomas) | `make video-voces P=<slug> [IDS="n1 n3"] [TOMAS=4]` |
 | Música | `make video-musica P=<slug> [SEG=<s>]` (sin SEG, `musica_segundos` del guion) |
+| Imagen fija | `make video-imagen P=<slug> NOMBRE=<archivo> PROMPT="<qué se ve>" [FORMATO=16:9] [ESTILO=caricatura] [PASOS=12] [SEMILLA=n] [EXTRA="<estilo libre>"] [TEXTO=1]` |
+| API de imágenes | `make imagenes-up` / `make imagenes-down` / `make imagenes-bench` |
 | Render de una versión | `make video P=<slug> V=<n>` |
 | Revisión | `make video-revisar P=<slug> V=<n> [ARGS="--tramos 0,6.2,11.4"]` |
 | Cerrar la versión | `make video-cerrar P=<slug> V=<n>` |
@@ -100,7 +102,8 @@ Los cuadros de prueba, hojas de revisión y tomas candidatas van a `scratch/vide
 3. **Afirmaciones.** Antes de escribir una cifra o una función, verificarla (ver "Afirmaciones") y anotar la fuente
    en el README.
 4. **Locución.** `guion.json` y `make video-voces`. Las duraciones salen de los WAV y fijan el largo de las escenas.
-5. **Escenas.** En `proyectos/<slug>/src/`, con los componentes de `src/comun/`. `timeline.ts` define las escenas
+5. **Escenas.** En `proyectos/<slug>/src/`, con los componentes de `src/comun/` y, si hace falta una foto,
+   ilustración o personaje, con las imágenes fijas de `public/proyectos/<slug>/img/` (ver "Imágenes fijas"). `timeline.ts` define las escenas
    (`armarEscenas`) y cuándo arranca cada voz; `Video.tsx` usa `<Montaje>`. Registrar la composición en `Root.tsx`.
 6. **Cuadros de prueba** de cada escena (`npx remotion still`) y corregir textos cortados o superpuestos.
 7. **Render, revisión y notas** (ver "Controles" y "Versiones").
@@ -146,6 +149,55 @@ Sigue [`DESIGN_GUIDELINE.md`](../docs/DESIGN_GUIDELINE.md), sección 10:
   se pueda seguir (una respuesta viaja lo que dura su frase).
 - **Velocidad como mensaje:** si algo es rápido, mostrarlo en tiempo real con un cronómetro y el dato medido (el
   tramo escucha → piensa → responde dura 0,9 s reales en `general`).
+
+## Imágenes fijas
+
+Cuando una escena necesita una foto, ilustración, caricatura o personaje que no conviene dibujar en código,
+`make video-imagen` llama a la API de imágenes local (vLLM-Omni + Qwen-Image-2.1, en el host de desarrollo,
+`:8210`) y deja el PNG en `public/proyectos/<slug>/img/`. En la escena se usa con
+`staticFile("proyectos/<slug>/img/<nombre>.png")`.
+
+Límites (los aplica el script): lado máximo **1024 px**, área máxima **1024x1024** y **12 pasos** por imagen.
+El costo escala con píxeles × pasos: 1024²/12 ≈ 18 s y 576x1024/12 ≈ 9 s en la RTX 3090 del entorno (medido,
+19-nov-2026). Los tamaños son nominales: encuadrá con `objectFit` en Remotion.
+
+| Formato | Tamaño | Uso típico |
+|---|---|---|
+| `1:1` | 1024x1024 | avatar, tarjeta, ícono grande |
+| `16:9` | 1024x576 | fondo de escena horizontal |
+| `9:16` | 576x1024 | story, tutorial vertical |
+| `4:3` / `3:4` | 1024x768 / 768x1024 | foto de apoyo |
+| `4:5` / `5:4` | 832x1024 / 1024x832 | feed vertical / ficha |
+| `3:2` / `2:3` | 1024x672 / 672x1024 | foto clásica |
+| `2:1` / `21:9` | 1024x512 / 1024x448 | banda ancha de fondo |
+
+| Estilo | Qué hace |
+|---|---|
+| `foto` | fotografía editorial, luz natural, 50 mm |
+| `ilustracion` | vector plano, colores planos, márgenes |
+| `caricatura` | caricatura amable, rasgos exagerados, contorno grueso |
+| `3d` | render 3D estilizado, luz de estudio |
+| `anime` | línea limpia, cel shading |
+| `linea` | line-art minimal de un solo color |
+| `isometrico` | isométrica plana |
+| `storyboard` | boceto en blanco y negro, marcador |
+| `pixel` | pixel art de 16 bits |
+| `marca` | gráfica de marca: fondo blanco, grilla de puntos, azul `#2456e6` |
+
+Con `EXTRA="..."` se reemplaza el estilo por texto libre.
+
+Reglas:
+
+- **El texto y los rótulos van en Remotion** (`Headline`, `Card`), no dentro de la imagen: el modelo deforma
+  palabras largas. Solo con `TEXTO=1` y 1–3 palabras ("ATENTINA" sale bien); el resto de la escena se rotula
+  con componentes.
+- **Sin caras de personas reales ni logos, pantallas o personajes de terceros.** Los personajes son propios y
+  no imitan marcas.
+- **Mirá el PNG con `Read` antes de usarlo.** Si no sirve, cambiá la semilla (`SEMILLA=`) o el prompt; la
+  semilla, el prompt final, el tamaño, los pasos y el tiempo quedan en `proyectos/<slug>/imagenes.json`.
+- **La API es un servicio en vivo del entorno de desarrollo**: no la reinicies ni lances pruebas de carga. Si no
+  responde, avisá (no hay failover). Se levanta con `make imagenes-up` y se apaga con `make imagenes-down`
+  ([`marketing/imagenes/`](imagenes/README.md)).
 
 ## Voces y pronunciación
 

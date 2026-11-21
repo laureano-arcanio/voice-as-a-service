@@ -39,7 +39,8 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate migrate-down migrate-test agents-reference dev-agents-reference reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
-        video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
+        video-setup video-studio video-voces video-musica video-imagen video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
+        imagenes-build imagenes-up imagenes-down imagenes-bench \
         backup backup-key backup-r2-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
         server2-ssh server2-setup server2-discos replica-host-disable solo-principal crm-tunnel \
@@ -626,6 +627,27 @@ video-voces: ## Locución con el TTS propio (mejor de N tomas). Ej: make video-v
 video-musica: ## Música de fondo (determinística). Ej: make video-musica P=yoizen [SEG=72]
 	$(need-p)
 	cd $(VIDEOS) && python3 scripts/musica.py $(P) $(SEG)
+
+imagenes-build: ## Construye la imagen Docker de la API de imágenes (Qwen-Image-2.1, marketing/imagenes)
+	cd marketing/imagenes && docker build -t atentina/vllm-omni-qwen21:0.32.0 .
+
+imagenes-up: ## Levanta la API de imágenes en :8210 (Qwen-Image-2.1, marketing/imagenes)
+	bash marketing/imagenes/run.sh
+
+imagenes-down: ## Apaga la API de imágenes
+	docker rm -f qwen21 2>/dev/null || true
+
+imagenes-bench: ## Mide la API de imágenes. Ej: make imagenes-bench [SIZE=512x512] [PASOS=12] [SEMILLA=1234]
+	python3 marketing/imagenes/bench/bench.py --size $(or $(SIZE),512x512) --steps $(or $(PASOS),12) \
+	  $(if $(SEMILLA),--seed $(SEMILLA),)
+
+video-imagen: ## Imagen fija para un video (máx 1024², 12 pasos). Ej: make video-imagen P=general NOMBRE=hero PROMPT="..." FORMATO=16:9 ESTILO=caricatura
+	$(need-p)
+	@test -n "$(NOMBRE)" -a -n "$(PROMPT)" || { echo "faltan NOMBRE=<archivo> y PROMPT=\"<qué se ve>\""; exit 1; }
+	cd $(VIDEOS) && python3 scripts/imagen.py $(P) $(NOMBRE) --prompt "$(PROMPT)" \
+	  $(if $(FORMATO),--formato $(FORMATO),) $(if $(ESTILO),--estilo $(ESTILO),) \
+	  $(if $(PASOS),--pasos $(PASOS),) $(if $(SEMILLA),--seed $(SEMILLA),) \
+	  $(if $(EXTRA),--estilo-libre "$(EXTRA)",) $(if $(TEXTO),--con-texto,)
 
 video: ## Renderiza una versión de un video (no pisa una cerrada). Ej: make video P=yoizen V=2
 	$(need-pv)
