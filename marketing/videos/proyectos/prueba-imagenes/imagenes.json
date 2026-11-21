@@ -1,0 +1,41 @@
+[
+  {
+    "nombre": "01-cafe",
+    "archivo": "proyectos/prueba-imagenes/img/01-cafe.png",
+    "prompt": "Small neighborhood cafe counter in the morning, soft natural daylight through the large front window, a smartphone lying face up on the light wooden counter next to an espresso machine and a glass display case with croissants, a small plant, empty wooden chairs in the background, warm and airy, balanced exposure, rich midtones, no blown highlights, editorial lifestyle photography, 35mm, shallow depth of field, photorealistic. photorealistic editorial photography, natural light, 50 mm lens, shallow depth of field, fine texture. no text, no lettering, no words, no watermarks, no logos.",
+    "formato": "16:9",
+    "size": "1024x576",
+    "pasos": 12,
+    "seed": 5201,
+    "modelo": "/models/Qwen-Image-2.1",
+    "api": "http://192.168.1.99:8210/v1",
+    "segundos": 10.5,
+    "creado": "2026-11-21T21:38:04+00:00"
+  },
+  {
+    "nombre": "02-oficina",
+    "archivo": "proyectos/prueba-imagenes/img/02-oficina.png",
+    "prompt": "Modern small-business office at midday, two coworkers in their thirties working together at a light wooden desk with an open laptop and a desk phone, large window with sheer curtains and soft daylight, white walls, a green plant, coffee mugs, balanced exposure, rich midtones, natural skin tones, no blown highlights, candid documentary photography, 35mm, shallow depth of field, photorealistic. photorealistic editorial photography, natural light, 50 mm lens, shallow depth of field, fine texture. no text, no lettering, no words, no watermarks, no logos.",
+    "formato": "16:9",
+    "size": "1024x576",
+    "pasos": 12,
+    "seed": 5202,
+    "modelo": "/models/Qwen-Image-2.1",
+    "api": "http://192.168.1.99:8210/v1",
+    "segundos": 10.27,
+    "creado": "2026-11-21T21:38:46+00:00"
+  },
+  {
+    "nombre": "03-marca",
+    "archivo": "proyectos/prueba-imagenes/img/03-marca.png",
+    "prompt": "Minimal brand illustration on a white background with a subtle regular dot grid: in the center a white circle holding three rounded vertical bars in bright blue like an audio level, surrounded by a thin ring of evenly spaced small blue dots, thin curved blue lines arriving from the left and right edges carrying small speech bubbles, flat vector style, generous white margins, clean geometry, brand blue #2456e6 only. Atentina brand graphic: white background with a light dot grid, accent blue #2456e6, flat geometric shapes, generous margins, no photographic texture. no text, no lettering, no words, no watermarks, no logos.",
+    "formato": "16:9",
+    "size": "1024x576",
+    "pasos": 12,
+    "seed": 5203,
+    "modelo": "/models/Qwen-Image-2.1",
+    "api": "http://192.168.1.99:8210/v1",
+    "segundos": 10.48,
+    "creado": "2026-11-21T21:38:59+00:00"
+  }
+]

@@ -53,6 +53,8 @@ import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline"
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 import { T as LANDING_PANEL_T } from "../proyectos/landing-panel/src/timeline";
 import { LandingPanelVideo } from "../proyectos/landing-panel/src/Video";
+import { TOTAL as PRUEBA_IMAGENES_TOTAL } from "../proyectos/prueba-imagenes/src/timeline";
+import { PruebaImagenesVideo } from "../proyectos/prueba-imagenes/src/Video";
 
 // Una composición por proyecto, con el id igual a la carpeta de proyectos/ (lo usa `make video P=<id>`)
 export const RemotionRoot: React.FC = () => (
@@ -89,5 +91,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="primeros-pasos" component={PrimerosPasosVideo} durationInFrames={f(PRIMEROS_PASOS_TOTAL)} fps={FPS} width={1080} height={1920} />
     <Composition id="derivaciones" component={DerivacionesVideo} durationInFrames={f(DERIVACIONES_TOTAL)} fps={FPS} width={1080} height={1920} />
     <Composition id="tutorial-agente-free-mobile" component={TutorialAgenteFreeMobileVideo} durationInFrames={f(TUTORIAL_AGENTE_FREE_MOBILE_TOTAL)} fps={FPS} width={1080} height={1920} />
+    {/* Prueba interna del pipeline de imágenes generadas (Qwen-Image-2.1): no se publica */}
+    <Composition id="prueba-imagenes" component={PruebaImagenesVideo} durationInFrames={f(PRUEBA_IMAGENES_TOTAL)} fps={FPS} width={1920} height={1080} />
   </>
 );

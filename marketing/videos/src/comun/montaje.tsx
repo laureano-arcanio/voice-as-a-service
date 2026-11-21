@@ -36,12 +36,12 @@ export const Fade: React.FC<{ len: number; fadeIn: number; fadeOut: number; chil
   return <AbsoluteFill style={{ opacity: o }}>{children}</AbsoluteFill>;
 };
 
-/** Volumen de la música por frame: baja con la voz y se desvanece al final. */
-export const volumenMusica = (spans: readonly (readonly [number, number])[], totalFrames: number) => (fr: number) => {
-  let v = MUSIC;
+/** Volumen de la música por frame: baja con la voz y se desvanece al final. `base` es el volumen sin voz (0,32 por defecto). */
+export const volumenMusica = (spans: readonly (readonly [number, number])[], totalFrames: number, base = MUSIC) => (fr: number) => {
+  let v = base;
   for (const [a, b] of spans) {
     const d = interpolate(fr, [a - 8, a, b, b + 12], [0, 1, 1, 0], CLAMP);
-    v = Math.min(v, MUSIC - (MUSIC - DUCK) * d);
+    v = Math.min(v, base - (base - DUCK) * d);
   }
   return v * interpolate(fr, [0, 15, totalFrames - 45, totalFrames], [0, 1, 1, 0], CLAMP);
 };
@@ -59,7 +59,8 @@ export const Montaje: React.FC<{
   duraciones: Record<string, number>;
   intro?: string;
   introFade?: number;
-}> = ({ dir, escenas, componentes, voces, duraciones, intro, introFade = 0.6 }) => {
+  musicVolume?: number;
+}> = ({ dir, escenas, componentes, voces, duraciones, intro, introFade = 0.6, musicVolume }) => {
   const ids = Object.keys(escenas);
   const ultima = ids[ids.length - 1];
   const orden = intro ? [...ids.filter((id) => id !== intro), intro] : ids;
@@ -90,7 +91,7 @@ export const Montaje: React.FC<{
           <Audio src={staticFile(`${dir}/vo/${v.id}.wav`)} />
         </Sequence>
       ))}
-      <Audio src={staticFile(`${dir}/musica.wav`)} volume={volumenMusica(spans, total)} />
+      <Audio src={staticFile(`${dir}/musica.wav`)} volume={volumenMusica(spans, total, musicVolume)} />
     </AbsoluteFill>
   );
 };
