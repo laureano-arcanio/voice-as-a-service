@@ -78,7 +78,8 @@ nivel 1 entra en veinte líneas en total.
 - **Depende de:** <tareas, o nada>. **Paralela con:** <tareas, o nada>
 - **Archivos:** <rutas>
 - **Qué hacer:** <concreto, con lo que hay que reutilizar y las condiciones que salen de "Qué rompería">
-- **Tests:** <qué se agrega o cambia>
+- **Tests:** los archivos de test existentes que cubren la tarea (salen de
+  `make test-afectados LISTAR=1 ARCHIVOS="<archivos de la tarea>"`, con la ruta y el porqué) y qué se agrega o cambia.
 - **Verificar:** <superficie (UI, API, MCP o código), pasos y resultado esperado; qué no se puede probar en local>
 - **Documentar:** <docs que cambian por esta tarea>
 - **Listo cuando:** <criterio verificable>

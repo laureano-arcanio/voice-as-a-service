@@ -86,7 +86,7 @@ Otro admin: `make create-admin EMAIL=...`; API key de un cliente: `make api-key 
 editarlo, `make up-pbx` o `make up`. Antes de recrear algo que corta llamadas, `make calls-active`.
 
 Desarrollo de la UI: `make web-dev` (Vite en :5173 contra la API de :8011), ver [`web/README.md`](web/README.md).
-Tests: `make test` (LLM falso, sin servicios reales).
+Tests: `make test` (LLM falso, sin servicios reales; en paralelo con pytest-xdist, `N=0` para serie) y `make test-afectados` (solo los afectados por el diff; [`docs/DESARROLLO.md`](docs/DESARROLLO.md)).
 
 ## Claves (`.env`)
 

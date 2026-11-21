@@ -949,11 +949,17 @@ async def test_delivery_retries_with_backoff_and_gives_up(api, voice, private_ho
     now.advance(seconds=10)
     await d.tick()
     assert len(rx.requests) == 2
-    # El mismo delivery_id en los reintentos.
+    # El mismo delivery_id en los reintentos (el orden entre los dos eventos no es
+    # determinista: el despacho del tick los manda con asyncio.gather).
     now.advance(seconds=30)
     await d.tick()
     assert len(rx.requests) == 4
-    assert rx.requests[0].headers["x-atentina-delivery"] == rx.requests[2].headers["x-atentina-delivery"]
+    by_event: dict[str, list[str]] = {}
+    for r in rx.requests:
+        by_event.setdefault(r.headers["x-atentina-event"], []).append(r.headers["x-atentina-delivery"])
+    assert set(by_event) == {"contact.finished", "campaign.finished"}
+    for deliveries in by_event.values():
+        assert len(deliveries) == 2 and deliveries[0] == deliveries[1]
     now.advance(hours=1)
     await d.tick()
     rows = events(api)
