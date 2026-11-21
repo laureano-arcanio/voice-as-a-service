@@ -27,9 +27,15 @@ usuario real y los docs dicen lo que hace el código. Las reglas de [`AGENTS.md`
 - **Migraciones:** archivo nuevo en `migrations/` y `make migrate-test`. No edites una migración ya aplicada.
 - **Claves y secretos:** claves nuevas en `.env.example`, `.env.dev.example` y `README.md`; nunca credenciales en el código.
   Temporales en `scratch/`.
-- Comentarios en español y breves. Sin parches de modelo, sin nada de un cliente en el código.
-- Corré una vez, al final: `make test` si tocaste Python, `make web-check` si tocaste `web/`, `make migrate-test` si hay
-  migración, la compilación si tocaste `landing/`. Si algo falla por tu cambio, lo arreglás; si ya fallaba, lo reportás.
+- **Comentarios en español y breves. Sin parches de modelo, sin nada de un cliente en el código.
+- **Mientras implementás, iterá con los afectados:** `make test-afectados` (o los archivos de tu tarea con `ARGS`, y
+  `--lf` para repetir lo que falló) y `make web-afectados` si tocaste `web/`. Al cerrar la tarea, **una vez**:
+  `make test` completo si tocaste Python, `make web-check` si tocaste `web/`, `make migrate-test` si hay migración,
+  la compilación si tocaste `landing/`. En una corrección por mensaje: los que fallaron y `make test-afectados`, y la
+  suite completa solo si la corrección toca algo central (la lista está en
+  [`docs/DESARROLLO.md`](../../docs/DESARROLLO.md)). Un test nuevo que tarda más de 1 s (`--durations=10` lo muestra)
+  se justifica o se acorta (reloj falso, tope configurable), sin `sleep` real. Si algo falla por tu cambio, lo
+  arreglás; si ya fallaba, lo reportás.
 
 ## Verificar
 

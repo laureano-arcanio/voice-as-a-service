@@ -2631,6 +2631,11 @@ NO_ANSWER_MEMBER = (
     "Persona a la que se llama si nadie del área acepta; no entra en la rotación y tiene que tener teléfono. "
     "Excluyente con `no_answer_area_id`; sin ninguno, vuelve el agente y toma el mensaje")
 
+CONNECT_ON_ANSWER = (
+    "Conectar al atender, para una centralita o IVR: los miembros se conectan apenas atienden, sin whisper, "
+    "detección de contestador ni tecla 1, y el pasajero escucha el mensaje de la central y marca el interno. "
+    "La persona de «si nadie atiende» mantiene el whisper y el 1. Solo con `delivery: call`")
+
 
 class HandoffAreaIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
@@ -2650,6 +2655,7 @@ class HandoffAreaIn(BaseModel):
     no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     delivery: Literal["call", "whatsapp"] = Field(
         default="call", description="call: se llama a la persona; whatsapp: solo aviso por plantilla, sin aceptación")
+    connect_on_answer: bool = Field(default=False, description=CONNECT_ON_ANSWER)
     whatsapp: HandoffWhatsapp | None = None
 
 
@@ -2669,6 +2675,7 @@ class HandoffAreaPatch(BaseModel):
     no_answer_area_id: str | None = None
     no_answer_member_id: str | None = Field(default=None, description=NO_ANSWER_MEMBER)
     delivery: Literal["call", "whatsapp"] | None = None
+    connect_on_answer: bool | None = Field(default=None, description=CONNECT_ON_ANSWER)
     whatsapp: HandoffWhatsapp | None = None
 
 
@@ -2692,6 +2699,7 @@ class HandoffAreaOut(ORM):
     no_answer_area_id: str | None
     no_answer_member_id: str | None = Field(description=NO_ANSWER_MEMBER)
     delivery: str
+    connect_on_answer: bool = Field(description=CONNECT_ON_ANSWER)
     whatsapp: HandoffWhatsapp | None
     created_at: UTCDateTime
 

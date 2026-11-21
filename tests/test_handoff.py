@@ -439,6 +439,40 @@ def test_area_whatsapp_rules(api, admin):
     assert patch(whatsapp=None).json()["whatsapp"] is None
 
 
+def test_area_connect_on_answer(api, admin):
+    c = make_client(admin)
+    account = wa_account(api, c, make_agent(admin, c))
+    area = new_area(admin, c["id"])
+    assert area["connect_on_answer"] is False
+    # Se prende y se lee; el PATCH parcial no lo apaga.
+    r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"connect_on_answer": True})
+    assert r.status_code == 200 and r.json()["connect_on_answer"] is True
+    assert admin.get(f"{V1}/handoff-areas/{area['id']}").json()["connect_on_answer"] is True
+    assert admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"description": "Central"}).json()["connect_on_answer"] is True
+    assert admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"connect_on_answer": False}
+                      ).json()["connect_on_answer"] is False
+    # Se crea prendido y se lee.
+    assert new_area(admin, c["id"], "Central", connect_on_answer=True)["connect_on_answer"] is True
+    # Un null no se guarda como false.
+    assert admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"connect_on_answer": None}).status_code == 422
+
+    # Un area que solo avisa por WhatsApp no conecta al atender: al crear y por estado final en las dos direcciones.
+    whatsapp = {"account_id": account, "template": template("area")}
+    r = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]},
+                   json={"name": "Aviso", "delivery": "whatsapp", "connect_on_answer": True, "whatsapp": whatsapp})
+    assert r.status_code == 422 and r.json()["errors"][0]["path"] == "connect_on_answer", r.text
+    assert "Aviso" not in [a["name"] for a in admin.get(f"{V1}/handoff-areas", params={"client_id": c["id"]}).json()]
+    central = new_area(admin, c["id"], "Central 2", connect_on_answer=True)
+    r = admin.patch(f"{V1}/handoff-areas/{central['id']}", json={"delivery": "whatsapp", "whatsapp": whatsapp})
+    assert r.status_code == 422 and r.json()["errors"][0]["path"] == "connect_on_answer", r.text
+    aviso = new_area(admin, c["id"], "Aviso 2", delivery="whatsapp", whatsapp=whatsapp)
+    r = admin.patch(f"{V1}/handoff-areas/{aviso['id']}", json={"connect_on_answer": True})
+    assert r.status_code == 422 and r.json()["errors"][0]["path"] == "connect_on_answer", r.text
+    # La que ya avisa por WhatsApp sigue sin conectar y sin la opcion.
+    assert admin.get(f"{V1}/handoff-areas/{central['id']}").json()["delivery"] == "call"
+    assert admin.get(f"{V1}/handoff-areas/{aviso['id']}").json()["connect_on_answer"] is False
+
+
 def test_team_whatsapp_notify(api, admin):
     c = make_client(admin)
     m = member(admin, c["id"], phone="3511111111", whatsapp_notify=True)

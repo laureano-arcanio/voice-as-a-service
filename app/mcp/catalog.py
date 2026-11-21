@@ -773,7 +773,9 @@ _WRITE: tuple[Tool, ...] = (
     Tool("update_handoff_area", "team", "Editar un área de derivación",
          "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; "
          "`after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la "
-         "persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes.",
+         "persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes. "
+         "`connect_on_answer` conecta al atender, para una centralita o IVR (sin whisper ni tecla 1); no va con "
+         "`delivery: whatsapp`.",
          method="PATCH", path="/handoff-areas/{area_id}", params={"area_id": _s("ID del área.")},
          required=("area_id",), body="HandoffAreaPatch", features=("team",)),
     Tool("delete_handoff_area", "team", "Borrar un área de derivación", "Borra un área de derivación.",

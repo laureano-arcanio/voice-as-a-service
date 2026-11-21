@@ -20,11 +20,55 @@ os.environ["CSP_REPORT_ONLY"] = "false"
 # Ni los trunks SIP del LiveKit del host (cargar numeros los sincroniza; app/services/livekit.py).
 os.environ["LIVEKIT_SIP_SYNC"] = "false"
 
+import shutil
+
 import pytest
 
 from app.agents.templates import load_reference
 from app.conversation.store import ConversationStore
 from app.db import Base
+
+# El setup por test era el 72 % del tiempo de la suite (medido con --durations=0: setup
+# 704 s de 977). Dos causas, atajadas aca sin tocar app/ (lo usan scripts y produccion):
+# - create_schema (51 tablas) en un SQLite nuevo por test: ~260 ms. El esquema se crea
+#   una vez por proceso en una plantilla y cada test arranca de una copia (`shutil.copyfile`).
+# - argon2 con los parametros de produccion: ~45 ms por hash y por verificacion. En tests
+#   alcanza con los parametros minimos (solo tests; produccion usa PasswordHasher()).
+
+
+@pytest.fixture(scope="session")
+def _esquema_tpl(tmp_path_factory):
+    """Plantilla SQLite con todo el esquema, creada una vez por proceso de pytest. Con
+    xdist cada worker arma la suya. Nadie escribe en ella: se copia por test."""
+    from app.db import create_schema, make_engine
+
+    ruta = tmp_path_factory.mktemp("esquema") / "schema.db"
+    engine = make_engine(f"sqlite:///{ruta}")
+    create_schema(engine)
+    engine.dispose()
+    return ruta
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _argon2_barato():
+    """Hasher de argon2 con parametros minimos para toda la sesion; al final vuelve el real."""
+    from argon2 import PasswordHasher
+
+    from app.services import security
+
+    real = security._hasher
+    security._hasher = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
+    yield
+    security._hasher = real
+
+
+def sqlite_fresco(ruta, tpl):
+    """Engine sobre una copia fresca de la plantilla del esquema (la plantilla vive en
+    tmp_path_factory, una por proceso de pytest)."""
+    from app.db import make_engine
+
+    shutil.copyfile(tpl, ruta)
+    return make_engine(f"sqlite:///{ruta}")
 
 
 @pytest.fixture(autouse=True)
@@ -43,12 +87,17 @@ def workflow():
 
 
 @pytest.fixture
-def store(tmp_path):
-    """SQLite por defecto. Con TEST_DB_DSN (ej. postgresql+psycopg://u:p@host/db) corre
+def store(tmp_path, _esquema_tpl):
+    """SQLite por defecto: copia de la plantilla del esquema (sin `for_dsn`, que vuelve a
+    correr create_all). Con TEST_DB_DSN (ej. postgresql+psycopg://u:p@host/db) corre
     contra esa base, con el esquema recreado en cada test."""
+    from app.db import make_sessions
+
     dsn = os.getenv("TEST_DB_DSN")
     if not dsn:
-        yield ConversationStore.for_dsn(f"sqlite:///{tmp_path}/conversations.db")
+        engine = sqlite_fresco(tmp_path / "conversations.db", _esquema_tpl)
+        yield ConversationStore(make_sessions(engine))
+        engine.dispose()
         return
     s = ConversationStore.for_dsn(dsn)
     engine = s.sessions.kw["bind"]
@@ -59,12 +108,11 @@ def store(tmp_path):
 
 
 @pytest.fixture
-def sessions(tmp_path):
-    """sessionmaker contra un SQLite nuevo con todo el esquema."""
-    from app.db import create_schema, make_engine, make_sessions
+def sessions(tmp_path, _esquema_tpl):
+    """sessionmaker contra un SQLite nuevo con todo el esquema (copia de la plantilla)."""
+    from app.db import make_sessions
 
-    engine = make_engine(f"sqlite:///{tmp_path}/app.db")
-    create_schema(engine)
+    engine = sqlite_fresco(tmp_path / "app.db", _esquema_tpl)
     yield make_sessions(engine)
     engine.dispose()
 

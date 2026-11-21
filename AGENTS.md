@@ -98,6 +98,8 @@ Medido el 5-nov-2026 sobre las primeras 36 corridas del ciclo: la implementació
 - **Cada agente recibe lo que necesita**, no el plan entero: la tarea y dos secciones al desarrollador; los criterios al `qa`.
 - **Un agente por tarea, de principio a fin:** las correcciones vuelven por `SendMessage`; un agente nuevo relee todo desde cero.
 - **Tests una vez por tarea**, los corre el desarrollador; `qa` no los repite.
+- **Tests:** los afectados mientras se implementa (`make test-afectados`); la suite completa (`make test`, ~1 min),
+  una vez por tarea al cerrarla.
 - **Navegador guionado:** `evaluate_script` que complete, guarde, recargue y lea, no un clic por turno.
 
 ## Pedidos frecuentes

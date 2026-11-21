@@ -19,7 +19,7 @@ saliente necesita además `outbound_calls`).
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
 | `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o usuario | 0023, 0042, 0048 |
-| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048, 0052 |
+| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `connect_on_answer` (bool, default `false`: los miembros conectan apenas atienden, para una centralita o IVR), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048, 0052, 0063 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
 | `tiers.max_team_members` | Tope de personas (`NULL` sin tope, `0` no incluido) | 0023 |
@@ -135,6 +135,22 @@ Código: `app/voice/handoff.py` (`Transfer` es la lógica, `RoomLine` el lado de
    (`discard_audio_if_uninterruptible`) y un pedido hecho durante el aviso se perdía. "Te paso con…" no se interrumpe.
    Si el modelo derivó sin decir nada, el aviso de transferencia queda como el texto de ese turno.
 
+**Conectar al atender** (`handoff_areas.connect_on_answer`, apagado por defecto; el switch está en el panel y la
+ayuda explica lo mismo): para un área que es una centralita o un IVR. A sus miembros no se les pide el 1: se conecta
+con la señal SIP de atendido (`handoff.confirmed` con `auto: true`), sin whisper, sin espera del 1 y sin detección de
+contestador. El pasajero escucha el mensaje de la central y marca el interno con el teclado: **LiveKit pasa los
+dígitos de un participante SIP al otro y el worker no los reenvía** (si lo hiciera, cada dígito llegaría dos veces);
+quedan en la conversación como "Marcó …" con el tramo. La primera persona que atiende queda conectada, aunque sea el
+buzón de un celular: va en un área de una sola persona. La persona de «Si nadie atiende» es una persona y mantiene el
+whisper y el 1. La tecla de vuelta (`return_digits`, `2`) se mira en las teclas de la central, así que un interno que
+la marque devuelve el pasajero a la IA: con esta opción conviene un código que no sea un dígito del interno (`#9`).
+El `*` del pasajero también llega a Anura (Reglas y trampas). Los minutos del tramo corren desde que el teléfono
+atiende, así que la espera en la cola del IVR de la central consume salientes del plan (en La Estrella, ~24 s de
+cola: ~0,4 min por llamada). El complemento por WhatsApp (`call_template`) le llega a todo miembro con «Recibe
+WhatsApp»: a la central se le apaga ese switch. Medido en `make e2e-sip`: un destino que manda 183 con su IVR y no
+contesta (early media) lo da por atendido livekit-sip, así que el pasajero se conecta con ese IVR; una central que
+solo hace sonar sin audio (180) no atiende y sigue a la persona de «Si nadie atiende» o a `no_answer_area_id`.
+
 No derivan: loadtest, campañas (metadata `handoff` en `services/calls.py`), la respuesta por WhatsApp a una campaña,
 agentes sin áreas (por WhatsApp de texto, sin áreas con plantilla) y la demo de la landing salvo con `DEMO_HANDOFF=true`.
 El WhatsApp de texto deriva por su cuenta ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)).
@@ -229,6 +245,7 @@ texto).
   Un área de aviso no lo arma.
 - **Reportes:** el pase a un área de llamada no suma como pedida en esa área; la emergencia cuenta una vez, donde terminó.
   A un área de aviso no es un pase: el pedido quedó sin atender y esa área lo cuenta ([REPORTES.md](REPORTES.md)).
+  Con conectar al atender cuenta como conectada aunque haya atendido el IVR (`auto: true`), como en la entrante al equipo.
 - **Por texto:** `transfer_call` solo con áreas con `template`; la rotación y el reenvío están en
   [WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo).
 - **Límite aceptado, voz:** un operador desactivado mientras suena la cadena todavía puede ser llamado, oír el whisper con el
@@ -450,7 +467,12 @@ panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y 
   rápida, de la llamada o del aviso, sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
   de «Antes de la conversación»; si no llega, va «-») y la espera por persona. En un área de aviso no se validan ni se
   envían como inválidos el timbre, la tecla ni los mensajes ocultos: se conserva lo guardado. La ayuda de los cuatro
-  mensajes de antes de aceptar dice qué variables admiten.
+  mensajes de antes de aceptar dice qué variables admiten. El área con **Se llama** tiene también **Conectar al
+  atender** (apagado por defecto), para una centralita o IVR: el pasajero escucha el mensaje de la central y marca el
+  interno, sin aviso a la persona (no le llega el resumen) ni tecla 1, y la primera que atiende queda conectada
+  (también un buzón: va en un área de una sola persona); la ayuda dice los minutos de la cola de la central y el
+  riesgo del `*`. La fila dice "· conecta al atender", y con la opción prendida y sin persona de «Si nadie atiende» el
+  aviso a la persona no se muestra (con persona de respaldo vuelve: lo usa ella); lo guardado se conserva.
 - **Teléfono del equipo** (Canales, `/telefono`, `PlanGate direct_calls`): agenda con búsqueda, "marcá un número",
   bajas con confirmación, bloqueados apagados; `/telefono/llamada/:id` entra a una llamada creada por API o MCP.
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,
@@ -544,12 +566,12 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   `test_direct_voice.py`, `test_split_routing.py` (reparto: sorteo, tope, bucle, regla de WhatsApp y
   validaciones), `test_phone_app_host.py`, `test_whatsapp_team_notify.py`, `test_whatsapp_handoffs.py`,
   `test_voice_wiring.py`, `test_dtmf.py`, `test_dtmf_agent.py`, `test_line_spool.py`, `test_line_recordings.py` y `test_migration_0023/0024/0039/0053.py`, en `make test`. La 0050 (`strategy` del número), la 0051
-  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) la 0054 (reintentos), la 0055 (`record_full_call`), la 0056 (`call_logs.line_id`, con índice), la 0059 (`team_busy_message`, `team_no_answer_message`) y la 0060 (reparto: `phone_numbers.agent_percent` y las `split_*`) solo agregan columnas, y `test_migration_0051.py`, `test_migration_0054.py`, `test_migration_0055.py`, `test_migration_0056.py`, `test_migration_0059.py` y `test_migration_0060.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
+  (`team_connect_on_answer`, `team_hold_music`) la 0052 (`no_answer_member_id` del área) la 0054 (reintentos), la 0055 (`record_full_call`), la 0056 (`call_logs.line_id`, con índice), la 0059 (`team_busy_message`, `team_no_answer_message`), la 0060 (reparto: `phone_numbers.agent_percent` y las `split_*`) y la 0063 (`handoff_areas.connect_on_answer`) solo agregan columnas, y `test_migration_0051.py`, `test_migration_0054.py`, `test_migration_0055.py`, `test_migration_0056.py`, `test_migration_0059.py`, `test_migration_0060.py` y `test_migration_0063.py` prueban su ida y vuelta; `make migrate-test` las sube y las baja.
 - **`make e2e-sip`**: stack aislado (`docker-compose.e2e-sip.yml`, `tests/e2e_sip/`): LiveKit, `livekit-sip` y
   nuestro Asterisk con la config de producción contra un Anura falso, en una red interna sin puertos del host ni
   llamadas reales. Señalización (atiende y marca 1 y 2, ocupado 486, no atiende, buzón, congestión 503, atiende y
   corta, dos tramos aislados), `recording.py` (grabación completa de Asterisk: entrante con y sin marcador, saliente con
-  `X-Atentina-Rec` válido e inválido, los dos canales y el DTMF a través del canal grabado; [`TELEFONIA_ANURA.md`](../TELEFONIA_ANURA.md), 1), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1; el progreso: `ringing` antes de atender; la persona de «Si nadie atiende» después de dos que no atienden: marca 1 y conecta, o corta y vuelve el agente) y `direct.py` (saliente contra un eco
+  `X-Atentina-Rec` válido e inválido, los dos canales y el DTMF a través del canal grabado; [`TELEFONIA_ANURA.md`](../TELEFONIA_ANURA.md), 1), `transfer.py` (`Transfer` y `RoomLine` reales, también la cadena de áreas por `no_answer_area_id`: música continua, sin mensaje intermedio, un solo `rerouted`, corte de ciclos, el whisper con las variables del pre-call y el post-call `handoff_accepted` armado solo si la persona marca 1; el progreso: `ringing` antes de atender; la persona de «Si nadie atiende» después de dos que no atienden: marca 1 y conecta, o corta y vuelve el agente; un área con conectar al atender contra una centralita falsa que atiende, lee 2 dígitos y no los devuelve: conecta sin whisper, el pasajero marca 1 y 2, la central los recibe y la llamada sigue hasta que corta; y un destino con early media, que se conecta) y `direct.py` (saliente contra un eco
   del Anura falso, con las teclas del panel en la conversación; entrante al equipo por celular, conectar al atender: una
   central falsa que lee un dígito y lo devuelve, para ver que llega el 1 del que llama y queda como "Marcó 1" en el tramo; y, con `team_fallback=member`, la del número que no atiende y la
   persona de respaldo que marca 1; con reintentos, un destino ocupado que da 486 en cada intento, el aviso y el
@@ -575,8 +597,9 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 ## Pendientes
 
 - **Conectar al atender con la central real** (La Estrella): que su desvío presente nuestro número (guarda
-  `team_loop`), si responde con IVR en early media sin atender (daría `handoff.no_answer` y respaldo) y que su IVR
-  reciba los dígitos por Anura. Con reintentos: qué devuelve saturada (486, 503, timbre sin fin o atiende con su
+  `team_loop`), si responde con IVR en early media sin atender (en `make e2e-sip`, livekit-sip lo da por atendido y
+  conecta; con la central real, no verificado) y que su IVR reciba los dígitos por Anura (en `make e2e-sip`, el
+  pasajero marca y llegan). Con reintentos: qué devuelve saturada (486, 503, timbre sin fin o atiende con su
   mensaje, que con «Conectar al atender» ya es conectada); se ve en los eventos `handoff.*` de las primeras llamadas.
 - **Llamada real con dos celulares propios**, revisando cada caso en Conversaciones:
   - saliente directa: atiende, no atiende, ocupado, inválido, corta cada lado, recarga y Volver a entrar, cerrar la

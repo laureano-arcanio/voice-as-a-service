@@ -820,6 +820,18 @@ agente se elige en su definición, **Derivación a personas**.
      les avisa además por texto) o **Solo aviso por WhatsApp** (una plantilla a una sola persona, la primera con «Recibe
      WhatsApp», sin esperar que acepte; el agente le dice a la persona que ya avisó). El timbre y la tecla de vuelta no se
      ven en un área de aviso.
+   - **Conectar al atender** (solo con **Se llama**; apagado por defecto): para una centralita o IVR. La llamada se
+     conecta apenas atiende y el pasajero escucha el mensaje de la central y marca el interno con el teclado: no hay
+     aviso a la persona (no le llega el resumen) ni tecla 1. La primera que atiende queda conectada, aunque sea un
+     buzón, así que va en un área con una sola persona. La espera en la cola de la central consume minutos del plan;
+     si alguien de la central marca la tecla de vuelta, vuelve el agente. El `*` que marque el pasajero llega a Anura
+     y puede cortar otra llamada de la cuenta. La fila dice "· conecta al atender". Con la opción prendida y sin
+     persona de «Si nadie atiende», el mensaje **Aviso a la persona del equipo** no se muestra (con persona de
+     respaldo vuelve, porque lo usa ella); lo guardado se conserva.
+   - **Pasarle las llamadas del agente a una central:** un área con un solo miembro (la persona de la central, con
+     **Recibe WhatsApp** apagado, para que no le llegue además el aviso), **Conectar al atender** prendido y la
+     **Tecla para devolverle la llamada a la IA** distinta de las que use el interno (por ejemplo `#9`; nunca `*`). El
+     área tiene que estar en **Derivación a personas** del agente.
    - **Fuera de horario, pasa a:** otra área del cliente (vacío: el agente dice el mensaje).
    - **Si nadie atiende:** **El agente toma el mensaje** (por defecto), **Otra área** o **Una persona** (con teléfono, activa y
      fuera del área; no entra en la rotación). Un solo destino: para más pasos, encadená áreas.

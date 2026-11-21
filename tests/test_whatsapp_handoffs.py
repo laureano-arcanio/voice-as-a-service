@@ -9,6 +9,7 @@ import asyncio
 import copy
 import datetime
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -273,9 +274,16 @@ async def due(w) -> int:
     return await w.service.handoffs.sweep()
 
 
+def _tope() -> float:
+    """Los topes de tiempo escalan con los workers: bajo sobrecarga todo tarda más y la
+    falla seria del test, no de la app (N=16 corre saturada a propósito)."""
+    n = int(os.getenv("PYTEST_XDIST_WORKER_COUNT", "0") or 0)
+    return max(1.0, n / 6) if n else 1.0
+
+
 async def until(check, timeout: float = 3.0) -> None:
     """Espera a que se cumpla, dejando correr las tareas."""
-    async with asyncio.timeout(timeout):
+    async with asyncio.timeout(timeout * _tope()):
         while not check():
             await asyncio.sleep(0.005)
 

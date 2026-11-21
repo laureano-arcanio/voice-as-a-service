@@ -106,9 +106,18 @@ export const MESSAGE_FIELDS: MessageField[] = [
   },
 ];
 
-/** Los mensajes que se muestran segun como entrega el area y si rota por WhatsApp de texto. */
-export function messageFieldsFor(delivery: string, rotation: boolean): MessageField[] {
+/**
+ * Los mensajes que se muestran segun como entrega el area, si rota por WhatsApp de texto y si conecta al
+ * atender. Con `connectOnAnswer` no se muestra el aviso a la persona: a una central no se le dice nada (lo usa la
+ * persona de «Si nadie atiende»).
+ */
+export function messageFieldsFor(
+  delivery: string,
+  rotation: boolean,
+  connectOnAnswer = false,
+): MessageField[] {
   return MESSAGE_FIELDS.filter((f) => {
+    if (connectOnAnswer && f.key === 'whisper') return false;
     const group = f.group ?? 'call';
     if (delivery === 'whatsapp') return group === 'notice' || group === 'call+notice';
     if (group === 'notice') return false;
@@ -146,6 +155,13 @@ export const STRATEGY_HELP: Record<string, string> = {
   sequential: 'Siempre empieza por la primera persona de la lista y sigue en orden.',
   round_robin: 'Empieza por la siguiente a la última que recibió una derivación, para repartirlas.',
 };
+
+/**
+ * Ayuda de «Conectar al atender» en un área (docs/features/EQUIPO_TELEFONIA.md): qué saltea, por qué conviene un
+ * área de una sola persona, los minutos de la cola y el `*` de Anura.
+ */
+export const CONNECT_ON_ANSWER_AREA_HELP =
+  'Para una centralita o IVR: el pasajero escucha el mensaje de la central y marca el interno con el teclado. Sin aviso a la persona —no le llega el resumen— ni tecla 1, y la primera que atiende queda conectada, aunque sea un buzón: conviene un área con una sola persona, la central. La espera en la cola de la central consume minutos; si alguien de la central marca la tecla de vuelta, vuelve el agente. El * que marque el pasajero llega a Anura y puede cortar otra llamada de la cuenta.';
 
 /** Estado de un area: inactiva, atiende ahora o fuera de horario. */
 export function areaStatus(area: Pick<HandoffArea, 'active' | 'open_now'>): Label {

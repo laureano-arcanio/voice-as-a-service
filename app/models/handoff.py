@@ -76,6 +76,10 @@ class HandoffArea(IdMixin, TimestampMixin, Base):
         String(36), ForeignKey("team_members.id", ondelete="SET NULL"), nullable=True)
     # call: se llama a la persona. whatsapp: solo aviso por plantilla, a una persona, sin aceptacion.
     delivery: Mapped[str] = mapped_column(String(16), default="call", server_default="call")
+    # Conectar al atender, para una centralita o IVR: los miembros del area se conectan apenas atienden, sin
+    # whisper, deteccion de contestador ni tecla 1; el pasajero escucha el mensaje de la central y marca el interno.
+    # La persona de «Si nadie atiende» mantiene el whisper y el 1 (es una persona, no la central).
+    connect_on_answer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # {"account_id", "template": {"name", "language", "params"}, "call_template": {...}, "wait_seconds"}
     whatsapp: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
 

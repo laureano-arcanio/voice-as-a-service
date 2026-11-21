@@ -100,8 +100,11 @@ def revisar(segmento: list[str]) -> str | None:
             if not sub or sub[0] not in DOCKER_COMPOSE:
                 return f"de docker compose solo se permite: {', '.join(sorted(DOCKER_COMPOSE))}"
     elif cmd == "make":
+        # test-afectados solo como listado (LISTAR=1, no corre nada); sin LISTAR corre tests.
+        if "test-afectados" in args and "LISTAR=1" not in args:
+            return "make test-afectados solo con LISTAR=1 (el listado no corre nada)"
         objetivos = [a for a in args if not a.startswith("-") and "=" not in a]
-        if "-n" not in args and "--dry-run" not in args and not all(o in MAKE for o in objetivos):
+        if "test-afectados" not in args and "-n" not in args and "--dry-run" not in args and not all(o in MAKE for o in objetivos):
             return f"de make solo se permite: {', '.join(sorted(MAKE))} (o make -n)"
     elif cmd == "curl":
         if any(a == p or a.startswith(p + "=") for a in args for p in CURL_ESCRIBE):

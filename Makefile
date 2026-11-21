@@ -426,6 +426,9 @@ web-build: ## Build de la UI en web/dist (la imagen de app la compila sola en el
 web-check: ## Lint, tipos y tests de la UI
 	cd web && npm ci && npm run lint && npm run typecheck && npm test
 
+web-test: ## Tests de la UI (vitest; sin npm ci, para iterar rapido)
+	cd web && npm test
+
 voces-retratos: ## Regenera los retratos de las voces (web/public/voces y landing/public/voces, los mismos SVG)
 	python3 scripts/brand/voces_retratos.py
 
@@ -475,8 +478,47 @@ mcp-registry-publish: ## Publica deploy/mcp/server.json en el registro oficial d
 
 # --- Tests ---------------------------------------------------------------
 
-test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con make test-tools-code)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/deploy:/app/deploy:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro -v $(CURDIR)/docker-compose.yml:/app/docker-compose.yml:ro -v $(CURDIR)/Dockerfile:/app/Dockerfile:ro -v $(CURDIR)/.dockerignore:/app/.dockerignore:ro -v $(CURDIR)/.env.example:/app/.env.example:ro -v $(CURDIR)/apps:/app/apps:ro app pytest -q $(ARGS)
+# Workers de pytest-xdist. Medido en este host (Ryzen 7 5700X, 8 nucleos/16 hilos que
+# ademas corren el stack de desarrollo y otras sesiones de agente), suite completa con
+# el setup rapido: 1: 310 s, 4: 92, 6: 71, 8: 60. De 6 a 8 se gana poco (15 %) ocupando
+# todos los nucleos fisicos: dos sesiones con 8 saturan los 16 hilos y bajo saturacion
+# aparecen fallas de tiempo. Con 6, dos sesiones a la vez usan 12 de 16.
+N ?= 6
+
+# Mapa de dependencias de los tests (tests/mapa_plugin.py): lo escribe cada suite
+# completa y scripts/dev/tests_afectados.py lo lee para elegir los tests afectados.
+# Solo con ARGS vacio (suite completa); el commit va por env porque el contenedor no ve .git.
+SHA := $(shell git rev-parse --short HEAD)
+ifeq ($(strip $(ARGS)),)
+MAPA_ENV := -e TEST_MAPA=/app/scratch/test-mapa.json -e TEST_MAPA_COMMIT=$(SHA)
+MAPA_MOUNT := -v $(CURDIR)/scratch:/app/scratch
+MAPA_PLUGIN := -p tests.mapa_plugin
+endif
+
+test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con make test-tools-code). N=workers (0: serie), ARGS pasa a pytest
+	@mkdir -p $(CURDIR)/scratch/.pytest_cache
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/deploy:/app/deploy:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro -v $(CURDIR)/docker-compose.yml:/app/docker-compose.yml:ro -v $(CURDIR)/Dockerfile:/app/Dockerfile:ro -v $(CURDIR)/.dockerignore:/app/.dockerignore:ro -v $(CURDIR)/.env.example:/app/.env.example:ro -v $(CURDIR)/apps:/app/apps:ro -v $(CURDIR)/scratch/.pytest_cache:/app/.pytest_cache $(MAPA_MOUNT) $(MAPA_ENV) app sh -c 'if python -c "import xdist" 2>/dev/null && [ "$(N)" != "0" ]; then exec pytest -q -n $(N) --dist load --durations=10 $(MAPA_PLUGIN) $(ARGS); fi; [ "$(N)" != "0" ] && echo "imagen sin pytest-xdist: make test-image" >&2; exec pytest -q --durations=10 $(MAPA_PLUGIN) $(ARGS)'
+
+test-image: ## Reconstruye la imagen de app (la usa make test; no levanta nada)
+	$(COMPOSE) build app
+
+test-afectados: ## Tests afectados por el diff contra main (o ARCHIVOS="..."). LISTAR=1 solo lista
+	@if [ "$(LISTAR)" = "1" ]; then \
+	  python3 scripts/dev/tests_afectados.py --listar $(if $(ARCHIVOS),--archivos "$(ARCHIVOS)"); \
+	else \
+	  arch=$$(python3 scripts/dev/tests_afectados.py $(if $(ARCHIVOS),--archivos "$(ARCHIVOS)")); \
+	  if [ "$$arch" = "todo" ]; then echo "Suite completa"; $(MAKE) --no-print-directory test; \
+	  else \
+	    n=$$(python3 scripts/dev/tests_afectados.py --contar --archivos "$$arch"); \
+	    if [ "$$n" -lt 150 ]; then e="N=0"; echo "Pocos tests ($$n): en serie"; else e=""; fi; \
+	    $(MAKE) --no-print-directory test $$e ARGS="$$arch"; \
+	  fi; \
+	fi
+
+web-afectados: ## Tests de UI afectados por el diff contra main (o ARCHIVOS="..."), con vitest related
+	@files=$$(python3 scripts/dev/tests_afectados.py --web $(if $(ARCHIVOS),--archivos "$(ARCHIVOS)")); \
+	[ -n "$$files" ] || { echo "sin cambios en web/src: nada que correr"; exit 0; }; \
+	echo "vitest related: $$files"; cd web && npx vitest related --run $$(echo $$files | sed 's/\bweb\///g')
 
 REGISTROS_TEST := docker compose -f apps/registros/compose.test.yaml
 REGISTROS_DEV := $(REGISTROS_TEST) -p registros-dev --profile dev

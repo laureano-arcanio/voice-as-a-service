@@ -231,6 +231,11 @@ export function TeamPage() {
                                   {a.delivery === 'whatsapp' && (
                                     <Badge color="blue">Solo aviso por WhatsApp</Badge>
                                   )}
+                                  {a.connect_on_answer && (
+                                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                                      · conecta al atender
+                                    </Text>
+                                  )}
                                 </Group>
                                 {a.description && (
                                   <Text size="xs" c="dimmed" lineClamp={1} maw={280} title={a.description}>

@@ -24,6 +24,20 @@ y el admin. Volver a verlos: `make dev-login`. Es **http://192.168.1.99:8211** (
 | `make dev-health`, `dev-ps`, `dev-logs S=app`, `dev-psql` | Estado y diagnóstico |
 | `make dev-down`, `make dev-reset` | Para el stack; borra base y audios |
 | `make test`, `make web-check` | Tests sin modelo real, como siempre |
+| `make test N=0 ARGS="tests/test_api.py"` | Serie (para depurar con `pdb`/`-s`); `N` son los workers de pytest-xdist (default 6) |
+| `make test ARGS="--lf"` | Repite lo que falló en la corrida anterior (la caché vive en `scratch/.pytest_cache`; dos sesiones del mismo checkout la comparten: `--lf` puede sumar tests de la otra) |
+| `make test-afectados` | Corre solo los tests afectados por el diff contra `main` (o `ARCHIVOS="..."`); si el cambio es central, corre la suite completa. `LISTAR=1` solo lista, con el motivo |
+| `make web-test`, `make web-afectados` | Tests de la UI (`vitest`, sin `npm ci`); los afectados por el diff (`vitest related`) |
+| `make test-image` | Reconstruye la imagen de `app` si `make test` avisa que le falta `pytest-xdist` |
+
+**Tests afectados:** `make test` en suite completa (sin `ARGS`) escribe `scratch/test-mapa.json`: qué archivos de
+`app/`, `migrations/`, `crm/` y `scripts/` ejecuta cada archivo de test, con el tiempo por archivo
+(`tests/mapa_plugin.py`, ~2 % de sobrecosto). `scripts/dev/tests_afectados.py` elige con ese mapa los tests del diff
+(`make test-afectados`) y corre la suite completa si el cambio es central (`tests/conftest.py`, `tests/helpers.py`,
+`pytest.ini`, `requirements.txt`, `app/models/**`, `app/db.py`, `app/config.py`, `migrations/env.py`), si un `.py` no
+está en el mapa o si lo elegido pasa del 60 % del tiempo de la suite. Limitación: el código a nivel de módulo (clases
+de `app/models/`, constantes, `Settings`) corre al importar y no queda atribuido a ningún test; archivo sin tests en
+el mapa ⇒ suite completa. El cierre de cada tarea sigue siendo la suite completa.
 
 **Qué corre** (`docker-compose.dev.yml`, proyecto `atentina-dev`): `db`, `migrate`, `app`, `agent`, `tools-runner`,
 `tools-egress` y `livekit`, con base, audios, red y LiveKit propios.
