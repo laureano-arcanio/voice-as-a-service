@@ -1,9 +1,10 @@
 """El motor: el LLM de conversacion decide la respuesta y el fin; la extraccion saca los
 datos en segundo plano al terminar; la app valida y guarda."""
 import asyncio
+import json
 
 from app.conversation.engine import ConversationEngine
-from app.conversation.models import AgentTurn, TurnMedia
+from app.conversation.models import AgentTurn, Message, TurnMedia
 from app.llm.prompt import classic_history
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
@@ -254,3 +255,81 @@ async def test_mark_voice_note_marks_the_last_reply(store):
     messages = store.get(cid).messages
     assert [m.voice_note for m in messages] == [False, False, True]
     assert not engine.mark_voice_note("no-existe")
+
+
+# --- Repetición de la última respuesta (repeat_last_reply, docs/features/ATENCION_TURNO.md) ---
+
+async def test_repeat_repeats_the_last_response_without_greeting_again(store):
+    """"¿cómo?" / "no te escuché": el turno repite la última respuesta tal cual, sin volver a saludar,
+    y queda marcado en el mensaje del agente."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="", repeat=True)), store)
+    cid = start_with(engine, last_question="¿A qué hora quiere la demo?")
+    state, turn = await engine.process_turn(cid, "¿cómo?")
+    assert turn.repeat is True and turn.status == "active"
+    assert turn.assistant_message == "¿A qué hora quiere la demo?"
+    saved = store.get(cid)
+    assert [m.text for m in saved.messages[-2:]] == ["¿cómo?", "¿A qué hora quiere la demo?"]
+    assert saved.messages[-1].repeat is True and saved.messages[-2].repeat is False
+    assert saved.messages[0].text != turn.assistant_message   # la apertura no se repite
+
+
+async def test_repeat_respects_the_text_if_the_model_wrote(store):
+    """Si el modelo escribió algo antes de la herramienta, se usa su texto: no se agrega la respuesta
+    anterior (no se duplica el audio)."""
+    llm = FakeLLM(AgentTurn(assistant_message="Te repito: ¿a qué hora quiere la demo?", repeat=True))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, last_question="¿A qué hora quiere la demo?")
+    _, turn = await engine.process_turn(cid, "¿cómo?")
+    assert turn.assistant_message == "Te repito: ¿a qué hora quiere la demo?"
+    saved = store.get(cid)
+    assert saved.messages[-1].text == "Te repito: ¿a qué hora quiere la demo?"
+    assert saved.messages[-1].repeat is True
+
+
+async def test_repeat_ignores_handoff_legs_and_the_person(store):
+    """La última respuesta excluye las piernas de derivación y lo que dijo la persona del equipo (la misma
+    regla que la "última pregunta" del watchdog, app/voice/worker.py): cuenta la última voz real del agente."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="", repeat=True)), store)
+    state, _ = engine.start_conversation("sales_discovery")
+    state.messages += [Message(role="user", text="Quiero hablar con alguien de ventas"),
+                       Message(role="assistant", text="Te paso con Ventas.", handoff="Ventas"),
+                       Message(role="assistant", text="Hola, soy María de Ventas.", person="María",
+                               handoff_leg="l1")]
+    engine.store.save(state)
+    _, turn = await engine.process_turn(state.conversation_id, "¿cómo?")
+    assert turn.assistant_message == "Te paso con Ventas."
+
+
+async def test_repeat_does_not_complete_nor_extract(store):
+    """Un turno repetido no cambia el resultado: repeat no toca el status y la extracción no se dispara."""
+    llm = FakeLLM(AgentTurn(assistant_message="", repeat=True), extractions=[{"contact_name": "Juan"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, last_question="¿Empresa?")
+    state, turn = await engine.process_turn(cid, "¿cómo?")
+    assert (turn.status, state.status) == ("active", "active")
+    assert cid not in engine.extractions and llm.extract_calls == []
+
+
+async def test_repeat_turn_is_in_the_history_as_a_plain_reply(store):
+    """El historial del LLM no guarda la llamada a la herramienta de plataforma: el turno repetido queda
+    como [user, assistant con la respuesta repetida] y el modelo no la repite como herramienta del cliente."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="", repeat=True)), store)
+    cid = start_with(engine, last_question="¿Empresa?")
+    await engine.process_turn(cid, "¿cómo?")
+    state = store.get(cid)
+    assert state.messages[-1].tools is None
+    history = classic_history(state.messages, False)
+    assert history[-2]["role"] == "user" and history[-2]["content"] == "¿cómo?"
+    assert history[-1] == {"role": "assistant", "content": "¿Empresa?"}
+    assert all("repeat_last_reply" not in json.dumps(m) for m in history)
+
+
+async def test_a_repeat_turn_can_be_retracted(store):
+    """La persona interrumpe la repetición: el turno se deshace como cualquier otro (settle_last_reply) y
+    el siguiente recibe el mensaje completo."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="", repeat=True)), store)
+    cid = start_with(engine, last_question="¿Empresa?")
+    state, _ = await engine.process_turn(cid, "¿cómo?")
+    n = len(state.messages)
+    assert engine.retract_last_turn(cid)
+    assert len(store.get(cid).messages) == n - 2

@@ -83,10 +83,11 @@ LIMIT_REASONS = ("concurrency_limit", "calls_per_hour", "calls_per_day", "calls_
                  "outbound_minutes")
 # Como terminan: los de las llamadas con agente y, desde las llamadas directas, los de una persona del equipo
 # (person_hangup), la entrante que nadie atendio (team_no_answer, after_hours), la saliente que no llego a hablar
-# (no_answer, busy, voicemail, user_not_joined), los topes (max_duration, quota_exhausted) y worker_error.
+# (no_answer, busy, voicemail, user_not_joined), los topes (max_duration, quota_exhausted), el silencio sin
+# respuesta (no_response, docs/features/ATENCION_TURNO.md) y worker_error.
 ENDED_REASONS = ("customer_hangup", "agent_end", "person_hangup", "off_topic", "hangup_by_user", "team_no_answer",
                  "after_hours", "no_answer", "busy", "voicemail", "user_not_joined", "max_duration",
-                 "quota_exhausted", "blocked_number", "rejected", "worker_error", "failed", "other")
+                 "quota_exhausted", "no_response", "blocked_number", "rejected", "worker_error", "failed", "other")
 DURATION_BUCKETS = (("0-15s", 15), ("15-60s", 60), ("1-3m", 180), ("3-5m", 300), ("5-10m", 600), ("10m+", None))
 EARLY_SECONDS = 15
 NO_CONTACT = {"busy": "busy", "no_answer": "no_answer", "voicemail": "voicemail", "invalid": "invalid",
@@ -343,7 +344,7 @@ _ENDED_AS = {"customer_hangup": "customer_hangup", "completed": "agent_end", "pe
              "off_topic": "off_topic", "hangup_by_user": "hangup_by_user", "team_no_answer": "team_no_answer",
              "after_hours": "after_hours", "no_answer": "no_answer", "busy": "busy", "voicemail": "voicemail",
              "user_not_joined": "user_not_joined", "max_duration": "max_duration",
-             "quota_exhausted": "quota_exhausted", "worker_error": "worker_error"}
+             "quota_exhausted": "quota_exhausted", "no_response": "no_response", "worker_error": "worker_error"}
 ENDED = case(
     (and_(CallRow.status == "rechazada", CallRow.ended_reason == "blocked_number"), "blocked_number"),
     (CallRow.status == "rechazada", "rejected"),

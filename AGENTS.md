@@ -26,7 +26,8 @@ El host `192.168.1.99`, donde se trabaja con el repo, es el **entorno de desarro
 
 Docs de features en `docs/features/`: [`WHATSAPP`](docs/features/WHATSAPP.md), [`META_APP_REVIEW`](docs/features/META_APP_REVIEW.md),
 [`CAMPANAS`](docs/features/CAMPANAS.md), [`EQUIPO_TELEFONIA`](docs/features/EQUIPO_TELEFONIA.md) (derivaciones y llamadas
-directas), [`LINK_LLAMADA`](docs/features/LINK_LLAMADA.md), [`HERRAMIENTAS`](docs/features/HERRAMIENTAS.md),
+directas), [`ATENCION_TURNO`](docs/features/ATENCION_TURNO.md) (la persona no responde: avisos, repetición, corte),
+[`LINK_LLAMADA`](docs/features/LINK_LLAMADA.md), [`HERRAMIENTAS`](docs/features/HERRAMIENTAS.md),
 [`LLM_CONEXIONES`](docs/features/LLM_CONEXIONES.md) (BYOK y tu propio agente), [`MCP`](docs/features/MCP.md),
 [`REPORTES`](docs/features/REPORTES.md), [`LLM_REPLICAS`](docs/features/LLM_REPLICAS.md) (segundo server y
 balanceo del LLM), [`COBROS`](docs/features/COBROS.md), [`LEGAL`](docs/features/LEGAL.md),
@@ -114,6 +115,7 @@ Medido el 5-nov-2026 sobre las primeras 36 corridas del ciclo: la implementació
 | Consultar o editar la base de producción | Permitido, **en server2**: `ssh server2`, `cd voice-as-a-service`, `make psql`, o `docker exec -i voice-as-a-service-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` para scripts. |
 | Admin / "ver como cliente" | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md), "Soporte del admin": `/admin/*`, header `X-Atentina-Client`, 403 `support_read_only` en cuenta, plan y cobros. |
 | Una función: texto a voz o transcripción, WhatsApp, campañas, derivaciones, llamadas directas, link para llamar, herramientas, BYOK, MCP, reportes, cobros, términos, landing, fichas (Registros) | Su doc en [`docs/features/`](docs/features/). |
+| Llamada que queda muda, la persona no responde, "no te escuchó" | [`docs/features/ATENCION_TURNO.md`](docs/features/ATENCION_TURNO.md): avisos y corte por silencio, repetición de la última respuesta; se activa por agente, sin deploy de código. |
 | Cambiar la UI del dashboard | React + Mantine en `web/` (`make web-check`), [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md). Lo nuevo se resuelve en `web/src/theme.ts` y `web/src/components/`. |
 | Cambiar la landing | Astro + Tailwind en `landing/` ([`docs/features/LANDING.md`](docs/features/LANDING.md)), [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md). |
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |

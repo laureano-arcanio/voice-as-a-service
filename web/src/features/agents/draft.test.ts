@@ -12,6 +12,7 @@ import {
   renameField,
   stableJson,
   toDraft,
+  TURN_ATTENTION_DEFAULTS,
   variableNameError,
   withPhoneField,
 } from './draft';
@@ -409,5 +410,96 @@ describe('tu propio agente (external)', () => {
     const d = toDraft(ext as never);
     expect(errorTarget(d, 'external.connection')).toEqual({ section: 'externo' });
     expect(pathLabel(d, 'external.on_errors')).toBe('Tu propio agente › después de los errores');
+  });
+});
+
+describe('turn_attention (si la persona no responde)', () => {
+  // Como lo guarda el servidor: el bloque completo, con los defaults llenos.
+  const block = {
+    enabled: true,
+    reminder_after_ms: 7000,
+    reminder_max: 2,
+    reminder_gap_ms: 7000,
+    end_after_ms: 30000,
+    stt_retry: true,
+    transcription_timeout_ms: 3000,
+    repeat_last_reply: true,
+    reminder_text: '',
+    end_text: '',
+    on_end: 'hang_up',
+    on_end_area_id: '',
+  };
+
+  it('ida y vuelta con el bloque activo y con valores custom (ms ↔ segundos)', () => {
+    const on = { ...def, turn_attention: { ...block } };
+    expect(stableJson(fromDraft(toDraft(on)))).toBe(stableJson(on));
+    const custom = {
+      ...def,
+      turn_attention: {
+        ...block,
+        reminder_after_ms: 5000,
+        reminder_max: 3,
+        // 3333 ms = 3,333 s: al volver tiene que dar exacto.
+        reminder_gap_ms: 3333,
+        end_after_ms: 45000,
+        stt_retry: false,
+        transcription_timeout_ms: 2000,
+        repeat_last_reply: false,
+        reminder_text: '¿Me escuchás bien?',
+        end_text: 'Chau, gracias',
+        on_end: 'transfer',
+        on_end_area_id: 'a1',
+      },
+    };
+    const d = toDraft(custom);
+    expect(d.turnAttention).toMatchObject({
+      reminderAfterS: 5,
+      reminderMax: 3,
+      reminderGapS: 3.333,
+      endAfterS: 45,
+      transcriptionTimeoutS: 2,
+      onEnd: 'transfer',
+      onEndAreaId: 'a1',
+    });
+    expect(stableJson(fromDraft(d))).toBe(stableJson(custom));
+  });
+
+  it('sin bloque no se escribe: una definición vieja queda igual', () => {
+    expect(toDraft(def).turnAttention).toEqual({ enabled: false, ...TURN_ATTENTION_DEFAULTS });
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('turn_attention');
+    expect(stableJson(fromDraft(toDraft(def)))).toBe(stableJson(def));
+  });
+
+  it('bloque apagado con los defaults no se escribe', () => {
+    const off = { ...def, turn_attention: { ...block, enabled: false } };
+    expect(toDraft(off).turnAttention.enabled).toBe(false);
+    expect(fromDraft(toDraft(off))).not.toHaveProperty('turn_attention');
+  });
+
+  it('apagado con un valor custom se escribe con enabled: false', () => {
+    const off = { ...def, turn_attention: { ...block, enabled: false, end_after_ms: 60000 } };
+    const out = fromDraft(toDraft(off)) as { turn_attention: Record<string, unknown> };
+    expect(out.turn_attention).toMatchObject({ enabled: false, end_after_ms: 60000 });
+  });
+
+  it('un bloque parcial se completa con los defaults (como lo normaliza el servidor)', () => {
+    const d = toDraft({ ...def, turn_attention: { enabled: true } });
+    expect(d.turnAttention).toMatchObject({ enabled: true, reminderAfterS: 7, endAfterS: 30 });
+    expect(fromDraft(d).turn_attention).toMatchObject({
+      enabled: true,
+      reminder_after_ms: 7000,
+      end_after_ms: 30000,
+    });
+  });
+
+  it('los errores de turn_attention llevan a su sección y se nombran como en el formulario', () => {
+    const d = toDraft(def);
+    expect(errorTarget(d, 'turn_attention.end_after_ms')).toEqual({ section: 'sin_respuesta' });
+    expect(errorTarget(d, 'turn_attention.on_end')).toEqual({ section: 'sin_respuesta' });
+    expect(errorTarget(d, 'turn_attention.on_end_area_id')).toEqual({ section: 'sin_respuesta' });
+    expect(pathLabel(d, 'turn_attention.end_after_ms')).toBe(
+      'Si la persona no responde › cerrar la llamada a los',
+    );
+    expect(pathLabel(d, 'turn_attention.on_end_area_id')).toBe('Si la persona no responde › área al cerrar');
   });
 });

@@ -65,6 +65,15 @@ class Settings(BaseSettings):
         "Hola. En este momento no podemos atender tu llamada. Por favor, volvé a llamar más tarde. Gracias."
     )
     quota_end_message: str = "Disculpá, tenemos que terminar la llamada. Gracias por tu tiempo."
+    # Atención del turno en voz (turn_attention; docs/features/ATENCION_TURNO.md): textos de los
+    # avisos de silencio, protocolo del canal como el de minutos (el texto del agente gana).
+    voice_no_response_reminder: str = "¿Me escuchás? Te repito:"      # se le agrega la última pregunta
+    voice_no_response_second: str = "Sigo acá. ¿Querés que te pase con una persona?"      # con áreas
+    voice_no_response_second_no_areas: str = "Sigo acá. ¿Me repetís lo que necesitás?"    # sin áreas
+    voice_no_response_end: str = (
+        "No te escucho bien. Podés volver a llamarnos o escribirnos por WhatsApp. ¡Gracias!"
+    )
+    voice_no_response_stt: str = "No te escuché, ¿podés repetir?"
 
     # --- LiveKit ---
     livekit_url: str = ""

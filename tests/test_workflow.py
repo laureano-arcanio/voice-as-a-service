@@ -102,3 +102,75 @@ def test_wa_session_minutes_rejects_non_positive(minutes):
 def test_wa_session_minutes_accepts_a_custom_window():
     data = load_reference("sales_discovery").model_dump(mode="json")
     assert Workflow.model_validate({**data, "wa_session_minutes": 30}).wa_session_minutes == 30
+
+
+def _def(**extra):
+    """Definicion minima que valida, con lo que cambia en cada test."""
+    return {"id": "x", "version": 1, "agent": {"name": "A", "language": "es"}, **extra}
+
+
+def test_turn_attention_is_none_without_the_block(workflow):
+    # Las definiciones existentes no tienen el bloque: queda apagado.
+    assert workflow.turn_attention is None
+
+
+def test_turn_attention_missing_fields_get_the_defaults():
+    assert Workflow.model_validate(_def(turn_attention={})).turn_attention.enabled is False
+    # Defaults del plan (2.1): 7 s el primer aviso, 2 avisos, cierre a los 30 s.
+    ta = Workflow.model_validate(_def(turn_attention={"enabled": True})).turn_attention
+    assert ta.model_dump() == {"enabled": True, "reminder_after_ms": 7000, "reminder_max": 2,
+                               "reminder_gap_ms": 7000, "end_after_ms": 30000, "stt_retry": True,
+                               "transcription_timeout_ms": 3000, "repeat_last_reply": True,
+                               "reminder_text": "", "end_text": "", "on_end": "hang_up",
+                               "on_end_area_id": ""}
+
+
+@pytest.mark.parametrize("field, value", [
+    ("reminder_after_ms", 2999), ("reminder_after_ms", 30001),
+    ("reminder_max", -1), ("reminder_max", 6),
+    ("reminder_gap_ms", 2999), ("reminder_gap_ms", 30001),
+    ("end_after_ms", 14999), ("end_after_ms", 120001),
+    ("transcription_timeout_ms", 999), ("transcription_timeout_ms", 10001),
+])
+def test_turn_attention_rejects_out_of_range(field, value):
+    with pytest.raises(ValidationError, match=f"turn_attention.{field}"):
+        Workflow.model_validate(_def(turn_attention={field: value}))
+
+
+def test_turn_attention_transfer_needs_handoff_areas():
+    with pytest.raises(ValidationError, match="turn_attention.on_end"):
+        Workflow.model_validate(_def(turn_attention={"enabled": True, "on_end": "transfer"}))
+
+
+def test_turn_attention_transfer_area_has_to_be_in_handoff():
+    areas = {"areas": [{"area_id": "admin", "when": "administracion"}]}
+    with pytest.raises(ValidationError, match="turn_attention.on_end_area_id"):
+        Workflow.model_validate(_def(handoff=areas, turn_attention={
+            "enabled": True, "on_end": "transfer", "on_end_area_id": "ventas"}))
+
+
+def test_turn_attention_transfer_to_an_area_of_handoff():
+    areas = {"areas": [{"area_id": "admin", "when": "administracion"}]}
+    ta = Workflow.model_validate(_def(handoff=areas, turn_attention={
+        "enabled": True, "on_end": "transfer", "on_end_area_id": "admin"})).turn_attention
+    assert (ta.on_end, ta.on_end_area_id) == ("transfer", "admin")
+
+
+def test_turn_attention_rejects_end_before_the_first_reminder():
+    with pytest.raises(ValidationError, match="turn_attention.end_after_ms"):
+        Workflow.model_validate(_def(turn_attention={
+            "enabled": True, "reminder_after_ms": 30000, "end_after_ms": 15000}))
+
+
+def test_turn_attention_without_reminders_closes_without_warning():
+    # reminder_max=0: sin avisos, el cierre puede ser antes de reminder_after_ms.
+    ta = Workflow.model_validate(_def(turn_attention={
+        "enabled": True, "reminder_max": 0, "reminder_after_ms": 30000,
+        "end_after_ms": 15000})).turn_attention
+    assert ta.reminder_max == 0 and ta.end_after_ms < ta.reminder_after_ms
+
+
+@pytest.mark.parametrize("field", ["reminder_text", "end_text"])
+def test_turn_attention_texts_are_capped_at_300(field):
+    with pytest.raises(ValidationError, match=f"turn_attention.{field}"):
+        Workflow.model_validate(_def(turn_attention={"enabled": True, field: "x" * 301}))

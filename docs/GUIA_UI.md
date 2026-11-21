@@ -648,6 +648,28 @@ La pestaña **JSON**, el slug y **Ver prompt** los ve todo cliente, como el admi
 mismo con su API key (`POST /api/v1/agents` sin `client_id`); `engine` ya no existe en la definición
 (el de una definición vieja se ignora) y tu propio agente es `external`.
 
+### Si la persona no responde (pestaña Voz y canales)
+
+En las llamadas: qué hace el agente cuando quien llamó queda en silencio
+([`ATENCION_TURNO.md`](features/ATENCION_TURNO.md)). **Activar** está apagado en los agentes existentes
+hasta que se prende en una versión nueva (uno creado de una plantilla ya lo trae prendido); por
+WhatsApp no aplica.
+
+- **Activar** prende los avisos: con los valores por defecto, a los 7 s de silencio el agente repite la
+  última pregunta, a los 14 s avisa de nuevo y a los 30 s cierra la llamada con un aviso.
+- **Repetir la última pregunta a los / Espera entre avisos / Cantidad de avisos** ajustan esos tiempos
+  (en segundos; 0 avisos = solo el cierre).
+- **Cerrar la llamada a los** es el silencio total desde la última respuesta del agente. Al vencer, hace
+  lo que dice **Al cerrar**: **Cortar** o **Pasar con una persona** (un área marcada en Derivación a
+  personas; vacío = la primera).
+- **Texto del primer aviso / Texto del cierre** cambian qué dice en cada caso; vacíos = los de la
+  plataforma. **Repetir cuando pide ¿cómo? o dice que no escuchó** repite su última respuesta tal cual, y
+  **Pedir que repita si no se entiende lo que dijo** entra en juego si la persona habló pero no se pudo
+  transcribir.
+
+Guardar sin tocar la sección no cambia la versión: el bloque `turn_attention` solo va a la definición si
+está prendido o si algún valor difiere del default.
+
 ### Modelos (cliente) y Modelo de lenguaje de un agente
 
 Por defecto todos los agentes contestan con el modelo de Atentina, **atentina-conversational-v1** (el

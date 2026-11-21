@@ -9,9 +9,9 @@ import httpx2
 import pytest
 from cryptography.fernet import Fernet
 
-from app.agents.templates import load_reference
+from app.agents.templates import load_reference, reference_data
 from app.config import settings
-from app.conversation.models import ConversationState, Message
+from app.conversation.models import ConversationState, Message, Workflow
 from app.llm.anthropic_client import (
     OPENING,
     AnthropicClient,
@@ -230,6 +230,18 @@ def test_converse_transfer_call_with_areas(state):
     turn = asyncio.run(client.converse(workflow, state, "quiero hablar con alguien"))
     assert (turn.status, turn.handoff) == ("active", "Ventas")
     assert [t["name"] for t in fake.calls[0]["tools"]] == ["end_call", "transfer_call"]
+
+
+def test_converse_repeat_last_reply_breaks_without_another_call(state):
+    """Como en LLMClient: la repetición marca el turno vacío (la última respuesta la pone el motor) y no
+    se vuelve a llamar al modelo."""
+    workflow = Workflow.model_validate({**reference_data("sales_discovery"),
+                                        "turn_attention": {"enabled": True}})
+    client, fake = client_with(reply("", tools=[("repeat_last_reply", {})]))
+    turn = asyncio.run(client.converse(workflow, state, "¿cómo?"))
+    assert turn.repeat is True and turn.assistant_message == ""
+    assert len(fake.calls) == 1
+    assert [t["name"] for t in fake.calls[0]["tools"]] == ["end_call", "repeat_last_reply"]
 
 
 def test_extract_returns_fields(state):

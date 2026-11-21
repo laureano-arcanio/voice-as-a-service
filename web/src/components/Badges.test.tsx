@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MantineProvider } from '@mantine/core';
-import { isUnanswered } from '@/lib/labels';
+import { endReasonLabel, isUnanswered } from '@/lib/labels';
 import { CallStatusBadge } from './Badges';
 
 const view = (ui: React.ReactElement) => render(<MantineProvider>{ui}</MantineProvider>);
@@ -27,12 +27,17 @@ describe('CallStatusBadge', () => {
       ['completed', 'Finalizada por el agente'],
       ['off_topic', 'Finalizada por el agente'],
       ['max_duration', 'Finalizada por el sistema'],
+      ['no_response', 'Finalizada por el sistema'],
     ] as const;
     for (const [reason, label] of cases) {
       const { unmount } = view(<CallStatusBadge status="finalizada" endedReason={reason} />);
       expect(screen.getByText(label)).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it('el corte por silencio se etiqueta "Sin respuesta" (detalle y reportes)', () => {
+    expect(endReasonLabel('no_response')).toBe('Sin respuesta');
   });
 
   it('una finalizada sin motivo conocido (llamadas viejas) sigue siendo "Finalizada"', () => {

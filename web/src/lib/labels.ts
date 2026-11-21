@@ -26,7 +26,8 @@ export function isUnanswered(c: { status?: string | null; ended_reason?: string 
 /**
  * Quién cortó una llamada finalizada, por `ended_reason` (lo deja el worker de voz, nunca el LLM): el destinatario, la
  * persona del otro lado que llamó o atendió; el equipo (una persona en la llamada o el botón Cortar llamada del panel), el agente (terminó
- * la conversación, fuera de tema o contestador) o el sistema (tope de minutos o de duración, el worker se cayó).
+ * la conversación, fuera de tema o contestador) o el sistema (tope de minutos o de duración, cortó porque la
+ * persona no respondió, el worker se cayó).
  * Sin motivo o con uno que no se conoce (llamadas viejas): null, queda "Finalizada" a secas.
  */
 const ENDED_BY: Record<string, string> = {
@@ -40,6 +41,7 @@ const ENDED_BY: Record<string, string> = {
   external_agent_not_in_plan: 'el agente',
   max_duration: 'el sistema',
   quota_exhausted: 'el sistema',
+  no_response: 'el sistema',
   worker_stopped: 'el sistema',
   'parent process shutdown': 'el sistema',
   'room disconnected': 'el sistema',
@@ -69,6 +71,7 @@ export const CALL_END_REASON: Record<string, string> = {
   sip_call_failed: 'No se pudo marcar',
   max_duration: 'Duración máxima',
   quota_exhausted: 'Sin minutos',
+  no_response: 'Sin respuesta',
   blocked_number: 'Número bloqueado',
   team_loop: 'Bucle de desvío',
   external_error: 'Error del agente externo',

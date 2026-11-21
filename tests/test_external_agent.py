@@ -195,6 +195,37 @@ async def test_transfer_call_only_with_areas(api, admin, endpoint):
     assert turn.handoff == "Ventas" and turn.status == "active"
 
 
+async def test_repeat_last_reply_reaches_the_external_agent(api, admin, endpoint):
+    """El agente propio recibe repeat_last_reply (voz, turn_attention) y, si la llama sin texto, el motor
+    repite la última respuesta: sin la sustitución del camino external quedaría mudo. Lo que suena lo empuja
+    llm_node (el stream no trajo nada), y el turno queda en el historial como una respuesta más."""
+    acme, conn, r = setup(admin)
+    definition = {**r.json()["definition"], "turn_attention": {"enabled": True}}
+    saved = admin.put(f"{V1}/agents/{r.json()['id']}/definition", json={"definition": definition})
+    assert saved.status_code == 200, saved.text
+    state, _ = api.engine.start_conversation(r.json()["id"], acme["id"])
+    endpoint.replies = [sse({"content": "¿En qué te ayudo?"}),
+                        sse({"tool_calls": [
+                            {"index": 0, "id": "c", "type": "function",
+                             "function": {"name": "repeat_last_reply", "arguments": ""}}]})]
+    state, turn = await api.engine.process_turn(state.conversation_id, "Hola")
+    assert turn.repeat is False and turn.assistant_message == "¿En qué te ayudo?"
+
+    spoken = []
+    state, turn = await api.engine.process_turn(state.conversation_id, "¿cómo?", on_message=spoken.append)
+    assert turn.repeat is True and turn.assistant_message == "¿En qué te ayudo?"
+    assert spoken == []                       # el stream no trajo texto: lo empuja llm_node, no el motor
+    assert state.messages[-1].repeat is True and state.messages[-1].text == "¿En qué te ayudo?"
+    assert [t["function"]["name"] for t in endpoint.body()["tools"]] == ["end_call", "repeat_last_reply"]
+
+    # El turno siguiente ve la repetición como una respuesta más del historial, sin llamada a herramienta.
+    endpoint.replies = [sse({"content": "Listo."})]
+    await api.engine.process_turn(state.conversation_id, "Gracias")
+    body = endpoint.body()
+    assert [m["role"] for m in body["messages"][-3:]] == ["user", "assistant", "user"]
+    assert body["messages"][-2]["content"] == "¿En qué te ayudo?" and "tool_calls" not in body["messages"][-2]
+
+
 async def test_errors_say_message_then_hang_up(api, admin, endpoint):
     state = await start(api, admin, max_errors=2)
     endpoint.replies = [500, 2.5, sse({"content": "Volví"}), 500, 500]

@@ -22,26 +22,48 @@ CUSTOMER = f"sip_{CALLER}"
 
 
 class FakeHandle:
-    """Lo que devuelve session.say: se puede esperar, directo o con wait_for_playout."""
+    """Lo que devuelve session.say: se puede esperar, directo o con wait_for_playout. Los
+    done-callbacks corren cuando se lo espera, como el SpeechHandle real al terminar de sonar."""
+
+    def __init__(self):
+        self._done_callbacks: list = []
+
+    def add_done_callback(self, fn):
+        self._done_callbacks.append(fn)
+        return self
+
+    def _finished(self):
+        callbacks, self._done_callbacks = self._done_callbacks, []
+        for fn in callbacks:
+            fn(self)
+
+    async def _playout(self):
+        await asyncio.sleep(0)
+        self._finished()
 
     def __await__(self):
-        return asyncio.sleep(0).__await__()
+        return self._playout().__await__()
 
     async def wait_for_playout(self):
-        await asyncio.sleep(0)
+        await self._playout()
 
 
 class FakeSession:
     def __init__(self, log: list):
         self.log = log
         self.agent = None
+        self.handlers: dict = {}
+        self.current_speech = None
         self.input = SimpleNamespace(set_audio_enabled=lambda on: None)
 
     def on(self, event, fn):
-        pass
+        self.handlers[event] = fn
 
     async def start(self, agent, room):
         self.agent = agent
+        # Como el AgentSession real al arrancar: deja que agent.session (propiedad de Agent que
+        # mira el activity) devuelva esta sesión falsa (lo usa reply_keys, por ejemplo).
+        agent._activity = SimpleNamespace(session=self)
         self.log.append("session.start")
 
     def say(self, text, **kw):
@@ -50,6 +72,11 @@ class FakeSession:
 
     def interrupt(self):
         pass
+
+    def generate_reply(self, *, user_input=None, **kw):
+        """El turno de las teclas (reply_keys): en el arnes no hay pipeline, queda registrado."""
+        self.log.append(f"generate_reply:{getattr(user_input, 'text_content', '')}")
+        return FakeHandle()
 
 
 class FakeRoom:
@@ -149,7 +176,8 @@ class Harness:
 
         monkeypatch.setattr(worker, "get_conversation_engine", lambda: api.engine)
         monkeypatch.setattr(worker, "get_sessionmaker", lambda: api.sessions)
-        monkeypatch.setattr(worker, "build_session", lambda voice, conversation_id=None: self.session)
+        monkeypatch.setattr(worker, "build_session",
+                            lambda voice, conversation_id=None, turn_attention=None: self.session)
         monkeypatch.setattr(worker, "resolve_voice", resolve_voice)
         monkeypatch.setattr(worker, "outbound_trunk_id", trunk_id)
         monkeypatch.setattr(worker.transfer, "RoomLine", Line)
@@ -312,3 +340,34 @@ class Clock:
 
     def skip(self, seconds: float) -> None:
         self.offset += seconds
+
+
+class StepSleep:
+    """Sleep del watchdog de silencio (worker.ATTENTION_SLEEP) a paso del test: cada espera queda
+    pendiente hasta pop(). Los tests de turn_attention avanzan la ventana sin esperar de verdad;
+    pop() salta las esperas canceladas por un reset/arm."""
+
+    def __init__(self) -> None:
+        self.pending: list[tuple[float, asyncio.Future]] = []
+
+    async def __call__(self, seconds: float) -> None:
+        fut = asyncio.get_running_loop().create_future()
+        self.pending.append((seconds, fut))
+        await fut
+
+    def pop(self) -> float:
+        """Resuelve la espera más vieja sin resolver y devuelve sus segundos."""
+        while self.pending:
+            seconds, fut = self.pending.pop(0)
+            if not fut.done():
+                fut.set_result(None)
+                return seconds
+        raise AssertionError("sin esperas pendientes")
+
+    def expect(self, seconds: float) -> None:
+        self.pending = [x for x in self.pending if not x[1].done()]   # muertas por un reset/arm
+        assert self.pending and self.pending[0][0] == seconds, self.pending
+        self.pop()
+
+    def alive(self) -> list[float]:
+        return [s for s, f in self.pending if not f.done()]

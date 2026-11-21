@@ -304,6 +304,17 @@ def test_direct_calls_end_reasons_and_total(api, data):
     assert sum(d["count"] for d in out["durations"]) == 4      # las finalizadas
 
 
+def test_no_response_end_reason(api, data):
+    """El corte del watchdog de silencio (turn_attention) cuenta como no_response, no en "other"."""
+    with api.sessions() as s:
+        conv(s, data["acme"], data["agent_a"], T(8, 10), status="finalizada", ended_reason="no_response",
+             duration=45, phone="+5493510000008", line=data["line"])
+        s.commit()
+    ended = {e["reason"]: e["count"] for e in report(data["admin"], "calls", client_id=data["acme"])["ended"]}
+    assert {r: n for r, n in ended.items() if n} == {"customer_hangup": 1, "agent_end": 1, "rejected": 1,
+                                                     "other": 1, "no_response": 1}
+
+
 def test_days_and_hours_in_the_local_zone(api, data):
     out = report(data["admin"], "calls", client_id=data["acme"], tz="America/Argentina/Buenos_Aires")
     friday = datetime.date(2026, 10, 2).weekday()

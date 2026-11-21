@@ -2,9 +2,10 @@
 
 El endpoint es compatible con OpenAI (`POST /chat/completions`, `stream: true`) y sale de una conexion del
 cliente (llm_connections, `openai_compatible`). Se le manda la conversacion entera en cada turno (el historial
-es la fuente de verdad: un turno deshecho no vuelve) y dos herramientas de la plataforma, `end_call` y, en una
-llamada con areas, `transfer_call`. Los datos de la llamada van en headers `X-Atentina-*`: el cuerpo lleva solo
-campos estandar, porque un endpoint que reenvia a OpenAI rechazaria los desconocidos.
+es la fuente de verdad: un turno deshecho no vuelve) y las herramientas de la plataforma: `end_call`,
+`transfer_call` en una llamada con areas y `repeat_last_reply` si el agente activo la repeticion
+(`turn_attention`; docs/features/ATENCION_TURNO.md). Los datos de la llamada van en headers `X-Atentina-*`: el
+cuerpo lleva solo campos estandar, porque un endpoint que reenvia a OpenAI rechazaria los desconocidos.
 
 No hay respaldo con el LLM propio: no tiene el prompt del cliente. Un error lo maneja el motor
 (app/conversation/engine.py) con el mensaje y la accion de ExternalConfig.
@@ -171,7 +172,7 @@ class ExternalAgents:
         """El turno del agente del cliente. ExternalError si no contesta (nada se dijo todavia); si se corta
         despues de empezar a hablar, queda lo dicho y el error en la traza."""
         target = self.target(workflow, state.client_id)
-        tools = platform_tools.tools_for(state, [o.id for o in workflow.outcomes] or None)
+        tools = platform_tools.tools_for(state, [o.id for o in workflow.outcomes] or None, workflow=workflow)
         request = dict(model=target.model, messages=build_messages(workflow, state, user_message), tools=tools,
                        stream=True, user=state.conversation_id,
                        extra_headers=self.headers(workflow, state, actor))

@@ -1,9 +1,10 @@
-"""Herramientas de la plataforma (app/llm/platform_tools.py): end_call y transfer_call por function calling
-nativo, y como las usa LLMClient.converse. El LLM es un cliente OpenAI falso con respuestas grabadas."""
+"""Herramientas de la plataforma (app/llm/platform_tools.py): end_call, transfer_call y repeat_last_reply por
+function calling nativo, y como las usa LLMClient.converse. El LLM es un cliente OpenAI falso con respuestas
+grabadas."""
 import json
 
-from app.agents.templates import load_reference
-from app.conversation.models import AgentTurn, ConversationState, Message
+from app.agents.templates import load_reference, reference_data
+from app.conversation.models import AgentTurn, ConversationState, Message, Workflow
 from app.llm import platform_tools
 
 from .test_motor_tools import Script, llm_with
@@ -17,6 +18,14 @@ def state(channel="voice", areas=()) -> ConversationState:
                            messages=[Message(role="assistant", text="Hola, ¿en qué te ayudo?")])
     st.progress.handoff_areas = list(areas)
     return st
+
+
+def workflow(**turn_attention) -> Workflow:
+    """sales_discovery con atención del turno; sin argumentos, definición vieja sin el bloque."""
+    data = reference_data("sales_discovery")
+    if turn_attention:
+        data["turn_attention"] = turn_attention
+    return Workflow.model_validate(data)
 
 
 def names(tools: list[dict]) -> list[str]:
@@ -92,6 +101,44 @@ def test_apply_ignores_bad_arguments_and_customer_tools():
     assert bad.handoff is None
 
 
+# ---------- repeat_last_reply ----------
+
+def test_repeat_last_reply_only_in_voice_with_the_agent_attention_on():
+    """Solo se ofrece en voz y solo si el agente activó la repetición (turn_attention; una definición
+    vieja sin el bloque no cambia nada). Por WhatsApp, nunca."""
+    tool = platform_tools.tools_for(state(), workflow=workflow(enabled=True))[1]["function"]
+    assert tool["name"] == platform_tools.REPEAT_LAST
+    assert tool["parameters"] == {"type": "object", "properties": {}, "required": []}
+    assert "repetí la última respuesta tal cual" in tool["description"]
+    assert names(platform_tools.tools_for(state(), workflow=workflow(enabled=True))) \
+        == ["end_call", platform_tools.REPEAT_LAST]
+    # Sin el bloque, apagada o sin la repetición: como hoy.
+    assert names(platform_tools.tools_for(state())) == ["end_call"]
+    assert names(platform_tools.tools_for(state(), workflow=workflow(enabled=False))) == ["end_call"]
+    assert names(platform_tools.tools_for(state(), workflow=workflow(enabled=True, repeat_last_reply=False))) \
+        == ["end_call"]
+    # WhatsApp no la ofrece; transfer_call sigue después.
+    assert names(platform_tools.tools_for(state("whatsapp"), workflow=workflow(enabled=True))) == ["end_call"]
+    assert names(platform_tools.tools_for(state(areas=AREAS), workflow=workflow(enabled=True))) \
+        == ["end_call", platform_tools.REPEAT_LAST, "transfer_call"]
+
+
+def test_apply_repeat_marks_the_turn_without_completing():
+    """repeat_last_reply marca el turno; no completa ni deriva: la última respuesta la pone el motor
+    (app/conversation/engine.py) y el turno repetido no dispara la extracción."""
+    turn = AgentTurn(assistant_message="")
+    platform_tools.apply(turn, [call(platform_tools.REPEAT_LAST)], state())
+    assert turn.repeat is True
+    assert (turn.status, turn.end_reason, turn.handoff) == ("active", None, None)
+    clean = AgentTurn(assistant_message="Hola.")
+    platform_tools.apply(clean, [], state())
+    assert clean.repeat is False
+    # Cortar sigue ganando: un end_call en el mismo turno completa la conversación.
+    both = AgentTurn(assistant_message="Chau.")
+    platform_tools.apply(both, [call(platform_tools.REPEAT_LAST), call("end_call")], state())
+    assert both.repeat is True and both.status == "completed"
+
+
 # ---------- LLMClient.converse ----------
 
 async def test_converse_ends_with_end_call_after_saying_the_goodbye():
@@ -129,3 +176,19 @@ async def test_converse_plain_reply_keeps_the_conversation_going():
     turn = await llm_with(script).converse(load_reference("sales_discovery"), state(), "Somos una empresa.")
     assert (turn.status, turn.handoff, turn.end_reason) == ("active", None, None)
     assert turn.raw == "¿Cuántos empleados tienen?"
+
+
+async def test_converse_repeat_last_reply_breaks_without_another_llm_call():
+    """El turno de repetición sale vacío (la última respuesta la pone el motor) y no se vuelve a llamar al
+    LLM; la herramienta no queda como herramienta del cliente en el historial."""
+    script = Script(("", [(platform_tools.REPEAT_LAST, {})]))
+    said = []
+    turn = await llm_with(script).converse(workflow(enabled=True), state(), "¿cómo?", on_message=said.append)
+    assert turn.repeat is True and turn.assistant_message == ""
+    assert said == [] and turn.tools is None
+    assert len(script.requests) == 1              # la repetición no pide otra vuelta
+    assert names(script.requests[0]["tools"]) == ["end_call", platform_tools.REPEAT_LAST]
+    # Si el modelo escribió texto además de llamarla, el texto queda: el motor no lo pisa.
+    script = Script(("Te repito: ¿en qué te ayudo?", [(platform_tools.REPEAT_LAST, {})]))
+    turn = await llm_with(script).converse(workflow(enabled=True), state(), "¿cómo?")
+    assert turn.repeat is True and turn.assistant_message == "Te repito: ¿en qué te ayudo?"

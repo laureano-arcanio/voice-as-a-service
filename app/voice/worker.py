@@ -26,7 +26,7 @@ from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
 from ..conversation import opening_audio, recordings, variables, workflows
 from ..conversation.engine import ConversationEngine
-from ..conversation.models import Message, Workflow
+from ..conversation.models import Message, TurnAttention, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
 from ..db import get_sessionmaker, utcnow
 from ..llm.prompt import render_conversation
@@ -39,6 +39,7 @@ from ..services import handoff as handoff_service
 from ..services.errors import Forbidden, NotFound, QuotaExceeded
 from . import direct, dtmf
 from . import handoff as transfer
+from .attention import AttentionWatchdog
 from .latency import TurnLatencyTracker
 from .speech_text import speech_stream
 
@@ -57,6 +58,9 @@ openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
+# Sleep del watchdog de silencio (turn_attention, app/voice/attention.py): va por separado para que
+# los tests de wiring lo aceleren sin tocar el asyncio.sleep del resto del worker.
+ATTENTION_SLEEP = asyncio.sleep
 
 # Grabacion por mensaje (record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
 # por mensaje (cliente y agente por separado) en CALL_RECORDINGS_DIR/<conversation_id>/NNN.wav,
@@ -107,13 +111,14 @@ async def _pcm_frames(pcm: bytes, sample_rate: int, frame_ms: int = 20):
 
 class WorkflowAgent(Agent):
     def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed,
-                 record_dir: Path | None = None, on_handoff=None):
+                 record_dir: Path | None = None, on_handoff=None, attention: AttentionWatchdog | None = None):
         super().__init__(instructions="")
         self.engine = engine
         self.conversation_id = conversation_id
         self.latency = latency
         self.on_completed = on_completed      # on_completed(reason): corta la llamada
         self.on_handoff = on_handoff          # on_handoff(area, announced): pasa la llamada (app/voice/handoff.py)
+        self.attention = attention            # watchdog de silencio (turn_attention); None: apagado
         self.end_reason = "completed"           # o OFF_TOPIC_REASON: el agente corto una llamada fuera de tema
         # Un turno a la vez: con preemptive generation LiveKit puede llamar a
         # llm_node antes de cerrar la respuesta anterior, y los dos turnos
@@ -133,6 +138,7 @@ class WorkflowAgent(Agent):
         self._rec_customer_resampler = _MonoResampler()
         self._rec_agent_resampler = _MonoResampler()
         self._rec_pending: tuple[bytes, list[tuple[int, bool]], bytes] | None = None  # (cliente, marcas, agente) sin confirmar
+        self._rec_suspend = 0                 # >0: habla el watchdog de silencio; sus avisos no se graban
         self.pending_dtmf: dict[str, str] = {}  # id del mensaje "Marcó …" de reply_keys -> sus digitos
 
     def stt_node(self, audio, model_settings):
@@ -155,9 +161,10 @@ class WorkflowAgent(Agent):
 
     def tts_node(self, text, model_settings):
         """El texto del LLM pasa por el normalizador (numeros, horas, emails en palabras; app/voice/speech_text.py)
-        antes del TTS."""
+        antes del TTS. Los avisos del watchdog de silencio (_rec_suspend) no se graban: su tee
+        pisaría el audio del turno pendiente (docs/features/ATENCION_TURNO.md, "Grabación")."""
         audio = super().tts_node(speech_stream(text, self.language()), model_settings)
-        return audio if self.record_dir is None else self._tee_agent_audio(audio)
+        return audio if self.record_dir is None or self._rec_suspend else self._tee_agent_audio(audio)
 
     def language(self) -> str:
         state = self.engine.store.get(self.conversation_id)
@@ -263,6 +270,11 @@ class WorkflowAgent(Agent):
     def on_user_state(self, ev) -> None:
         # VAD: marca que frames del stream continuo son habla del cliente (_rec_push_customer).
         self._rec_user_speaking = ev.new_state == "speaking"
+        # Voz de la persona: la ventana de silencio arranca de nuevo, aunque suene un aviso
+        # (docs/features/ATENCION_TURNO.md). No pasa por on_agent_state: ese evento también lo
+        # disparan los avisos del propio watchdog y re-armarian la ventana en loop.
+        if self.attention is not None and ev.new_state == "speaking":
+            self.attention.reset()
 
     def on_agent_state(self, ev) -> None:
         # Pausa o corte por voz del cliente = sale de "speaking".
@@ -275,6 +287,10 @@ class WorkflowAgent(Agent):
             self._speaking = (speech.id, ev.created_at)
 
     async def llm_node(self, chat_ctx, tools, model_settings):
+        # Turno real en curso: sin avisos hasta que la respuesta termine de sonar (el done-callback
+        # de abajo vuelve a armar la ventana; docs/features/ATENCION_TURNO.md).
+        if self.attention is not None:
+            self.attention.disarm()
         # La respuesta en curso: LiveKit no la expone en llm_node, es la misma
         # context var privada que usa Agent internamente. Sirve para juntar el
         # tiempo del LLM con el EOU y el TTS del turno, y para saber cuanto sono.
@@ -299,15 +315,27 @@ class WorkflowAgent(Agent):
                     first_text = time.perf_counter() - started
                 yield text
             state, turn = await task
+            if turn.repeat and first_text is None and turn.assistant_message:
+                # Repetición (repeat_last_reply): el LLM no escribió texto en este turno, así que la última
+                # respuesta (la puso el motor) se empuja al TTS por el mismo camino del stream. Si el modelo
+                # habló antes de la herramienta, no se agrega nada: no se duplica el audio.
+                first_text = time.perf_counter() - started
+                yield turn.assistant_message
         finally:
             if not task.done():
                 task.cancel()
         self.latency.on_llm(speech.id if speech else None, first_text, time.perf_counter() - started)
         if speech is not None:
             speech.add_done_callback(self.on_reply_done)
+            if self.attention is not None:
+                # Ventana nueva cuando la respuesta termina de sonar (interrumpida o no): el
+                # turno volvió a la persona.
+                speech.add_done_callback(lambda _: self.attention.arm())
             if turn.status == "completed":
                 self.end_reason = turn.end_reason or "completed"
                 speech.add_done_callback(self.on_final_reply_done)
+        elif self.attention is not None:
+            self.attention.arm()     # sin SpeechHandle no hay done-callback: arma ya
         if turn.handoff and self.on_handoff is not None:
             # Despues de que suena lo que haya dicho el LLM (si solo llamo a transfer_call, nada).
             announced = bool(turn.assistant_message.strip())
@@ -369,6 +397,8 @@ class WorkflowAgent(Agent):
         No corta lo que esta sonando: generate_reply se encola detras."""
         message = llm.ChatMessage(role="user", content=[dtmf.text(digits)])
         self.pending_dtmf[message.id] = digits
+        if self.attention is not None:
+            self.attention.reset()     # marcó una tecla: ventana nueva (docs/features/ATENCION_TURNO.md)
         self.session.generate_reply(user_input=message)
 
     def on_reply_done(self, speech) -> None:
@@ -421,9 +451,24 @@ async def resolve_voice(workflow: Workflow, override: str | None = None) -> str:
     return voice
 
 
-def build_session(voice: str, conversation_id: str | None = None) -> AgentSession:
+def attention_session_params(turn_attention: TurnAttention | None) -> dict:
+    """Los params de `AgentSession` que cambia turn_attention (build_session): con la función
+    activa, el timer de ausencia de LiveKit se apaga (nada escucha su evento `away` y el watchdog
+    propio es el único dueño de la ventana); con `stt_retry`, el timeout de transcripción prende el
+    evento `user_transcription_timeout`. Sin la función: vacío, comportamiento actual."""
+    if turn_attention is None or not turn_attention.enabled:
+        return {}
+    params: dict = {"user_away_timeout": None}
+    if turn_attention.stt_retry:
+        params["transcription_timeout"] = turn_attention.transcription_timeout_ms / 1000
+    return params
+
+
+def build_session(voice: str, conversation_id: str | None = None,
+                  turn_attention: TurnAttention | None = None) -> AgentSession:
     """conversation_id: va en X-Atentina-Conversation-Id a vllm-llm, para que el balanceador (llm-lb) mande toda
-    la llamada a la misma replica (app/llm/client.py hace lo mismo con los turnos del motor)."""
+    la llamada a la misma replica (app/llm/client.py hace lo mismo con los turnos del motor).
+    turn_attention: el bloque de la definición (None o apagado: nada cambia)."""
     vad = silero.VAD.load(min_silence_duration=0.45, min_speech_duration=0.2)
     affinity = {"extra_headers": {"X-Atentina-Conversation-Id": conversation_id}} if conversation_id else {}
     # STT y TTS: los mismos clientes que las llamadas directas (app/voice/direct.py).
@@ -443,6 +488,7 @@ def build_session(voice: str, conversation_id: str | None = None) -> AgentSessio
         llm=openai.LLM(model=settings.vllm_llm_model, base_url=settings.vllm_llm_base_url, api_key=settings.vllm_api_key,
                        **affinity),
         tts=direct.tts_client(voice),
+        **attention_session_params(turn_attention),
     )
 
 
@@ -576,7 +622,12 @@ async def entrypoint(ctx: JobContext):
             state = engine.store.get(conversation_id)
             state.progress.handoff_areas = areas
             engine.store.save(state)
-    session = build_session(voice, conversation_id)
+    # Atención del turno (turn_attention en la definición; docs/features/ATENCION_TURNO.md). None o
+    # apagada: nada cambia. En el loadtest queda apagada (metadata, como handoff): los avisos
+    # contaminarían la medición de capacidad.
+    attention_cfg = (workflow.turn_attention if workflow.turn_attention is not None
+                     and not metadata.get("loadtest") else None)
+    session = build_session(voice, conversation_id, attention_cfg)
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
@@ -584,6 +635,9 @@ async def entrypoint(ctx: JobContext):
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
     # Derivacion en curso, su lado de LiveKit y los avisos por WhatsApp, que siguen aunque el cliente corte.
     current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": [], "handoffs": 0}
+    # Watchdog de silencio (turn_attention): se crea abajo, cuando ya están hang_up y run_transfer;
+    # None con la función apagada o en el loadtest. finalize lo cierra.
+    attention: AttentionWatchdog | None = None
     # Progreso de la derivacion en la pantalla (tema handoff_status): solo si prepare_call lo pidio (prueba del
     # panel con nombres, link sin nombres); nunca por telefono ni en la demo (docs/features/EQUIPO_TELEFONIA.md).
     progress_mode = metadata.get("handoff_progress")
@@ -603,6 +657,8 @@ async def entrypoint(ctx: JobContext):
 
     async def finalize(reason: str = ""):
         agent_keys.close()
+        if attention is not None:
+            attention.close()   # ventana del watchdog de silencio (turn_attention): se apaga al cortar
         for task in watchdogs:
             task.cancel()
         if (tr := current["transfer"]) is not None:
@@ -751,6 +807,8 @@ async def entrypoint(ctx: JobContext):
         return task
 
     async def run_transfer(area_name: str, announced: bool) -> None:
+        if attention is not None:
+            attention.disarm()   # derivación en curso: sin avisos; se re-arma solo si vuelve con error
         if current["transfer"] is not None:
             return
         customer = customer_identity()
@@ -804,6 +862,8 @@ async def entrypoint(ctx: JobContext):
                 add_message("assistant", text)
                 session.input.set_audio_enabled(True)
                 await session.say(text, add_to_chat_ctx=False).wait_for_playout()
+                if attention is not None:
+                    attention.arm()   # derivación fallida y avisada: la ventana arranca de nuevo
             except Exception:
                 logger.exception("llamada %s: no se pudo volver de la derivacion", conversation_id)
         finally:
@@ -817,9 +877,62 @@ async def entrypoint(ctx: JobContext):
             # El turno de la derivacion no se deshace aunque el cliente hable encima (settle_last_reply).
             agent.last_reply = None
 
+    # Watchdog de silencio (turn_attention; app/voice/attention.py): avisos y cierre si la persona
+    # no responde. Con la función apagada (o loadtest) no se crea y nada cambia.
+    if attention_cfg is not None and attention_cfg.enabled:
+        def say_attention(text: str, *, allow_interruptions: bool):
+            # Aviso del watchdog: fuera del contexto del LLM (como el de cuota) y sin grabación (el
+            # tee del agente pisaría el audio del turno pendiente; docs/features/ATENCION_TURNO.md).
+            agent._rec_suspend += 1
+            try:
+                handle = session.say(text, allow_interruptions=allow_interruptions, add_to_chat_ctx=False)
+            except Exception:
+                agent._rec_suspend -= 1
+                raise
+            handle.add_done_callback(lambda _: setattr(agent, "_rec_suspend", agent._rec_suspend - 1))
+            return handle
+
+        def transfer_no_response(area_id: str):
+            # on_end=transfer: resolver el área por id (vacía = la primera); si no está (la borraron,
+            # el agente quedó sin handoff), corta como siempre.
+            st = engine.store.get(conversation_id)
+            areas = st.progress.handoff_areas if st is not None else []
+            name = (next((a["name"] for a in areas if a["id"] == area_id), None) if area_id
+                    else (areas[0]["name"] if areas else None))
+            return hang_up("no_response") if name is None else run_transfer(name, announced=True)
+
+        def last_question() -> str:
+            # La última respuesta real del agente (las piernas y avisos de derivación se guardan como
+            # assistant y no cuentan); si no hay, el saludo.
+            st = engine.store.get(conversation_id)
+            messages = st.messages if st is not None else []
+            for m in reversed(messages):
+                if m.role == "assistant" and m.person is None and m.handoff_leg is None and m.text.strip():
+                    return m.text
+            return messages[0].text if messages else ""
+
+        def second_text() -> str:
+            # Con áreas se ofrece pasar con una persona; sin ellas, que repita lo que necesita.
+            st = engine.store.get(conversation_id)
+            return (settings.voice_no_response_second if st is not None and st.progress.handoff_areas
+                    else settings.voice_no_response_second_no_areas)
+
+        def attention_busy() -> bool:
+            return (agent.turn_lock.locked() or current["transfer"] is not None or bool(ending["reason"])
+                    or session.current_speech is not None)
+
+        attention = AttentionWatchdog(attention_cfg, say_attention, lambda: hang_up("no_response"),
+                                      transfer_no_response, attention_busy, sleep=ATTENTION_SLEEP,
+                                      question=last_question, second=second_text)
+        if attention_cfg.stt_retry:
+            # VAD con voz y sin transcripción dentro del timeout (build_session): pedir que repita.
+            session.on("user_transcription_timeout",
+                       lambda ev: asyncio.create_task(attention.on_transcription_timeout()))
+
     agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir,
                           on_handoff=(lambda area, announced: asyncio.create_task(run_transfer(area, announced)))
-                          if areas else None)
+                          if areas else None,
+                          attention=attention)
     # Teclas de quien llama al agente (app/voice/dtmf.py): un turno del usuario por grupo. Mudo durante la derivacion
     # (las guarda la linea, keys) y al cortar. La entrante al equipo termina antes de que arranque la sesion.
     agent_keys = dtmf.AgentKeys(
@@ -858,6 +971,8 @@ async def entrypoint(ctx: JobContext):
         await hang_up("voicemail")
 
     def on_transcript(ev) -> None:
+        if attention is not None and ev.is_final and ev.transcript.strip():
+            attention.reset()   # texto real de la persona: ventana nueva (docs/features/ATENCION_TURNO.md)
         if voicemail is not None and voicemail.feed(ev.transcript, ev.is_final):
             asyncio.create_task(voicemail_hang_up())
 
@@ -946,9 +1061,13 @@ async def entrypoint(ctx: JobContext):
     if (pcm := opening_audio.load_pcm(state.agent_id, workflow, voice, opening)) is not None:
         logger.info("llamada %s: apertura pregenerada (%.1f s)", conversation_id,
                     len(pcm) / (2 * opening_audio.SAMPLE_RATE))
-        await session.say(opening, audio=agent.opening_frames(pcm))
+        opening_say = session.say(opening, audio=agent.opening_frames(pcm))
     else:
-        await session.say(opening)
+        opening_say = session.say(opening)
+    # La ventana de silencio arranca cuando la apertura termina de sonar (docs/features/ATENCION_TURNO.md).
+    if attention is not None:
+        opening_say.add_done_callback(lambda _: attention.arm())
+    await opening_say
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(

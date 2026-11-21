@@ -204,6 +204,33 @@ class HandoffConfig(BaseModel):
     hold_music: HoldMusic = Field(default_factory=HoldMusic)
 
 
+class TurnAttention(BaseModel):
+    """Atencion del turno en voz (docs/features/ATENCION_TURNO.md): si la persona no
+    responde, avisos y cierre. Sin el bloque (None), apagado."""
+    enabled: bool = False
+    # Primer aviso desde que el agente deja de hablar.
+    reminder_after_ms: int = Field(default=7000, ge=3000, le=30000)
+    # Cantidad de avisos; 0 = solo el cierre.
+    reminder_max: int = Field(default=2, ge=0, le=5)
+    # Espera entre avisos.
+    reminder_gap_ms: int = Field(default=7000, ge=3000, le=30000)
+    # Cierre desde que el agente deja de hablar.
+    end_after_ms: int = Field(default=30000, ge=15000, le=120000)
+    # Si el VAD detecto voz y no hay transcripcion, pedir que repita.
+    stt_retry: bool = True
+    # Cuanto esperar antes del pedido de repeticion (solo con stt_retry).
+    transcription_timeout_ms: int = Field(default=3000, ge=1000, le=10000)
+    # Ofrece la herramienta repeat_last_reply (repetir la ultima respuesta).
+    repeat_last_reply: bool = True
+    # Textos del agente; vacio = el de la plataforma (app/config.py).
+    reminder_text: str = Field(default="", max_length=300)
+    end_text: str = Field(default="", max_length=300)
+    # Que hace al vencer end_after_ms: cortar o pasar a un area de handoff.
+    on_end: Literal["hang_up", "transfer"] = "hang_up"
+    # Solo con transfer: area_id de handoff.areas; vacio = la primera area.
+    on_end_area_id: str = ""
+
+
 class PreCallWorkflow(BaseModel):
     """Herramienta oculta al modelo que corre antes de la conversacion; su `assign` trae los datos."""
     tool: str = Field(min_length=1)
@@ -264,6 +291,8 @@ class Workflow(BaseModel):
     tool_settings: ToolSettings | None = None
     # Llamadas: areas del equipo a las que puede derivar (herramienta transfer_call).
     handoff: HandoffConfig | None = None
+    # Llamadas: avisos y cierre si la persona no responde (None = apagado).
+    turn_attention: TurnAttention | None = None
     # Herramientas automaticas, ocultas al modelo (se validan al guardar: services/tools.check_agent_tools).
     workflows: AgentWorkflows | None = None
     # Tu propio agente: el endpoint del cliente contesta cada turno (sin el prompt de la definicion ni extraccion).
@@ -341,6 +370,19 @@ class Workflow(BaseModel):
             area = self.external.on_errors.split(":", 1)[1]
             if area not in [a.area_id for a in (self.handoff.areas if self.handoff else [])]:
                 raise ValueError("external.on_errors: el area no esta entre las de handoff del agente")
+        if self.turn_attention is not None:
+            if self.turn_attention.on_end == "transfer":
+                areas = self.handoff.areas if self.handoff else []
+                if not areas:
+                    raise ValueError("turn_attention.on_end: transfer necesita areas de derivacion (handoff)")
+                if self.turn_attention.on_end_area_id and \
+                        self.turn_attention.on_end_area_id not in [a.area_id for a in areas]:
+                    raise ValueError("turn_attention.on_end_area_id: el area no esta entre las de handoff del agente")
+            # Sin avisos (reminder_max=0) el cierre puede ser antes del primer aviso: cierra sin avisar.
+            if self.turn_attention.reminder_max > 0 and \
+                    self.turn_attention.end_after_ms < self.turn_attention.reminder_after_ms:
+                raise ValueError(
+                    "turn_attention.end_after_ms: el cierre no puede ser antes del primer aviso (reminder_after_ms)")
         return self
 
     @property
@@ -386,6 +428,9 @@ class Message(BaseModel):
     # Respuesta del agente que llamo a transfer_call: el area. El historial del LLM la reconstruye como la
     # llamada a la herramienta y su resultado (app/llm/prompt.py), para que el modelo vea que derivar es la herramienta.
     handoff: str | None = None
+    # Respuesta que repitio la anterior (repeat_last_reply, docs/features/ATENCION_TURNO.md): el texto es
+    # tal cual la ultima respuesta del agente. Queda en el JSON del store; el panel todavia no lo distingue.
+    repeat: bool = False
     # Teclas que marco esa parte (app/voice/dtmf.py): los digitos del grupo, tal cual; text dice "Marcó <digitos>".
     dtmf: str | None = None
 
@@ -461,6 +506,10 @@ class AgentTurn(BaseModel):
     end_reason: Literal["off_topic", "external_error", "external_agent_not_in_plan"] | None = None
     # El agente pasa la llamada a esa area (transfer_call); status sigue active.
     handoff: str | None = None
+    # El turno pidio repetir la ultima respuesta (repeat_last_reply, docs/features/ATENCION_TURNO.md):
+    # no se vuelve a llamar al LLM; el motor pone la ultima respuesta en assistant_message si el
+    # modelo no escribio texto. No cambia status: un turno repetido no completa ni extrae.
+    repeat: bool = False
     # Herramientas del cliente ejecutadas en el turno (end_call y transfer_call no: van por status y handoff), para
     # el historial [{id, name, arguments, result}] (app/llm/prompt.py).
     tools: list[dict[str, Any]] | None = None

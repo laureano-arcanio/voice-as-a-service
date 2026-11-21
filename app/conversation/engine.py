@@ -52,6 +52,25 @@ def _add_usage(state: ConversationState, result) -> None:
     state.llm_output_tokens += usage["output_tokens"]
 
 
+def _last_agent_reply(state: ConversationState) -> str:
+    """La ultima respuesta del agente antes del turno en curso, para la repeticion (repeat_last_reply,
+    docs/features/ATENCION_TURNO.md). La misma regla que la "ultima pregunta" del watchdog de silencio
+    (app/voice/worker.py): las piernas y los avisos de una derivacion se guardan como assistant y no
+    cuentan; sin ninguna, el saludo. Vacia si el agente todavia no dijo nada."""
+    for m in reversed(state.messages):
+        if m.role == "assistant" and m.person is None and m.handoff_leg is None and m.text.strip():
+            return m.text
+    return next((m.text for m in state.messages if m.role == "assistant"), "")
+
+
+def _use_last_reply(turn: AgentTurn, state: ConversationState) -> None:
+    """La repeticion sin texto del modelo repite la ultima respuesta tal cual (sin volver a saludar). Si el
+    modelo escribio algo antes de llamar a la herramienta, se respeta: no se duplica el audio. Los dos
+    caminos del turno (clásico y _external_turn) usan este helper."""
+    if turn.repeat and not turn.assistant_message.strip():
+        turn.assistant_message = _last_agent_reply(state)
+
+
 # Cuanto espera un turno a la extraccion del anterior. Corre mientras suena la
 # respuesta y el cliente contesta (varios segundos), asi que casi nunca espera;
 # si se pasa, el turno sigue con el estado viejo y la conversacion completa.
@@ -230,9 +249,12 @@ class ConversationEngine:
         if turn_tools:
             for slug, values, hidden in turn_tools.assigned:
                 variables.merge(state, values, f"tool:{slug}", hidden)
+        # La repeticion (repeat_last_reply): sin texto del modelo, la ultima respuesta; un turno repetido no
+        # completa ni dispara la extraccion (repeat no toca status).
+        _use_last_reply(result, state)
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=result.assistant_message, llm=trace,
-                                   handoff=result.handoff, tools=tool_calls or None)]
+                                   handoff=result.handoff, tools=tool_calls or None, repeat=result.repeat)]
         self.store.save(state)
 
         # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
@@ -281,9 +303,12 @@ class ConversationEngine:
         _add_usage(state, turn)
         if turn.status == "completed" and turn.end_reason is None and (ids := [o.id for o in workflow.outcomes]):
             state.progress.outcome = outcome if outcome in ids else ids[-1]
+        # La repeticion (repeat_last_reply), igual que en el camino clasico: sin texto del modelo, la ultima
+        # respuesta (docs/features/ATENCION_TURNO.md). Sin esto, un agente propio que la llama queda mudo.
+        _use_last_reply(turn, state)
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note, dtmf=dtmf),
                            Message(role="assistant", text=turn.assistant_message, llm=[trace],
-                                   handoff=turn.handoff)]
+                                   handoff=turn.handoff, repeat=turn.repeat)]
         self.store.save(state)
         return state, turn
 

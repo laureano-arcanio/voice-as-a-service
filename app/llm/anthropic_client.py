@@ -193,7 +193,7 @@ class AnthropicClient:
         """Como LLMClient.converse: herramientas de la plataforma y del cliente con tool_use nativo."""
         params = self._params(build_turn_messages(workflow, state, user_message), None)
         params["tools"] = [_anthropic_tool(t) for t in
-                           platform_tools.tools_for(state) + (tools.openai_tools() if tools else [])]
+                           platform_tools.tools_for(state, workflow=workflow) + (tools.openai_tools() if tools else [])]
         params["tool_choice"] = {"type": "auto"}
         turn = AgentTurn(assistant_message="")
         said, raw = [], []
@@ -234,7 +234,8 @@ class AnthropicClient:
                 # (app/llm/prompt.py, classic_history).
                 turn.tools = (turn.tools or []) + tool_history(customer, results)
             platform_tools.apply(turn, calls, state)
-            if not customer or turn.status == "completed" or turn.handoff:
+            # repeat_last_reply: el turno ya tiene su respuesta (la ultima); no se vuelve a llamar al LLM.
+            if not customer or turn.status == "completed" or turn.handoff or turn.repeat:
                 break
         turn.assistant_message = " ".join(t.strip() for t in said if t.strip())
         turn.raw = "\n".join(r for r in raw if r)

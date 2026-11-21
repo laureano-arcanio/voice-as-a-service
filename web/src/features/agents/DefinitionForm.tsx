@@ -14,6 +14,7 @@ import {
   TagsInput,
   Text,
   TextInput,
+  Textarea,
   Title,
   Tooltip,
   UnstyledButton,
@@ -24,6 +25,7 @@ import type { FieldError } from '@/api/errors';
 import { PlanGate } from '@/components/PlanGate';
 import { PromptEditor, VariableField, type ExtraVariable } from '@/components/variables';
 import { useTools } from '@/features/tools/api';
+import { useAreas } from '@/features/team/api';
 import { VoiceSelect } from '@/features/voices/VoiceSelect';
 import {
   type ConditionDraft,
@@ -45,6 +47,8 @@ import {
   renameField,
   SECTION_PART,
   sectionId,
+  TURN_ATTENTION_DEFAULTS,
+  type TurnAttentionDraft,
   withPhoneField,
 } from './draft';
 import { ExternalSection } from './ExternalSection';
@@ -569,6 +573,164 @@ function declaredOf(draft: Draft) {
     .map((v) => ({ name: v.name.trim(), description: v.description }));
 }
 
+// ---------- si la persona no responde ----------
+
+/** Atencion del turno en llamadas (draft.turnAttention): avisos si la persona queda en silencio y
+ * cierre con aviso. Los tiempos en segundos; la definicion los guarda en ms (draft.ts). */
+function TurnAttentionEditor({
+  draft,
+  update,
+  errors,
+  areaNames,
+}: {
+  draft: Draft;
+  update: (fn: (d: Draft) => Draft) => void;
+  /** Errores del servidor (guardado), con su ruta: van en cada campo. */
+  errors: FieldError[];
+  /** id → nombre de las areas del cliente; las del agente estan en draft.handoff. */
+  areaNames: Map<string, string>;
+}) {
+  const att = draft.turnAttention;
+  const set = (patch: Partial<TurnAttentionDraft>) =>
+    update((d) => ({ ...d, turnAttention: { ...d.turnAttention, ...patch } }));
+  // Al vaciar un numero vuelve al default (no hay valor vacio en la definicion).
+  const num = (v: string | number, d: number) => (typeof v === 'number' ? v : d);
+  // Las areas a las que el agente ya puede derivar; el nombre si ya cargo la lista del cliente.
+  const areaOptions = draft.handoff.areas.map((a) => ({
+    value: a.areaId,
+    label: areaNames.get(a.areaId) ?? a.areaId,
+  }));
+  // Un area elegida que ya no esta en handoff queda visible (el servidor la rechaza al guardar).
+  if (att.onEndAreaId && !areaOptions.some((o) => o.value === att.onEndAreaId))
+    areaOptions.push({
+      value: att.onEndAreaId,
+      label: areaNames.get(att.onEndAreaId) ?? att.onEndAreaId,
+    });
+
+  return (
+    <Stack gap="sm">
+      <Switch
+        label="Activar"
+        description="Si la persona queda en silencio después de una respuesta del agente: repite la última pregunta, avisa de nuevo y después cierra la llamada con un aviso. Solo en llamadas; por WhatsApp no aplica."
+        checked={att.enabled}
+        onChange={(e) => set({ enabled: e.currentTarget.checked })}
+      />
+      <SimpleGrid cols={{ base: 1, sm: 2 }}>
+        <NumberInput
+          label="Repetir la última pregunta a los (segundos)"
+          description="De silencio desde que el agente deja de hablar."
+          value={att.reminderAfterS}
+          onChange={(v) => set({ reminderAfterS: num(v, TURN_ATTENTION_DEFAULTS.reminderAfterS) })}
+          min={3}
+          max={30}
+          allowDecimal={false}
+          error={errorAt(errors, 'turn_attention.reminder_after_ms')}
+        />
+        <NumberInput
+          label="Cantidad de avisos"
+          description="Cuántas veces avisa antes del cierre. 0 = solo el cierre."
+          value={att.reminderMax}
+          onChange={(v) => set({ reminderMax: num(v, TURN_ATTENTION_DEFAULTS.reminderMax) })}
+          min={0}
+          max={5}
+          allowDecimal={false}
+          error={errorAt(errors, 'turn_attention.reminder_max')}
+        />
+        <NumberInput
+          label="Espera entre avisos (segundos)"
+          description="Entre un aviso y el siguiente."
+          value={att.reminderGapS}
+          onChange={(v) => set({ reminderGapS: num(v, TURN_ATTENTION_DEFAULTS.reminderGapS) })}
+          min={3}
+          max={30}
+          allowDecimal={false}
+          error={errorAt(errors, 'turn_attention.reminder_gap_ms')}
+        />
+        <NumberInput
+          label="Cerrar la llamada a los (segundos)"
+          description="Silencio total desde la última respuesta del agente; después hace lo que dice Al cerrar."
+          value={att.endAfterS}
+          onChange={(v) => set({ endAfterS: num(v, TURN_ATTENTION_DEFAULTS.endAfterS) })}
+          min={15}
+          max={120}
+          allowDecimal={false}
+          error={errorAt(errors, 'turn_attention.end_after_ms')}
+        />
+      </SimpleGrid>
+      <Group gap="sm" align="flex-end" wrap="wrap">
+        <Select
+          label="Al cerrar"
+          description="Qué hace el agente cuando se cumple el tiempo de cierre."
+          data={[
+            { value: 'hang_up', label: 'Cortar' },
+            { value: 'transfer', label: 'Pasar con una persona' },
+          ]}
+          value={att.onEnd}
+          onChange={(v) => v && set({ onEnd: v as 'hang_up' | 'transfer' })}
+          allowDeselect={false}
+          error={errorAt(errors, 'turn_attention.on_end')}
+          maw={360}
+        />
+        {att.onEnd === 'transfer' && (
+          <Select
+            label="Pasar al área"
+            description="Solo las áreas que el agente ya puede derivar. Vacío = la primera."
+            placeholder="La primera área"
+            data={areaOptions}
+            value={att.onEndAreaId || null}
+            onChange={(v) => set({ onEndAreaId: v ?? '' })}
+            clearable
+            error={errorAt(errors, 'turn_attention.on_end_area_id')}
+            maw={360}
+          />
+        )}
+      </Group>
+      {att.onEnd === 'transfer' && draft.handoff.areas.length === 0 && (
+        <Text size="xs" c="orange.8">
+          Este agente no tiene áreas de derivación: marcá al menos una en Derivación a personas
+          (pestaña Herramientas), o el cierre no va a poder pasar con una persona.
+        </Text>
+      )}
+      <Textarea
+        label="Texto del primer aviso"
+        description="Lo que dice al primer aviso, antes de repetir la última pregunta. Vacío = el texto de la plataforma."
+        placeholder="¿Me escuchás? Te repito:"
+        autosize
+        minRows={1}
+        maxRows={3}
+        maxLength={300}
+        value={att.reminderText}
+        error={errorAt(errors, 'turn_attention.reminder_text')}
+        onChange={(e) => set({ reminderText: e.currentTarget.value })}
+      />
+      <Textarea
+        label="Texto del cierre"
+        description="Lo que dice antes de cerrar la llamada. Vacío = el texto de la plataforma."
+        placeholder="No te escucho bien. Podés volver a llamarnos o escribirnos por WhatsApp. ¡Gracias!"
+        autosize
+        minRows={1}
+        maxRows={3}
+        maxLength={300}
+        value={att.endText}
+        error={errorAt(errors, 'turn_attention.end_text')}
+        onChange={(e) => set({ endText: e.currentTarget.value })}
+      />
+      <Switch
+        label="Repetir cuando pide ¿cómo? o dice que no escuchó"
+        description="El agente repite su última respuesta tal cual, sin volver a empezar."
+        checked={att.repeatLastReply}
+        onChange={(e) => set({ repeatLastReply: e.currentTarget.checked })}
+      />
+      <Switch
+        label="Pedir que repita si no se entiende lo que dijo"
+        description="Si la persona habló pero no se pudo transcribir, el agente se lo pide (espera 3 s)."
+        checked={att.sttRetry}
+        onChange={(e) => set({ sttRetry: e.currentTarget.checked })}
+      />
+    </Stack>
+  );
+}
+
 // ---------- formulario ----------
 
 export function DefinitionForm({
@@ -602,6 +764,9 @@ export function DefinitionForm({
   // Con el agente del cliente, el prompt, el modelo y los datos son suyos: esas secciones no aplican.
   const external = draft.external !== null;
   const clientTools = useTools(external ? undefined : clientId);
+  // Nombres de las areas del cliente: el area del cierre de turn_attention los usa.
+  const areas = useAreas(clientId);
+  const areaNames = new Map((areas.data ?? []).map((a) => [a.id, a.name]));
   const declared = declaredOf(draft);
   // Lo que asigna el pre-call: los textos lo pueden nombrar. Las ocultas no se ofrecen (no llegan al LLM).
   const preCall = draft.workflows.preCall?.tool;
@@ -746,6 +911,14 @@ export function DefinitionForm({
               maw={260}
             />
           </Stack>
+        </Section>
+
+        <Section
+          name="sin_respuesta"
+          title="Si la persona no responde"
+          description="En las llamadas: qué hace el agente si la persona queda en silencio. Repite la última pregunta, avisa de nuevo y cierra la llamada con un aviso. Apagado, un silencio largo deja la llamada muda hasta que corta quien llamó."
+        >
+          <TurnAttentionEditor draft={draft} update={update} errors={errors} areaNames={areaNames} />
         </Section>
 
         <Section

@@ -2,10 +2,12 @@
 corre el pre-call, que se dice despues, el corte durante la espera, el arme del post-call y `finalize`."""
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
 
+from app.config import settings
 from app.models import CallMode, CallRow, CallStatus, ConversationRow, Event, HandoffLeg, ToolRun, WaAccount
 from app.services import calls as call_service
 from app.voice import worker
@@ -18,7 +20,9 @@ from .voice_harness import (
     CALLER,
     CUSTOMER,
     OPERATORS,
+    FakeSession,
     Harness,
+    StepSleep,
     add_agent,
     add_area,
     add_tool,
@@ -712,3 +716,279 @@ def test_no_progress_without_the_flag(api, agent, client, monkeypatch, metadata)
 
 def test_no_progress_by_phone(api, agent, client, monkeypatch):
     assert progress_call(api, agent, client, monkeypatch, {}, attributes=inbound_attributes()) == []
+
+
+# --- Atención del turno (turn_attention; docs/features/ATENCION_TURNO.md) --------------------------
+
+ATTENTION = {"enabled": True, "reminder_after_ms": 7000, "reminder_max": 2,
+             "reminder_gap_ms": 8000, "end_after_ms": 30000, "transcription_timeout_ms": 3000}
+REMINDER = f"say:{settings.voice_no_response_reminder} Hola, soy Ana."
+
+
+async def tick(times: int = 4) -> None:
+    """Pasos de loop para que el watchdog corra hasta su próxima espera (say del arnes incluido)."""
+    for _ in range(times):
+        await asyncio.sleep(0)
+
+
+def attention_agent(admin, client, **extra) -> dict:
+    """Agente de DID con el watchdog prendido (sin pre-call: la apertura es "Hola, soy Ana.");
+    `turn_attention` en extra pisa campos del bloque."""
+    return add_agent(admin, client, turn_attention={**ATTENTION, **extra.pop("turn_attention", {})}, **extra)
+
+
+def run_attention(api, monkeypatch, during, **extra) -> Harness:
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch, **extra)
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    return h
+
+
+def test_mute_call_reminds_and_ends_with_no_response(api, admin, client, monkeypatch):
+    """Llamada muda con 7/2/8/30: repite el saludo a los 7, insiste a los 15 y corta a los 30
+    con aviso y ended_reason=no_response."""
+    attention_agent(admin, client)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        assert h.order[-1] == "say:Hola, soy Ana."      # sonó la apertura
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        assert REMINDER in h.order
+        sleep.expect(8.0)
+        await tick()
+        assert f"say:{settings.voice_no_response_second_no_areas}" in h.order
+        sleep.expect(15.0)      # 30 - 15: cierre
+        await tick(10)
+        assert f"say:{settings.voice_no_response_end}" in h.order
+        assert "delete_room" in h.order
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    call = h.call(inbound_id(api))
+    assert call.status == CallStatus.finalizada and call.ended_reason == "no_response"
+    assert sleep.alive() == []      # la ventana terminó: nada quedó agendado
+
+
+def test_dtmf_restarts_the_window(api, admin, client, monkeypatch):
+    """Una tecla marcada (reply_keys) resetea la ventana: el aviso vuelve a empezar en vez de
+    seguir con el calendario de la ventana vieja."""
+    attention_agent(admin, client)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        assert REMINDER in h.order
+        h.session.agent.reply_keys("1")     # marcó una tecla: ventana nueva
+        await tick()
+        assert sleep.alive() == [7.0]       # el gap de 8 murió con la ventana vieja
+        sleep.expect(7.0)
+        await tick()
+        assert h.order.count(REMINDER) == 2
+        sleep.expect(8.0)
+        await tick()
+        sleep.expect(15.0)
+        await tick(10)
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "no_response"
+
+
+def test_customer_transcript_restarts_the_window(api, admin, client, monkeypatch):
+    """Una transcripción final con texto resetea la ventana (on_transcript)."""
+    attention_agent(admin, client)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        assert REMINDER in h.order
+        h.session.handlers["user_input_transcribed"](
+            SimpleNamespace(transcript="Sí, estoy", is_final=True))
+        await tick()
+        assert sleep.alive() == [7.0]       # ventana nueva
+        h.ctx.room.leave(CUSTOMER)          # corto el cliente: el resto no importa
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "customer_hangup"
+    assert h.order.count(REMINDER) == 1
+
+
+@pytest.mark.parametrize("extra", [{}, {"turn_attention": {"enabled": False, "reminder_after_ms": 3000}}])
+def test_attention_off_changes_nothing(api, admin, client, monkeypatch, extra):
+    """Sin el bloque (o con enabled=false): cero watchdog, cero handler de STT, cero avisos."""
+    add_agent(admin, client, **extra)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick(8)
+        assert sleep.alive() == [] and "user_transcription_timeout" not in h.session.handlers
+        assert not [x for x in h.order if "¿Me escuchás" in x or "No te escucho bien" in x]
+        h.ctx.room.leave(CUSTOMER)
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "customer_hangup"
+
+
+def test_loadtest_never_creates_the_watchdog(api, admin, client, monkeypatch):
+    """En el loadtest no se crea (metadata, como handoff): los avisos contaminarían la medición
+    de capacidad."""
+    agent = attention_agent(admin, client)
+    conversation_id = seed_call(api, agent["id"], client["id"], CallMode.loadtest)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick(8)
+        assert sleep.alive() == [] and "user_transcription_timeout" not in h.session.handlers
+        assert not [x for x in h.order if "¿Me escuchás" in x or "No te escucho bien" in x]
+
+    asyncio.run(h.run({"conversation_id": conversation_id, "loadtest": True}, during=during))
+    assert h.call(conversation_id).status in (CallStatus.finalizada, CallStatus.en_curso)
+
+
+def test_attention_says_do_not_touch_the_recording(api, admin, client, monkeypatch):
+    """Con record_audio, el aviso suspende el tee del agente (_rec_suspend): su audio no se graba
+    ni pisa el turno pendiente (docs/features/ATENCION_TURNO.md, "Grabación")."""
+    attention_agent(admin, client, record_audio=True)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+    seen = {}
+    real_say = FakeSession.say
+
+    def spy_say(text, **kw):
+        if text.startswith(settings.voice_no_response_reminder):
+            seen["suspend"] = h.session.agent._rec_suspend
+        return real_say(h.session, text, **kw)
+
+    async def during(h):
+        monkeypatch.setattr(h.session, "say", spy_say)
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        assert seen["suspend"] == 1       # mientras suena el aviso, el tee está suspendido
+        sleep.expect(8.0)
+        await tick()
+        sleep.expect(15.0)
+        await tick(10)
+        assert h.session.agent._rec_suspend == 0
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    conversation_id = inbound_id(api)
+    assert h.call(conversation_id).ended_reason == "no_response"
+    # Los avisos no fabricaron grabaciones ni quedaron asociadas a ningún mensaje.
+    assert api.engine.store.get(conversation_id).messages[0].recording is None
+    assert list((settings.call_recordings_dir / conversation_id).glob("*")) == []
+
+
+def test_transcription_timeout_asks_to_repeat_and_consumes_the_budget(api, admin, client, monkeypatch):
+    """STT vacío (VAD con voz, sin texto): pide que repita, consume presupuesto y no toca la
+    ventana: el aviso agendado sale igual, con el texto de insistencia, y el cierre a los 30."""
+    attention_agent(admin, client)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick()
+        h.session.handlers["user_transcription_timeout"](SimpleNamespace(speech_duration=1.2))
+        await tick()
+        assert f"say:{settings.voice_no_response_stt}" in h.order
+        sleep.expect(7.0)      # la ventana no se movió
+        await tick()
+        assert f"say:{settings.voice_no_response_second_no_areas}" in h.order
+        sleep.expect(23.0)      # presupuesto agotado: cierre a los 30
+        await tick(10)
+        assert f"say:{settings.voice_no_response_end}" in h.order
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "no_response"
+
+
+def test_customer_hangup_during_a_reminder_wins(api, admin, client, monkeypatch):
+    """El cliente corta mientras suena el aviso: gana su corte y el watchdog no dispara nada más."""
+    attention_agent(admin, client)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        assert REMINDER in h.order
+        h.ctx.room.leave(CUSTOMER)
+        await tick(4)
+        assert f"say:{settings.voice_no_response_end}" not in h.order
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "customer_hangup"
+    assert sleep.alive() == []      # finalize canceló lo que quedó agendado
+
+
+def test_end_transfer_without_a_resolvable_area_hangs_up(api, admin, client, monkeypatch):
+    """on_end=transfer con el área desactivada después de guardar (no queda en handoff_areas):
+    cierra igual, con no_response, sin intentar la derivación."""
+    area = add_area(admin, client)
+    attention_agent(admin, client, area=area, turn_attention={**ATTENTION, "on_end": "transfer"})
+    r = admin.patch(f"{V1}/handoff-areas/{area}", json={"active": False})
+    assert r.status_code == 200, r.text
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        sleep.expect(8.0)
+        await tick()
+        sleep.expect(15.0)
+        await tick(10)
+        assert f"say:{settings.voice_no_response_end}" in h.order
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "no_response"
+    assert h.line is None      # nunca se armó el lado de LiveKit de una derivación
+
+
+def test_end_transfer_passes_to_the_area(api, admin, client, monkeypatch):
+    """on_end=transfer con área: al vencer, avisa y pasa la llamada al área configurada."""
+    area = add_area(admin, client)
+    attention_agent(admin, client, area=area, turn_attention={**ATTENTION, "on_end": "transfer"})
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch, script=OPERATORS, connected=[("dtmf", "PERSON", "2")])
+
+    async def during(h):
+        await tick()
+        sleep.expect(7.0)
+        await tick()
+        sleep.expect(8.0)
+        await tick()
+        sleep.expect(15.0)
+        for _ in range(100):      # aviso de cierre y derivación: el FakeLine mueve sus eventos
+            if h.line is not None and any(x[0] == "connect" for x in h.line.log):
+                break
+            await tick(2)
+        assert f"say:{settings.voice_no_response_end}" in h.order
+        assert h.line is not None and ("dial", "+5493511111111") in h.line.log
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason != "no_response"      # derivó, no cortó el watchdog
+    with api.sessions() as s:
+        assert s.scalars(select(HandoffLeg).where(HandoffLeg.result == "connected")).one()

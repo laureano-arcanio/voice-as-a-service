@@ -105,6 +105,7 @@ export const SECTION_PART: Record<string, Part> = {
   derivacion: 'herramientas',
   automaticas: 'herramientas',
   voz: 'voz',
+  sin_respuesta: 'voz',
   externo: 'modelo',
   modelo: 'modelo',
 };
@@ -205,6 +206,8 @@ export interface Draft {
   llm: LlmDraft | null;
   /** Derivacion a personas (docs/features/EQUIPO_TELEFONIA.md): areas del equipo del cliente y musica de espera. */
   handoff: HandoffDraft;
+  /** Atencion del turno en llamadas: avisos y cierre si la persona no responde. */
+  turnAttention: TurnAttentionDraft;
   /** Herramientas automaticas, ocultas al modelo: pre-call y post-call (docs/features/HERRAMIENTAS.md). */
   workflows: WorkflowsDraft;
   /** Tu propio agente: prendido si no es null. */
@@ -252,6 +255,99 @@ function fromHandoffDraft(h: HandoffDraft): Record<string, unknown> | undefined 
   return {
     areas: h.areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
     hold_music: { enabled: h.holdMusic.enabled, track: h.holdMusic.track, volume: h.holdMusic.volume },
+  };
+}
+
+/** Atencion del turno en llamadas (docs/features/ATENCION_TURNO.md): si la persona no responde,
+ * avisos y cierre. La definicion guarda ms; el borrador y la UI trabajan en segundos. */
+export interface TurnAttentionDraft {
+  enabled: boolean;
+  /** Primer aviso desde que el agente deja de hablar, en segundos. */
+  reminderAfterS: number;
+  /** Cantidad de avisos; 0 = solo el cierre. */
+  reminderMax: number;
+  /** Espera entre avisos, en segundos. */
+  reminderGapS: number;
+  /** Cierre desde que el agente deja de hablar, en segundos. */
+  endAfterS: number;
+  /** El VAD detecto voz pero no hay transcripcion: el agente pide que repita. */
+  sttRetry: boolean;
+  /** Cuanto esperar la transcripcion, en segundos. Sin NumberInput en esta version (3 fijo). */
+  transcriptionTimeoutS: number;
+  /** Herramienta repeat_last_reply: repetir la ultima respuesta tal cual. */
+  repeatLastReply: boolean;
+  /** Texto del primer aviso; '' = el de la plataforma. */
+  reminderText: string;
+  /** Texto del cierre; '' = el de la plataforma. */
+  endText: string;
+  /** Que hace al vencer el cierre: cortar o pasar a un area de handoff. */
+  onEnd: 'hang_up' | 'transfer';
+  /** Solo con transfer: id de un area de handoff.areas; '' = la primera. */
+  onEndAreaId: string;
+}
+
+/** Defaults de TurnAttention (app/conversation/models.py), en segundos. */
+export const TURN_ATTENTION_DEFAULTS: Omit<TurnAttentionDraft, 'enabled'> = {
+  reminderAfterS: 7,
+  reminderMax: 2,
+  reminderGapS: 7,
+  endAfterS: 30,
+  sttRetry: true,
+  transcriptionTimeoutS: 3,
+  repeatLastReply: true,
+  reminderText: '',
+  endText: '',
+  onEnd: 'hang_up',
+  onEndAreaId: '',
+};
+
+function toTurnAttentionDraft(raw: unknown): TurnAttentionDraft {
+  const t = obj(raw);
+  const secs = (x: unknown, d: number) => (typeof x === 'number' ? x / 1000 : d);
+  return {
+    enabled: t.enabled === true,
+    reminderAfterS: secs(t.reminder_after_ms, TURN_ATTENTION_DEFAULTS.reminderAfterS),
+    reminderMax: typeof t.reminder_max === 'number' ? t.reminder_max : TURN_ATTENTION_DEFAULTS.reminderMax,
+    reminderGapS: secs(t.reminder_gap_ms, TURN_ATTENTION_DEFAULTS.reminderGapS),
+    endAfterS: secs(t.end_after_ms, TURN_ATTENTION_DEFAULTS.endAfterS),
+    sttRetry: t.stt_retry !== false,
+    transcriptionTimeoutS: secs(
+      t.transcription_timeout_ms,
+      TURN_ATTENTION_DEFAULTS.transcriptionTimeoutS,
+    ),
+    repeatLastReply: t.repeat_last_reply !== false,
+    reminderText: str(t.reminder_text),
+    endText: str(t.end_text),
+    onEnd: t.on_end === 'transfer' ? 'transfer' : 'hang_up',
+    onEndAreaId: str(t.on_end_area_id),
+  };
+}
+
+/** Solo va a la definicion si esta prendido o si algun valor difiere del default (como el bloque
+ * de handoff): guardar sin tocar esta seccion no cambia la version, y sin bloque el servidor lo
+ * toma como apagado. */
+function fromTurnAttentionDraft(t: TurnAttentionDraft): Record<string, unknown> | undefined {
+  if (
+    !t.enabled &&
+    (Object.keys(TURN_ATTENTION_DEFAULTS) as (keyof typeof TURN_ATTENTION_DEFAULTS)[]).every(
+      (k) => t[k] === TURN_ATTENTION_DEFAULTS[k],
+    )
+  )
+    return undefined;
+  // Math.round: los segundos con decimales vuelven a los ms exactos de la definicion.
+  return {
+    enabled: t.enabled,
+    reminder_after_ms: Math.round(t.reminderAfterS * 1000),
+    reminder_max: t.reminderMax,
+    reminder_gap_ms: Math.round(t.reminderGapS * 1000),
+    end_after_ms: Math.round(t.endAfterS * 1000),
+    stt_retry: t.sttRetry,
+    transcription_timeout_ms: Math.round(t.transcriptionTimeoutS * 1000),
+    repeat_last_reply: t.repeatLastReply,
+    reminder_text: t.reminderText,
+    end_text: t.endText,
+    on_end: t.onEnd,
+    on_end_area_id: t.onEndAreaId,
   };
 }
 
@@ -487,6 +583,7 @@ export function toDraft(d: Definition): Draft {
     generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
     handoff: toHandoffDraft(d.handoff),
+    turnAttention: toTurnAttentionDraft(d.turn_attention),
     workflows: toWorkflowsDraft(d.workflows),
     external: toExternalDraft(d.external),
   };
@@ -518,6 +615,7 @@ function fromVariables(variables: VariableDraft[]): Record<string, unknown>[] {
 export function fromDraft(draft: Draft): Definition {
   const last = draft.analysis.outcomes.length - 1;
   const handoff = fromHandoffDraft(draft.handoff);
+  const turnAttention = fromTurnAttentionDraft(draft.turnAttention);
   const workflows = fromWorkflowsDraft(draft.workflows);
   const external = draft.external;
   const toolSettings = {
@@ -569,6 +667,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(!external && draft.clientTools.length ? { tools: toolEntries(draft).map((e) => e.value) } : {}),
     ...(!external && Object.keys(toolSettings).length ? { tool_settings: toolSettings } : {}),
     ...(handoff ? { handoff } : {}),
+    ...(turnAttention ? { turn_attention: turnAttention } : {}),
     // Tambien con tu propio agente: el pre-call y el post-call (el cobro) corren igual.
     ...(workflows ? { workflows } : {}),
   };
@@ -724,6 +823,7 @@ export type ErrorTarget =
       section:
         | 'agente'
         | 'voz'
+        | 'sin_respuesta'
         | 'modelo'
         | 'prompt'
         | 'primer_mensaje'
@@ -772,6 +872,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'tools' || head === 'tool_settings') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'handoff') return { section: 'derivacion' };
+  if (head === 'turn_attention') return { section: 'sin_respuesta' };
   if (head === 'workflows') return { section: 'automaticas' };
   if (head === 'external') return { section: 'externo' };
   if (head === 'analysis') {
@@ -831,6 +932,18 @@ const PATH_WORDS: Record<string, string> = {
   generation: 'Parámetros',
   params: '',
   handoff: 'Derivación a personas',
+  turn_attention: 'Si la persona no responde',
+  reminder_after_ms: 'repetir la última pregunta a los',
+  reminder_max: 'cantidad de avisos',
+  reminder_gap_ms: 'espera entre avisos',
+  end_after_ms: 'cerrar la llamada a los',
+  stt_retry: 'pedir que repita si no se entiende',
+  transcription_timeout_ms: 'espera de la transcripción',
+  repeat_last_reply: 'repetir la última respuesta',
+  reminder_text: 'texto del primer aviso',
+  end_text: 'texto del cierre',
+  on_end: 'al cerrar',
+  on_end_area_id: 'área al cerrar',
   workflows: 'Automáticas',
   pre_call: 'antes de la conversación',
   post_call: 'después de la conversación',

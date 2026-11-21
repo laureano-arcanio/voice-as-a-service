@@ -160,7 +160,7 @@ class LLMClient:
         se ejecutan y se le vuelve a preguntar con el resultado, hasta tools.max_rounds vueltas; al llegar, el
         turno termina con tool_settings.limit_message y solo se aplica un transfer_call de esa vuelta."""
         messages = build_turn_messages(workflow, state, user_message)
-        definitions = platform_tools.tools_for(state) + (tools.openai_tools() if tools else [])
+        definitions = platform_tools.tools_for(state, workflow=workflow) + (tools.openai_tools() if tools else [])
         turn = AgentTurn(assistant_message="")
         said, raw, reasoning = [], [], []
         rounds = 0
@@ -200,7 +200,8 @@ class LLMClient:
                 # (app/llm/prompt.py, classic_history).
                 turn.tools = (turn.tools or []) + tool_history(customer, dict(results))
             platform_tools.apply(turn, calls, state)
-            if not customer or turn.status == "completed" or turn.handoff:
+            # repeat_last_reply: el turno ya tiene su respuesta (la ultima); no se vuelve a llamar al LLM.
+            if not customer or turn.status == "completed" or turn.handoff or turn.repeat:
                 break
         turn.assistant_message = " ".join(t.strip() for t in said if t.strip())
         turn.raw = "\n".join(r for r in raw if r)

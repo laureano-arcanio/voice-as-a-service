@@ -92,10 +92,10 @@ app/
   agents/            templates/*.json (asistente y una por rubro), reference/*.json (agentes de referencia),
                      definitions.py (DbDefinitions), templates.py (en blanco, objetivo del prompt, referencia)
   llm/               client.py (OpenAI, tools nativos, streaming), anthropic_client.py, resolver.py (qué LLM por turno),
-                     prompt.py, params.py (hiperparámetros), platform_tools.py (end_call, transfer_call), external.py (tu propio agente)
+                     prompt.py, params.py (hiperparámetros), platform_tools.py (end_call, transfer_call, repeat_last_reply), external.py (tu propio agente)
   tools/             herramientas del cliente: schema, runtime (http, code, SSRF), conversation (el turno con herramientas)
   voice/             worker.py, latency.py, speech_text.py (texto a palabras para el TTS, es-AR), handoff.py (transferencia),
-                     listen.py (VAD + STT por frase), direct.py (llamadas directas)
+                     attention.py (watchdog de silencio, turn_attention), listen.py (VAD + STT por frase), direct.py (llamadas directas)
   whatsapp/          webhook (firma), graph.py (Cloud API), store.py, service.py (turnos, barrido), audio.py (notas de voz),
                      signup.py (Embedded Signup), own_app.py (app de Meta del cliente), crypto.py, campaigns.py, sender.py,
                      handoffs.py (derivación a personas por texto: rotación, entrega, reenvío), team_notify.py (plantillas al equipo)
@@ -298,6 +298,10 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
 - **`handoff`:** áreas (`area_id` y `when`, hasta 10) y música de espera (`hold_music`: `enabled`, `track` de
   `GET /hold-music`, `volume`). Al guardar se valida que cada área sea del cliente. El modelo deriva con
   `transfer_call` ([`features/EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)).
+- **`turn_attention`:** atención del turno en voz — si la persona no responde, avisos (repite la última
+  pregunta, insiste) y cierre con `hang_up("no_response")` o derivación (`on_end`). Defaults 7 s el primer
+  aviso, 2 avisos cada 7, cierre a los 30; presupuesto compartido con el pedido de repetición por STT vacío.
+  Sin el bloque o `enabled: false`, apagado ([`features/ATENCION_TURNO.md`](features/ATENCION_TURNO.md)).
 - **`workflows`:** herramientas automáticas, ocultas al modelo: `pre_call` (`tool`, `timeout_ms` 200 a 5000, 1500) y
   `post_call` (`tool`, `when` `handoff_accepted` o `always`). Se validan al guardar ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)).
   Con `external`, las variables visibles llegan al endpoint del cliente por el header `X-Atentina-Variables`, no
@@ -362,7 +366,8 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Herramientas:** function calling nativo (OpenAI y Anthropic). El modelo ve las del cliente y las de la
   plataforma (`end_call` con `motivo` `terminada` o `fuera_de_tema`; `transfer_call` con `area`, solo si la
   conversación tiene áreas: las del agente en una llamada, y por WhatsApp de texto las que tienen plantilla;
-  `app/llm/platform_tools.py`). La plataforma ejecuta, dice una frase de voz mientras tanto y
+  `repeat_last_reply` sin parámetros, solo en voz con `turn_attention` activo: repite la última respuesta y
+  el motor pone el texto, sin otra vuelta al LLM ni extracción; `app/llm/platform_tools.py`). La plataforma ejecuta, dice una frase de voz mientras tanto y
   le devuelve el resultado; tope de rondas por turno en `tool_settings`.
 - **Historial de herramientas:** lo que corrió cada turno queda en el mensaje (`Message.tools`: `{id, name,
   arguments, result}`, ids del proveedor, argumentos hasta 2.000 y resultado hasta 4.000 con un recorte fijo) y el
@@ -461,6 +466,15 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 ### Durante la llamada
 
 - **Turnos:** ver "Motor conversacional".
+- **Atención del turno (`turn_attention`):** watchdog de silencio en el worker
+  (`app/voice/attention.py`): si la persona no responde tras el turno del agente, a los 7 s repite la
+  última pregunta, a los 14 insiste y a los 30 cierra con aviso (`ended_reason=no_response` o
+  derivación con `on_end`). Voz, tecla o transcripción reinician la ventana; los avisos no la
+  reinician ([`features/ATENCION_TURNO.md`](features/ATENCION_TURNO.md)).
+- **Repetición (`repeat_last_reply`):** con `turn_attention` activo y el canal en voz, el modelo puede
+  repetir la última respuesta ("¿cómo?", "no te escuchó"): sin texto del modelo, el motor pone la
+  última respuesta real del agente y `llm_node` la empuja al TTS; el turno no extrae ni completa y
+  queda marcado (`Message.repeat`). Cubre también el agente propio (`external`).
 - **Corte por minutos:** el worker mira `calls.call_remaining_seconds` cada `QUOTA_CHECK_SECONDS` (15 s): las
   terminadas del mes, por minuto iniciado, más los segundos que llevan todas las en curso del cliente. En 0 (o cliente desactivado) dice
   `QUOTA_END_MESSAGE`, corta y deja `ended_reason=quota_exhausted`. La saliente además sale con

@@ -15,6 +15,7 @@ todos; el resto con `tiers.advanced_reports`.
 | Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
 | Brazo del reparto | `call_logs.split_arm` (`agent`/`team`) de una entrante al número con `agent_percent > 0`; el motivo (`split_reason`) y el porcentaje/etiqueta de esa llamada quedan congelados aunque el número cambie ([EQUIPO_TELEFONIA.md](EQUIPO_TELEFONIA.md#reparto-agenteequipo-ab)) |
 | Conversión | `complete`: el agente terminó la conversación y no fue `fuera_de_tema`; `partial`: algún dato del análisis capturado (sin precarga, no se descuenta nada); `empty`: ningún dato (`app/conversation/workflow.py`, `conversion`) |
+| Sin respuesta (`no_response`) | llamada que el agente avisó y cortó porque la persona no respondió: la cierra el watchdog de silencio de `turn_attention` ([ATENCION_TURNO.md](ATENCION_TURNO.md)) |
 
 ## Modelo de datos (migración 0036)
 
