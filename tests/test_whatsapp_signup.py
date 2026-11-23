@@ -39,9 +39,9 @@ class FakeMeta:
         self.on_biz_app = True
         self.platform_type = "CLOUD_API"
         self.templates = [
-            {"id": "t1", "name": "recordatorio", "language": "es_AR", "category": "UTILITY", "status": "APPROVED",
+            {"id": "111", "name": "recordatorio", "language": "es_AR", "category": "UTILITY", "status": "APPROVED",
              "components": [{"type": "BODY", "text": "Hola {{1}}"}]},
-            {"id": "t2", "name": "promo", "language": "es_AR", "category": "MARKETING", "status": "REJECTED",
+            {"id": "222", "name": "promo", "language": "es_AR", "category": "MARKETING", "status": "REJECTED",
              "rejected_reason": "PROMOTIONAL", "components": []},
         ]
 
@@ -81,7 +81,33 @@ class FakeMeta:
 
             async def create_template(self, waba_id, payload):
                 await self._call("create_template", waba_id, payload)
-                return {"id": "t3", "status": "PENDING", "category": payload["category"]}
+                return {"id": "333", "status": "PENDING", "category": payload["category"]}
+
+            async def get_template(self, template_id, fields=""):
+                await self._call("get_template", template_id)
+                for t in meta.templates:
+                    if t["id"] == template_id:
+                        return t
+                raise GraphError("Template does not exist", code=100, status=404)
+
+            async def edit_template(self, template_id, payload):
+                await self._call("edit_template", template_id, payload)
+                for t in meta.templates:
+                    if t["id"] == template_id:
+                        t["components"] = payload["components"]
+                        if "category" in payload:
+                            t["category"] = payload["category"]
+                        return {"success": True}
+                raise GraphError("Template does not exist", code=100, status=404)
+
+            async def delete_template(self, waba_id, template_id):
+                # Borra de meta.templates: el list posterior lo refleja (Meta es la fuente de verdad).
+                await self._call("delete_template", waba_id, template_id)
+                for t in meta.templates:
+                    if t["id"] == template_id:
+                        meta.templates.remove(t)
+                        return {"success": True}
+                raise GraphError("Template does not exist", code=100, status=404)
 
             async def aclose(self):
                 pass
@@ -270,10 +296,10 @@ def test_manual_account_actions_are_admin_only(api, admin, meta, acme, monkeypat
     acc = r.json()
     base = f"{V1}/whatsapp/accounts/{acc['id']}"
     # El cliente no usa nuestro token (WABA de la plataforma) para registro, Meta ni plantillas.
+    tpl_body = {"name": "x", "language": "es_AR", "category": "UTILITY", "body": "Hola", "examples": []}
     for method, path, payload in (("post", "/register", {"pin": "123456"}), ("post", "/refresh", None),
-                                  ("get", "/templates", None),
-                                  ("post", "/templates", {"name": "x", "language": "es_AR", "category": "UTILITY",
-                                                          "body": "Hola", "examples": []})):
+                                  ("get", "/templates", None), ("post", "/templates", tpl_body),
+                                  ("put", "/templates/999", tpl_body), ("delete", "/templates/999", None)):
         r = getattr(user, method)(base + path, **({"json": payload} if payload is not None else {}))
         assert r.status_code == 403, (path, r.text)
     assert meta.calls == []
@@ -562,6 +588,8 @@ async def test_graph_signup_calls(caplog):
             return httpx.Response(200, json={"data": [{"id": PNID}]})
         if path.endswith("/message_templates") and request.method == "GET":
             return httpx.Response(200, json={"data": [{"id": "t1", "name": "x"}], "paging": {}})
+        if path.endswith("/message_templates") and request.method == "DELETE":
+            return httpx.Response(200, json={"success": True})
         if request.headers.get("authorization") == "Bearer vencido":
             return httpx.Response(401, json={"error": {"message": "Error validating access token", "code": 190}})
         return httpx.Response(200, json={"success": True, "id": "t9", "status": "PENDING"})
@@ -581,6 +609,16 @@ async def test_graph_signup_calls(caplog):
     assert seen[-1].method == "POST" and seen[-1].url.path == f"/v25.0/{WABA}/subscribed_apps"
     assert await g.list_templates(WABA) == [{"id": "t1", "name": "x"}]
     assert (await g.create_template(WABA, {"name": "x"}))["id"] == "t9"
+    # Editar y borrar van por id: POST /{template_id} y DELETE /{waba}/message_templates?hsm_ids=[id].
+    assert await g.get_template("102943710656801") == {"success": True, "id": "t9", "status": "PENDING"}
+    assert seen[-1].method == "GET" and seen[-1].url.path == "/v25.0/102943710656801"
+    assert "language" in seen[-1].url.params["fields"]
+    result = await g.edit_template("102943710656801", {"components": []})
+    assert result["success"] is True
+    assert seen[-1].method == "POST" and seen[-1].url.path == "/v25.0/102943710656801"
+    assert await g.delete_template(WABA, "102943710656801") == {"success": True}
+    assert seen[-1].method == "DELETE" and seen[-1].url.path == f"/v25.0/{WABA}/message_templates"
+    assert seen[-1].url.params["hsm_ids"] == "[102943710656801]"
 
     with pytest.raises(GraphError) as e:
         await GraphClient("vencido", http=http).get_phone_number(PNID)

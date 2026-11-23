@@ -1104,6 +1104,30 @@
    "api_key": false
   },
   {
+   "name": "edit_whatsapp_template",
+   "toolset": "whatsapp",
+   "title": "Editar una plantilla de WhatsApp",
+   "description": "Edita el texto, la categoría o los botones de una plantilla, en Meta y en el lugar: mismo id, nombre e idioma; lo que mandás reemplaza todos los componentes. Meta la re-revisa: una aprobada editada queda REJECTED si falla la revisión (la versión anterior no vuelve) y se edita 1 vez por 24 h.",
+   "kind": "escritura",
+   "features": [
+    "whatsapp"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_whatsapp_template",
+   "toolset": "whatsapp",
+   "title": "Borrar una plantilla de WhatsApp",
+   "description": "Borra una plantilla de la cuenta, por id. Si la usa una campaña viva o un área de derivación, la API responde 409 template_in_use con los usos; force lo salta. Borrar una aprobada bloquea crear otra con el mismo nombre por 30 días.",
+   "kind": "confirmar",
+   "features": [
+    "whatsapp"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "close_whatsapp_thread",
    "toolset": "whatsapp",
    "title": "Cerrar una conversación de WhatsApp",

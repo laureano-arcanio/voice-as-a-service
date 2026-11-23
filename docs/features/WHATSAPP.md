@@ -12,6 +12,7 @@ cliente. Estado: en producción desde el 1-oct-2026 (llamadas por SIP con el nú
 | Embedded Signup (alta con la app de Atentina) | Prendido en producción desde el 16-nov-2026 (`WA_EMBEDDED_SIGNUP=true`); falta la primera alta real |
 | Llamadas de WhatsApp por SIP | En producción, solo con el número de Atentina |
 | Ruteo por contacto (`wa_routes`) | En producción |
+| Editar y borrar plantillas (`PUT/DELETE /accounts/{id}/templates/{template_id}`) | API y panel (`Templates.tsx`) implementados y probados en local con Meta simulado; sin desplegar, sin probar con una plantilla real (el entorno de desarrollo no tiene WABA) |
 | Derivación a personas del equipo (rotación, aviso, reenvío) | Implementada y probada en local con Meta simulado; sin desplegar, sin probar con un toque de botón real ni con un `failed` real de Meta |
 
 Revisión de Meta (Tech Provider y App Review): [META_APP_REVIEW.md](META_APP_REVIEW.md).
@@ -45,7 +46,7 @@ de una cuenta sin token propio (alta manual, WABA de Atentina) son solo de admin
 | `POST /signup` | Alta por Embedded Signup (solo sesión de usuario, tope `WA_SIGNUP_PER_HOUR` por cliente) |
 | `POST /accounts/{id}/register` | Reintenta suscripción y registro (PIN opcional) sin repetir el popup |
 | `POST /accounts/{id}/refresh` | Relee de Meta nombre, calidad y límite |
-| `GET/POST /accounts/{id}/templates` | Plantillas en vivo contra Meta (sin tabla); alta con tope `WA_TEMPLATES_PER_HOUR` |
+| `GET/POST /accounts/{id}/templates`, `PUT/DELETE /accounts/{id}/templates/{template_id}` | Plantillas en vivo contra Meta (sin tabla); alta, edición y borrado con tope `WA_TEMPLATES_PER_HOUR`. Borrar una que usa una campaña viva o un área de la cuenta: 409 `template_in_use` con los usos; `force=true` borra igual |
 | `PUT /accounts/{id}/routes` | Reemplaza la lista completa de reglas de ruteo |
 | `POST /threads/{conversation_id}/close` | Cierra la conversación: el próximo mensaje abre otra con la versión vigente del agente. También corta el reenvío al operador, aunque el hilo ya esté cerrado: es la salida manual de una emergencia tomada |
 
@@ -57,7 +58,8 @@ Webhook (`app/whatsapp/webhook.py`, fuera de `/api/v1`):
 | `GET/POST /wa/webhook/{key}` | Una cuenta `own_app`: challenge y firma con el verify token y el app secret de esa cuenta; solo pasa lo de su WABA y su número (`own_app.scoped_payload`) |
 
 MCP: `list_whatsapp_accounts`, `update_whatsapp_account`, `set_whatsapp_routes`, `list_whatsapp_templates`,
-`create_whatsapp_template`, `close_whatsapp_thread` ([MCP_HERRAMIENTAS.md](../MCP_HERRAMIENTAS.md)).
+`create_whatsapp_template`, `edit_whatsapp_template`, `delete_whatsapp_template` (con `force`;
+`destructive`), `close_whatsapp_thread` ([MCP_HERRAMIENTAS.md](../MCP_HERRAMIENTAS.md)).
 
 ## Flujo
 
@@ -313,10 +315,28 @@ también `account_update` con `PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`, `ACC
 (`account_update PARTNER_REMOVED PRIMARY_INACTIVITY|COMPANION_INACTIVITY`). `REINSTATE` reconecta lo que desconectó un
 `DISABLE`; `SCHEDULE_FOR_DISABLE` solo se loguea. `phone_number_quality_update` guarda `messaging_limit`; `message_template_status_update` solo se loguea.
 
-**Plantillas:** se listan y crean en vivo contra Meta. Variables `{{1}}`… solo en el cuerpo, con un ejemplo por
-variable; encabezado y pie fijos; botón de enlace (https fijo), un botón de respuesta rápida con texto libre sin variables
-(por ejemplo «Aceptar», el de la rotación) y el de baja "No me interesa". La UI ofrece
-Utilidad y Marketing (Autenticación tiene texto fijo de Meta).
+**Plantillas:** se listan, crean, editan y borran en vivo contra Meta (sin tabla; la lista siempre se lee de Meta).
+Variables `{{1}}`… solo en el cuerpo, con un ejemplo por variable; encabezado y pie fijos; botón de enlace (https fijo),
+un botón de respuesta rápida con texto libre sin variables (por ejemplo «Aceptar», el de la rotación) y el de baja "No
+me interesa". La UI ofrece Utilidad y Marketing (Autenticación tiene texto fijo de Meta). Editar y borrar van por fila,
+con el motivo en el tooltip cuando Meta no lo permite; el mismo modal del alta edita — nombre e idioma fijos y, en una
+aprobada, categoría también — con los avisos de Meta (re-revisión, 1 edición cada 24 h en aprobadas) y, si cambia la
+cantidad de variables, el recordatorio de que campañas y áreas mandan los parámetros por posición. El borrado pide
+confirmación (en una aprobada, el bloqueo de 30 días del nombre) y el 409 de uso muestra campañas y áreas con
+"borrar igual" (`force`). Solo se edita lo que el modal sabe cargar (HEADER de texto, botones de enlace y respuesta
+rápida): una plantilla con imagen, video, carrusel u otros botones queda con el botón deshabilitado, porque editar
+reemplaza TODOS los componentes y lo que no se muestra se perdería.
+
+**Editar** es en el lugar (`POST /{template_id}` de Meta): mismo id, nombre e idioma inmutables; reemplaza TODOS los
+componentes (nunca parcial; los que falten se quitan) y la categoría solo si no está APPROVED. Solo
+APPROVED/REJECTED/PAUSED (el resto lo rechaza Meta): aprobadas se editan 1 vez por 24 h (10 por 30 días), las
+rechazadas sin tope. Tras editar una aprobada Meta la re-revisa: si falla queda REJECTED y la versión anterior no
+vuelve. **Borrar** es por id (`hsm_ids`), nunca por nombre (borraría todas las lenguas); borrar una aprobada bloquea
+crear otra con el mismo nombre por 30 días, y lo ya enviado sin entregar queda PENDING_DELETION (Meta reintenta 30
+días). Una en uso responde 409 `template_in_use` con las campañas vivas (draft/scheduled/running/paused) y las áreas
+de la cuenta que la referencian; `force=true` borra igual. Un 502 `meta_error` lleva el mensaje de Meta y su código en
+`errors`; si Meta lo manda vacío (visto una vez, código 100/2388293), el detalle lleva el código: nunca un `detail`
+vacío.
 
 ### Llamadas de WhatsApp por SIP
 
@@ -377,6 +397,11 @@ Apagar: `make wa-calling-disable` (Meta borra la config SIP y el ícono desapare
   de 6 dígitos (`WA_REGISTRATION_PIN`, Meta lo pide al re-registrar). Un PIN que falla no pisa el guardado.
 - **Celulares de Argentina:** Meta manda `wa_id` `549…`; `service.recipient()` responde sin el 9 (`54…`), que Meta
   entrega igual (a `549…` daba `131030` con el número de prueba).
+- **Borrar una plantilla en uso rompe el envío en el momento:** campañas y áreas mandan por nombre en cada envío
+  (campañas `sender.py`, áreas `handoffs.py`), y una campaña de WhatsApp sin plantilla viola su CHECK. Por eso el
+  borrado responde 409 `template_in_use` (salvo `force=true`), con las campañas vivas y las áreas que la usan.
+  Editar no se bloquea (Meta re-revisa igual): cambiar la cantidad de variables deja literales los `{{n}}` que
+  falten en campañas (render por posición) y en áreas con params fijos; si va a pasar, lo avisa la UI.
 - **Registro del número de Anura:** sin SMS; Meta verifica por llamada de voz, que entra por Anura → Asterisk →
   LiveKit y la atiende el agente: el código se lee en el transcript de la llamada (probado con el número de
   Atentina; el STT transcribió los 6 dígitos con un "tres" espurio). Ver [TELEFONIA_ANURA.md](../TELEFONIA_ANURA.md).

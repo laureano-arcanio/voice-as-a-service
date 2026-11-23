@@ -4902,6 +4902,124 @@
     }
    }
   },
+  "/api/v1/whatsapp/accounts/{account_id}/templates/{template_id}": {
+   "put": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Edit Template",
+    "description": "Edita una plantilla de la WABA de la cuenta, en Meta y en el lugar: mismo id, nombre\ne idioma; reemplaza todos los componentes, nunca parcial. Meta la re-revisa: una aprobada\neditada queda REJECTED si falla la revisión (la versión anterior no vuelve) y solo se\nedita 1 vez por 24 h; fuera de APPROVED/REJECTED/PAUSED lo rechaza Meta.",
+    "operationId": "edit_template_api_v1_whatsapp_accounts__account_id__templates__template_id__put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     },
+     {
+      "name": "template_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Template Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaTemplateEditIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Delete Template",
+    "description": "Borra una plantilla de la WABA de la cuenta, por id. Si la usa una campaña viva o un\nárea de la cuenta, 409 template_in_use con los usos (errors: [{kind, id, name}]);\nforce=true borra igual. Borrar una aprobada bloquea crear otra con el mismo nombre por\n30 días.",
+    "operationId": "delete_template_api_v1_whatsapp_accounts__account_id__templates__template_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     },
+     {
+      "name": "template_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Template Id"
+      }
+     },
+     {
+      "name": "force",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Force"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/whatsapp/threads/{conversation_id}/close": {
    "post": {
     "tags": [
@@ -35838,6 +35956,81 @@
      "id"
     ],
     "title": "WaTemplateCreated"
+   },
+   "WaTemplateEditIn": {
+    "properties": {
+     "category": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "UTILITY",
+         "MARKETING",
+         "AUTHENTICATION"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     },
+     "body": {
+      "type": "string",
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Body"
+     },
+     "examples": {
+      "items": {
+       "type": "string",
+       "maxLength": 200
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Examples",
+      "default": []
+     },
+     "header_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Header Text"
+     },
+     "footer_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Footer Text"
+     },
+     "buttons": {
+      "items": {
+       "$ref": "#/components/schemas/WaTemplateButton"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Buttons",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "body"
+    ],
+    "title": "WaTemplateEditIn",
+    "description": "Edición de una plantilla de texto: reemplaza TODOS los componentes, nunca parcial\n(los que falten se quitan). Nombre e idioma inmutables; categoría solo si no está\nAPPROVED. Meta re-revisa: una aprobada editada queda REJECTED si falla (la versión\nanterior no vuelve) y las aprobadas se editan 1 vez por 24 h."
    },
    "WaTemplateIn": {
     "properties": {

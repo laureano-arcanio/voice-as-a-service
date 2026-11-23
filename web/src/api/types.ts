@@ -82,6 +82,7 @@ export type WaSignupIn = S['WaSignupIn'];
 export type WaRegisterIn = S['WaRegisterIn'];
 export type WaTemplate = S['WaTemplateOut'];
 export type WaTemplateIn = S['WaTemplateIn'];
+export type WaTemplateEdit = S['WaTemplateEditIn'];
 export type WaTemplateCreated = S['WaTemplateCreated'];
 export type WaTemplateButton = S['WaTemplateButton'];
 export type WaCampaign = S['WaCampaignOut'];

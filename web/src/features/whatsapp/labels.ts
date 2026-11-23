@@ -55,6 +55,8 @@ export const TEMPLATE_STATUS: Record<string, Label> = {
   REJECTED: { label: 'Rechazada', color: 'red' },
   PAUSED: { label: 'Pausada', color: 'yellow' },
   DISABLED: { label: 'Deshabilitada', color: 'gray' },
+  // Borrada con envíos sin entregar: Meta la reintenta hasta 30 días.
+  PENDING_DELETION: { label: 'Borrado pendiente', color: 'gray' },
 };
 
 export const TEMPLATE_CATEGORY: Record<string, string> = {

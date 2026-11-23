@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import { toApiError } from '@/api/errors';
 import { unwrap } from '@/api/request';
 import type { components } from '@/api/schema';
-import type { WaAccountIn, WaAccountPatch, WaRouteIn, WaSignupIn, WaTemplateIn } from '@/api/types';
+import type {
+  WaAccountIn,
+  WaAccountPatch,
+  WaRouteIn,
+  WaSignupIn,
+  WaTemplateEdit,
+  WaTemplateIn,
+} from '@/api/types';
 
 /** Cuerpo de la conexion con la app propia (aun no esta en `@/api/types`). */
 export type WaOwnAppIn = components['schemas']['WaOwnAppIn'];
@@ -140,6 +148,84 @@ export function useCreateWaTemplate() {
       unwrap(
         api.POST('/api/v1/whatsapp/accounts/{account_id}/templates', { ...accountPath(accountId), body }),
       ),
+    onSuccess: (_, { accountId }) => void qc.invalidateQueries({ queryKey: waKeys.templates(accountId) }),
+  });
+}
+
+/** Uso que impide borrar una plantilla (409 template_in_use): campaña viva o área de la cuenta. */
+export interface WaTemplateUsage {
+  kind: 'campaign' | 'area';
+  id: string;
+  name: string;
+}
+
+/** El borrado cayó en el 409: la plantilla la usan campañas o áreas (con sus nombres). */
+export class TemplateInUseError extends Error {
+  readonly usages: WaTemplateUsage[];
+
+  constructor(message: string, usages: WaTemplateUsage[]) {
+    super(message);
+    this.name = 'TemplateInUseError';
+    this.usages = usages;
+  }
+}
+
+/** Los usos vienen en errors como {kind, id, name} (no son FieldError): se parsean crudos. */
+function parseUsages(raw: unknown): WaTemplateUsage[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WaTemplateUsage[] = [];
+  for (const u of raw) {
+    if (u && typeof u === 'object') {
+      const { kind, id, name } = u as Record<string, unknown>;
+      if ((kind === 'campaign' || kind === 'area') && typeof id === 'string' && typeof name === 'string')
+        out.push({ kind, id, name });
+    }
+  }
+  return out;
+}
+
+/** Edita una plantilla en Meta, en el lugar: mismo id, nombre e idioma; reemplaza todos los
+ * componentes (los que falten se quitan). Meta la vuelve a revisar. */
+export function useEditWaTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, templateId, body }: { accountId: string; templateId: string; body: WaTemplateEdit }) =>
+      unwrap(
+        api.PUT('/api/v1/whatsapp/accounts/{account_id}/templates/{template_id}', {
+          params: { path: { account_id: accountId, template_id: templateId } },
+          body,
+        }),
+      ),
+    onSuccess: (_, { accountId }) => void qc.invalidateQueries({ queryKey: waKeys.templates(accountId) }),
+  });
+}
+
+/** Borra una plantilla por id. Si la usa una campaña viva o un área, falla con
+ * TemplateInUseError (los usos); con force la borra igual. */
+export function useDeleteWaTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      accountId,
+      templateId,
+      force = false,
+    }: {
+      accountId: string;
+      templateId: string;
+      force?: boolean;
+    }) => {
+      const { response, error } = await api.DELETE(
+        '/api/v1/whatsapp/accounts/{account_id}/templates/{template_id}',
+        { params: { path: { account_id: accountId, template_id: templateId }, query: force ? { force: true } : undefined } },
+      );
+      if (response.ok) return;
+      const err = toApiError(error, response.status);
+      if (err.status === 409 && err.code === 'template_in_use') {
+        const raw = error && typeof error === 'object' ? (error as { errors?: unknown }).errors : null;
+        throw new TemplateInUseError(err.message, parseUsages(raw));
+      }
+      throw err;
+    },
     onSuccess: (_, { accountId }) => void qc.invalidateQueries({ queryKey: waKeys.templates(accountId) }),
   });
 }

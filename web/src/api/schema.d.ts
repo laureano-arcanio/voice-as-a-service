@@ -1519,6 +1519,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/accounts/{account_id}/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Template
+         * @description Edita una plantilla de la WABA de la cuenta, en Meta y en el lugar: mismo id, nombre
+         *     e idioma; reemplaza todos los componentes, nunca parcial. Meta la re-revisa: una aprobada
+         *     editada queda REJECTED si falla la revisión (la versión anterior no vuelve) y solo se
+         *     edita 1 vez por 24 h; fuera de APPROVED/REJECTED/PAUSED lo rechaza Meta.
+         */
+        put: operations["edit_template_api_v1_whatsapp_accounts__account_id__templates__template_id__put"];
+        post?: never;
+        /**
+         * Delete Template
+         * @description Borra una plantilla de la WABA de la cuenta, por id. Si la usa una campaña viva o un
+         *     área de la cuenta, 409 template_in_use con los usos (errors: [{kind, id, name}]);
+         *     force=true borra igual. Borrar una aprobada bloquea crear otra con el mismo nombre por
+         *     30 días.
+         */
+        delete: operations["delete_template_api_v1_whatsapp_accounts__account_id__templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/threads/{conversation_id}/close": {
         parameters: {
             query?: never;
@@ -11963,6 +11993,33 @@ export interface components {
             category?: string | null;
         };
         /**
+         * WaTemplateEditIn
+         * @description Edición de una plantilla de texto: reemplaza TODOS los componentes, nunca parcial
+         *     (los que falten se quitan). Nombre e idioma inmutables; categoría solo si no está
+         *     APPROVED. Meta re-revisa: una aprobada editada queda REJECTED si falla (la versión
+         *     anterior no vuelve) y las aprobadas se editan 1 vez por 24 h.
+         */
+        WaTemplateEditIn: {
+            /** Category */
+            category?: ("UTILITY" | "MARKETING" | "AUTHENTICATION") | null;
+            /** Body */
+            body: string;
+            /**
+             * Examples
+             * @default []
+             */
+            examples?: string[];
+            /** Header Text */
+            header_text?: string | null;
+            /** Footer Text */
+            footer_text?: string | null;
+            /**
+             * Buttons
+             * @default []
+             */
+            buttons?: components["schemas"]["WaTemplateButton"][];
+        };
+        /**
          * WaTemplateIn
          * @description Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un
          *     ejemplo por variable (Meta los usa para revisarla). Botones opcionales.
@@ -15165,6 +15222,72 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WaTemplateCreated"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_template_api_v1_whatsapp_accounts__account_id__templates__template_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaTemplateEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_api_v1_whatsapp_accounts__account_id__templates__template_id__delete: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                account_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -15,11 +15,12 @@ docs/features/WHATSAPP.md.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 
 from ...config import settings
-from ...models import Agent, Client, WaAccount, WaRoute, WaThread
+from ...models import Agent, Campaign, Client, HandoffArea, WaAccount, WaRoute, WaThread
 from ...services import wa_routing
-from ...services.errors import Forbidden, Invalid, NotFound
+from ...services.errors import Conflict, Forbidden, Invalid, NotFound
 from ...services.ratelimit import Limit
 from ...services.security import Principal
 from ...whatsapp import handoffs, own_app, signup, store
@@ -42,6 +43,7 @@ from ..schemas import (
     WaRouteOut,
     WaSignupIn,
     WaTemplateCreated,
+    WaTemplateEditIn,
     WaTemplateIn,
     WaTemplateOut,
 )
@@ -57,7 +59,7 @@ signup_limit = rate_limit("wa_signup", lambda: Limit(settings.wa_signup_per_hour
 register_limit = rate_limit("wa_register", lambda: Limit(settings.wa_signup_per_hour, 3600), per="client",
                             message="Demasiados reintentos de registro. Probá en una hora.")
 templates_limit = rate_limit("wa_templates", lambda: Limit(settings.wa_templates_per_hour, 3600), per="client",
-                             message="Demasiadas plantillas creadas. Probá en una hora.")
+                             message="Demasiadas operaciones con plantillas. Probá en una hora.")
 
 
 def _route_out(db, r: WaRoute) -> WaRouteOut:
@@ -98,6 +100,29 @@ def _get_managed(db, account_id: str, p: Principal) -> WaAccount:
     if not (p.is_admin or p.support) and not store.has_own_token(a):
         raise Forbidden("Este número usa la cuenta de WhatsApp de la plataforma: lo administra un admin")
     return a
+
+
+# Campañas que pueden enviar con la plantilla en cualquier momento (models/campaigns.py).
+CAMPAIGN_LIVE_STATUSES = ("draft", "scheduled", "running", "paused")
+
+
+def _template_usages(db, account: WaAccount, name: str, language: str) -> list[dict]:
+    """Quién usa la plantilla (campañas vivas y áreas de la cuenta): borrarla rompe el
+    envío, que va por nombre en cada mensaje. [{kind: campaign|area, id, name}]."""
+    usages: list[dict] = []
+    for c in db.scalars(select(Campaign).where(
+            Campaign.client_id == account.client_id, Campaign.account_id == account.id,
+            Campaign.template_name == name, Campaign.template_language == language,
+            Campaign.status.in_(CAMPAIGN_LIVE_STATUSES))):
+        usages.append({"kind": "campaign", "id": c.id, "name": c.name})
+    for area in db.scalars(select(HandoffArea).where(HandoffArea.client_id == account.client_id)):
+        wa = area.whatsapp or {}
+        if wa.get("account_id") != account.id:
+            continue
+        if any((wa.get(key) or {}).get("name") == name and (wa.get(key) or {}).get("language") == language
+               for key in ("template", "call_template", "accept_template")):
+            usages.append({"kind": "area", "id": area.id, "name": area.name})
+    return usages
 
 
 @router.get("/config", response_model=WaConfigOut)
@@ -238,6 +263,38 @@ async def create_template(account_id: str, body: WaTemplateIn, p: CurrentPrincip
     result = await signup.create_template(db, a, payload)
     return WaTemplateCreated(id=str(result.get("id") or ""), status=result.get("status"),
                              category=result.get("category"))
+
+
+@router.put("/accounts/{account_id}/templates/{template_id}", status_code=204,
+            dependencies=[Depends(templates_limit)])
+async def edit_template(account_id: str, template_id: str, body: WaTemplateEditIn,
+                        p: CurrentPrincipal, db: DB):
+    """Edita una plantilla de la WABA de la cuenta, en Meta y en el lugar: mismo id, nombre
+    e idioma; reemplaza todos los componentes, nunca parcial. Meta la re-revisa: una aprobada
+    editada queda REJECTED si falla la revisión (la versión anterior no vuelve) y solo se
+    edita 1 vez por 24 h; fuera de APPROVED/REJECTED/PAUSED lo rechaza Meta."""
+    a = _get_managed(db, account_id, p)
+    payload = signup.template_edit_payload(**body.model_dump())
+    await signup.edit_template(db, a, template_id, payload)
+
+
+@router.delete("/accounts/{account_id}/templates/{template_id}", status_code=204,
+               dependencies=[Depends(templates_limit)])
+async def delete_template(account_id: str, template_id: str, p: CurrentPrincipal, db: DB,
+                          force: bool = False):
+    """Borra una plantilla de la WABA de la cuenta, por id. Si la usa una campaña viva o un
+    área de la cuenta, 409 template_in_use con los usos (errors: [{kind, id, name}]);
+    force=true borra igual. Borrar una aprobada bloquea crear otra con el mismo nombre por
+    30 días."""
+    a = _get_managed(db, account_id, p)
+    template = await signup.get_template(db, a, template_id)
+    if not force:
+        usages = _template_usages(db, a, str(template.get("name") or ""), str(template.get("language") or ""))
+        if usages:
+            raise Conflict("La usa: " + ", ".join(
+                f"{'campaña' if u['kind'] == 'campaign' else 'área'} {u['name']}" for u in usages),
+                code="template_in_use", details=usages)
+    await signup.delete_template(db, a, template_id)
 
 
 @router.post("/threads/{conversation_id}/close", status_code=204)

@@ -43,12 +43,14 @@ COEXISTENCE_FIELDS = "is_on_biz_app,platform_type"
 
 
 class MetaError(ServiceError):
-    """Meta rechazo el pedido: el mensaje es el de Meta (sin tokens)."""
+    """Meta rechazo el pedido: el mensaje es el de Meta (sin tokens). Vacio (bug de Meta,
+    visto con 100/2388293): el codigo, para que el 502 nunca lleve detail vacio."""
     status_code = 502
     default_code = "meta_error"
 
     def __init__(self, e: GraphError, prefix: str = ""):
-        super().__init__(f"{prefix}{e.message}" if prefix else e.message,
+        message = e.message or f"Meta rechazó el pedido (código {e.code}/{e.subcode})"
+        super().__init__(f"{prefix}{message}" if prefix else message,
                          details=[{"meta_code": e.code, "meta_subcode": e.subcode}])
         self.graph_error = e
 
@@ -289,13 +291,13 @@ async def list_templates(s: Session, account: WaAccount,
         await _close(graph)
 
 
-def template_payload(*, name: str, language: str, category: str, body: str, examples: list[str],
-                     header_text: str | None = None, footer_text: str | None = None,
-                     buttons: list[dict] | None = None) -> dict:
-    """Cuerpo de POST /{waba_id}/message_templates. Variables posicionales {{1}}..{{n}} en el
-    cuerpo, con un ejemplo por variable (Meta los exige para revisarla). El encabezado, el
-    pie y los botones van sin variables. Botones: hasta 2 de URL (https) y respuestas
-    rapidas; Meta pide los de cada tipo juntos: van primero los de URL."""
+def _template_components(*, body: str, examples: list[str], header_text: str | None = None,
+                         footer_text: str | None = None, buttons: list[dict] | None = None) -> list[dict]:
+    """Componentes de una plantilla de texto, compartidos por el alta y la edición.
+    Variables posicionales {{1}}..{{n}} en el cuerpo, con un ejemplo por variable (Meta
+    los exige para revisarla). El encabezado, el pie y los botones van sin variables.
+    Botones: hasta 2 de URL (https) y respuestas rápidas; Meta pide los de cada tipo
+    juntos: van primero los de URL."""
     numbers = sorted({int(n) for n in PLACEHOLDER_RE.findall(body)})
     if numbers != list(range(1, len(numbers) + 1)):
         raise Invalid("Las variables del cuerpo tienen que ser {{1}}, {{2}}... seguidas")
@@ -317,7 +319,29 @@ def template_payload(*, name: str, language: str, category: str, body: str, exam
         components.append({"type": "FOOTER", "text": footer_text})
     if buttons:
         components.append({"type": "BUTTONS", "buttons": _buttons(buttons)})
-    return {"name": name, "language": language, "category": category, "components": components}
+    return components
+
+
+def template_payload(*, name: str, language: str, category: str, body: str, examples: list[str],
+                     header_text: str | None = None, footer_text: str | None = None,
+                     buttons: list[dict] | None = None) -> dict:
+    """Cuerpo de POST /{waba_id}/message_templates."""
+    return {"name": name, "language": language, "category": category,
+            "components": _template_components(body=body, examples=examples, header_text=header_text,
+                                               footer_text=footer_text, buttons=buttons)}
+
+
+def template_edit_payload(*, category: str | None = None, body: str, examples: list[str],
+                          header_text: str | None = None, footer_text: str | None = None,
+                          buttons: list[dict] | None = None) -> dict:
+    """Cuerpo de POST /{template_id}: reemplaza TODOS los componentes (nunca parcial) y
+    no lleva name ni language (inmutables). La categoría solo si cambia: Meta la rechaza
+    en una APPROVED."""
+    payload = {"components": _template_components(body=body, examples=examples, header_text=header_text,
+                                                  footer_text=footer_text, buttons=buttons)}
+    if category:
+        payload["category"] = category
+    return payload
 
 
 def _buttons(buttons: list[dict]) -> list[dict]:
@@ -349,4 +373,56 @@ async def create_template(s: Session, account: WaAccount, payload: dict,
     finally:
         await _close(graph)
     logger.info("wa: plantilla creada account=%s id=%s status=%s", account.id, result.get("id"), result.get("status"))
+    return result
+
+
+async def get_template(s: Session, account: WaAccount, template_id: str,
+                       graph_factory: Callable[[str], GraphClient] | None = None) -> dict:
+    """Una plantilla por id, en vivo. Inexistente (404 de Meta): NotFound; el resto,
+    MetaError (un token rechazado desconecta la cuenta)."""
+    graph = (graph_factory or graph_for)(store.token_for(account))
+    try:
+        return await graph.get_template(template_id)
+    except GraphError as e:
+        if e.status == 404:
+            raise NotFound("Plantilla inexistente en Meta") from None
+        _disconnect_if_auth(s, account, e)
+        raise MetaError(e) from None
+    finally:
+        await _close(graph)
+
+
+async def edit_template(s: Session, account: WaAccount, template_id: str, payload: dict,
+                        graph_factory: Callable[[str], GraphClient] | None = None) -> dict:
+    """Edita la plantilla en Meta, en el lugar (POST /{template_id}): mismo id, nombre e
+    idioma; reemplaza todos los componentes. Meta re-revisa: una aprobada editada queda
+    REJECTED si falla la revisión (la versión anterior no vuelve)."""
+    graph = (graph_factory or graph_for)(store.token_for(account))
+    try:
+        result = await graph.edit_template(template_id, payload)
+    except GraphError as e:
+        _disconnect_if_auth(s, account, e)
+        raise MetaError(e) from None
+    finally:
+        await _close(graph)
+    logger.info("wa: plantilla editada account=%s id=%s", account.id, template_id)
+    return result
+
+
+async def delete_template(s: Session, account: WaAccount, template_id: str,
+                          graph_factory: Callable[[str], GraphClient] | None = None) -> dict:
+    """Borra la plantilla por id (DELETE /{waba_id}/message_templates con hsm_ids).
+    Borrar una aprobada bloquea crear otra con el mismo nombre por 30 días; lo ya
+    enviado sin entregar queda PENDING_DELETION (Meta reintenta 30 días)."""
+    if not re.fullmatch(r"\d{1,32}", str(template_id)):
+        raise Invalid("Id de plantilla inválido")
+    graph = (graph_factory or graph_for)(store.token_for(account))
+    try:
+        result = await graph.delete_template(account.waba_id, template_id)
+    except GraphError as e:
+        _disconnect_if_auth(s, account, e)
+        raise MetaError(e) from None
+    finally:
+        await _close(graph)
+    logger.info("wa: plantilla borrada account=%s id=%s", account.id, template_id)
     return result

@@ -676,6 +676,24 @@ _WRITE: tuple[Tool, ...] = (
          method="POST", path="/whatsapp/accounts/{account_id}/templates",
          params={"account_id": _s("ID de la cuenta.")}, required=("account_id",), body="WaTemplateIn",
          features=("whatsapp",)),
+    Tool("edit_whatsapp_template", "whatsapp", "Editar una plantilla de WhatsApp",
+         "Edita el texto, la categoría o los botones de una plantilla, en Meta y en el lugar: mismo id, nombre e "
+         "idioma; lo que mandás reemplaza todos los componentes. Meta la re-revisa: una aprobada editada queda "
+         "REJECTED si falla la revisión (la versión anterior no vuelve) y se edita 1 vez por 24 h.",
+         method="PUT", path="/whatsapp/accounts/{account_id}/templates/{template_id}",
+         params={"account_id": _s("ID de la cuenta."),
+                 "template_id": _s("ID de la plantilla en Meta (lo da list_whatsapp_templates).")},
+         required=("account_id", "template_id"), body="WaTemplateEditIn", features=("whatsapp",)),
+    Tool("delete_whatsapp_template", "whatsapp", "Borrar una plantilla de WhatsApp",
+         "Borra una plantilla de la cuenta, por id. Si la usa una campaña viva o un área de derivación, la API "
+         "responde 409 template_in_use con los usos; force lo salta. Borrar una aprobada bloquea crear otra con "
+         "el mismo nombre por 30 días.", method="DELETE",
+         path="/whatsapp/accounts/{account_id}/templates/{template_id}",
+         params={"account_id": _s("ID de la cuenta."),
+                 "template_id": _s("ID de la plantilla en Meta (lo da list_whatsapp_templates)."),
+                 "force": {"type": "boolean", "description": "Borrar aunque la use una campaña o un área "
+                                                              "(sin esto, un 409 template_in_use lo impide)."}},
+         required=("account_id", "template_id"), features=("whatsapp",), destructive=True),
     Tool("close_whatsapp_thread", "whatsapp", "Cerrar una conversación de WhatsApp",
          "Da por terminada una conversación de WhatsApp: el próximo mensaje del contacto empieza otra.",
          method="POST", path="/whatsapp/threads/{conversation_id}/close", params=_CONVERSATION,

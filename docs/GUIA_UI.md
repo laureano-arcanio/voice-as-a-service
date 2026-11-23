@@ -792,6 +792,13 @@ con el registro de Facebook («Conectar WhatsApp», Embedded Signup) o con **tu 
    Rechazada con el motivo) y **Nueva plantilla** crea una (nombre en minúsculas y `_`, categoría
    Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable; botón de enlace y, opcional, un botón de
    respuesta rápida con el texto que quieras, por ejemplo «Aceptar»: es el que usa la rotación del equipo). Meta la revisa.
+   Cada plantilla se **edita** y se **borra** desde su fila (el lápiz y la papelera; si alguno no se puede, el tooltip
+   dice por qué). Al editar, Meta vuelve a revisar el cambio: si lo rechaza, la plantilla queda Rechazada y la versión
+   anterior **no** vuelve; las aprobadas se editan 1 vez cada 24 h (las rechazadas, sin tope); el nombre y el idioma no
+   cambian y, en una aprobada, tampoco la categoría. Si cambiás la cantidad de variables, te avisa que campañas y
+   áreas mandan los parámetros por posición. Al borrar pide confirmación — crear otra con el nombre de una aprobada
+   borrada queda bloqueado 30 días — y si la usa una campaña o un área te lo dice al confirmar: **Borrar igual** la
+   borra, pero esos envíos fallan en el momento.
 9. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
 10. Con **Embedded Signup** prendido aparece también **Conectar WhatsApp** (ventana de Meta; solo desde
     `https://app.atentina.com.ar`).

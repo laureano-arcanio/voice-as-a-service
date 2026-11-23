@@ -291,3 +291,21 @@ class GraphClient:
         """{id, status, category}. Meta la revisa: queda PENDING y avisa por
         message_template_status_update."""
         return await self._request("POST", self._url(waba_id, "message_templates"), json=payload)
+
+    async def get_template(self, template_id: str, fields: str = "id,name,language") -> dict:
+        """Una plantilla por id (GET /{template_id}). Inexistente: 404 de Meta."""
+        return await self._request("GET", self._url(template_id), params={"fields": fields})
+
+    async def edit_template(self, template_id: str, payload: dict) -> dict:
+        """Edita en el lugar (POST /{template_id}): mismo id, nombre e idioma inmutables.
+        Solo APPROVED/REJECTED/PAUSED (el resto lo rechaza Meta); reemplaza TODOS los
+        componentes, nunca parcial, y la categoria solo si no esta APPROVED. Devuelve
+        {"success": true} y Meta la re-revisa."""
+        return await self._request("POST", self._url(template_id), json=payload)
+
+    async def delete_template(self, waba_id: str, template_id: str) -> dict:
+        """Borra una plantilla por id: DELETE /{waba_id}/message_templates con
+        hsm_ids=[<id>] (por nombre borraria todas las lenguas: nunca se usa). Lo ya
+        enviado sin entregar queda PENDING_DELETION y Meta reintenta 30 dias."""
+        return await self._request("DELETE", self._url(waba_id, "message_templates"),
+                                   params={"hsm_ids": f"[{template_id}]"})

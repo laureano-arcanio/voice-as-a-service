@@ -4,6 +4,7 @@ import pathlib
 import pytest
 
 from app.conversation.models import AgentTurn
+from app.models import Campaign
 
 from app.mcp import catalog, docs
 from app.services import features, livekit
@@ -11,6 +12,7 @@ from app.services import features, livekit
 from .test_api import V1, admin, client_user, make_agent, make_client, make_tier  # noqa: F401  (admin: fixture)
 from .test_direct_calls import accept_terms
 from .test_plan_features import FREE
+from .test_whatsapp_signup import BIZ_TOKEN, WABA, meta, signup_ok  # noqa: F401  (meta: fixture)
 
 
 def new_key(admin, client, scopes=("mcp",)):
@@ -410,6 +412,48 @@ def test_call_link_lifecycle(api, full):
     assert rotated["url"] != created["url"]
     ok(mcp.call("update_call_link", agent_id=agent["id"], paused=True))
     ok(mcp.call("delete_call_link", agent_id=agent["id"]))
+
+
+def test_whatsapp_template_tools(api, admin, meta):
+    """Edición y borrado de plantillas por MCP (docs/features/WHATSAPP.md): los endpoints de la API
+    por JSON-RPC, con Meta simulada."""
+    c = make_client(admin, slug="acme", whatsapp=True, campaign_channels=["whatsapp"])
+    agent = make_agent(admin, c)
+    acc = signup_ok(client_user(api, admin, c), agent)
+    mcp = Mcp(api, new_key(admin, c), "whatsapp")
+    tools = mcp.tools()
+    edit, delete = tools["edit_whatsapp_template"], tools["delete_whatsapp_template"]
+    assert edit["annotations"]["destructiveHint"] is False
+    assert delete["annotations"]["destructiveHint"] is True      # borra: el cliente MCP pide confirmación
+    assert set(edit["inputSchema"]["required"]) == {"account_id", "template_id", "body"}
+    assert set(edit["inputSchema"]["properties"]) == {"account_id", "template_id", "category", "body", "examples",
+                                                      "header_text", "footer_text", "buttons"}
+    assert set(delete["inputSchema"]["properties"]) == {"account_id", "template_id", "force"}
+
+    # Editar: el cuerpo de WaTemplateEditIn, sin name ni language (inmutables en Meta).
+    ok(mcp.call("edit_whatsapp_template", account_id=acc["id"], template_id="111", category="MARKETING",
+                body="Hola {{1}}, tu turno es el {{2}}.", examples=["Juan", "lunes 6"]))
+    name, token, template_id, payload = meta.calls[-1]
+    assert (name, token, template_id) == ("edit_template", BIZ_TOKEN, "111")
+    assert payload == {"category": "MARKETING", "components": [
+        {"type": "BODY", "text": "Hola {{1}}, tu turno es el {{2}}.",
+         "example": {"body_text": [["Juan", "lunes 6"]]}}]}
+
+    # Borrar una que usa una campaña viva: el 409 de la API llega legible, sin tocar Meta.
+    with api.sessions() as s:
+        s.add(Campaign(client_id=c["id"], channel="whatsapp", account_id=acc["id"], name="Campaña turno",
+                       template_name="recordatorio", template_language="es_AR", status="running"))
+        s.commit()
+    out = mcp.call("delete_whatsapp_template", account_id=acc["id"], template_id="111")
+    assert out["isError"]
+    assert out["structuredContent"] == {"code": "template_in_use", "message": "La usa: campaña Campaña turno",
+                                        "http_status": 409}
+    assert "delete_template" not in meta.names()
+    # force lo salta y la lista lo refleja (FakeMeta borra de sus plantillas).
+    assert ok(mcp.call("delete_whatsapp_template", account_id=acc["id"], template_id="111", force=True)) == {}
+    assert meta.calls[-1] == ("delete_template", BIZ_TOKEN, WABA, "111")
+    listed = ok(mcp.call("list_whatsapp_templates", account_id=acc["id"]))["items"]
+    assert [t["name"] for t in listed] == ["promo"]
 
 
 def test_free_plan_cannot_write_what_it_does_not_have(api, admin):

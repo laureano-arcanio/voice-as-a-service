@@ -747,6 +747,19 @@ class WaTemplateIn(BaseModel):
     buttons: list[WaTemplateButton] = Field(default=[], max_length=10)
 
 
+class WaTemplateEditIn(BaseModel):
+    """Edición de una plantilla de texto: reemplaza TODOS los componentes, nunca parcial
+    (los que falten se quitan). Nombre e idioma inmutables; categoría solo si no está
+    APPROVED. Meta re-revisa: una aprobada editada queda REJECTED si falla (la versión
+    anterior no vuelve) y las aprobadas se editan 1 vez por 24 h."""
+    category: Literal["UTILITY", "MARKETING", "AUTHENTICATION"] | None = None
+    body: str = Field(min_length=1, max_length=1024)
+    examples: list[Annotated[str, Field(max_length=200)]] = Field(default=[], max_length=20)
+    header_text: str | None = Field(default=None, max_length=60)
+    footer_text: str | None = Field(default=None, max_length=60)
+    buttons: list[WaTemplateButton] = Field(default=[], max_length=10)
+
+
 class WaTemplateCreated(BaseModel):
     id: str
     status: str | None = None
