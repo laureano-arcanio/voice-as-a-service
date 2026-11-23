@@ -992,3 +992,54 @@ def test_end_transfer_passes_to_the_area(api, admin, client, monkeypatch):
     assert h.call(inbound_id(api)).ended_reason != "no_response"      # derivó, no cortó el watchdog
     with api.sessions() as s:
         assert s.scalars(select(HandoffLeg).where(HandoffLeg.result == "connected")).one()
+
+
+def test_agent_back_from_a_transfer_rearms_the_window(api, admin, client, monkeypatch):
+    """Derivación conectada que termina porque cortó la persona del equipo (on_person_hangup=resume):
+    vuelve el agente y, si quien llamó no habla, salen los avisos y el corte por no_response."""
+    area = add_area(admin, client)
+    attention_agent(admin, client, area=area)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    h = Harness(api, monkeypatch, script=OPERATORS, connected=[("left", "PERSON")])
+
+    async def during(h):
+        await tick()
+        await h.session.agent.on_handoff("Ventas", False)
+        assert sleep.alive() == [7.0]       # ventana nueva desde la vuelta del agente
+        sleep.expect(7.0)
+        await tick()
+        sleep.expect(8.0)
+        await tick()
+        sleep.expect(15.0)
+        await tick(10)
+        assert f"say:{settings.voice_no_response_end}" in h.order
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason == "no_response"
+    with api.sessions() as s:
+        assert s.scalars(select(HandoffLeg).where(HandoffLeg.result == "connected")).one()
+
+
+@pytest.mark.parametrize("how", ["customer_hung_up", "end"])
+def test_transfer_that_ends_the_call_does_not_rearm(api, admin, client, monkeypatch, how):
+    """Si durante la derivación corta quien llamó, o la persona del equipo corta con
+    on_person_hangup=end (el agente se despide y cuelga), la ventana no se arma."""
+    area = add_area(admin, client)
+    if how == "end":
+        r = admin.patch(f"{V1}/handoff-areas/{area}", json={"on_person_hangup": "end"})
+        assert r.status_code == 200, r.text
+    attention_agent(admin, client, area=area)
+    sleep = StepSleep()
+    monkeypatch.setattr(worker, "ATTENTION_SLEEP", sleep)
+    who = CUSTOMER if how == "customer_hung_up" else "PERSON"
+    h = Harness(api, monkeypatch, script=OPERATORS, connected=[("left", who)])
+
+    async def during(h):
+        await tick()
+        await h.session.agent.on_handoff("Ventas", False)
+        await tick()
+        assert sleep.alive() == []
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.call(inbound_id(api)).ended_reason != "no_response"

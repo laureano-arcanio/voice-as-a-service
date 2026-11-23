@@ -4,7 +4,7 @@
 del turno del agente, repite la última pregunta, insiste y cierra con aviso — `hang_up("no_response")`
 o derivación al área configurada. Sin LiveKit: el worker le pasa `say`/`end`/`transfer`/`busy` y lo
 arma desde los ganchos que saben quién habló (fin de la apertura, done-callback del speech de un
-turno, vuelta de una derivación fallida). `on_agent_state` no llama nada: los avisos pasan por
+turno, vuelta del agente después de una derivación). `on_agent_state` no llama nada: los avisos pasan por
 `say`, que dispara los mismos eventos de estado que una respuesta real, y con eventos crudos la
 secuencia se rompe o loopea.
 
@@ -49,8 +49,8 @@ class AttentionWatchdog:
         self._speaking = 0              # >0: el watchdog está diciendo su propio aviso
 
     def arm(self) -> None:
-        """Ventana nueva: el agente terminó de hablar (apertura, respuesta, vuelta de una derivación
-        fallida). Se ignora mientras suena un aviso propio: su voz no re-arma."""
+        """Ventana nueva: el agente terminó de hablar (apertura, respuesta, vuelta de una
+        derivación). Se ignora mientras suena un aviso propio: su voz no re-arma."""
         if self._speaking:
             return
         self._start()

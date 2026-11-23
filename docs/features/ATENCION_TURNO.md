@@ -81,7 +81,11 @@ el agente termina de hablar
 - **Dueño de la ventana:** los deadlines son absolutos desde que el agente deja de hablar. Solo
   arman ventana los ganchos que saben quién habló: el fin del `say` de la apertura
   (`add_done_callback` del `SpeechHandle`), el done-callback del speech de un turno real
-  (`llm_node`) y el `say` de vuelta de una derivación fallida (`run_transfer`). `on_agent_state` no
+  (`llm_node`) y la vuelta del agente después de una derivación (`run_transfer`): cuando `Transfer.run`
+  termina con el mensaje de vuelta ya sonado (persona que cortó con `on_person_hangup=resume`, código
+  de vuelta a la IA, nadie atendió, avisado por WhatsApp, fuera de horario) o tras el aviso de una
+  derivación que falló. No arma si quien llamó cortó (`customer_hung_up`, `CustomerGone`) ni si la
+  llamada se está cerrando (`on_person_hangup=end`, cualquier `hang_up`). `on_agent_state` no
   llama nada: los avisos del propio watchdog pasan por `session.say` y disparan los mismos eventos
   de estado que una respuesta real; con eventos crudos la secuencia loopea. Mientras suena un aviso
   propio, `arm`/`disarm` se ignoran (su voz no reinicia la ventana).
@@ -89,8 +93,8 @@ el agente termina de hablar
   agendado, pone el contador a cero y arranca ventana nueva. Nunca se ignora: si la persona habla
   durante un aviso, este se corta (`allow_interruptions=True`) y si habla durante el aviso de
   cierre, se cancela el corte.
-- **`disarm()`** al empezar un turno real (`llm_node`) y al empezar `run_transfer` (en una
-  derivación exitosa no se re-arma).
+- **`disarm()`** al empezar un turno real (`llm_node`) y al empezar `run_transfer`: mientras la
+  persona del equipo habla con quien llamó no hay avisos.
 - **Presupuesto de avisos por ventana:** los pedidos del STT cuentan como avisos. Un evento de STT
   no toca la ventana ni el deadline: una línea ruidosa no loopea "¿podés repetir?" ni atrasa el
   cierre; solo la entrada real resetea.

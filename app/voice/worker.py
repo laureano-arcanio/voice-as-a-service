@@ -808,7 +808,7 @@ async def entrypoint(ctx: JobContext):
 
     async def run_transfer(area_name: str, announced: bool) -> None:
         if attention is not None:
-            attention.disarm()   # derivación en curso: sin avisos; se re-arma solo si vuelve con error
+            attention.disarm()   # derivación en curso: sin avisos; se re-arma si vuelve el agente
         if current["transfer"] is not None:
             return
         customer = customer_identity()
@@ -822,6 +822,7 @@ async def entrypoint(ctx: JobContext):
         session.input.set_audio_enabled(False)   # el agente no le contesta al cliente mientras espera
         agent_keys.close()     # un grupo a medio marcar no llega al agente: desde aca las teclas son de la linea
         tr = None
+        resumed = False   # el agente retomó la llamada (ya sonó su mensaje de vuelta): ventana nueva al salir
         try:
             if current["line"] is None:
                 current["line"] = transfer.RoomLine(
@@ -847,6 +848,9 @@ async def entrypoint(ctx: JobContext):
             outcome = await tr.run(area_name, announced=announced)
             logger.info("llamada %s: derivacion a %r %s (%s)", conversation_id, area_name, outcome.status,
                         outcome.ended or outcome.result)
+            # run() vuelve con el mensaje de vuelta ya sonado (_back espera el playout). Si quien llamó
+            # cortó o la llamada se está cerrando (on_person_hangup=end), no hay a quién esperar.
+            resumed = outcome.ended != "customer_hung_up"
         except transfer.CustomerGone:
             logger.info("llamada %s: el cliente corto durante la derivacion", conversation_id)
         except Exception:
@@ -876,6 +880,8 @@ async def entrypoint(ctx: JobContext):
             current["transfer"] = None
             # El turno de la derivacion no se deshace aunque el cliente hable encima (settle_last_reply).
             agent.last_reply = None
+        if attention is not None and resumed and not ending["reason"]:
+            attention.arm()   # vuelve el agente y la persona no habla: avisos y corte según turn_attention
 
     # Watchdog de silencio (turn_attention; app/voice/attention.py): avisos y cierre si la persona
     # no responde. Con la función apagada (o loadtest) no se crea y nada cambia.
