@@ -121,10 +121,10 @@ canales que pasan por el motor (llamadas, WhatsApp, link para llamar, campañas,
 `stream: true`, `model`, `messages` (historial completo en cada turno, sin prompt nuestro salvo `external.system`;
 lo que dijo una persona del equipo va como `assistant` con `name`), `tools` y `user: <conversation_id>`.
 
-- Herramientas: `end_call` con `outcome` (enum de `analysis.outcomes`; sin él, el último resultado de la lista; sin
-  resultados, `motivo` como con el LLM de Atentina) y,
+- Herramientas: `end_call` con `motivo` (`terminada`, el cierre normal, o `fuera_de_tema`: la conversación no tenía
+  que ver con el objetivo) y,
   en una llamada de voz con áreas (o un WhatsApp de texto con áreas con plantilla), `transfer_call` con `area`
-  (`app/llm/platform_tools.py`).
+  (`app/llm/platform_tools.py`). Un argumento desconocido (ej. un `outcome` de un endpoint viejo) se ignora sin error.
 - Datos de la llamada **solo en headers** (el cuerpo lleva solo campos estándar: un endpoint que reenvía a OpenAI
   rechazaría los desconocidos): `X-Atentina-Conversation-Id`, `-Channel`, `-Mode`, `-Direction` (`inbound` u
   `outbound`), `-From`, `-To`, `-Agent`, `-Turn` (1 = primer mensaje de la persona) y, si hay, `-Variables`: JSON
@@ -164,7 +164,7 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
   respaldo; `GenerationEditor.tsx` para los parámetros) y sección "Tu propio agente" (`ExternalSection.tsx`, dentro de
   `PlanGate` `external_agent`): el switch agrega o quita `external`; se elige la conexión `openai_compatible`, modelo,
   prompt opcional, mensaje de error, espera, errores seguidos y qué hacer después. Con `external` se ocultan Modelo de
-  lenguaje, Prompt, Variables y los datos del análisis, y los resultados dicen "Lo elige tu agente".
+  lenguaje, Prompt y las variables y los datos del análisis.
 - La API devuelve `AgentOut.own_agent` para saber si un agente usa su propio agente.
 
 ## Reglas y trampas

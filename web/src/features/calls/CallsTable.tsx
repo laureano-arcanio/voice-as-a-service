@@ -353,7 +353,7 @@ export function CallsTable({
                     )}
                   </Table.Td>
                   <Table.Td>
-                    <OutcomeBadge label={c.outcome} goal={c.goal} />
+                    <OutcomeBadge label={c.outcome} />
                     {!!(c.agent_id || c.total) && (
                       <Text size="xs" c="dimmed">
                         <span className="mono">

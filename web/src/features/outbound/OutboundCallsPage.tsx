@@ -143,7 +143,7 @@ function RecentCalls() {
                     {formatDuration(c.duration_seconds)}
                   </Table.Td>
                   <Table.Td>
-                    <OutcomeBadge label={c.outcome} goal={c.goal} />
+                    <OutcomeBadge label={c.outcome} />
                   </Table.Td>
                 </Table.Tr>
               ))}

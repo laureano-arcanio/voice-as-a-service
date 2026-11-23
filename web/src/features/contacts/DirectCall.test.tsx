@@ -60,7 +60,6 @@ const CALL = {
   contact_name: null,
   company: null,
   outcome: null,
-  goal: false,
   captured: 0,
   required: 0,
   mode: 'directa',

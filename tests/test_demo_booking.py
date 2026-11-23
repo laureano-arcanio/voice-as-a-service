@@ -24,24 +24,17 @@ def test_types(wf):
     assert validate_updates(wf, {"contact": "no sé"}) == {}
 
 
-@pytest.mark.parametrize("fields, outcome", [
-    ({"wants_pitch": False}, "no_pitch"),
-    ({"wants_pitch": True, "company_context": "Logística", "demo_answer": "si", "contact_name": "Ana",
-      "contact": "ana@x.com"}, "demo"),
-    ({"wants_pitch": True, "demo_answer": "dudas", "callback_wanted": True}, "callback"),
-    ({"wants_pitch": True, "demo_answer": "no"}, "no_interest"),
-])
-async def test_outcomes(store, fields, outcome):
+async def test_completing_leaves_no_outcome(store):
     engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="Chau.", status="completed")), store)
-    cid = start_with(engine, agent_id="demo_booking", **fields)
+    cid = start_with(engine, agent_id="demo_booking", wants_pitch=False)
     state, _ = await turn_and_extract(engine, cid, "Chau.")
-    assert state.progress.outcome == outcome
+    assert state.status == "completed" and state.progress.outcome is None
 
 
-def test_outcome_without_saved_outcome(wf):
-    # Si termino antes de guardar el resultado, se calcula al vuelo. Antes daba
-    # AttributeError (500 en GET /api/calls/{id} en el loadtest de 64).
+def test_outcome_of_an_old_conversation_is_the_saved_id(wf):
+    # Un id de resultado viejo de agente se muestra tal cual (sin recalcular con los datos).
     from app.models import ConversationRow
     from app.services.reports import Reports
-    conv = ConversationRow(id="c1", agent_id="demo_booking", status="completed", fields={"wants_pitch": False})
-    assert Reports(None, None).outcome(wf, conv).id == "no_pitch"
+    conv = ConversationRow(id="c1", agent_id="demo_booking", status="completed", fields={"wants_pitch": False},
+                           progress={"outcome": "no_pitch"})
+    assert Reports(None, None).outcome(conv) == "no_pitch"

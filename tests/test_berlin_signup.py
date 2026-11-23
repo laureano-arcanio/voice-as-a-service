@@ -1,4 +1,4 @@
-"""Workflow berlin_signup: tipos y clasificacion del resultado (el flujo lo decide el LLM)."""
+"""Workflow berlin_signup: tipos (el flujo lo decide el LLM)."""
 import pytest
 
 from app.agents.templates import load_reference
@@ -22,16 +22,9 @@ def test_types(wf):
     assert validate_updates(wf, {"contact": "ana arroba gmail punto com"}) == {}
 
 
-@pytest.mark.parametrize("fields, outcome", [
-    ({"wants_pitch": False}, "no_pitch"),
-    ({"wants_pitch": True, "activity": "yoga", "zone": "centro", "wants_link": True,
-      "same_number": True, "contact_name": "Ana"}, "link"),
-    ({"wants_pitch": True, "activity": "boxeo", "zone": "Urca", "wants_link": False}, "no_interest"),
-    # Sin datos obligatorios: el resultado sale de las condiciones (incompleta ya no se asigna).
-    ({"wants_pitch": True, "zone": "centro", "wants_link": True}, "link"),
-])
-async def test_outcomes(store, fields, outcome):
+async def test_completing_leaves_no_outcome(store):
+    """El resultado de agente ya no existe: cualquier cierre normal queda sin outcome."""
     engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="Chau.", status="completed")), store)
-    cid = start_with(engine, agent_id="berlin_signup", **fields)
+    cid = start_with(engine, agent_id="berlin_signup", wants_pitch=False)
     state, _ = await turn_and_extract(engine, cid, "Chau.")
-    assert state.progress.outcome == outcome
+    assert state.status == "completed" and state.progress.outcome is None

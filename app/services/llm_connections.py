@@ -189,7 +189,7 @@ async def _probe_external(row: LlmConnection, model: str) -> tuple[bool, str, st
     text, tools = [], 0
     try:
         stream = await client.chat.completions.create(
-            model=model, stream=True, tools=[end_call_tool(["fin"])], user="atentina-test",
+            model=model, stream=True, tools=[end_call_tool()], user="atentina-test",
             messages=[{"role": "assistant", "content": "Hola, ¿en qué te puedo ayudar?"},
                       {"role": "user", "content": "Hola, es una prueba de Atentina. Respondé con una frase corta."}],
             extra_headers={"X-Atentina-Conversation-Id": "test", "X-Atentina-Channel": "voice",

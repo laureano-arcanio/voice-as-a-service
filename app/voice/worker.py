@@ -684,11 +684,9 @@ async def entrypoint(ctx: JobContext):
                 ended_at=end.ended_at(), duration_seconds=end.seconds(started_at), latency=latency.summary())
             # Resumen por email al cliente, si el agente lo tiene prendido: lo manda el loop de `app`.
             call_summary.mark_pending(s, call, workflow, connected=started_at is not None)
-            # Intento de una campaña de voz: atendio si la llamada llego a conectarse (y si el agente quedo
-            # en un resultado "no contactar", el telefono pasa a la lista de bajas de voz).
+            # Intento de una campaña de voz: atendio si la llamada llego a conectarse.
             if started_at:
                 campaign_calls.close_attempt(s, conversation_id, "answered")
-                campaign_calls.apply_outcome_optout(s, conversation_id, engine.definitions)
             else:
                 campaign_calls.close_attempt(s, conversation_id, "failed",
                                              error={"message": "La llamada terminó sin conectarse", "reason": reason})

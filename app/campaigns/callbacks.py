@@ -28,11 +28,9 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..db import utcnow
 from ..models import Campaign, CampaignCallback
-from ..runtime import get_conversation_engine
 from ..services import campaign_callbacks as callbacks
 from ..services import campaign_reports
 from ..services import campaigns as common
@@ -52,29 +50,28 @@ def backoff(attempts: int) -> datetime.timedelta:
     return datetime.timedelta(seconds=BACKOFF_SECONDS[min(attempts, len(BACKOFF_SECONDS)) - 1])
 
 
-def payload(s: Session, row: CampaignCallback, c: Campaign, definitions: DefinitionSource) -> dict:
+def payload(s: Session, row: CampaignCallback, c: Campaign) -> dict:
     """El cuerpo del POST de un evento."""
     body = {"event": row.event, "delivery_id": row.id, "created_at": iso(row.created_at),
             "campaign": {"id": c.id, "name": c.name, "channel": c.channel, "status": c.status,
                          "status_reason": c.status_reason, "purpose": c.purpose}}
     if row.campaign_contact_id is not None:
-        rows = campaign_reports.report_rows(s, c, definitions, [row.campaign_contact_id])
+        rows = campaign_reports.report_rows(s, c, [row.campaign_contact_id])
         body["contact"] = rows[0] if rows else None
     else:
         progress = common.progress(s, [c.id])[c.id]
         body["campaign"].update({
             "total": sum(progress.values()), "progress": progress, "percent": common.percent(progress),
             "started_at": iso(c.started_at), "finished_at": iso(c.finished_at),
-            "stats": campaign_reports.stats(s, c, definitions)})
+            "stats": campaign_reports.stats(s, c)})
     return body
 
 
 class CallbackDispatcher:
-    def __init__(self, sessions: sessionmaker[Session], definitions: Callable[[], DefinitionSource] | None = None,
+    def __init__(self, sessions: sessionmaker[Session],
                  now: Callable[[], datetime.datetime] = utcnow, client_factory: Callable[[], httpx.AsyncClient] | None = None,
                  resolve: Callable[[str, int | None], str] = callbacks.resolve_public):
         self.sessions = sessions
-        self._definitions = definitions or (lambda: get_conversation_engine().definitions)
         self.now = now
         self._client_factory = client_factory or (lambda: httpx.AsyncClient(
             timeout=settings.campaign_callback_timeout_seconds, follow_redirects=False))
@@ -111,7 +108,7 @@ class CallbackDispatcher:
             if c is None or not c.callback_url or not secret:
                 self._fail(s, row, "La campaña ya no tiene webhook", final=True)
                 return None
-            body = json.dumps(payload(s, row, c, self._definitions()), ensure_ascii=False, separators=(",", ":"),
+            body = json.dumps(payload(s, row, c), ensure_ascii=False, separators=(",", ":"),
                               default=str).encode()
             headers = {"Content-Type": "application/json", "User-Agent": "atentina-webhook/1",
                        "X-Atentina-Event": row.event, "X-Atentina-Delivery": row.id,

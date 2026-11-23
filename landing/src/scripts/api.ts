@@ -37,7 +37,6 @@ export interface DemoResult {
   duration_seconds: number;
   agent_name: string;
   completed: boolean;
-  outcome: { label: string; goal: boolean } | null;
   fields: DemoField[];
   messages: { role: "assistant" | "user"; text: string }[];
 }

@@ -35,30 +35,6 @@
         "description": "Teléfono o mail para contactarla. El mail va escrito como dirección, por ejemplo juan@gmail.com; el teléfono, en cifras.",
         "type": "email_or_phone"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "resuelta",
-        "label": "Consulta resuelta",
-        "when": {
-          "resuelta": true
-        },
-        "goal": true
-      },
-      {
-        "id": "derivada",
-        "label": "Derivada al equipo",
-        "when": {
-          "resuelta": false
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_cierre",
-        "label": "Sin cierre",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

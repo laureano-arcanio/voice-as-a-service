@@ -265,7 +265,7 @@ _READ: tuple[Tool, ...] = (
                  "contact_id": _s("Solo las del teléfono de este contacto de la agenda."),
                  **_PAGE}),
     Tool("get_call", "calls", "Llamada",
-         "Una conversación con su transcripción, los datos que tomó el agente, el resultado y la grabación "
+         "Una conversación con su transcripción, los datos que tomó el agente y la grabación "
          "por mensaje si la hay." + _UNTRUSTED, path="/calls/{conversation_id}",
          params={"conversation_id": _s("ID de la conversación.")}, required=("conversation_id",)),
     Tool("get_recording", "calls", "Grabación de un mensaje",
@@ -284,7 +284,7 @@ _READ: tuple[Tool, ...] = (
     Tool("get_report_summary", "reports", "Reporte: resumen",
          "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal (teléfono entrante, teléfono saliente, "
          "WhatsApp y web), "
-         "cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, "
+         "cuántas (y qué % de las atendidas por un agente) tienen los datos completos, "
          "cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, "
          "llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de "
          "WhatsApp; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para "
@@ -297,11 +297,11 @@ _READ: tuple[Tool, ...] = (
          "(cortó el cliente, terminó el agente, cortó la persona del equipo, fuera de tema, cortada desde el "
          "panel, nadie del equipo atendió, fuera de horario, no atendió, bloqueada...), cortes tempranos y "
          "quién llama (nuevos, que vuelven y los que más vuelven).", path="/reports/calls", params=_REPORT),
-    Tool("get_report_outcomes", "reports", "Reporte: resultados y conversión",
-         "Qué resultado tuvo cada conversación: conversión completa, parcial (algún dato) o sin datos, por día y "
-         "por agente; los resultados que define cada agente con los de objetivo marcados; el embudo (atendidas, con "
-         "algún dato, completas, objetivo); en qué % se obtuvo cada dato requerido (muestra qué pregunta se pierde) "
-         "y la comparación por versión del agente (antes y después de un cambio).", path="/reports/outcomes",
+    Tool("get_report_outcomes", "reports", "Reporte: conversión",
+         "Cómo cierran las conversaciones: conversión completa, parcial (algún dato) o sin datos, por día y "
+         "por agente; el embudo (atendidas, con algún dato, completas); en qué % se obtuvo cada dato requerido "
+         "(muestra qué pregunta se pierde) y la comparación por versión del agente (antes y después de un cambio).",
+         path="/reports/outcomes",
          params=_REPORT, features=("advanced_reports",)),
     Tool("get_report_messages", "reports", "Reporte: mensajes de WhatsApp",
          "Los mensajes de WhatsApp del período: entrantes y salientes (texto y nota de voz) por día, mapa de calor "
@@ -315,14 +315,14 @@ _READ: tuple[Tool, ...] = (
          params=_REPORT, features=("advanced_reports",)),
     Tool("get_report_campaigns", "reports", "Reporte: campañas",
          "Las campañas que corrieron en el período, comparadas: contactos, intentos, alcanzados, conversión, "
-         "objetivo, bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número "
+         "bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número "
          "inválido) y en qué horarios se atiende más. Para el detalle de una sola campaña, get_campaign_stats.",
          path="/reports/campaigns", params=_REPORT, features=("advanced_reports",)),
     Tool("get_split_report", "reports", "Reporte: reparto agente/equipo",
          "El reparto agente/equipo de las entrantes de un número (route_phone_number): por experimento, "
          "porcentaje y brazo, las llamadas, los llamantes distintos, por qué cayeron en cada brazo (sorteo, tope, "
          "agente archivado, equipo sin personas), estados, cómo terminaron, duración (p25/p50/p75/p90), cortes "
-         "tempranos, derivaciones pedidas y atendidas, rellamadas en 24 h y, en el brazo agente, los resultados. "
+         "tempranos, derivaciones pedidas y atendidas, y rellamadas en 24 h. "
          "Aparte, los llamantes que pasaron por los dos brazos. Sin recomendaciones ni significancia; es histórico, "
          "aunque el número ya no reparta.", path="/reports/split", params=_REPORT_SPLIT,
          features=("advanced_reports",)),
@@ -382,7 +382,7 @@ _READ: tuple[Tool, ...] = (
                  "result": _s("Solo este resultado."), **_PAGE},
          required=("campaign_id",), features=("campaigns_voice", "campaigns_whatsapp")),
     Tool("get_campaign_stats", "campaigns", "Indicadores de una campaña",
-         "Tasa de contacto, de objetivo cumplido y demás indicadores de una campaña.",
+         "Tasa de contacto y demás indicadores de una campaña.",
          path="/campaigns/{campaign_id}/stats", params={"campaign_id": _s("ID de la campaña.")},
          required=("campaign_id",), features=("campaigns_voice", "campaigns_whatsapp")),
 

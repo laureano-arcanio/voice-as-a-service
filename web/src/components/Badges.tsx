@@ -1,5 +1,4 @@
 import { Badge, Group, Text } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import {
   CALL_MODE,
@@ -86,17 +85,10 @@ export function OriginBadge({
   );
 }
 
-/** Resultado de la conversacion: verde y con check si cumple el objetivo. */
-export function OutcomeBadge({ label, goal }: { label: string | null | undefined; goal: boolean }) {
+/** Resultado de la conversacion: la etiqueta de plataforma ("Fuera de tema") o un id viejo de agente, tal cual. */
+export function OutcomeBadge({ label }: { label: string | null | undefined }) {
   if (!label) return <Dash />;
-  return (
-    <Badge
-      color={goal ? 'green' : 'gray'}
-      leftSection={goal ? <IconCheck size={12} aria-hidden /> : undefined}
-    >
-      {label}
-    </Badge>
-  );
+  return <Badge color="gray">{label}</Badge>;
 }
 
 export function ActiveBadge({

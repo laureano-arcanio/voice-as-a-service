@@ -44,13 +44,9 @@ def test_end_call_always_and_transfer_only_with_areas():
     assert "Pasa la llamada" in platform_tools.tools_for(state(areas=AREAS))[1]["function"]["description"]
 
 
-def test_end_call_parameters_by_agent_kind():
+def test_end_call_parameters():
     ours = platform_tools.tools_for(state())[0]["function"]["parameters"]
     assert ours["properties"]["motivo"]["enum"] == ["terminada", "fuera_de_tema"] and ours["required"] == []
-    # Tu propio agente: elige el resultado entre los de la definicion.
-    external = platform_tools.tools_for(state(), outcomes=["venta", "sin_venta"])[0]["function"]["parameters"]
-    assert external["properties"] == {"outcome": {"type": "string", "enum": ["venta", "sin_venta"],
-                                                  "description": external["properties"]["outcome"]["description"]}}
 
 
 def test_transfer_call_describes_each_area():
@@ -73,9 +69,14 @@ def test_apply_end_call():
     off = AgentTurn(assistant_message="Esta línea es para consultas.")
     platform_tools.apply(off, [call("end_call", motivo="fuera_de_tema")], state())
     assert (off.status, off.end_reason) == ("completed", "off_topic")
-    # Tu propio agente: devuelve el outcome que eligio.
-    ext = AgentTurn(assistant_message="Listo.")
-    assert platform_tools.apply(ext, [call("end_call", outcome="venta")], state()) == "venta"
+
+
+def test_apply_ignores_an_unknown_end_call_argument():
+    """Un endpoint viejo que manda `outcome` en end_call: se ignora sin error (solo se leen las claves
+    que conoce)."""
+    turn = AgentTurn(assistant_message="Listo.")
+    platform_tools.apply(turn, [call("end_call", outcome="venta")], state())
+    assert (turn.status, turn.end_reason) == ("completed", None)
 
 
 def test_apply_transfer_call_and_end_wins():

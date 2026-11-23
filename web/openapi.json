@@ -5882,7 +5882,7 @@
      "campaigns"
     ],
     "summary": "Get Campaign",
-    "description": "El estado y el avance de la campaña, para consultar cada pocos segundos: `progress` (contactos\npor estado), `results`, `percent`, `eta_minutes` y, en voz, `goal` y `minutes_used`.",
+    "description": "El estado y el avance de la campaña, para consultar cada pocos segundos: `progress`, `results`,\n`percent`, `eta_minutes` y `minutes_used`.",
     "operationId": "get_campaign_api_v1_campaigns__campaign_id__get",
     "security": [
      {
@@ -6193,7 +6193,7 @@
      "campaigns"
     ],
     "summary": "Campaign Stats",
-    "description": "Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios), tasa\nde objetivo, duracion media, minutos, distribucion de resultados y llamadas por hora del dia.",
+    "description": "Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios),\nduracion media, minutos, distribucion de resultados y llamadas por hora del dia.",
     "operationId": "campaign_stats_api_v1_campaigns__campaign_id__stats_get",
     "security": [
      {
@@ -6241,7 +6241,7 @@
      "campaigns"
     ],
     "summary": "Campaign Report",
-    "description": "El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,\nduracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.",
+    "description": "El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,\nduracion, campos capturados, seguimiento y link a la conversacion.",
     "operationId": "campaign_report_api_v1_campaigns__campaign_id__report_csv_get",
     "security": [
      {
@@ -12624,7 +12624,7 @@
      "reports"
     ],
     "summary": "Summary",
-    "description": "Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior\n(conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el\nplan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes.",
+    "description": "Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior\n(conversaciones, % de conversión, derivadas, minutos, duración media, rechazadas por el\nplan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes.",
     "operationId": "summary_api_v1_reports_summary_get",
     "security": [
      {
@@ -13072,7 +13072,7 @@
      "reports"
     ],
     "summary": "Outcomes",
-    "description": "Resultados: conversión (completa, parcial, sin datos) por día y agente, resultados por agente,\nembudo, datos obligatorios capturados y comparación por versión del agente. Plan con reportes completos.",
+    "description": "Conversión (completa, parcial, sin datos) por día y agente, embudo, datos obligatorios\ncapturados y comparación por versión del agente. Plan con reportes completos.",
     "operationId": "outcomes_api_v1_reports_outcomes_get",
     "security": [
      {
@@ -13753,7 +13753,7 @@
      "reports"
     ],
     "summary": "Split",
-    "description": "Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,\nderivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los\nllamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.\nPlan con reportes completos.",
+    "description": "Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,\nderivaciones y rellamadas en 24 h, por experimento, porcentaje y brazo; y los\nllamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.\nPlan con reportes completos.",
     "operationId": "split_api_v1_reports_split_get",
     "security": [
      {
@@ -17591,12 +17591,13 @@
      "outcome": {
       "anyOf": [
        {
-        "$ref": "#/components/schemas/OutcomeOut"
+        "type": "string"
        },
        {
         "type": "null"
        }
-      ]
+      ],
+      "title": "Outcome"
      },
      "messages": {
       "items": {
@@ -18572,10 +18573,6 @@
       ],
       "title": "Outcome"
      },
-     "goal": {
-      "type": "boolean",
-      "title": "Goal"
-     },
      "captured": {
       "type": "integer",
       "title": "Captured"
@@ -18696,7 +18693,6 @@
      "workflow_status",
      "created_at",
      "outcome",
-     "goal",
      "captured",
      "total",
      "mode",
@@ -19842,18 +19838,6 @@
       "type": "object",
       "title": "Results"
      },
-     "goal": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Goal",
-      "description": "Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)"
-     },
      "minutes_used": {
       "anyOf": [
        {
@@ -20366,16 +20350,6 @@
       "title": "Contact Rate",
       "description": "reached / attempts, en %"
      },
-     "goal": {
-      "type": "integer",
-      "title": "Goal",
-      "description": "Conversaciones que llegaron al objetivo del agente"
-     },
-     "goal_rate": {
-      "type": "number",
-      "title": "Goal Rate",
-      "description": "goal / reached, en %"
-     },
      "avg_duration_seconds": {
       "anyOf": [
        {
@@ -20429,8 +20403,6 @@
      "attempts",
      "reached",
      "contact_rate",
-     "goal",
-     "goal_rate",
      "results",
      "by_hour",
      "timezone"
@@ -22140,16 +22112,6 @@
       "type": "boolean",
       "title": "Completed"
      },
-     "outcome": {
-      "anyOf": [
-       {
-        "$ref": "#/components/schemas/DemoOutcome"
-       },
-       {
-        "type": "null"
-       }
-      ]
-     },
      "fields": {
       "items": {
        "$ref": "#/components/schemas/DemoField"
@@ -22173,7 +22135,6 @@
      "duration_seconds",
      "agent_name",
      "completed",
-     "outcome",
      "fields",
      "messages"
     ],
@@ -22286,24 +22247,6 @@
      "text"
     ],
     "title": "DemoMessage"
-   },
-   "DemoOutcome": {
-    "properties": {
-     "label": {
-      "type": "string",
-      "title": "Label"
-     },
-     "goal": {
-      "type": "boolean",
-      "title": "Goal"
-     }
-    },
-    "type": "object",
-    "required": [
-     "label",
-     "goal"
-    ],
-    "title": "DemoOutcome"
    },
    "DemoSessionIn": {
     "properties": {
@@ -25512,24 +25455,6 @@
     ],
     "title": "OnboardingOut"
    },
-   "OutcomeOut": {
-    "properties": {
-     "label": {
-      "type": "string",
-      "title": "Label"
-     },
-     "goal": {
-      "type": "boolean",
-      "title": "Goal"
-     }
-    },
-    "type": "object",
-    "required": [
-     "label",
-     "goal"
-    ],
-    "title": "OutcomeOut"
-   },
    "PasswordChangeIn": {
     "properties": {
      "challenge": {
@@ -27618,17 +27543,6 @@
        }
       ],
       "title": "Conversion Pct"
-     },
-     "goal_pct": {
-      "anyOf": [
-       {
-        "type": "number"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Goal Pct"
      }
     },
     "type": "object",
@@ -27638,8 +27552,7 @@
      "calls",
      "minutes",
      "avg_duration",
-     "conversion_pct",
-     "goal_pct"
+     "conversion_pct"
     ],
     "title": "ReportCallsAgentOut"
    },
@@ -27822,10 +27735,6 @@
       "type": "integer",
       "title": "Complete"
      },
-     "goal": {
-      "type": "integer",
-      "title": "Goal"
-     },
      "optouts": {
       "type": "integer",
       "title": "Optouts"
@@ -27845,7 +27754,6 @@
      "attempts",
      "reached",
      "complete",
-     "goal",
      "optouts",
      "minutes"
     ],
@@ -28205,18 +28113,13 @@
      "complete": {
       "type": "integer",
       "title": "Complete"
-     },
-     "goal": {
-      "type": "integer",
-      "title": "Goal"
      }
     },
     "type": "object",
     "required": [
      "conversations",
      "with_data",
-     "complete",
-     "goal"
+     "complete"
     ],
     "title": "ReportFunnelOut"
    },
@@ -28275,23 +28178,6 @@
       ],
       "title": "Conversion Pct",
       "description": "conversions / with_agent, en %"
-     },
-     "goals": {
-      "type": "integer",
-      "title": "Goals",
-      "description": "Las que tienen un resultado que cumple el objetivo"
-     },
-     "goal_pct": {
-      "anyOf": [
-       {
-        "type": "number"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Goal Pct",
-      "description": "goals / with_agent, en %"
      },
      "transfers": {
       "type": "integer",
@@ -28357,8 +28243,6 @@
      "with_agent",
      "conversions",
      "conversion_pct",
-     "goals",
-     "goal_pct",
      "transfers",
      "transfers_answered",
      "transfer_pct",
@@ -28680,44 +28564,6 @@
     ],
     "title": "ReportOperationOut"
    },
-   "ReportOutcomeOut": {
-    "properties": {
-     "agent_id": {
-      "type": "string",
-      "title": "Agent Id"
-     },
-     "agent_name": {
-      "type": "string",
-      "title": "Agent Name"
-     },
-     "outcome": {
-      "type": "string",
-      "title": "Outcome"
-     },
-     "label": {
-      "type": "string",
-      "title": "Label"
-     },
-     "goal": {
-      "type": "boolean",
-      "title": "Goal"
-     },
-     "count": {
-      "type": "integer",
-      "title": "Count"
-     }
-    },
-    "type": "object",
-    "required": [
-     "agent_id",
-     "agent_name",
-     "outcome",
-     "label",
-     "goal",
-     "count"
-    ],
-    "title": "ReportOutcomeOut"
-   },
    "ReportOutcomesAgentOut": {
     "properties": {
      "agent_id": {
@@ -28743,10 +28589,6 @@
      "empty": {
       "type": "integer",
       "title": "Empty"
-     },
-     "goal": {
-      "type": "integer",
-      "title": "Goal"
      }
     },
     "type": "object",
@@ -28756,8 +28598,7 @@
      "total",
      "complete",
      "partial",
-     "empty",
-     "goal"
+     "empty"
     ],
     "title": "ReportOutcomesAgentOut"
    },
@@ -28776,13 +28617,6 @@
       },
       "type": "array",
       "title": "By Agent"
-     },
-     "outcomes": {
-      "items": {
-       "$ref": "#/components/schemas/ReportOutcomeOut"
-      },
-      "type": "array",
-      "title": "Outcomes"
      },
      "funnel": {
       "$ref": "#/components/schemas/ReportFunnelOut"
@@ -28807,7 +28641,6 @@
     "required": [
      "conversion_daily",
      "by_agent",
-     "outcomes",
      "funnel",
      "fields",
      "by_version"
@@ -29174,19 +29007,6 @@
       "type": "integer",
       "title": "Callbacks 24H",
       "description": "Llamadas con otra entrante de los mismos 10 dígitos al mismo número dentro de 24 h del fin"
-     },
-     "outcomes": {
-      "items": {
-       "$ref": "#/components/schemas/ReportSplitOutcomeOut"
-      },
-      "type": "array",
-      "title": "Outcomes",
-      "description": "Solo el brazo agente: resultados del análisis"
-     },
-     "goals": {
-      "type": "integer",
-      "title": "Goals",
-      "description": "Solo el brazo agente: conversaciones con objetivo cumplido"
      }
     },
     "type": "object",
@@ -29208,9 +29028,7 @@
      "early_hangups",
      "handoff_requested",
      "handoff_connected",
-     "callbacks_24h",
-     "outcomes",
-     "goals"
+     "callbacks_24h"
     ],
     "title": "ReportSplitGroupOut",
     "description": "Un brazo del reparto en un experimento y porcentaje (docs/features/EQUIPO_TELEFONIA.md)."
@@ -29244,34 +29062,6 @@
      "both_arms"
     ],
     "title": "ReportSplitOut"
-   },
-   "ReportSplitOutcomeOut": {
-    "properties": {
-     "outcome": {
-      "type": "string",
-      "title": "Outcome"
-     },
-     "label": {
-      "type": "string",
-      "title": "Label"
-     },
-     "goal": {
-      "type": "boolean",
-      "title": "Goal"
-     },
-     "count": {
-      "type": "integer",
-      "title": "Count"
-     }
-    },
-    "type": "object",
-    "required": [
-     "outcome",
-     "label",
-     "goal",
-     "count"
-    ],
-    "title": "ReportSplitOutcomeOut"
    },
    "ReportSplitStatusOut": {
     "properties": {
@@ -29744,17 +29534,6 @@
        }
       ],
       "title": "Conversion Pct"
-     },
-     "goal_pct": {
-      "anyOf": [
-       {
-        "type": "number"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Goal Pct"
      }
     },
     "type": "object",
@@ -29763,8 +29542,7 @@
      "agent_name",
      "version",
      "total",
-     "conversion_pct",
-     "goal_pct"
+     "conversion_pct"
     ],
     "title": "ReportVersionOut"
    },

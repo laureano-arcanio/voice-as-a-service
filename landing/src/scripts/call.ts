@@ -52,7 +52,6 @@ export function initCallWidget(root: HTMLElement) {
   const muteButton = $<HTMLButtonElement>("[data-mute]");
   const muteLabel = $("[data-mute-label]");
   const unmuteAudio = $<HTMLButtonElement>("[data-unmute-audio]");
-  const outcome = $("[data-outcome]");
   const duration = $("[data-duration]");
   const resultAgent = $("[data-result-agent]");
   const fields = $("[data-fields]");
@@ -127,10 +126,6 @@ export function initCallWidget(root: HTMLElement) {
   }
 
   function renderResult(result: DemoResult) {
-    const title = result.outcome?.label ?? (result.status === "fallida" ? "No se pudo completar" : "Sin terminar");
-    outcome.textContent = title;
-    if (result.outcome?.goal) outcome.dataset.goal = "";
-    else delete outcome.dataset.goal;
     duration.textContent = `Duración ${clock(result.duration_seconds)}`;
     resultAgent.textContent = result.agent_name || liveTitle.textContent || "El agente";
     const taken = result.fields.flatMap((field) => {

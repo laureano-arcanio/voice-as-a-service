@@ -37,10 +37,6 @@ const def = {
       { name: 'wants', label: 'Quiere', description: 'Quiere una demo', type: 'boolean' },
       { name: 'zone', description: 'Zona', type: 'choice', options: ['norte', 'sur'] },
     ],
-    outcomes: [
-      { id: 'ok', label: 'Agendado', when: { wants: true }, goal: true },
-      { id: 'no', label: 'No', when: {}, goal: false },
-    ],
   },
   record_audio: true,
 };
@@ -55,7 +51,6 @@ describe('toDraft / fromDraft', () => {
       ['deuda', '1000'],
     ]);
     expect(d.analysis.fields.map((f) => f.name)).toEqual(['wants', 'zone']);
-    expect(d.analysis.outcomes.map((o) => o.id)).toEqual(['ok', 'no']);
   });
 
   it('el orden de los datos y las variables es el de la definición (listas)', () => {
@@ -80,9 +75,9 @@ describe('toDraft / fromDraft', () => {
     expect(out.analysis.fields.map((f) => f.name)).toEqual(['z', 'a', 'm']);
   });
 
-  it('sin datos, instrucciones ni resultados no va analysis', () => {
+  it('sin datos ni instrucciones no va analysis', () => {
     const d = toDraft({ ...def, analysis: undefined });
-    expect(d.analysis).toEqual({ summary: true, instructions: '', fields: [], outcomes: [] });
+    expect(d.analysis).toEqual({ summary: true, instructions: '', fields: [] });
     expect(hasAnalysis(d.analysis)).toBe(false);
     expect(fromDraft(d)).not.toHaveProperty('analysis');
     expect(fromDraft({ ...d, analysis: { ...d.analysis, summary: false } })).not.toHaveProperty('analysis');
@@ -130,24 +125,6 @@ describe('toDraft / fromDraft', () => {
     expect(withPhoneField(d).analysis.fields).toHaveLength(d.analysis.fields.length);
     const fields = (fromDraft(d) as { analysis: { fields: object[] } }).analysis.fields;
     expect(fields.at(-1)).toMatchObject({ name: 'telefono', type: 'phone' });
-  });
-
-  it('no_contact (baja por voz): sin marcar no va a la definición; marcado, ida y vuelta', () => {
-    expect(toDraft(def).analysis.outcomes.map((o) => o.noContact)).toEqual([false, false]);
-    expect(JSON.stringify(fromDraft(toDraft(def)))).not.toContain('no_contact');
-    const flagged = {
-      ...def,
-      analysis: {
-        ...def.analysis,
-        outcomes: [
-          { id: 'baja', label: 'Baja', when: { wants: false }, goal: false, no_contact: true },
-          ...def.analysis.outcomes,
-        ],
-      },
-    };
-    const d = toDraft(flagged);
-    expect(d.analysis.outcomes[0].noContact).toBe(true);
-    expect(stableJson(fromDraft(d))).toBe(stableJson(flagged));
   });
 
   it('wa_session_minutes: sin valor no va (como record_audio); con valor, ida y vuelta', () => {
@@ -231,19 +208,17 @@ describe('toDraft / fromDraft', () => {
     expect(out.analysis.fields[1]).not.toHaveProperty('label');
   });
 
-  it('el último resultado queda sin condiciones', () => {
+  it('el último dato conserva su orden al guardar', () => {
     const d = toDraft(def);
-    d.analysis.outcomes[1]!.conditions = [{ key: 'x', field: 'wants', value: false }];
-    const out = fromDraft(d) as { analysis: { outcomes: { when: object }[] } };
-    expect(out.analysis.outcomes[1]!.when).toEqual({});
+    const out = fromDraft(d) as { analysis: { fields: { name: string }[] } };
+    expect(out.analysis.fields.map((f) => f.name)).toEqual(['wants', 'zone']);
   });
 });
 
 describe('edición', () => {
-  it('renombrar un dato actualiza las condiciones que lo usan', () => {
+  it('renombrar un dato le cambia el nombre interno', () => {
     const d = renameField(toDraft(def), 0, 'quiere');
     expect(d.analysis.fields[0]!.name).toBe('quiere');
-    expect(d.analysis.outcomes[0]!.conditions[0]!.field).toBe('quiere');
   });
 
   it('mover y datos nuevos', () => {
@@ -259,7 +234,6 @@ describe('edición', () => {
     const fresh = toDraft(def);
     const next = keepKeys(d, fresh);
     expect(next.analysis.fields.map((f) => f.key)).toEqual(d.analysis.fields.map((f) => f.key));
-    expect(next.analysis.outcomes.map((o) => o.key)).toEqual(d.analysis.outcomes.map((o) => o.key));
     expect(next.variables.map((v) => v.key)).toEqual(d.variables.map((v) => v.key));
   });
 });
@@ -296,21 +270,14 @@ describe('errores', () => {
       section: 'dato',
       key: d.analysis.fields[1]!.key,
     });
-    expect(errorTarget(d, 'analysis.outcomes.0.when')).toEqual({
-      section: 'resultado',
-      key: d.analysis.outcomes[0]!.key,
-    });
-    expect(errorTarget(d, 'analysis.outcomes.no.when')).toEqual({
-      section: 'resultado',
-      key: d.analysis.outcomes[1]!.key,
-    });
+    // Una definicion vieja con resultados: la ruta cae en la seccion del análisis.
+    expect(errorTarget(d, 'analysis.outcomes.0.when')).toEqual({ section: 'analisis' });
     expect(errorTarget(d, 'agent.voice')).toEqual({ section: 'voz' });
     expect(errorTarget(d, '')).toBeNull();
     expect(pathLabel(d, 'prompt')).toBe('Prompt');
     expect(pathLabel(d, 'analysis.fields.1.description')).toBe(
       'Análisis al terminar › Datos › zone › descripción',
     );
-    expect(pathLabel(d, 'analysis.outcomes.0.when')).toBe('Análisis al terminar › Agendado › condiciones');
     expect(pathLabel(d, 'variables.0.name')).toBe('Variables › nombre › nombre');
   });
 });
@@ -402,7 +369,7 @@ describe('tu propio agente (external)', () => {
   });
 
   it('el resumen por email no agrega un dato de teléfono', () => {
-    const d = toDraft({ ...ext, analysis: { summary: true, fields: [], outcomes: [] } } as never);
+    const d = toDraft({ ...ext, analysis: { summary: true, fields: [] } } as never);
     expect(withPhoneField(d).analysis.fields).toHaveLength(0);
   });
 

@@ -20,7 +20,6 @@ const BASE: CallSummary = {
   contact_name: null,
   company: null,
   outcome: null,
-  goal: false,
   captured: 2,
   total: 3,
   mode: 'entrante',

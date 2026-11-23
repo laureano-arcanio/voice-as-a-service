@@ -234,7 +234,7 @@ export function HomePage() {
                       </Stack>
                       <Group gap={6} wrap="nowrap">
                         <OriginBadge mode={c.mode} />
-                        {c.outcome && <OutcomeBadge label={c.outcome} goal={c.goal} />}
+                        {c.outcome && <OutcomeBadge label={c.outcome} />}
                       </Group>
                     </Group>
                   </UnstyledButton>

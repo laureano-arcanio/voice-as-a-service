@@ -62,7 +62,6 @@ const DEF = {
   objective: { description: 'o' },
   conversation: { opening: 'Hola', rules: [] },
   fields: {},
-  completion: { outcomes: [{ id: 'default', label: 'C', when: {}, message: 'Chau' }] },
 };
 
 let last: Draft;

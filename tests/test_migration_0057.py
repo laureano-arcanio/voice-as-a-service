@@ -110,7 +110,8 @@ def test_0057_upgrade_downgrade_upgrade(tmp_path):
     fields = definition["analysis"]["fields"]
     assert isinstance(fields, list) and [f["name"] for f in fields] == ["deuda", "a", "z"]
     assert [f["type"] for f in fields][0] == "string"          # digits pasa a string
-    assert [o["id"] for o in definition["analysis"]["outcomes"]] == ["vendio", "otro"]
+    # Los outcomes viejos no se convierten: el resultado es solo de plataforma.
+    assert "outcomes" not in definition["analysis"]
     assert definition["analysis"]["summary"] is True
     # Las versiones, igual que la vigente.
     version = _value(engine, "SELECT definition FROM agent_versions WHERE agent_id = 'a1' AND version = 3")

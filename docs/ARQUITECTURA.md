@@ -182,7 +182,7 @@ incluido.
 |---|---|
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `definition_legacy` (la definición de antes de la 0057, solo para la vuelta atrás); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by` y `definition_legacy`. |
-| `conversations` | Estado del motor (`fields`, `messages`, `progress`; un mensaje con `dtmf` son teclas marcadas, texto `Marcó 123`: [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#teclas-marcadas)), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
+| `conversations` | Estado del motor (`fields`, `messages`, `progress`; un mensaje con `dtmf` son teclas marcadas, texto `Marcó 123`: [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#teclas-marcadas)), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome` (solo plataforma: `fuera_de_tema`; `goal`, congelada con sus valores históricos, ya no se escribe), `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`, `line_id` (entrante: `UNIQUEID` del canal de Asterisk, nombre de su grabación completa), `split_arm`/`split_reason`/`split_percent`/`split_experiment` (reparto agente/equipo de la entrante: brazo, motivo, porcentaje y experimento; NULL sin reparto). Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `strategy` (`sequential`/`round_robin`, con `last_member_id`: la última que atendió en su celular), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` (`agent`, `member`, `voicemail`, `hangup`), `team_fallback_member_id` (la persona de `member`; SET NULL), `team_fallback_message`, `team_connect_on_answer` (conecta apenas atiende el teléfono), `team_hold_music`, `team_retry_seconds`/`team_retry_interval_seconds`/`team_retry_message` (reintentos antes del respaldo), `team_busy_message`/`team_no_answer_message` (aviso apenas una persona da ocupado o no atiende, una vez por motivo), `record_full_call` (graba la llamada completa; marcador del spool en `app/services/line_spool.py`), y el reparto agente/equipo ([EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#reparto-agenteequipo-ab)): `agent_percent` (0-100, con `team`), `split_experiment`/`split_started_at` y `split_max_agent_calls` (tope de activas del brazo agente); personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
@@ -242,10 +242,6 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
     "fields": [
       {"name": "contact_name", "label": "Nombre", "description": "Nombre", "type": "string"},
       {"name": "wants_demo", "description": "Quiere una demo", "type": "boolean"}
-    ],
-    "outcomes": [
-      {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "goal": true},
-      {"id": "otro", "label": "Sin demo"}
     ]
   }
 }
@@ -275,15 +271,17 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   `to` el número marcado, `inbound`; WhatsApp, `+wa_id` y el número de la cuenta (`outbound` si responde a una
   campaña, con los datos de su contacto); prueba, link y `POST /conversations` (`mode` `api`), `inbound` con el
   número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos).
-- **`analysis`** (opcional; sin él no hay extracción ni resultado, salvo fuera de tema): `fields` en el orden de la
+- **`analysis`** (opcional; sin él no hay extracción de datos ni resumen): `fields` en el orden de la
   lista, `type` `string`, `integer`, `boolean`, `email`, `email_or_phone`, `choice` (con `options`) o `phone`;
-  `label` es el nombre para mostrar. `outcomes`: gana el primero cuyo `when` (igualdades sobre campos) se cumple; si
-  hay, el último va sin `when`; `goal: true` marca el objetivo. `summary: true` pide un resumen
-  (`progress.summary`); `instructions` va al extractor.
+  `label` es el nombre para mostrar. `summary: true` pide un resumen (`progress.summary`); `instructions` va al
+  extractor. **El resultado es solo de plataforma**: el agente cierra con `end_call` (`motivo` `terminada` o
+  `fuera_de_tema`) y `conversations.outcome` guarda `fuera_de_tema` en ese caso (None en los demás cierres;
+  `incompleta` y los ids viejos de agente se conservan solo para leer filas históricas).
 - **Definiciones viejas** (`objective`, `conversation`, `knowledge`, `fields`, `completion`, `agent.role`):
-  `Workflow` las convierte al leer con `app/conversation/legacy.py` (congelado): un prompt con títulos (`# Identidad`,
+  `Workflow` las convierte al leer con `app/conversation/legacy.py`: un prompt con títulos (`# Identidad`,
   `# Objetivo`, `# Datos a pedir`, `# Cómo conversar`, `# Información`, `# Cierres`), la apertura a `first_message`
-  y los datos y resultados a `analysis`. Lo que se guarda por la API queda en la forma actual.
+  y los datos a `analysis` (los `outcomes` viejos no se convierten; su texto queda en el prompt). Lo que se guarda
+  por la API queda en la forma actual.
 - **`generation`** (opcional) y **`llm`** (LLM por etapa, desde el turno N): hiperparámetros del catálogo
   `app/llm/params.py` (temperatura, `top_p`/`top_k`/`min_p`, razonamiento y su tope, `max_tokens`, esfuerzo), con
   override por etapa; cada proveedor manda los que soporta. Sin `generation` rigen `LLM_THINKING`,
@@ -381,9 +379,9 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   (`summary` si se pide) y un prompt con el nombre del agente, `analysis.instructions`, los campos, las variables
   visibles y la conversación completa; una vez, al terminar (`end_call`) o al cortar (`ConversationEngine.finish`).
   `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
-  inexistentes o de tipo inválido no se guardan) y calcula el resultado con `analysis.outcomes` (sin resultados,
-  ninguno). `conversion`: `complete` si el agente terminó la conversación y no fue fuera de tema, `partial` con algún
-  dato capturado, `empty` el resto; `incompleta` ya no se asigna (las guardadas lo conservan).
+  inexistentes o de tipo inválido no se guardan). `conversion`: `complete` si el agente terminó la conversación y
+  no fue fuera de tema, `partial` con algún dato capturado, `empty` el resto; `incompleta` ya no se asigna (las
+  guardadas lo conservan).
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`

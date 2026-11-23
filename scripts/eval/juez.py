@@ -56,13 +56,13 @@ def contexto(rec: dict) -> str:
             f"FICHA DEL CLIENTE (lo que realmente sabe; sirve para detectar datos inventados):\n"
             f"{json.dumps(rec.get('ficha') or {}, ensure_ascii=False, indent=1)}\n"
             f"RESULTADO ESPERADO: datos {json.dumps(esperado.get('fields') or {}, ensure_ascii=False)}; "
-            f"cierre {esperado.get('outcome')}\n")
+            f"cierre {esperado.get('cierre')}\n")
 
 
 def cierre(rec: dict) -> str:
     c = rec.get("checks") or {}
     return (f"DATOS QUE EXTRAJO EL SISTEMA: {json.dumps(rec.get('fields') or {}, ensure_ascii=False)}\n"
-            f"CIERRE REGISTRADO: {c.get('outcome')}  (terminó: {c.get('termino')})")
+            f"CIERRE REGISTRADO: {c.get('cierre')}  (terminó: {c.get('termino')})")
 
 
 def parsear(content: str) -> dict:

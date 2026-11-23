@@ -93,8 +93,7 @@ export function OptoutsCard() {
       </Group>
       <Text size="sm" c="dimmed" mb="sm">
         Ninguna campaña de ese canal les escribe ni los llama. Se suman solos cuando alguien responde a una
-        campaña con "No me interesa" o "Baja", o cuando una llamada termina en un resultado de "no volver a
-        llamar".
+        campaña con "No me interesa" o "Baja"; el resto, a mano.
       </Text>
       <QueryState query={optouts}>
         {(rows) =>

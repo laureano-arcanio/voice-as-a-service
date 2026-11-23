@@ -10,14 +10,6 @@ export interface FieldSpec {
   options: string[] | null;
 }
 
-export interface Outcome {
-  id: string;
-  label: string;
-  when: Record<string, unknown>;
-  goal: boolean;
-  noContact: boolean;
-}
-
 export interface VariableSpec {
   name: string;
   default: string;
@@ -48,7 +40,6 @@ export interface WorkflowView {
   summary: boolean;
   analysisInstructions: string;
   fields: FieldSpec[];
-  outcomes: Outcome[];
   /** Herramientas del cliente (APIs y codigo), por slug. */
   clientTools: { tool: string }[];
 }
@@ -72,16 +63,6 @@ export function readWorkflow(d: Definition): WorkflowView {
       description: str(f.description),
       type: str(f.type) || 'string',
       options: Array.isArray(f.options) ? f.options.map(str) : null,
-    };
-  });
-  const outcomes = (Array.isArray(analysis.outcomes) ? analysis.outcomes : []).map((raw) => {
-    const o = obj(raw);
-    return {
-      id: str(o.id),
-      label: str(o.label),
-      when: obj(o.when),
-      goal: o.goal === true,
-      noContact: o.no_contact === true,
     };
   });
   return {
@@ -115,7 +96,6 @@ export function readWorkflow(d: Definition): WorkflowView {
     summary: analysis.summary !== false,
     analysisInstructions: str(analysis.instructions),
     fields,
-    outcomes,
     clientTools: (Array.isArray(d.tools) ? d.tools : [])
       .filter((raw) => obj(raw).tool != null)
       .map((raw) => ({ tool: str(obj(raw).tool) })),
@@ -125,12 +105,6 @@ export function readWorkflow(d: Definition): WorkflowView {
 /** Las primeras `lines` líneas de un texto, para la vista en limpio. */
 export function firstLines(text: string, lines = 6): string {
   return text.split('\n').slice(0, lines).join('\n').trim();
-}
-
-export function conditionLabel(when: Record<string, unknown>): string {
-  const entries = Object.entries(when);
-  if (!entries.length) return 'en otro caso';
-  return entries.map(([k, v]) => `${k} = ${String(v)}`).join(' y ');
 }
 
 /** JSON indentado para el editor. */

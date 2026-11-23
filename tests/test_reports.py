@@ -175,9 +175,9 @@ def test_summary_kpis_daily_and_previous(api, data):
     k = out["kpis"]
     # Sin prueba, loadtest ni la conversación por API.
     assert k["conversations"] == 5 and k["by_channel"] == {"voice_in": 3, "voice_out": 0, "whatsapp": 1, "web": 1}
-    assert (k["conversion_pct"], k["goal_pct"]) == (40.0, 20.0)
-    # Los absolutos de los porcentajes: 2 y 1 de las 5 atendidas por un agente; las 3 llamadas del agente terminaron.
-    assert (k["with_agent"], k["conversions"], k["goals"], k["finished"], k["failed"]) == (5, 2, 1, 3, 0)
+    assert k["conversion_pct"] == 40.0
+    # El absoluto del porcentaje: 2 de las 5 atendidas por un agente; las 3 llamadas del agente terminaron.
+    assert (k["with_agent"], k["conversions"], k["finished"], k["failed"]) == (5, 2, 3, 0)
     assert (k["transfers"], k["transfers_answered"], k["transfer_pct"]) == (2, 1, 40.0)
     assert (k["minutes"], k["avg_duration"], k["rejected_by_limit"], k["wa_messages"]) == (4, 63, 1, 5)
     assert out["previous"]["conversations"] == 1 and out["previous"]["minutes"] == 1
@@ -195,9 +195,9 @@ def test_summary_kpis_daily_and_previous(api, data):
 
 def test_summary_counts_finished_and_failed_calls(api, data):
     k = report(data["admin"], "summary", client_id=data["beta"])["kpis"]
-    # Una entrante y una saliente terminaron y una saliente falló; las dos terminadas convirtieron y cumplieron.
-    assert (k["conversations"], k["with_agent"], k["conversions"], k["goals"]) == (3, 3, 2, 2)
-    assert (k["finished"], k["failed"], k["conversion_pct"], k["goal_pct"]) == (2, 1, 66.7, 66.7)
+    # Una entrante y una saliente terminaron y una saliente falló; las dos terminadas convirtieron.
+    assert (k["conversations"], k["with_agent"], k["conversions"]) == (3, 3, 2)
+    assert (k["finished"], k["failed"], k["conversion_pct"]) == (2, 1, 66.7)
     # Una entrante y dos salientes (la de la campaña y la que falló), por día.
     assert k["by_channel"] == {"voice_in": 1, "voice_out": 2, "whatsapp": 0, "web": 0}
     out = report(data["admin"], "summary", client_id=data["beta"])["daily"]
@@ -225,7 +225,7 @@ def test_calls_report(api, data):
     assert out["by_line"] == [{"phone_number_id": data["line"], "number": "+541152630861", "calls": 2,
                                "minutes": 3, "conversion_pct": 50.0}]
     assert out["by_agent"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "calls": 4, "minutes": 4,
-                                "avg_duration": 63, "conversion_pct": 50.0, "goal_pct": 25.0}]
+                                "avg_duration": 63, "conversion_pct": 50.0}]
     durations = {d["bucket"]: d["count"] for d in out["durations"]}
     assert durations == {"0-15s": 1, "15-60s": 0, "1-3m": 2, "3-5m": 0, "5-10m": 0, "10m+": 0}
     ended = {e["reason"]: e["count"] for e in out["ended"]}
@@ -268,7 +268,7 @@ def test_direct_calls_are_reported_apart(api, data):
     # Los demas reportes cuentan las llamadas y los minutos, pero la conversion y el embudo siguen siendo del agente.
     k = report(data["admin"], "summary", client_id=data["acme"])["kpis"]
     assert k["conversations"] == 7 and (k["by_channel"]["voice_in"], k["by_channel"]["voice_out"]) == (4, 1) and k["minutes"] == 10
-    assert (k["conversion_pct"], k["goal_pct"], k["transfer_pct"]) == (40.0, 20.0, 40.0)
+    assert (k["conversion_pct"], k["transfer_pct"]) == (40.0, 40.0)
     assert (k["transfers"], k["transfers_answered"]) == (2, 1)
     summary = report(data["admin"], "summary", client_id=data["acme"])
     assert next(d for d in summary["daily"] if d["date"] == "2026-10-07")["transfers_answered"] == 0
@@ -326,18 +326,31 @@ def test_outcomes_report(api, data):
     daily = {d["date"]: d for d in out["conversion_daily"]}
     assert daily["2026-10-02"] == {"date": "2026-10-02", "complete": 1, "partial": 1, "empty": 0}
     assert daily["2026-10-06"]["empty"] == 1     # sin conversion guardada: sin datos
-    assert out["funnel"] == {"conversations": 5, "with_data": 3, "complete": 2, "goal": 1}
+    assert out["funnel"] == {"conversations": 5, "with_data": 3, "complete": 2}
     assert out["by_agent"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "total": 5, "complete": 2,
-                                "partial": 1, "empty": 2, "goal": 1}]
-    [demo] = out["outcomes"]
-    assert (demo["outcome"], demo["goal"], demo["count"]) == ("demo", True, 1) and demo["label"]
+                                "partial": 1, "empty": 2}]
     fields = {f["field"]: f for f in out["fields"]}
     assert (fields["contact_name"]["captured"], fields["contact_name"]["total"], fields["contact_name"]["pct"]) == (
         2, 5, 40.0)
     # Todos los datos del analisis (la definicion guardada ya es de la forma actual), en su orden.
     assert fields["company_name"]["captured"] == 1 and "email" in fields
     assert out["by_version"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "version": 1, "total": 5,
-                                  "conversion_pct": 40.0, "goal_pct": 20.0}]
+                                  "conversion_pct": 40.0}]
+
+
+def test_a_legacy_outcome_id_is_shown_as_is(api, data):
+    """Las completadas con un id de resultado de agente (definiciones anteriores a quitar los resultados) lo
+    muestran tal cual; fuera_de_tema, su etiqueta de plataforma."""
+    with api.sessions() as s:
+        cid = conv(s, data["acme"], data["agent_a"], T(9, 10), conversion="complete", progress={"outcome": "demo"})
+        off = conv(s, data["acme"], data["agent_a"], T(9, 11), conversion="complete",
+                   progress={"outcome": "fuera_de_tema"})
+        s.commit()
+    [item] = [c for c in data["admin"].get(f"{V1}/calls", params={"client_id": data["acme"]}).json()["items"]
+              if c["id"] == cid]
+    assert item["outcome"] == "demo"
+    assert data["admin"].get(f"{V1}/calls/{cid}").json()["outcome"] == "demo"
+    assert data["admin"].get(f"{V1}/calls/{off}").json()["outcome"] == "Fuera de tema"
 
 
 def test_detail_has_summary_and_variables(api, data):
@@ -387,8 +400,9 @@ def test_calls_list_counts_all_the_analysis_fields(api, data):
     assert (item["captured"], item["total"]) == (2, 11)
 
 
-def test_outcomes_report_with_an_agent_without_outcomes(api, data):
-    """Un agente sin resultados (analysis.outcomes vacío): el reporte no rompe y `outcome_for` da None."""
+def test_outcomes_report_with_an_agent_saved_with_outcomes(api, data):
+    """Una definición guardada con `outcomes` (antes de quitarlos) valida igual; el reporte y el detalle
+    no rompen."""
     from app.agents.templates import reference_data
     from app.conversation.models import Workflow
 
@@ -402,7 +416,6 @@ def test_outcomes_report_with_an_agent_without_outcomes(api, data):
                    conversion="partial")
         s.commit()
     out = report(data["admin"], "outcomes", client_id=data["acme"])
-    assert created.json()["id"] not in {o["agent_id"] for o in out["outcomes"]}
     assert {f["agent_id"] for f in out["fields"]} >= {created.json()["id"]}
     detail = data["admin"].get(f"{V1}/calls/{cid}").json()
     assert detail["outcome"] is None and detail["summary"] is None
@@ -497,9 +510,9 @@ def test_campaigns_report(api, data):
     beta = client_user(api, data["admin"], {"id": data["beta"]}, email="bea@beta.com")
     out = report(beta, "campaigns")
     [c] = out["campaigns"]
-    assert {k: c[k] for k in ("name", "channel", "contacts", "attempts", "reached", "complete", "goal", "optouts",
+    assert {k: c[k] for k in ("name", "channel", "contacts", "attempts", "reached", "complete", "optouts",
                               "minutes")} == {"name": "Cobranza", "channel": "voice", "contacts": 2, "attempts": 3,
-                                              "reached": 1, "complete": 1, "goal": 1, "optouts": 1, "minutes": 2}
+                                              "reached": 1, "complete": 1, "optouts": 1, "minutes": 2}
     assert {r["reason"]: r["count"] for r in out["no_contact"]}["busy"] == 1
     monday = datetime.date(2026, 10, 5).weekday()
     assert out["best_hours"] == [{"weekday": monday, "hour": 14, "attempts": 1, "reached": 1},
@@ -615,8 +628,7 @@ def test_split_report_groups_and_both_arms(api, admin, monkeypatch):
         s.flush()
         # 50 %: el mismo llamante en los dos brazos, con una derivación, un corte temprano y un tope.
         a1 = split_call(s, c["id"], agent, T(2, 10), line.id, arm="agent", percent=50, experiment=exp,
-                        phone="+5493510000001", duration=120, ended_reason="customer_hangup",
-                        outcome="demo", goal=True)
+                        phone="+5493510000001", duration=120, ended_reason="customer_hangup")
         t1 = split_call(s, c["id"], agent, T(2, 12), line.id, arm="team", percent=50, experiment=exp,
                         phone="+5493510000001", duration=10, ended_reason="completed")
         a2 = split_call(s, c["id"], agent, T(3, 10), line.id, arm="agent", percent=50, experiment=exp,
@@ -650,15 +662,12 @@ def test_split_report_groups_and_both_arms(api, admin, monkeypatch):
     assert agent50["ended"] == [{"reason": "customer_hangup", "count": 2}]
     assert (agent50["early_hangups"], agent50["handoff_requested"], agent50["handoff_connected"]) == (1, 1, 1)
     assert agent50["callbacks_24h"] == 1     # t1 volvio a llamar al mismo numero, en el otro brazo
-    assert agent50["outcomes"] == [{"outcome": "demo", "label": "Pide demo", "goal": True, "count": 1}]
-    assert agent50["goals"] == 1
     assert agent50["first_at"].startswith("2026-10-02") and agent50["last_at"].startswith("2026-10-03")
 
     team50 = groups[(exp, 50, "team")]
     assert team50["statuses"] == [{"status": "finalizada", "count": 1}, {"status": "rechazada", "count": 1}]
     assert team50["ended"] == [{"reason": "blocked_number", "count": 1}, {"reason": "completed", "count": 1}]
     assert team50["callbacks_24h"] == 0
-    assert team50["outcomes"] == [] and team50["goals"] == 0
 
     # Duracion de las finalizadas: el grupo de una sola llamada.
     team25 = groups[(exp, 25, "team")]

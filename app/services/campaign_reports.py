@@ -1,7 +1,7 @@
 """Reportes de una campaña (docs/features/CAMPANAS.md), para los dos canales:
 
-- `stats`: indicadores (tasa de contacto y de objetivo, duracion media, minutos, distribucion de
-  resultados y atendidas por hora del dia).
+- `stats`: indicadores (tasa de contacto, duracion media, minutos, distribucion de resultados y
+  atendidas por hora del dia).
 - `report_csv`: una fila por contacto con su resultado, la conversacion y lo que capturo el agente.
 
 Funciones sincronicas con la Session del que llama.
@@ -14,22 +14,18 @@ import re
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..conversation import variables
-from ..conversation.models import Workflow
 from ..models import CallRow, Campaign, CampaignContact, ConversationRow, WaMessage
 from ..whatsapp import campaigns as wa
-from . import campaign_calls
 from . import campaigns as common
-from .reports import Reports, iso, state_of
+from .reports import iso, state_of
 
 REPORT_COLUMNS = ["telefono", "nombre", "vars", "estado", "resultado", "intentos", "ultimo_intento",
-                  "duracion_segundos", "outcome", "objetivo", "campos", "seguimiento", "error", "conversation_id",
-                  "link"]
+                  "duracion_segundos", "campos", "seguimiento", "error", "conversation_id", "link"]
 WA_RESULTS = ("sent", "delivered", "read", "replied")
 
 
@@ -53,45 +49,9 @@ def _by_hour(events: list[tuple[Any, bool]], tz: ZoneInfo) -> list[dict]:
     return hours
 
 
-_GOAL_CACHE: dict[str, tuple[tuple, int]] = {}     # campaña -> (huella de sus conversaciones, objetivos)
-_GOAL_CACHE_MAX = 1000
-
-
-def goal_count(s: Session, c: Campaign, definitions: DefinitionSource) -> int:
-    """Conversaciones de la campaña que llegaron al objetivo del agente (un resultado con `goal`): las
-    atendidas (voz) o las que abrio la respuesta de un contacto (WhatsApp).
-
-    Evaluar el resultado de cada una carga todas las conversaciones, y la UI consulta cada 5 s: el
-    conteo se guarda en memoria con una huella barata (cuantas son y cual se toco por ultima vez), asi
-    solo se recalcula cuando alguna cambio."""
-    voice = c.channel == "voice"
-    reached = CampaignContact.result == "answered" if voice else CampaignContact.replied_at.is_not(None)
-    join = ConversationRow.id == CampaignContact.conversation_id
-    fingerprint = tuple(s.execute(
-        select(func.count(ConversationRow.id), func.max(ConversationRow.updated_at)).select_from(ConversationRow)
-        .join(CampaignContact, join).where(CampaignContact.campaign_id == c.id, reached)).one())
-    cached = _GOAL_CACHE.get(c.id)
-    if cached is not None and cached[0] == fingerprint:
-        return cached[1]
-    if voice:
-        n = campaign_calls.goal_count(s, c.id, definitions)
-    else:
-        reports = Reports(s, definitions)
-        n = 0
-        for conv in s.scalars(select(ConversationRow).join(CampaignContact, join)
-                              .where(CampaignContact.campaign_id == c.id, reached)):
-            outcome = reports.outcome(reports.workflow(conv), conv)
-            n += bool(outcome and outcome.goal)
-    if len(_GOAL_CACHE) >= _GOAL_CACHE_MAX:
-        _GOAL_CACHE.clear()
-    _GOAL_CACHE[c.id] = (fingerprint, n)
-    return n
-
-
-def stats(s: Session, c: Campaign, definitions: DefinitionSource) -> dict:
+def stats(s: Session, c: Campaign) -> dict:
     tz = ZoneInfo(settings.billing_timezone)
     contacts = sum(common.progress(s, [c.id])[c.id].values())
-    goal = goal_count(s, c, definitions)
     if c.channel == "voice":
         calls = s.execute(select(CallRow.created_at, CallRow.started_at, CallRow.duration_seconds)
                           .join(CampaignContact, CampaignContact.id == CallRow.campaign_contact_id)
@@ -101,7 +61,7 @@ def stats(s: Session, c: Campaign, definitions: DefinitionSource) -> dict:
         attempts, reached = len(calls), len(talked)
         return {
             "campaign_id": c.id, "channel": c.channel, "contacts": contacts, "attempts": attempts,
-            "reached": reached, "contact_rate": pct(reached, attempts), "goal": goal, "goal_rate": pct(goal, reached),
+            "reached": reached, "contact_rate": pct(reached, attempts),
             "avg_duration_seconds": round(sum(talked) / len(talked)) if talked else None,
             "minutes": common.minutes_used(s, c.id), "results": results,
             "by_hour": _by_hour([(created, started is not None) for created, started, _ in calls], tz),
@@ -113,7 +73,7 @@ def stats(s: Session, c: Campaign, definitions: DefinitionSource) -> dict:
     attempts, reached = totals["sent"], totals["replied"]
     return {
         "campaign_id": c.id, "channel": c.channel, "contacts": contacts, "attempts": attempts, "reached": reached,
-        "contact_rate": pct(reached, attempts), "goal": goal, "goal_rate": pct(goal, reached),
+        "contact_rate": pct(reached, attempts),
         "avg_duration_seconds": None, "minutes": None, "results": {k: totals[k] for k in WA_RESULTS},
         "by_hour": _by_hour([(sent, replied is not None) for sent, replied in sent_rows], tz),
         "timezone": settings.billing_timezone,
@@ -149,11 +109,9 @@ def followup_shown(r: CampaignContact) -> str | None:
     return "pending" if r.followup_status == "in_progress" else r.followup_status
 
 
-def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
-                contact_ids: list[str] | None = None) -> list[dict]:
+def report_rows(s: Session, c: Campaign, contact_ids: list[str] | None = None) -> list[dict]:
     """Una fila por contacto, en orden de carga. `contact_ids`: solo esos (los campaign_contacts), para
     el webhook de un contacto."""
-    reports = Reports(s, definitions)
     whatsapp = c.channel == "whatsapp"
     q = (select(CampaignContact, WaMessage.status)
          .outerjoin(WaMessage, WaMessage.wamid == CampaignContact.wamid)
@@ -166,16 +124,11 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
     conversations = {conv.id: conv for conv in s.scalars(select(ConversationRow).where(ConversationRow.id.in_(ids)))} if ids else {}
     durations = dict(s.execute(select(CallRow.conversation_id, CallRow.duration_seconds)
                                .where(CallRow.conversation_id.in_(ids))).all()) if ids and not whatsapp else {}
-    workflows: dict[tuple, Workflow | None] = {}
     out = []
     for r, message_status in rows:
         conv = conversations.get(r.conversation_id)
-        outcome, captured, summary, visible_variables = None, {}, None, {}
+        captured, summary, visible_variables = {}, None, {}
         if conv is not None:
-            key = (conv.agent_id, conv.agent_version, conv.legacy_workflow_id)
-            if key not in workflows:
-                workflows[key] = reports.workflow(conv)
-            outcome = reports.outcome(workflows[key], conv)
             captured = {k: v for k, v in (conv.fields or {}).items() if v is not None}
             state = state_of(conv)
             summary, visible_variables = state.progress.summary, variables.visible(state)
@@ -189,8 +142,6 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
             "intentos": r.attempts or (1 if r.sent_at else 0),
             "ultimo_intento": iso(r.sent_at if whatsapp else r.last_attempt_at),
             "duracion_segundos": durations.get(r.conversation_id, "") if not whatsapp else "",
-            "outcome": outcome.label if outcome else "",
-            "objetivo": ("si" if outcome.goal else "no") if outcome else "",
             "campos": _json(captured),
             # Del análisis: el resumen y las variables visibles (las ocultas no salen del cliente).
             "summary": summary,
@@ -203,11 +154,11 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
     return out
 
 
-def report_csv(s: Session, c: Campaign, definitions: DefinitionSource) -> str:
+def report_csv(s: Session, c: Campaign) -> str:
     """El reporte por contacto como CSV (UTF-8 con BOM, para que Excel respete los acentos)."""
     buf = io.StringIO()
     writer = csv.writer(buf, lineterminator="\r\n")
     writer.writerow(REPORT_COLUMNS)
-    for row in report_rows(s, c, definitions):
+    for row in report_rows(s, c):
         writer.writerow([_cell(row[col]) if col != "telefono" else row[col] for col in REPORT_COLUMNS])
     return "﻿" + buf.getvalue()

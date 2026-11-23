@@ -1,5 +1,5 @@
 import { BarChart } from '@mantine/charts';
-import { Badge, Group, Progress, Stack, Text } from '@mantine/core';
+import { Group, Progress, Stack, Text } from '@mantine/core';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { formatDayLabel, formatNumber } from '@/lib/format';
 import { useReport } from './api';
@@ -9,7 +9,6 @@ import type { OutcomesReport, ReportQuery } from './types';
 
 type Daily = OutcomesReport['conversion_daily'][number];
 type Agent = OutcomesReport['by_agent'][number];
-type Outcome = OutcomesReport['outcomes'][number];
 type Field = OutcomesReport['fields'][number];
 type Version = OutcomesReport['by_version'][number];
 
@@ -28,29 +27,12 @@ const AGENT_COLS: Column<Agent>[] = [
   { label: 'Completas', value: 'complete', num: true },
   { label: 'Parciales', value: 'partial', num: true },
   { label: 'Sin datos', value: 'empty', num: true },
-  { label: 'Objetivo', value: 'goal', num: true },
   {
     label: '% completas',
     value: (r) => share(r.complete, r.total),
     num: true,
     render: (r) => pct(share(r.complete, r.total)),
   },
-];
-
-const OUTCOME_COLS: Column<Outcome>[] = [
-  { label: 'Agente', value: 'agent_name' },
-  {
-    label: 'Resultado',
-    value: 'label',
-    render: (r) => (
-      <Group gap={6} wrap="nowrap">
-        {r.label}
-        {r.goal && <Badge color="green">Objetivo</Badge>}
-      </Group>
-    ),
-  },
-  { label: 'Objetivo', value: (r) => (r.goal ? 'sí' : 'no'), render: (r) => (r.goal ? 'Sí' : 'No') },
-  { label: 'Conversaciones', value: 'count', num: true },
 ];
 
 const FIELD_COLS: Column<Field>[] = [
@@ -77,16 +59,14 @@ const VERSION_COLS: Column<Version>[] = [
   { label: 'Versión', value: 'version', render: (r) => <span className="mono">v{r.version}</span> },
   { label: 'Consultas', value: 'total', num: true },
   { label: '% completas', value: 'conversion_pct', num: true, render: (r) => pct(r.conversion_pct) },
-  { label: '% objetivo', value: 'goal_pct', num: true, render: (r) => pct(r.goal_pct) },
 ];
 
-/** Embudo: atendidas -> con algun dato -> completas -> objetivo, como barras de % sobre el total. */
+/** Embudo: atendidas -> con algun dato -> completas, como barras de % sobre el total. */
 function Funnel({ funnel }: { funnel: OutcomesReport['funnel'] }) {
   const steps = [
     { label: 'Consultas', value: funnel.conversations },
     { label: 'Con algún dato', value: funnel.with_data },
     { label: 'Completas', value: funnel.complete },
-    { label: 'Objetivo cumplido', value: funnel.goal },
   ];
   if (!funnel.conversations) return <EmptyState>Sin consultas en el período.</EmptyState>;
   return (
@@ -151,20 +131,12 @@ export function OutcomesTab({ query }: { query: ReportQuery }) {
                   { label: 'Consultas', value: 'conversations' },
                   { label: 'Con algún dato', value: 'with_data' },
                   { label: 'Completas', value: 'complete' },
-                  { label: 'Objetivo cumplido', value: 'goal' },
                 ],
               }}
             >
               <Funnel funnel={r.funnel} />
             </ReportCard>
             <TableCard title="Por agente" rows={r.by_agent} columns={AGENT_COLS} rowKey={(x) => x.agent_id} />
-            <TableCard
-              title="Resultados"
-              description="Los resultados que definiste en cada agente; los de objetivo, marcados."
-              rows={r.outcomes}
-              columns={OUTCOME_COLS}
-              rowKey={(x) => `${x.agent_id}-${x.outcome}`}
-            />
             <TableCard
               title="Datos capturados"
               description="En qué porcentaje de las consultas se capturó cada dato del análisis: muestra qué pregunta se pierde."

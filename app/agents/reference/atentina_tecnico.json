@@ -87,22 +87,6 @@
         "description": "Lo que quedó sin responder o para confirmar con el equipo",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "seguimiento",
-        "label": "Pide seguimiento",
-        "when": {
-          "wants_followup": true
-        },
-        "goal": true
-      },
-      {
-        "id": "consulta",
-        "label": "Consulta técnica",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

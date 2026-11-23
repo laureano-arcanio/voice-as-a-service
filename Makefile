@@ -37,7 +37,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu up-llm-lb llm-lb-status \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-down migrate-test agents-reference dev-agents-reference reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
+        migrate migrate-down migrate-test agents-reference dev-agents-reference create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video-imagen video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         imagenes-build imagenes-up imagenes-down imagenes-bench \
@@ -299,9 +299,6 @@ agents-reference: ## Pasa a los agentes de atentina (comercial, demo y landing) 
 
 dev-agents-reference: ## agents-reference sobre la base de desarrollo. Ej: make dev-agents-reference SLUG=atentina_comercial APPLY=1
 	$(DEV_COMPOSE) exec -T app python -m app.cli agents-reference $(if $(SLUG),--slug $(SLUG)) $(if $(APPLY),--apply)
-
-reports-backfill: ## Completa resultado, objetivo y conversion de las conversaciones anteriores a los reportes (docs/features/REPORTES.md; idempotente, despues de make migrate)
-	$(COMPOSE) run --rm --no-deps app python -m app.cli reports-backfill
 
 create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-admin EMAIL=vos@empresa.com
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-admin $(EMAIL)

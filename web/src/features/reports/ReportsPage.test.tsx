@@ -11,8 +11,6 @@ const KPIS: SummaryKpis = {
   with_agent: 12,
   conversions: 6,
   conversion_pct: 50,
-  goals: 3,
-  goal_pct: 25,
   transfers: 3,
   transfers_answered: 2,
   transfer_pct: 25,
@@ -92,7 +90,6 @@ describe('ReportsPage', () => {
     expect(screen.getByText('+100 % vs. período anterior')).toBeInTheDocument();
     // Los absolutos de los porcentajes y de los minutos.
     expect(screen.getByText('6 de 12')).toBeInTheDocument();
-    expect(screen.getByText('3 de 12')).toBeInTheDocument();
     expect(screen.getByText('7 finalizadas · 1 fallidas')).toBeInTheDocument();
     // El consumo del plan ya no está en el Resumen: tiene su pestaña.
     expect(screen.queryByText('Consumo del plan')).not.toBeInTheDocument();
@@ -179,7 +176,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
           minutes: 6,
           avg_duration: 90,
           conversion_pct: 50,
-          goal_pct: 25,
         },
       ],
       by_type: [
@@ -218,36 +214,24 @@ const FIXTURES: Record<string, [unknown, string]> = {
   outcomes: [
     {
       conversion_daily: [{ date: '2026-10-27', complete: 1, partial: 1, empty: 1 }],
-      by_agent: [
-        { agent_id: 'a-1', agent_name: 'Turnos', total: 3, complete: 1, partial: 1, empty: 1, goal: 1 },
-      ],
-      outcomes: [
-        {
-          agent_id: 'a-1',
-          agent_name: 'Turnos',
-          outcome: 'turno',
-          label: 'Turno dado',
-          goal: true,
-          count: 1,
-        },
-      ],
-      funnel: { conversations: 3, with_data: 2, complete: 1, goal: 1 },
+      by_agent: [{ agent_id: 'a-1', agent_name: 'Turnos', total: 3, complete: 1, partial: 1, empty: 1 }],
+      funnel: { conversations: 3, with_data: 2, complete: 1 },
       fields: [
         {
           agent_id: 'a-1',
           agent_name: 'Turnos',
           field: 'nombre',
-          label: 'Nombre',
+          label: 'Nombre completo',
           captured: 2,
           total: 3,
           pct: 66.7,
         },
       ],
       by_version: [
-        { agent_id: 'a-1', agent_name: 'Turnos', version: 3, total: 3, conversion_pct: 33.3, goal_pct: 33.3 },
+        { agent_id: 'a-1', agent_name: 'Turnos', version: 3, total: 3, conversion_pct: 33.3 },
       ],
     },
-    'Turno dado',
+    'Nombre completo',
   ],
   messages: [
     {
@@ -331,8 +315,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
           handoff_requested: 2,
           handoff_connected: 1,
           callbacks_24h: 1,
-          outcomes: [{ outcome: 'demo', label: 'Pide demo', goal: true, count: 2 }],
-          goals: 2,
         },
         {
           experiment: 'ab12cd34',
@@ -353,8 +335,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
           handoff_requested: 0,
           handoff_connected: 0,
           callbacks_24h: 0,
-          outcomes: [],
-          goals: 0,
         },
       ],
       both_arms: [
@@ -382,7 +362,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
           attempts: 12,
           reached: 6,
           complete: 3,
-          goal: 2,
           optouts: 1,
           minutes: 8,
         },
@@ -502,7 +481,7 @@ describe('ReportsPage, pestañas con datos', () => {
     expect(screen.queryByText('Por usuario')).not.toBeInTheDocument();
   });
 
-  it('reparto: agrupa por experimento y porcentaje, con motivos, resultados y los dos brazos', async () => {
+  it('reparto: agrupa por experimento y porcentaje, con motivos y los dos brazos', async () => {
     const urls = mockApi({
       '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
       '/api/v1/agents': [],
@@ -517,8 +496,7 @@ describe('ReportsPage, pestañas con datos', () => {
     expect(screen.getByText('Cómo se repartió')).toBeInTheDocument();
     expect(screen.getAllByText('Sorteo').length).toBeGreaterThan(0);
     expect(screen.getByText('Tope del brazo agente')).toBeInTheDocument();
-    expect(screen.getByText('Resultados del brazo agente')).toBeInTheDocument();
-    expect(screen.getByText('Pide demo (objetivo)')).toBeInTheDocument();
+    expect(screen.queryByText('Resultados del brazo agente')).not.toBeInTheDocument();
     expect(screen.getByText('Llamantes que pasaron por los dos brazos')).toBeInTheDocument();
     const req = urls.find((u) => u.pathname === '/api/v1/reports/split')!;
     expect(req.searchParams.get('phone_number_id')).toBe('n-1');

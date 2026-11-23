@@ -47,30 +47,6 @@
         "description": "Si confirma la reserva después de que se la repiten.",
         "type": "boolean"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "reserva",
-        "label": "Reserva tomada",
-        "when": {
-          "confirma": true
-        },
-        "goal": true
-      },
-      {
-        "id": "consulta",
-        "label": "Consulta",
-        "when": {
-          "reserva": false
-        },
-        "goal": false
-      },
-      {
-        "id": "sin_cierre",
-        "label": "Sin cierre",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

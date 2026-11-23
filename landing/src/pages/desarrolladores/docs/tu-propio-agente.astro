@@ -34,7 +34,7 @@ X-Atentina-Variables: {"nombre":"Ana","deuda":"125000"}
   ],
   "tools": [
     {"type": "function", "function": {"name": "end_call", "parameters": {"type": "object", "properties": {
-      "outcome": {"type": "string", "enum": ["turno_dado", "sin_turno"]}}}}}
+      "motivo": {"type": "string", "enum": ["terminada", "fuera_de_tema"]}}}}}
   ]
 }`;
 
@@ -43,7 +43,7 @@ const response = `data: {"choices":[{"index":0,"delta":{"content":"Perfecto, te 
 data: {"choices":[{"index":0,"delta":{"content":"a las cuatro. ¡Que andes bien!"}}]}
 
 data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function",
-       "function":{"name":"end_call","arguments":"{\\"outcome\\": \\"turno_dado\\"}"}}]}}]}
+       "function":{"name":"end_call","arguments":"{\\"motivo\\": \\"terminada\\"}"}}]}}]}
 
 data: [DONE]`;
 
@@ -192,7 +192,7 @@ const configs = [
     <h2>end_call y transfer_call</h2>
     <p>Las manda Atentina en <code>tools</code> y las ejecuta Atentina. Si tu agente las pasa a su LLM, el modelo decide cuándo usarlas.</p>
     <ul>
-      <li><strong><code>end_call</code></strong>: corta cuando termina de decir lo que escribió en ese mensaje (la despedida). Con <code>outcome</code> elige el resultado de la conversación entre los <code>id</code> de <code>analysis.outcomes</code> del agente; sin él, vale el último.</li>
+      <li><strong><code>end_call</code></strong>: corta cuando termina de decir lo que escribió en ese mensaje (la despedida). Con <code>motivo</code>, <code>fuera_de_tema</code> marca que la conversación no tenía que ver con el objetivo del agente; cualquier otro cierre va con <code>terminada</code>.</li>
       <li><strong><code>transfer_call</code></strong>: pasa la llamada a un área de tu equipo (<code>area</code>, una de las del agente). Llega solo si el agente tiene áreas de <a href="/desarrolladores/docs/api#derivaciones">derivación</a>. Mientras tanto, la persona escucha música; si nadie atiende, el agente retoma.</li>
     </ul>
     <p>Si tu agente las ignora, la llamada termina cuando corta la persona o al llegar a la duración máxima.</p>
@@ -211,7 +211,7 @@ const configs = [
       <thead><tr><th>Campo</th><th>Qué es</th></tr></thead>
       <tbody>{configs.map((c) => <tr><td><code>{c.name}</code></td><td>{c.text}</td></tr>)}</tbody>
     </table></div>
-    <p>Del agente de Atentina siguen valiendo el nombre, la voz, el primer mensaje, los resultados de <code>analysis.outcomes</code>, las áreas de derivación, la grabación y el resumen por email. Después asignale un número o una cuenta de WhatsApp, como a cualquier agente.</p>
+    <p>Del agente de Atentina siguen valiendo el nombre, la voz, el primer mensaje, las áreas de derivación, la grabación y el resumen por email. Después asignale un número o una cuenta de WhatsApp, como a cualquier agente.</p>
   </section>
 
   <section id="ejemplo" class="grid gap-4">

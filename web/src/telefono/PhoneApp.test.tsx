@@ -59,7 +59,6 @@ const CALL = {
   contact_id: null,
   company: null,
   outcome: null,
-  goal: false,
   captured: 0,
   required: 0,
   mode: 'directa',

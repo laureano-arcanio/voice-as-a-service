@@ -41,7 +41,7 @@ async def test_no_extraction_until_the_end(store):
     assert llm.extract_calls == [] and all(v is None for v in state.fields.values())
     state, _ = await turn_and_extract(engine, cid, "En el centro. Soy Ana, mandalo a este número.")
     assert llm.extract_calls == [5]         # toda la conversacion: la apertura y los dos turnos
-    assert state.status == "completed" and state.progress.outcome == "link"
+    assert state.status == "completed" and state.progress.outcome is None
     assert [c["kind"] for c in state.messages[-1].llm] == ["turno", "extraccion"]
 
 

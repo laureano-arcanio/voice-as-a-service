@@ -202,7 +202,7 @@ reservados para los slugs del cliente.
 
 | Herramienta | Cuándo | Parámetros | Efecto |
 |---|---|---|---|
-| `end_call` | siempre | `motivo`: `terminada` \| `fuera_de_tema` (con tu propio agente, `outcome`: un id de `analysis.outcomes`, si hay) | `status = completed`; `fuera_de_tema` → `ended_reason=off_topic` y resultado "Fuera de tema" |
+| `end_call` | siempre | `motivo`: `terminada` \| `fuera_de_tema` | `status = completed`; `fuera_de_tema` → `ended_reason=off_topic` y resultado "Fuera de tema" |
 | `transfer_call` | llamada de voz con áreas de derivación (`progress.handoff_areas`), o WhatsApp de texto con áreas con plantilla | `area` (enum de las áreas; la descripción dice cuándo pasar a cada una y si atiende ahora) | `AgentTurn.handoff`; si también vino `end_call`, gana cortar |
 
 ## Workflows: antes y después de la conversación

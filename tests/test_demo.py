@@ -120,7 +120,7 @@ def test_start_call_and_result(landing):
     assert landing.client.get(url, headers=headers).status_code == 401
     auth = {"Authorization": f"Bearer {started['result_token']}"}
     pending = landing.client.get(url, headers=auth).json()
-    assert pending["final"] is False and pending["outcome"] is None
+    assert pending["final"] is False and "outcome" not in pending
     assert [f["label"] for f in pending["fields"]][:2] == ["Especialidad", "Turno"]
 
     with landing.sessions() as s:
@@ -128,12 +128,12 @@ def test_start_call_and_result(landing):
         conv.fields = {**conv.fields, "especialidad": "pediatría", "turno": "martes 10:00", "nombre": "Ana Paz",
                        "dni": "30111222", "obra_social": "OSDE", "confirma": True}
         conv.status = "completed"
-        conv.progress = {"outcome": "turno_dado"}
+        conv.progress = {"summary": "Turno dado para el martes 10:00."}
         call_row = s.get(CallRow, started["conversation_id"])
         call_row.status, call_row.duration_seconds = CallStatus.finalizada, 95
         s.commit()
     done = landing.client.get(url, headers=auth).json()
-    assert done["final"] and done["outcome"] == {"label": "Turno dado", "goal": True}
+    assert done["final"] and "outcome" not in done
     assert {f["name"]: f["value"] for f in done["fields"]}["confirma"] is True
     assert done["messages"][0]["role"] == "assistant" and done["agent_name"] == "Sofía"
 

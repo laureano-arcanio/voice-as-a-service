@@ -7,7 +7,7 @@ Los archivos de personas (scripts/eval/personas/<grupo>.yml) tienen:
   checks: {siglas: [...], frases_max: N, prohibido: [{regex, motivo}]}
   personas:
     <nombre>:
-      resumen, estilo, ficha, esperado: {fields: {...}, outcome: [...]},
+      resumen, estilo, ficha, esperado: {fields: {...}, cierre: [...]},
       guion: [...] (opcional), solo_guion: bool, turnos_max: N, prohibido: [...]
 """
 from dataclasses import dataclass, field
@@ -87,7 +87,7 @@ def escenarios(grupos: list[str], reps: int, seed: int, personas: list[str] | No
                 out.append(Escenario(
                     grupo=grupo, agente=agente, persona=nombre, rep=rep, variables=variables,
                     resumen=p_r.get("resumen", ""), estilo=p_r.get("estilo", "").strip(),
-                    ficha=p_r.get("ficha") or {}, esperado=p_r.get("esperado") or {"fields": {}, "outcome": []},
+                    ficha=p_r.get("ficha") or {}, esperado=p_r.get("esperado") or {"fields": {}, "cierre": []},
                     checks=checks, turnos_max=turnos_max or p_r.get("turnos_max", TURNOS_MAX),
                     guion=p_r.get("guion"), solo_guion=bool(p_r.get("solo_guion")),
                 ))

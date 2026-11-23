@@ -35,8 +35,6 @@ export interface SummaryKpis {
   with_agent: number;
   conversions: number;
   conversion_pct: number | null;
-  goals: number;
-  goal_pct: number | null;
   transfers: number;
   transfers_answered: number;
   transfer_pct: number | null;
@@ -93,7 +91,6 @@ export interface CallsReport {
     minutes: number;
     avg_duration: number | null;
     conversion_pct: number | null;
-    goal_pct: number | null;
   }[];
   /** Siempre los tres tipos, en este orden: agent, direct (la hace una persona) y team (entrante al equipo). */
   by_type: {
@@ -128,17 +125,8 @@ export interface OutcomesReport {
     complete: number;
     partial: number;
     empty: number;
-    goal: number;
   }[];
-  outcomes: {
-    agent_id: string;
-    agent_name: string;
-    outcome: string;
-    label: string;
-    goal: boolean;
-    count: number;
-  }[];
-  funnel: { conversations: number; with_data: number; complete: number; goal: number };
+  funnel: { conversations: number; with_data: number; complete: number };
   fields: {
     agent_id: string;
     agent_name: string;
@@ -154,7 +142,6 @@ export interface OutcomesReport {
     version: number;
     total: number;
     conversion_pct: number | null;
-    goal_pct: number | null;
   }[];
 }
 
@@ -223,13 +210,6 @@ export interface TransfersReport {
 
 // --- Reparto agente/equipo ---
 
-export interface SplitOutcome {
-  outcome: string;
-  label: string;
-  goal: boolean;
-  count: number;
-}
-
 export interface SplitGroup {
   experiment: string | null;
   percent: number | null;
@@ -249,8 +229,6 @@ export interface SplitGroup {
   handoff_requested: number;
   handoff_connected: number;
   callbacks_24h: number;
-  outcomes: SplitOutcome[];
-  goals: number;
 }
 
 export interface SplitBothArms {
@@ -280,7 +258,6 @@ export interface CampaignsReport {
     attempts: number;
     reached: number;
     complete: number;
-    goal: number;
     optouts: number;
     minutes: number;
   }[];

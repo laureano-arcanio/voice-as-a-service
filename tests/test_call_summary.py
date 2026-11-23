@@ -274,7 +274,7 @@ def test_summary_and_data_in_the_analysis_order(api, admin, resend):
         {"name": "a", "label": "Alfa", "description": "A", "type": "string"},
         {"name": "m", "label": "Mike", "description": "M", "type": "string"},
     ]
-    definition["analysis"]["outcomes"] = []      # sus `when` nombran los campos de antes
+    definition["analysis"]["outcomes"] = [{"id": "demo", "label": "Demo", "when": {"a": "2"}}]   # clave vieja: se ignora
     r = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Ventas",
                                          "definition": {**definition, "call_summary_email": True}})
     assert r.status_code == 201, r.text

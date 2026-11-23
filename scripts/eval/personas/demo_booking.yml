@@ -29,7 +29,7 @@ personas:
         demo_answer: si
         contact_name: "{nombre}"
         contact: "{email}"
-      outcome: [demo]
+      cierre: [terminada]
     guion:
       - "Sí, contame."
       - "Tenemos {rubro} con {empleados} empleados, y nos cuesta saber si llegan a horario a cada puesto."
@@ -54,7 +54,7 @@ personas:
         demo_answer: si
         contact_name: "{nombre}"
         contact: "{telefono}"
-      outcome: [demo]
+      cierre: [terminada]
     turnos_max: 10
     guion:
       - "Sí, pero rápido."
@@ -79,7 +79,7 @@ personas:
         demo_answer: dudas
         callback_wanted: true
         contact: null
-      outcome: [callback]
+      cierre: [terminada]
     turnos_max: 14
 
   hostil:
@@ -95,7 +95,7 @@ personas:
         wants_pitch: false
         demo_answer: null
         contact: null
-      outcome: [no_pitch]
+      cierre: [terminada]
     turnos_max: 6
 
   evasivo:
@@ -114,7 +114,7 @@ personas:
         demo_answer: dudas
         callback_wanted: false
         contact: null
-      outcome: [no_interest]
+      cierre: [terminada]
     turnos_max: 12
 
   buzon_de_voz:
@@ -126,7 +126,7 @@ personas:
       fields:
         contact: null
         contact_name: null
-      outcome: [no_pitch, no_interest, sin_terminar]
+      cierre: [terminada, sin_terminar]
     turnos_max: 5
     guion:
       - "Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos"

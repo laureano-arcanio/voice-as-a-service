@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  conditionLabel,
   findPathOffset,
   firstLines,
   parseDefinition,
@@ -27,10 +26,6 @@ const def = {
       { name: 'a', label: 'Alfa', description: 'Alfa', type: 'choice', options: ['si', 'no'] },
       { name: 'm', description: 'Me', type: 'boolean' },
     ],
-    outcomes: [
-      { id: 'ok', label: 'Agendado', when: { a: 'si' }, goal: true },
-      { id: 'no', label: 'No', when: {} },
-    ],
   },
 };
 
@@ -48,14 +43,12 @@ describe('readWorkflow', () => {
     expect(w.fields[1]).toMatchObject({ label: 'Alfa', type: 'choice', options: ['si', 'no'] });
     expect(w.analysisInstructions).toBe('Extraé lo que dijo.');
     expect(w.summary).toBe(false);
-    expect(conditionLabel(w.outcomes[1].when)).toBe('en otro caso');
     expect(w.agent.voice).toBe('sofia');
   });
 
   it('tolera definiciones incompletas', () => {
     const w = readWorkflow({});
     expect(w.fields).toEqual([]);
-    expect(w.outcomes).toEqual([]);
     expect(w.variables).toEqual([]);
     expect(w.summary).toBe(true);
     expect(w.external).toBe(false);
@@ -72,7 +65,6 @@ describe('editor', () => {
     const pos = findPathOffset(text, 'analysis.fields.1.description');
     expect(text.slice(pos, pos + 13)).toBe('"description"');
     expect(pos).toBeGreaterThan(text.indexOf('"fields"'));
-    expect(findPathOffset(text, 'analysis.outcomes.1.label')).toBeGreaterThan(0);
   });
 
   it('valida que sea un objeto JSON', () => {

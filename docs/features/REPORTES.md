@@ -10,17 +10,17 @@ todos; el resto con `tiers.advanced_reports`.
 | Término | Qué cuenta |
 |---|---|
 | Consulta | una conversación de cliente: llamada (atendida o no) o conversación de WhatsApp |
-| Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, objetivo, % de transferencia, embudo ni turnos |
+| Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, % de transferencia, embudo ni turnos |
 | Transferencia | conversación (llamada o WhatsApp de texto) con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
-| Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
+| Resultado | `conversations.outcome`: solo plataforma (`fuera_de_tema`, el que asigna `end_call`; `incompleta` y ids viejos de agente, solo para leer filas históricas). El objetivo del agente (`goal`) ya no existe |
 | Brazo del reparto | `call_logs.split_arm` (`agent`/`team`) de una entrante al número con `agent_percent > 0`; el motivo (`split_reason`) y el porcentaje/etiqueta de esa llamada quedan congelados aunque el número cambie ([EQUIPO_TELEFONIA.md](EQUIPO_TELEFONIA.md#reparto-agenteequipo-ab)) |
 | Conversión | `complete`: el agente terminó la conversación y no fue `fuera_de_tema`; `partial`: algún dato del análisis capturado (sin precarga, no se descuenta nada); `empty`: ningún dato (`app/conversation/workflow.py`, `conversion`) |
 | Sin respuesta (`no_response`) | llamada que el agente avisó y cortó porque la persona no respondió: la cierra el watchdog de silencio de `turn_attention` ([ATENCION_TURNO.md](ATENCION_TURNO.md)) |
 
 ## Modelo de datos (migración 0036)
 
-- `conversations.outcome`, `goal`, `conversion` y `llm_input_tokens`/`llm_output_tokens` (suma de los turnos): los
-  completa el motor al guardar.
+- `conversations.outcome`, `conversion` y `llm_input_tokens`/`llm_output_tokens` (suma de los turnos): los
+  completa el motor al guardar. `goal` (migración 0036) quedó congelada con sus valores históricos: ya no se escribe.
 - `tool_runs`: una fila por ejecución de una herramienta del cliente (ok, código HTTP, ms, error).
 - `wa_account_status_log`: una fila por cambio de estado, calidad o límite de una cuenta de WhatsApp.
 - `tiers.advanced_reports` (clave `advanced_reports` de `services/features.TIER_HAS`): Free no; pagos e Interno sí.
@@ -39,13 +39,13 @@ el `loadtest` nunca entra).
 
 | Ruta | Plan | Devuelve |
 |---|---|---|
-| `GET /reports/summary` | todos | `kpis` y `previous` (período anterior): consultas por canal (`voice_in`, `voice_out`, `whatsapp`, `web`), `with_agent`, conversiones, objetivos, transferencias, minutos, finalizadas, fallidas, duración media, rechazadas por límite, mensajes de WhatsApp; `daily` |
+| `GET /reports/summary` | todos | `kpis` y `previous` (período anterior): consultas por canal (`voice_in`, `voice_out`, `whatsapp`, `web`), `with_agent`, conversiones, transferencias, minutos, finalizadas, fallidas, duración media, rechazadas por límite, mensajes de WhatsApp; `daily` |
 | `GET /reports/calls` | todos | `daily` por modo, `heatmap` (sin directas), `by_line`, `by_agent`, `by_type` (`agent`, `direct`, `team`), `by_user`, `durations` (solo finalizadas), `total`, `ended` por motivo, `early_hangups`, `callers` (nuevos, recurrentes, top) |
-| `GET /reports/outcomes` | `advanced_reports` | conversión diaria y por agente, resultados, embudo, captura de cada dato del análisis (versión vigente), por versión del agente |
+| `GET /reports/outcomes` | `advanced_reports` | conversión diaria y por agente, embudo, captura de cada dato del análisis (versión vigente), por versión del agente |
 | `GET /reports/messages` | `advanced_reports` | mensajes por día (texto y audio), heatmap, entrega (`sent`, `delivered`, `read`, `failed`), fallas por código, promedio por conversación, cuentas con historial de calidad |
 | `GET /reports/transfers` | `advanced_reports` | KPIs (pedidas, atendidas, no atendidas, sin nadie, tiempo de respuesta, minutos), por día, área y persona; WhatsApp (asignadas, primera respuesta, reasignadas) |
-| `GET /reports/split` | `advanced_reports` | `has_data` (hay alguna llamada con brazo en la historia, no solo en el período); `groups` por experimento, porcentaje y brazo: llamadas, llamantes distintos, `reasons` (sorteo, tope, agente o equipo no disponible), `statuses`, `ended`, duración p25/p50/p75/p90, cortes antes de 15 s, derivaciones pedidas y atendidas, rellamadas en 24 h y, solo en el brazo agente, `outcomes` y `goals`; `both_arms`: llamantes con llamadas en los dos brazos del mismo experimento y porcentaje, con `arms` y `rest` |
-| `GET /reports/campaigns` | `advanced_reports` | por campaña (contactos, intentos, alcanzados, completos, objetivo, bajas, minutos), motivos de no contacto, mejores horarios |
+| `GET /reports/split` | `advanced_reports` | `has_data` (hay alguna llamada con brazo en la historia, no solo en el período); `groups` por experimento, porcentaje y brazo: llamadas, llamantes distintos, `reasons` (sorteo, tope, agente o equipo no disponible), `statuses`, `ended`, duración p25/p50/p75/p90, cortes antes de 15 s, derivaciones pedidas y atendidas, rellamadas en 24 h; `both_arms`: llamantes con llamadas en los dos brazos del mismo experimento y porcentaje, con `arms` y `rest` |
+| `GET /reports/campaigns` | `advanced_reports` | por campaña (contactos, intentos, alcanzados, completos, bajas, minutos), motivos de no contacto, mejores horarios |
 | `GET /reports/technical` | admin | latencia p50/p95 por día y etapa (STT, EOU, LLM, TTS), por proveedor del LLM, herramientas (errores, p50/p95), errores, mails de resumen fallidos, tokens |
 | `GET /reports/platform` | admin, sin `client_id` | tabla por cliente, alertas (`near_quota` ≥ 80 % de los minutos del plan, o de los entrantes en el modo separado; `inactive` 14 días sin conversaciones), negocio (planes, altas, MRR, pagos, morosos, Free → pago), operación (pico de simultáneas, fallas, rechazos) |
 
@@ -93,13 +93,14 @@ llamantes que pasaron por los dos.
   conexión), sin texto de la respuesta.
 - Los tokens del LLM y las ejecuciones de herramientas no se reconstruyen hacia atrás: hay historia desde el
   27-oct-2026.
+- **Los resultados del agente ya no existen** (se quitaron de la definición): solo queda el de plataforma
+  (`fuera_de_tema`) y las filas viejas se muestran con su id tal cual. La columna `conversations.goal` quedó
+  congelada con sus valores históricos.
 - Al cambiar un reporte: actualizar la sección Reportes de `/desarrolladores/docs/api` en la landing y, si cambian
   las herramientas, `make mcp-docs`.
 
 ## Desplegar y probar
 
-- `make reports-backfill`: completa `outcome`, `goal` y `conversion` de conversaciones anteriores a la 0036
-  (idempotente, después de `make migrate`).
 - Tests: `tests/test_reports.py` (incluye `split_report_groups_and_both_arms` y el borde de 24 h con un número ya
   liberado), `tests/test_reports_data.py`, `tests/test_migration_0036.py` y
   `web/src/features/reports/ReportsPage.test.tsx` (`make test`, `make web-check`).

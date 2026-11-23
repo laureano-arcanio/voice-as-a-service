@@ -1762,8 +1762,8 @@ export interface paths {
         };
         /**
          * Get Campaign
-         * @description El estado y el avance de la campaña, para consultar cada pocos segundos: `progress` (contactos
-         *     por estado), `results`, `percent`, `eta_minutes` y, en voz, `goal` y `minutes_used`.
+         * @description El estado y el avance de la campaña, para consultar cada pocos segundos: `progress`, `results`,
+         *     `percent`, `eta_minutes` y `minutes_used`.
          */
         get: operations["get_campaign_api_v1_campaigns__campaign_id__get"];
         put?: never;
@@ -1813,8 +1813,8 @@ export interface paths {
         };
         /**
          * Campaign Stats
-         * @description Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios), tasa
-         *     de objetivo, duracion media, minutos, distribucion de resultados y llamadas por hora del dia.
+         * @description Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios),
+         *     duracion media, minutos, distribucion de resultados y llamadas por hora del dia.
          */
         get: operations["campaign_stats_api_v1_campaigns__campaign_id__stats_get"];
         put?: never;
@@ -1835,7 +1835,7 @@ export interface paths {
         /**
          * Campaign Report
          * @description El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,
-         *     duracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.
+         *     duracion, campos capturados, seguimiento y link a la conversacion.
          */
         get: operations["campaign_report_api_v1_campaigns__campaign_id__report_csv_get"];
         put?: never;
@@ -3645,7 +3645,7 @@ export interface paths {
         /**
          * Summary
          * @description Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior
-         *     (conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el
+         *     (conversaciones, % de conversión, derivadas, minutos, duración media, rechazadas por el
          *     plan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes.
          */
         get: operations["summary_api_v1_reports_summary_get"];
@@ -3688,8 +3688,8 @@ export interface paths {
         };
         /**
          * Outcomes
-         * @description Resultados: conversión (completa, parcial, sin datos) por día y agente, resultados por agente,
-         *     embudo, datos obligatorios capturados y comparación por versión del agente. Plan con reportes completos.
+         * @description Conversión (completa, parcial, sin datos) por día y agente, embudo, datos obligatorios
+         *     capturados y comparación por versión del agente. Plan con reportes completos.
          */
         get: operations["outcomes_api_v1_reports_outcomes_get"];
         put?: never;
@@ -3752,7 +3752,7 @@ export interface paths {
         /**
          * Split
          * @description Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,
-         *     derivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los
+         *     derivaciones y rellamadas en 24 h, por experimento, porcentaje y brazo; y los
          *     llamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.
          *     Plan con reportes completos.
          */
@@ -5026,7 +5026,8 @@ export interface components {
             workflow_status: string;
             /** Fields */
             fields: components["schemas"]["FieldValue"][];
-            outcome: components["schemas"]["OutcomeOut"] | null;
+            /** Outcome */
+            outcome: string | null;
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
             /** Summary */
@@ -5374,8 +5375,6 @@ export interface components {
             company?: unknown;
             /** Outcome */
             outcome: string | null;
-            /** Goal */
-            goal: boolean;
             /** Captured */
             captured: number;
             /**
@@ -5846,11 +5845,6 @@ export interface components {
                 [key: string]: number;
             };
             /**
-             * Goal
-             * @description Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)
-             */
-            goal?: number | null;
-            /**
              * Minutes Used
              * @description Voz: minutos de llamada
              */
@@ -6013,16 +6007,6 @@ export interface components {
              * @description reached / attempts, en %
              */
             contact_rate: number;
-            /**
-             * Goal
-             * @description Conversaciones que llegaron al objetivo del agente
-             */
-            goal: number;
-            /**
-             * Goal Rate
-             * @description goal / reached, en %
-             */
-            goal_rate: number;
             /**
              * Avg Duration Seconds
              * @description Voz: duracion media de las atendidas
@@ -6786,7 +6770,6 @@ export interface components {
             agent_name: string;
             /** Completed */
             completed: boolean;
-            outcome: components["schemas"]["DemoOutcome"] | null;
             /** Fields */
             fields: components["schemas"]["DemoField"][];
             /** Messages */
@@ -6844,13 +6827,6 @@ export interface components {
             role: "assistant" | "user";
             /** Text */
             text: string;
-        };
-        /** DemoOutcome */
-        DemoOutcome: {
-            /** Label */
-            label: string;
-            /** Goal */
-            goal: boolean;
         };
         /** DemoSessionIn */
         DemoSessionIn: {
@@ -8153,13 +8129,6 @@ export interface components {
             verify_available: boolean;
             trial: components["schemas"]["TrialCallsOut"];
         };
-        /** OutcomeOut */
-        OutcomeOut: {
-            /** Label */
-            label: string;
-            /** Goal */
-            goal: boolean;
-        };
         /** PasswordChangeIn */
         PasswordChangeIn: {
             /** Challenge */
@@ -8944,8 +8913,6 @@ export interface components {
             avg_duration: number | null;
             /** Conversion Pct */
             conversion_pct: number | null;
-            /** Goal Pct */
-            goal_pct: number | null;
         };
         /** ReportCallsDayOut */
         ReportCallsDayOut: {
@@ -9037,8 +9004,6 @@ export interface components {
             reached: number;
             /** Complete */
             complete: number;
-            /** Goal */
-            goal: number;
             /** Optouts */
             optouts: number;
             /** Minutes */
@@ -9181,8 +9146,6 @@ export interface components {
             with_data: number;
             /** Complete */
             complete: number;
-            /** Goal */
-            goal: number;
         };
         /** ReportHeatCellOut */
         ReportHeatCellOut: {
@@ -9219,16 +9182,6 @@ export interface components {
              * @description conversions / with_agent, en %
              */
             conversion_pct: number | null;
-            /**
-             * Goals
-             * @description Las que tienen un resultado que cumple el objetivo
-             */
-            goals: number;
-            /**
-             * Goal Pct
-             * @description goals / with_agent, en %
-             */
-            goal_pct: number | null;
             /**
              * Transfers
              * @description Conversaciones con un pedido de derivación a una persona
@@ -9364,21 +9317,6 @@ export interface components {
             /** Rejected */
             rejected: components["schemas"]["ReportReasonOut"][];
         };
-        /** ReportOutcomeOut */
-        ReportOutcomeOut: {
-            /** Agent Id */
-            agent_id: string;
-            /** Agent Name */
-            agent_name: string;
-            /** Outcome */
-            outcome: string;
-            /** Label */
-            label: string;
-            /** Goal */
-            goal: boolean;
-            /** Count */
-            count: number;
-        };
         /** ReportOutcomesAgentOut */
         ReportOutcomesAgentOut: {
             /** Agent Id */
@@ -9393,8 +9331,6 @@ export interface components {
             partial: number;
             /** Empty */
             empty: number;
-            /** Goal */
-            goal: number;
         };
         /** ReportOutcomesOut */
         ReportOutcomesOut: {
@@ -9402,8 +9338,6 @@ export interface components {
             conversion_daily: components["schemas"]["ReportConversionDayOut"][];
             /** By Agent */
             by_agent: components["schemas"]["ReportOutcomesAgentOut"][];
-            /** Outcomes */
-            outcomes: components["schemas"]["ReportOutcomeOut"][];
             funnel: components["schemas"]["ReportFunnelOut"];
             /**
              * Fields
@@ -9577,16 +9511,6 @@ export interface components {
              * @description Llamadas con otra entrante de los mismos 10 dígitos al mismo número dentro de 24 h del fin
              */
             callbacks_24h: number;
-            /**
-             * Outcomes
-             * @description Solo el brazo agente: resultados del análisis
-             */
-            outcomes: components["schemas"]["ReportSplitOutcomeOut"][];
-            /**
-             * Goals
-             * @description Solo el brazo agente: conversaciones con objetivo cumplido
-             */
-            goals: number;
         };
         /** ReportSplitOut */
         ReportSplitOut: {
@@ -9599,17 +9523,6 @@ export interface components {
             groups: components["schemas"]["ReportSplitGroupOut"][];
             /** Both Arms */
             both_arms: components["schemas"]["ReportSplitBothArmsOut"][];
-        };
-        /** ReportSplitOutcomeOut */
-        ReportSplitOutcomeOut: {
-            /** Outcome */
-            outcome: string;
-            /** Label */
-            label: string;
-            /** Goal */
-            goal: boolean;
-            /** Count */
-            count: number;
         };
         /** ReportSplitStatusOut */
         ReportSplitStatusOut: {
@@ -9780,8 +9693,6 @@ export interface components {
             total: number;
             /** Conversion Pct */
             conversion_pct: number | null;
-            /** Goal Pct */
-            goal_pct: number | null;
         };
         /** RingingOut */
         RingingOut: {

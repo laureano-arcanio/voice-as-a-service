@@ -1,10 +1,10 @@
 """Conversión de una definición de agente vieja (objective, conversation, knowledge, fields, completion) a la
 actual (prompt, first_message, analysis). Puro dict -> dict y solo stdlib.
 
-CONGELADO: no se edita. Lo importa la migración 0057, que reescribe con esto las definiciones guardadas; un
-cambio acá cambiaría lo que hace una migración ya aplicada. Lo aplica también Workflow al leer una definición
-vieja (tests y pedidos por API en la forma vieja). No busca igual comportamiento: arma un prompt con títulos con
-lo que decía cada sección."""
+Lo importa la migración 0057, que reescribe con esto las definiciones guardadas (ya aplicada en todas las
+bases: un cambio acá solo afecta lo que se convierta desde ahora). Lo aplica también Workflow al leer una
+definición vieja (tests y pedidos por API en la forma vieja). No busca igual comportamiento: arma un prompt
+con títulos con lo que decía cada sección."""
 import copy
 import json
 
@@ -86,14 +86,11 @@ def _analysis(data: dict) -> dict | None:
                        **({"label": spec["label"]} if spec.get("label") else {}),
                        "description": str(spec.get("description") or ""),
                        **({"options": list(spec["options"])} if _list(spec.get("options")) else {})})
-    outcomes = []
-    for o in _list(_d(data.get("completion")).get("outcomes")):
-        if isinstance(o, dict) and o.get("id"):
-            outcomes.append({"id": o["id"], "label": o.get("label") or o["id"], "when": dict(_d(o.get("when"))),
-                             "goal": bool(o.get("goal")), "no_contact": bool(o.get("no_contact"))})
-    if not fields and not outcomes:
+    # Los outcomes de completion viejos no se convierten: el resultado es solo de plataforma
+    # (workflow.PLATFORM_OUTCOMES); su texto ya quedo en el prompt, en la seccion "# Cierres".
+    if not fields:
         return None
-    return {"summary": True, "instructions": "", "fields": fields, "outcomes": outcomes}
+    return {"summary": True, "instructions": "", "fields": fields}
 
 
 def upgrade(data: dict) -> dict:

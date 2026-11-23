@@ -19,7 +19,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { IconArrowDown, IconArrowUp, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
 import { createContext, type ReactNode, useContext } from 'react';
 import type { FieldError } from '@/api/errors';
 import { PlanGate } from '@/components/PlanGate';
@@ -28,8 +28,6 @@ import { useTools } from '@/features/tools/api';
 import { useAreas } from '@/features/team/api';
 import { VoiceSelect } from '@/features/voices/VoiceSelect';
 import {
-  type ConditionDraft,
-  type ConditionValue,
   type Draft,
   FIELD_TYPES,
   type FieldDraft,
@@ -38,11 +36,7 @@ import {
   type FieldType,
   MAX_FIRST_MESSAGE,
   MAX_PROMPT,
-  move,
   newField,
-  newKey,
-  newOutcome,
-  type OutcomeDraft,
   type Part,
   renameField,
   SECTION_PART,
@@ -69,7 +63,7 @@ const PartContext = createContext<Part>('conversacion');
 /** Mensaje del error del servidor para esa ruta, o undefined. */
 const errorAt = (errors: FieldError[], path: string) => errors.find((e) => e.path === path)?.message;
 
-/** Los errores de una ruta con sus hijos (`analysis.outcomes.ok.`). */
+/** Los errores de una ruta con sus hijos (`analysis.summary.`). */
 const errorsUnder = (errors: FieldError[], prefix: string) =>
   errors.filter((e) => e.path === prefix || e.path.startsWith(`${prefix}.`));
 
@@ -132,7 +126,7 @@ function IconAction({
   );
 }
 
-/** Bloque plegable de un dato o un resultado: un bloque de 12 px de radio dentro de la tarjeta. */
+/** Bloque plegable de un dato del análisis: un bloque de 12 px de radio dentro de la tarjeta. */
 function ItemBlock({
   id,
   opened,
@@ -173,123 +167,6 @@ function ItemBlock({
   );
 }
 
-// ---------- condiciones ----------
-
-function ValueInput({
-  field,
-  value,
-  onChange,
-}: {
-  field: FieldDraft | undefined;
-  value: ConditionValue | null;
-  onChange: (v: ConditionValue | null) => void;
-}) {
-  const common = { label: 'Valor', style: { flex: 1, minWidth: 140 } } as const;
-  if (field?.type === 'boolean')
-    return (
-      <Select
-        {...common}
-        data={[
-          { value: 'true', label: 'Sí' },
-          { value: 'false', label: 'No' },
-        ]}
-        value={value === null ? null : String(value)}
-        onChange={(v) => onChange(v === null ? null : v === 'true')}
-        allowDeselect={false}
-      />
-    );
-  if (field?.type === 'choice')
-    return (
-      <Select
-        {...common}
-        data={field.options}
-        value={value === null ? null : String(value)}
-        onChange={(v) => onChange(v)}
-        allowDeselect={false}
-      />
-    );
-  if (field?.type === 'integer')
-    return (
-      <NumberInput
-        {...common}
-        value={typeof value === 'number' ? value : ''}
-        onChange={(v) => onChange(typeof v === 'number' ? v : null)}
-        allowDecimal={false}
-        min={0}
-      />
-    );
-  return (
-    <TextInput
-      {...common}
-      value={value === null ? '' : String(value)}
-      onChange={(e) => onChange(e.currentTarget.value)}
-    />
-  );
-}
-
-/** Condiciones "dato = valor" (todas se tienen que cumplir). */
-function ConditionsEditor({
-  conditions,
-  fields,
-  onChange,
-  intro,
-}: {
-  conditions: ConditionDraft[];
-  fields: FieldDraft[];
-  onChange: (c: ConditionDraft[]) => void;
-  intro: string;
-}) {
-  const byName = new Map(fields.map((f) => [f.name, f]));
-  const set = (i: number, c: Partial<ConditionDraft>) =>
-    onChange(conditions.map((x, j) => (j === i ? { ...x, ...c } : x)));
-  return (
-    <Stack gap="xs">
-      <Text size="sm" fw={600}>
-        {intro}
-      </Text>
-      {conditions.map((c, i) => (
-        <Group key={c.key} gap="xs" align="flex-end" wrap="wrap">
-          <Select
-            label="Dato"
-            data={fields.map((f) => ({ value: f.name, label: f.label ? `${f.label} (${f.name})` : f.name }))}
-            value={c.field || null}
-            onChange={(v) =>
-              set(i, { field: v ?? '', value: byName.get(v ?? '')?.type === 'boolean' ? true : null })
-            }
-            allowDeselect={false}
-            searchable
-            style={{ flex: 1, minWidth: 160 }}
-          />
-          <ValueInput field={byName.get(c.field)} value={c.value} onChange={(value) => set(i, { value })} />
-          <IconAction
-            label="Quitar condición"
-            color="red"
-            onClick={() => onChange(conditions.filter((_, j) => j !== i))}
-          >
-            <IconTrash size={18} />
-          </IconAction>
-        </Group>
-      ))}
-      <Button
-        variant="subtle"
-        size="compact-sm"
-        leftSection={<IconPlus size={16} />}
-        w="fit-content"
-        disabled={!fields.length}
-        onClick={() => onChange([...conditions, { key: newKey(), field: '', value: null }])}
-      >
-        Agregar condición
-      </Button>
-    </Stack>
-  );
-}
-
-function conditionsText(conditions: ConditionDraft[], fields: FieldDraft[]): string {
-  const names = new Map(fields.map((f) => [f.name, f.label || f.name]));
-  const show = (v: ConditionValue | null) => (v === true ? 'sí' : v === false ? 'no' : String(v ?? '…'));
-  return conditions.map((c) => `${names.get(c.field) ?? (c.field || '…')} = ${show(c.value)}`).join(' y ');
-}
-
 // ---------- datos del análisis ----------
 
 function FieldEditor({
@@ -318,7 +195,6 @@ function FieldEditor({
         fields: d.analysis.fields.map((f, i) => (i === index ? { ...f, ...patch } : f)),
       },
     }));
-  const usedBy = draft.analysis.outcomes.some((o) => o.conditions.some((c) => c.field === field.name));
 
   return (
     <ItemBlock
@@ -363,11 +239,7 @@ function FieldEditor({
         />
         <TextInput
           label="Nombre interno"
-          description={
-            usedBy
-              ? 'Clave del dato. Al cambiarla se actualizan las condiciones que lo usan.'
-              : 'Clave del dato: minúsculas, números y _.'
-          }
+          description="Clave del dato: minúsculas, números y _."
           placeholder="telefono"
           classNames={{ input: 'mono' }}
           value={field.name}
@@ -414,154 +286,6 @@ function FieldEditor({
         onChange={(description) => set({ description })}
         error={errorAt(errors, `${path}.description`)}
       />
-    </ItemBlock>
-  );
-}
-
-// ---------- resultados ----------
-
-function OutcomeEditor({
-  outcome,
-  index,
-  draft,
-  opened,
-  onToggle,
-  update,
-  errors = [],
-}: {
-  outcome: OutcomeDraft;
-  index: number;
-  draft: Draft;
-  opened: boolean;
-  onToggle: () => void;
-  update: (fn: (d: Draft) => Draft) => void;
-  errors?: FieldError[];
-}) {
-  const last = draft.analysis.outcomes.length - 1;
-  const isDefault = index === last;
-  // Con el agente del cliente no hay datos: el resultado lo elige su agente (end_call), no las condiciones.
-  const external = draft.external !== null;
-  const set = (patch: Partial<OutcomeDraft>) =>
-    update((d) => ({
-      ...d,
-      analysis: {
-        ...d.analysis,
-        outcomes: d.analysis.outcomes.map((o, i) => (i === index ? { ...o, ...patch } : o)),
-      },
-    }));
-  // El ultimo (por defecto) queda fijo al final.
-  const shift = (to: number) =>
-    update((d) => ({ ...d, analysis: { ...d.analysis, outcomes: move(d.analysis.outcomes, index, to) } }));
-  const path = `analysis.outcomes.${index}`;
-  const own = errorsUnder(errors, path);
-
-  return (
-    <ItemBlock
-      id={sectionId(`resultado-${outcome.key}`)}
-      opened={opened}
-      onToggle={onToggle}
-      summary={
-        <Group gap="xs" wrap="wrap">
-          <Text span fw={600}>
-            {outcome.label || outcome.id || 'Sin nombre'}
-          </Text>
-          <Text span className="mono" c="dimmed">
-            {outcome.id}
-          </Text>
-          {outcome.goal && <Badge color="green">Cumple el objetivo</Badge>}
-          <Badge color="gray">
-            {isDefault
-              ? external
-                ? 'Si tu agente no elige otro'
-                : 'En cualquier otro caso'
-              : external
-                ? 'Lo elige tu agente'
-                : outcome.conditions.length
-                  ? `Si ${conditionsText(outcome.conditions, draft.analysis.fields)}`
-                  : 'Sin condiciones'}
-          </Badge>
-        </Group>
-      }
-      actions={
-        isDefault ? null : (
-          <>
-            <IconAction label="Subir" onClick={() => shift(index - 1)} disabled={index === 0}>
-              <IconArrowUp size={18} />
-            </IconAction>
-            <IconAction label="Bajar" onClick={() => shift(index + 1)} disabled={index >= last - 1}>
-              <IconArrowDown size={18} />
-            </IconAction>
-            <IconAction
-              label="Quitar resultado"
-              color="red"
-              onClick={() =>
-                update((d) => ({
-                  ...d,
-                  analysis: {
-                    ...d.analysis,
-                    outcomes: d.analysis.outcomes.filter((_, i) => i !== index),
-                  },
-                }))
-              }
-            >
-              <IconTrash size={18} />
-            </IconAction>
-          </>
-        )
-      }
-    >
-      <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        <TextInput
-          label="Etiqueta"
-          description="Cómo se muestra en el dashboard."
-          placeholder="Demo agendada"
-          value={outcome.label}
-          onChange={(e) => set({ label: e.currentTarget.value })}
-        />
-        <TextInput
-          label="ID"
-          description="Minúsculas, números y _. Queda en cada conversación."
-          placeholder="demo"
-          classNames={{ input: 'mono' }}
-          value={outcome.id}
-          error={errorAt(errors, `${path}.id`)}
-          onChange={(e) => set({ id: e.currentTarget.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
-        />
-      </SimpleGrid>
-      <Switch
-        label="Cumple el objetivo"
-        description="Cuenta como éxito en las métricas."
-        checked={outcome.goal}
-        onChange={(e) => set({ goal: e.currentTarget.checked })}
-      />
-      <Switch
-        label="No volver a llamar"
-        description="En una campaña de llamadas, el teléfono pasa a la lista de bajas de voz del cliente y ninguna campaña lo vuelve a llamar."
-        checked={outcome.noContact}
-        onChange={(e) => set({ noContact: e.currentTarget.checked })}
-      />
-      {external ? null : isDefault ? (
-        <Text size="xs" c="dimmed">
-          Es el resultado por defecto: aplica cuando no se cumple ningún otro. Va siempre último y sin
-          condiciones.
-        </Text>
-      ) : (
-        <ConditionsEditor
-          intro="Aplica si se cumplen todas estas condiciones:"
-          conditions={outcome.conditions}
-          fields={draft.analysis.fields}
-          onChange={(conditions) => set({ conditions })}
-        />
-      )}
-      {own.length > 0 && (
-        <Stack gap={2}>
-          {own.map((e, i) => (
-            <Text key={i} size="xs" c="red">
-              {e.message}
-            </Text>
-          ))}
-        </Stack>
-      )}
     </ItemBlock>
   );
 }
@@ -748,7 +472,7 @@ export function DefinitionForm({
   part: Part;
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
-  /** Claves de los datos y resultados desplegados. */
+  /** Claves de los datos desplegados. */
   opened: Set<string>;
   toggle: (key: string, open?: boolean) => void;
   /** Para reiniciar el texto de la prueba de voz al cambiar de agente. */
@@ -872,8 +596,8 @@ export function DefinitionForm({
               label="Resumen por email después de cada llamada"
               description={
                 <>
-                  Al cortar, Atentina le manda al cliente el resumen, los datos, el resultado y la
-                  conversación. El cliente lo apaga o elige a quién le llega en Mi cuenta.
+                  Al cortar, Atentina le manda al cliente el resumen, los datos y la conversación. El
+                  cliente lo apaga o elige a quién le llega en Mi cuenta.
                   {draft.callSummaryEmail && (
                     <Text
                       component="span"
@@ -1029,132 +753,88 @@ export function DefinitionForm({
           title="Análisis al terminar"
           description={
             external
-              ? 'Con tu propio agente el análisis lo hace él: acá solo se eligen los resultados que puede devolver al llamar a end_call.'
-              : 'Una llamada guiada al terminar saca los datos, el resumen y clasifica la conversación. Sin esto, el agente no extrae nada.'
+              ? 'Con tu propio agente el análisis lo hace él: Atentina no extrae datos ni resumen.'
+              : 'Una llamada guiada al terminar saca los datos y el resumen. Sin esto, el agente no extrae nada.'
           }
           actions={
-            <Group gap="xs">
-              {!external && (
-                <Button
-                  variant="default"
-                  size="xs"
-                  leftSection={<IconPlus size={16} />}
-                  onClick={() => {
-                    const f = newField(draft.analysis.fields);
-                    update((d) => ({ ...d, analysis: { ...d.analysis, fields: [...d.analysis.fields, f] } }));
-                    toggle(f.key, true);
-                  }}
-                >
-                  Agregar dato
-                </Button>
-              )}
+            !external && (
               <Button
                 variant="default"
                 size="xs"
                 leftSection={<IconPlus size={16} />}
                 onClick={() => {
-                  const o = newOutcome(draft.analysis.outcomes);
-                  const list = draft.analysis.outcomes;
-                  // Antes del de por defecto, que queda ultimo.
-                  update((d) => ({
-                    ...d,
-                    analysis: {
-                      ...d.analysis,
-                      outcomes: list.length ? [...list.slice(0, -1), o, ...list.slice(-1)] : [o],
-                    },
-                  }));
-                  toggle(o.key, true);
+                  const f = newField(draft.analysis.fields);
+                  update((d) => ({ ...d, analysis: { ...d.analysis, fields: [...d.analysis.fields, f] } }));
+                  toggle(f.key, true);
                 }}
               >
-                Agregar resultado
+                Agregar dato
               </Button>
-            </Group>
+            )
           }
         >
-          <Stack gap="md">
-            {!external && (
-              <>
-                <Switch
-                  label="Escribir un resumen de lo hablado"
-                  description="Un párrafo para el detalle de la conversación, el email y las herramientas ({{call.summary}})."
-                  checked={draft.analysis.summary}
-                  onChange={(e) =>
-                    update((d) => ({ ...d, analysis: { ...d.analysis, summary: e.currentTarget.checked } }))
-                  }
-                />
-                {summaryError && (
-                  <Text size="xs" c="red">
-                    {summaryError}
-                  </Text>
-                )}
-                <VariableField
-                  label="Instrucciones para el análisis"
-                  description="Qué mirar, qué ignorar y cómo resumir. Vacío: las instrucciones de la plataforma."
-                  field="analysis"
-                  declared={declared}
-                  multiline
-                  minRows={3}
-                  maxRows={10}
-                  value={draft.analysis.instructions}
-                  onChange={(instructions) =>
-                    update((d) => ({ ...d, analysis: { ...d.analysis, instructions } }))
-                  }
-                  error={errorAt(errors, 'analysis.instructions')}
-                />
-                <Stack gap="xs">
-                  <Text size="sm" fw={600}>
-                    Datos
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Se extraen en este orden. El nombre interno es la clave que usan los resultados y las
-                    herramientas ({'{{fields.nombre}}'}).
-                  </Text>
-                  {draft.analysis.fields.map((f, i) => (
-                    <FieldEditor
-                      key={f.key}
-                      field={f}
-                      index={i}
-                      draft={draft}
-                      opened={opened.has(f.key)}
-                      onToggle={() => toggle(f.key)}
-                      update={update}
-                      errors={errors}
-                    />
-                  ))}
-                  {draft.analysis.fields.length === 0 && (
-                    <Text size="xs" c="dimmed">
-                      Sin datos: el análisis solo escribe el resumen.
-                    </Text>
-                  )}
-                </Stack>
-              </>
-            )}
-            <Stack gap="xs">
-              <Text size="sm" fw={600}>
-                Resultados
-              </Text>
-              <Text size="xs" c="dimmed">
-                Valen el primero cuyas condiciones se cumplen; el último es el de por defecto.
-              </Text>
-              {draft.analysis.outcomes.map((o, i) => (
-                <OutcomeEditor
-                  key={o.key}
-                  outcome={o}
-                  index={i}
-                  draft={draft}
-                  opened={opened.has(o.key)}
-                  onToggle={() => toggle(o.key)}
-                  update={update}
-                  errors={errors}
-                />
-              ))}
-              {draft.analysis.outcomes.length === 0 && (
-                <Text size="xs" c="dimmed">
-                  Sin resultados: la conversación queda sin clasificar.
+          {external ? (
+            <Text size="sm" c="dimmed">
+              El análisis es de tu agente: cerrás la llamada con end_call y los datos que tu endpoint registre
+              quedan de tu lado.
+            </Text>
+          ) : (
+            <Stack gap="md">
+              <Switch
+                label="Escribir un resumen de lo hablado"
+                description="Un párrafo para el detalle de la conversación, el email y las herramientas ({{call.summary}})."
+                checked={draft.analysis.summary}
+                onChange={(e) =>
+                  update((d) => ({ ...d, analysis: { ...d.analysis, summary: e.currentTarget.checked } }))
+                }
+              />
+              {summaryError && (
+                <Text size="xs" c="red">
+                  {summaryError}
                 </Text>
               )}
+              <VariableField
+                label="Instrucciones para el análisis"
+                description="Qué mirar, qué ignorar y cómo resumir. Vacío: las instrucciones de la plataforma."
+                field="analysis"
+                declared={declared}
+                multiline
+                minRows={3}
+                maxRows={10}
+                value={draft.analysis.instructions}
+                onChange={(instructions) =>
+                  update((d) => ({ ...d, analysis: { ...d.analysis, instructions } }))
+                }
+                error={errorAt(errors, 'analysis.instructions')}
+              />
+              <Stack gap="xs">
+                <Text size="sm" fw={600}>
+                  Datos
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Se extraen en este orden. El nombre interno es la clave que usan las herramientas
+                  ({'{{fields.nombre}}'}).
+                </Text>
+                {draft.analysis.fields.map((f, i) => (
+                  <FieldEditor
+                    key={f.key}
+                    field={f}
+                    index={i}
+                    draft={draft}
+                    opened={opened.has(f.key)}
+                    onToggle={() => toggle(f.key)}
+                    update={update}
+                    errors={errors}
+                  />
+                ))}
+                {draft.analysis.fields.length === 0 && (
+                  <Text size="xs" c="dimmed">
+                    Sin datos: el análisis solo escribe el resumen.
+                  </Text>
+                )}
+              </Stack>
             </Stack>
-          </Stack>
+          )}
         </Section>
       </Stack>
     </PartContext.Provider>

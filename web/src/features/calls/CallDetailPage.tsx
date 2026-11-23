@@ -295,7 +295,7 @@ function CallHeader({ c }: { c: CallDetail }) {
               {captured} de {total}
             </Item>
             <Item label="Resultado">
-              {c.outcome ? <OutcomeBadge label={c.outcome.label} goal={c.outcome.goal} /> : '–'}
+              {c.outcome ? <OutcomeBadge label={c.outcome} /> : '–'}
             </Item>
           </>
         )}

@@ -56,7 +56,7 @@ def agregar(convs: list[dict]) -> dict:
         "datos_ok_pct": _r(100 * sum(c["datos_ok"] for c in ch) / datos_total) if datos_total else None,
         "datos_falta": sum(c["datos_falta"] for c in ch), "datos_mal": sum(c["datos_mal"] for c in ch),
         "inventados": sum(len(c["inventados"]) for c in ch),
-        "outcome_ok_pct": _r(100 * sum(c["outcome_ok"] for c in ch) / n),
+        "cierre_ok_pct": _r(100 * sum(c["cierre_ok"] for c in ch) / n),
         "termino_pct": _r(100 * sum(c["termino"] for c in ch) / n),
         "turnos_medio": _r(turnos / n), "turnos_total": turnos,
         "repetidas": sum(c["repetidas"] for c in ch), "loops": sum(c.get("mismo_objetivo", 0) >= 2 for c in ch),
@@ -95,8 +95,8 @@ def resumen(rundir: Path) -> dict:
         "por_agente": por(convs, lambda c: c["grupo"]),
         "por_persona": por(convs, lambda c: c["persona"]),
         "matriz": {g: por([c for c in convs if c["grupo"] == g], lambda c: c["persona"]) for g in sorted({c["grupo"] for c in convs})},
-        "peores": [{"id": c["id"], "problemas": c["checks"]["problemas"], "outcome": c["checks"]["outcome"],
-                    "esperado": c["esperado"].get("outcome"), "datos_mal": c["checks"]["datos_mal"],
+        "peores": [{"id": c["id"], "problemas": c["checks"]["problemas"], "cierre": c["checks"]["cierre"],
+                    "esperado": c["esperado"].get("cierre"), "datos_mal": c["checks"]["datos_mal"],
                     "datos_falta": c["checks"]["datos_falta"], "reglas": c["checks"]["reglas_n"], "error": c["error"]}
                    for c in sorted(convs, key=lambda c: -c["checks"]["problemas"])[:10]],
     }
@@ -105,7 +105,7 @@ def resumen(rundir: Path) -> dict:
 # ---------- consola ----------
 
 COLS = [("n", "n", "{}"), ("datos_ok_pct", "datos ok%", "{}"), ("datos_mal", "mal", "{}"), ("datos_falta", "falta", "{}"),
-        ("outcome_ok_pct", "cierre ok%", "{}"), ("termino_pct", "terminó%", "{}"), ("turnos_medio", "turnos", "{}"),
+        ("cierre_ok_pct", "cierre ok%", "{}"), ("termino_pct", "terminó%", "{}"), ("turnos_medio", "turnos", "{}"),
         ("reglas_por_10_turnos", "reglas/10t", "{}"), ("repetidas", "repet", "{}"), ("loops", "loops", "{}"),
         ("llm_turno_ms_p50", "llm p50", "{}"), ("llm_turno_ms_p95", "p95", "{}"), ("juez_media", "juez", "{}")]
 
@@ -141,13 +141,13 @@ def imprimir(s: dict) -> None:
               + f"  alucinaciones {t.get('juez_alucinaciones')}  repreguntas {t.get('juez_repreguntas')}")
     print("\nPeores conversaciones:")
     for p in s["peores"]:
-        print(f"  {p['id']:38} problemas {p['problemas']:2}  cierre {p['outcome']} (esperado {'/'.join(p['esperado'] or [])})"
+        print(f"  {p['id']:38} problemas {p['problemas']:2}  cierre {p['cierre']} (esperado {'/'.join(p['esperado'] or [])})"
               f"  mal {p['datos_mal']} falta {p['datos_falta']} reglas {p['reglas']}{'  ERROR ' + p['error'] if p['error'] else ''}")
 
 
 def comparar(a: dict, b: dict) -> str:
     """Tabla A contra B: total y por agente."""
-    claves = [("datos_ok_pct", "datos ok%"), ("datos_mal", "mal"), ("inventados", "invent"), ("outcome_ok_pct", "cierre ok%"),
+    claves = [("datos_ok_pct", "datos ok%"), ("datos_mal", "mal"), ("inventados", "invent"), ("cierre_ok_pct", "cierre ok%"),
               ("termino_pct", "terminó%"), ("turnos_medio", "turnos"), ("reglas_por_10_turnos", "reglas/10t"),
               ("loops", "loops"), ("llm_turno_ms_p50", "llm p50"), ("juez_media", "juez")]
     filas = [("TOTAL", a["total"], b["total"])] + [(g, a["por_agente"].get(g, {}), b["por_agente"].get(g, {}))
@@ -195,8 +195,8 @@ def matriz_html(m: dict) -> str:
             if not a:
                 celdas.append("<td>-</td>")
                 continue
-            cls = "ok" if a["outcome_ok_pct"] == 100 and a["datos_mal"] == 0 else ("mal" if a["outcome_ok_pct"] < 50 or a["datos_mal"] else "")
-            celdas.append(f"<td class='{cls}'>cierre {a['outcome_ok_pct']}%<br>datos {a['datos_ok_pct']}%<br><small>reglas {a['reglas_n']}, turnos {a['turnos_medio']}</small></td>")
+            cls = "ok" if a["cierre_ok_pct"] == 100 and a["datos_mal"] == 0 else ("mal" if a["cierre_ok_pct"] < 50 or a["datos_mal"] else "")
+            celdas.append(f"<td class='{cls}'>cierre {a['cierre_ok_pct']}%<br>datos {a['datos_ok_pct']}%<br><small>reglas {a['reglas_n']}, turnos {a['turnos_medio']}</small></td>")
         rows.append(f"<tr><td>{html.escape(g)}</td>{''.join(celdas)}</tr>")
     return f"<h2>Agente × persona</h2><table><tr><th></th>{head}</tr>{''.join(rows)}</table>"
 
@@ -213,8 +213,8 @@ def conversacion_html(c: dict) -> str:
         juez = "<p><b>Juez:</b> " + " · ".join(f"{d} {j.get(d, {}).get('puntaje', '?')}" for d in DIMENSIONES) + \
                f"<br><small>{html.escape(j.get('resumen', ''))}</small>" + \
                (f"<br>alucinaciones: {html.escape('; '.join(j['alucinaciones']))}" if j.get("alucinaciones") else "") + "</p>"
-    return (f"<details><summary>{html.escape(c['id'])} — problemas {ch['problemas']}, cierre {ch['outcome']} "
-            f"(esperado {'/'.join(c['esperado'].get('outcome') or [])}), datos ok {ch['datos_ok']}/{len(ch['datos'])}, "
+    return (f"<details><summary>{html.escape(c['id'])} — problemas {ch['problemas']}, cierre {ch['cierre']} "
+            f"(esperado {'/'.join(c['esperado'].get('cierre') or [])}), datos ok {ch['datos_ok']}/{len(ch['datos'])}, "
             f"reglas {ch['reglas_n']}, {ch['turnos']} turnos{', ERROR' if c['error'] else ''}</summary>"
             f"<p><small>{html.escape(c.get('resumen', ''))}</small></p>"
             f"<p>datos: {html.escape(json.dumps(ch['datos'], ensure_ascii=False))}<br>extraídos: {html.escape(json.dumps(c['fields'], ensure_ascii=False))}"

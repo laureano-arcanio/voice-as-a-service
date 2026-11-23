@@ -433,8 +433,9 @@ def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone
                                       (label, phone or ("No lo dio" if mode == "web" else "Número oculto"))]
     if client_number:
         rows.append(("Tu número", client_number))
-    rows += [("Fecha", _when(started_at)), ("Duración", _duration(duration_seconds)),
-             ("Resultado", outcome or "Sin resultado (no completó los datos)")]
+    rows += [("Fecha", _when(started_at)), ("Duración", _duration(duration_seconds))]
+    if outcome:     # solo el resultado de plataforma llega al mail (call_summary.build)
+        rows.append(("Resultado", outcome))
     note = "La transcripción sigue en el dashboard." if truncated else None
     reason = (f"Recibiste este email porque {client_name} tiene prendido el resumen de llamadas de {agent_name} "
               "en Atentina. Para dejar de recibirlo, apagalo en Mi cuenta.")
@@ -459,5 +460,5 @@ def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone
         lines += ["Conversación", *(f"{speaker}: {text}" for speaker, text in transcript), ""]
         lines += [note, ""] if note else []
     lines += [f"Ver la llamada: {call_url}", "", reason, "", _footer()]
-    preheader = f"{outcome or 'Sin resultado'} · {_duration(duration_seconds)}"
+    preheader = " · ".join(part for part in (outcome, _duration(duration_seconds)) if part)
     return Mail(to, subject, L.render(subject, preheader, content, reason), "\n".join(lines))

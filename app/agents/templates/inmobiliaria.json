@@ -63,30 +63,6 @@
         "description": "Días y horarios que le quedan bien para la visita.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "visita",
-        "label": "Visita pedida",
-        "when": {
-          "visita": true
-        },
-        "goal": true
-      },
-      {
-        "id": "contacto",
-        "label": "Contacto tomado",
-        "when": {
-          "visita": false
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_cierre",
-        "label": "Sin cierre",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

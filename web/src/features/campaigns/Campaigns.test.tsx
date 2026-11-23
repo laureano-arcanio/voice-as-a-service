@@ -94,7 +94,6 @@ const VOICE: Campaign = {
   eta_minutes: 95,
   progress: { pending: 6, in_progress: 2, retry: 2, done: 8, failed: 2, skipped: 0 },
   results: { answered: 6, no_answer: 2, busy: 0, voicemail: 0, invalid: 1, rejected: 1, failed: 1 },
-  goal: 3,
   minutes_used: 21.5,
 };
 
@@ -313,8 +312,6 @@ const VOICE_STATS = {
   attempts: 12,
   reached: 6,
   contact_rate: 50,
-  goal: 3,
-  goal_rate: 50,
   avg_duration_seconds: 95,
   minutes: 21.5,
   results: {},
@@ -375,7 +372,6 @@ describe('campañas: detalle de llamadas', () => {
     expect(screen.getByText(/Faltan 1 h 35 min/)).toBeInTheDocument();
     for (const label of ['Atendió', 'No atendió', 'Ocupado', 'Contestador', 'Número inválido', 'Rechazó'])
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-    expect(screen.getByText('Cumplieron el objetivo')).toBeInTheDocument();
     expect(await screen.findByText('Tasa de contacto')).toBeInTheDocument();
     expect(screen.getByRole('listitem', { name: '9 h: 3 de 5 atendidas' })).toBeInTheDocument();
     expect(screen.getByText('Lun a vie')).toBeInTheDocument();

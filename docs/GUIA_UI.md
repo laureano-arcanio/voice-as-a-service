@@ -161,7 +161,7 @@ admin, en **Agentes** de `/admin`, ve los de todos los clientes en solo lectura 
 y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abre para editarlo.
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, prompt (las primeras líneas), primer mensaje,
-  variables y el análisis (resumen, instrucciones, datos y resultados).
+  variables y el análisis (resumen, instrucciones y datos).
 - **Conversación:** qué dice. Es lo que recibe el modelo.
   - **Agente:** nombre e idioma.
   - **Prompt:** el texto que va tal cual al modelo, con los títulos `#` (`# Identidad`, `# Objetivo`,
@@ -180,17 +180,17 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
     y las declaradas que ningún texto nombra. El orden de las fuentes es: valor por defecto, contacto o columna de
     la campaña, pedido de la llamada (`variables` de `POST /calls` o `/conversations`), pre-call y herramienta.
   - **Ver prompt** (en la barra): cómo lo ve el modelo con lo que está en pantalla, por llamada o por WhatsApp.
-- **Análisis:** qué obtiene al terminar. Una llamada guiada saca los datos, el resumen y clasifica la conversación;
-  sin análisis el agente no extrae nada.
+- **Análisis:** qué obtiene al terminar. Una llamada guiada saca los datos y el resumen; sin análisis el
+  agente no extrae nada.
   - **Escribir un resumen de lo hablado:** un párrafo para el detalle, el email y las herramientas
     (`{{call.summary}}`).
   - **Instrucciones para el análisis:** qué mirar y cómo resumir; vacío usa las de la plataforma. Acepta
     variables.
   - **Datos:** etiqueta, nombre interno, tipo (texto, número, sí o no, opción de una lista, email, email o
-    teléfono, teléfono) y descripción. El orden de las filas es el del análisis; el nombre interno es la clave que
-    usan los resultados y las herramientas (`{{fields.nombre}}`). Al renombrar uno se actualizan las condiciones.
-  - **Resultados:** etiqueta, ID, si cumple el objetivo, "no volver a llamar" y condiciones. Vale el
-    primero que se cumple; el último es el de por defecto. El cierre se escribe en el prompt.
+    teléfono, teléfono) y descripción. El orden de las filas es el del análisis; el nombre interno es la clave
+    que usan las herramientas (`{{fields.nombre}}`).
+  - Con tu propio agente no hay análisis de Atentina: lo hace el agente del cliente, que cierra con
+    `end_call` (con `motivo` avisa si fue fuera de tema).
 - **Herramientas:** qué puede hacer además de hablar.
   - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** que usan sus herramientas: **Del cliente** (cargados en Agentes > Secretos), **Propio** (un valor solo de este agente, que pisa al del cliente) o **Falta** (con **Cargar valor**). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
   - **Derivación a personas:** las áreas del cliente (de
@@ -423,7 +423,7 @@ alcanza. En la navegación, arriba de todo.
   chats de la pestaña Probar quedan fuera). En `/admin/reports` se suma el selector de cliente, con **Todos**.
 - **Pestañas:**
   - **Resumen:** consultas por día (llamadas y WhatsApp apiladas) con cuántas terminaron en una
-    transferencia y KPIs (conversaciones, % de conversión y de objetivo con su "6 de 12", % derivadas,
+    transferencia y KPIs (conversaciones, % de conversión con su "6 de 12", % derivadas,
     minutos con las llamadas finalizadas y fallidas, duración media).
   - **Consumo** (todos los planes): el estado de la cuenta en un solo lugar, del **mes de facturación** (con selector
     de mes; no depende de los filtros de período, y el admin elige un cliente). Arriba, una línea de estado:
@@ -438,15 +438,15 @@ alcanza. En la navegación, arriba de todo.
     y por agente, duración, cómo terminaron y llamantes nuevos o que vuelven. Si el equipo usó el teléfono:
     **Por tipo** (con el agente, directas que hace el equipo y entrantes que atiende el equipo: llamadas,
     minutos y duración media) y **Por usuario** (directas y entrantes atendidas de cada persona). Las del
-    equipo cuentan como llamadas y minutos, no en conversión ni resultados.
-  - **Resultados:** conversión (completa, parcial o sin datos), resultados por agente, embudo, datos
+    equipo cuentan como llamadas y minutos, no en conversión.
+  - **Resultados:** conversión (completa, parcial o sin datos) por día y por agente, embudo, datos
     capturados por campo y comparación por versión del agente.
   - **Mensajes:** WhatsApp por día y hora, texto o nota de voz, entrega y estado de la cuenta.
   - **Transferencias:** pedidas, atendidas y no atendidas, por área y por persona del equipo.
   - **Reparto** (aparece si el cliente ya tuvo llamadas con reparto, aunque hoy ningún número reparta): compara los
     brazos del mismo experimento y porcentaje: llamadas, llamantes distintos, por qué cayó en cada brazo (sorteo, tope,
-    agente o equipo no disponible), cómo terminaron, duración, cortes antes de 15 s, derivaciones, rellamadas en 24 h y,
-    en el brazo agente, resultados y objetivo. Aparte, los llamantes que pasaron por los dos brazos. Filtra por **Número**
+    agente o equipo no disponible), cómo terminaron, duración, cortes antes de 15 s, derivaciones y rellamadas en 24 h.
+    Aparte, los llamantes que pasaron por los dos brazos. Filtra por **Número**
     y **Experimento**; sin recomendaciones ni umbrales.
   - **Campañas:** comparativo, embudo, motivos de no contacto y mejor horario.
   - **Técnico** y **Plataforma** (solo en `/admin/reports`; Plataforma, con cliente en Todos): latencia,
@@ -501,9 +501,10 @@ alcanza. En la navegación, arriba de todo.
   dice `{{motivo}}`; viajan como `variables` de la llamada (una fila vacía no se manda). Para probar un agente sin
   llamar, la pestaña Probar.
 - Un número en la lista de bajas de voz del cliente (Tus clientes, Bajas) no se llama (409).
-- **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. Si nadie atendió o estaba ocupado, la llamada queda igual en la lista (y en Conversaciones) con la marca **No atendida**. El resultado sale
-  de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
-  email, al cortar le llega al equipo, con el motivo.
+- **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado (el de la
+  plataforma: "Fuera de tema" si el agente cerró con ese motivo; en las conversaciones viejas, el que
+  definió el agente de entonces). Si nadie atendió o estaba ocupado, la llamada queda igual en la lista (y en Conversaciones) con la marca **No atendida**. Si el agente tiene prendido el resumen por
+  email, al cortar le llega al equipo.
 - El detalle de la llamada muestra el motivo entre las variables de la conversación, con fuente "pedido de la llamada".
 - Acá llama el agente. Para llamar vos, hablando desde el navegador, está **Teléfono del equipo** (abajo).
 
@@ -634,7 +635,7 @@ otro cliente.
 1. **Agentes > Nuevo agente** (o **Crear otro agente** en Inicio): nombre, descripción (opcional) y punto de
    partida (asistente básico, una plantilla por rubro o en blanco). Te lleva a la pestaña **Conversación**.
 2. **Conversación**, **Análisis**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
-   definición (agente, prompt, primer mensaje y variables; análisis con resumen, datos y resultados;
+   definición (agente, prompt, primer mensaje y variables; análisis con resumen y datos;
    herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
    **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
@@ -929,14 +930,14 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
    variables con su nombre normalizado (`Nombre Cliente` → `nombre_cliente`), igual que el nombre, el teléfono y el
    email del contacto. El mapeo de la tabla de arriba decide qué columna alimenta cada variable del agente.
 4. **Detalle:** barra de avance, ritmo y tiempo estimado; tarjetas por resultado (atendió, no atendió,
-   ocupado, contestador, número inválido, rechazó, falló); indicadores (tasa de contacto, objetivo cumplido,
+   ocupado, contestador, número inválido, rechazó, falló); indicadores (tasa de contacto,
    duración, minutos) y atendidas por hora del día, para elegir el horario; seguimiento; y la tabla de
    contactos, filtrable; un click en la fila abre su conversación. **Descargar reporte** baja el `report.csv`.
 5. **Pausada automáticamente:** sin minutos o tope de llamadas del plan, agente archivado, número de origen
    suspendido o 10 intentos seguidos fallidos (Anura o el trunk caídos). El motivo aparece arriba; resolverlo
    y **Retomar**.
-6. **Bajas:** un resultado del agente marcado "No volver a llamar" (en el editor del agente) agrega el teléfono
-   a las bajas de llamadas; ninguna campaña de llamadas del cliente lo marca más.
+6. **Bajas:** el teléfono de un contacto que responde "No me interesa" a una campaña o que se da de baja a
+   mano (Tus clientes, Bajas) ninguna campaña de llamadas del cliente lo vuelve a marcar.
 
 El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede equivocarse con un humano.
 

@@ -1,15 +1,13 @@
-"""Datos de los reportes (docs/features/REPORTES.md): resultado, objetivo y conversion de cada conversacion,
-tokens del LLM por turno, tool_runs, historial de las cuentas de WhatsApp y el backfill. LLM falso."""
+"""Datos de los reportes (docs/features/REPORTES.md): resultado y conversion de cada conversacion, tokens del
+LLM por turno, tool_runs e historial de las cuentas de WhatsApp. LLM falso."""
 import datetime
 from types import SimpleNamespace
 
 from sqlalchemy import select
 
-from app.agents.templates import ReferenceDefinitions
-from app.cli import reports_backfill
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Extraction, Progress
-from app.conversation.workflow import conversion, outcome_goal
+from app.conversation.workflow import conversion
 from app.llm import anthropic_client
 from app.models import ConversationRow, ToolRun, WaAccount, WaAccountStatusLog
 
@@ -37,8 +35,6 @@ def test_conversion(workflow):
     assert conversion(workflow, state_of("active", None, **full)) == "partial"
     assert conversion(workflow, state_of("completed", "incompleta", **full)) == "partial"
     assert conversion(workflow, state_of("completed", "fuera_de_tema")) == "empty"
-    assert outcome_goal(workflow, "demo") is True and outcome_goal(workflow, "no_demo") is False
-    assert outcome_goal(workflow, "incompleta") is False and outcome_goal(workflow, None) is None
 
 
 def row(store, cid) -> ConversationRow:
@@ -58,10 +54,10 @@ async def test_engine_saves_outcome_conversion_and_tokens(store):
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
     r = row(store, cid)
-    assert (r.conversion, r.outcome, r.goal, r.llm_input_tokens) == ("partial", None, None, 0)
+    assert (r.conversion, r.outcome, r.llm_input_tokens) == ("partial", None, 0)
     state, _ = await turn_and_extract(engine, cid, "Sí, a juan arroba acme punto com.")
     r = row(store, cid)
-    assert (r.outcome, r.goal, r.conversion) == ("demo", True, "complete")
+    assert (r.outcome, r.conversion) == (None, "complete")
     assert (r.llm_input_tokens, r.llm_output_tokens) == (420, 28)
     trace = state.messages[-1].llm
     assert [(t["kind"], t["input_tokens"], t["output_tokens"]) for t in trace] == [("turno", 120, 8),
@@ -74,9 +70,8 @@ async def test_incomplete_and_empty_conversation(store):
     cid = start_with(engine)
     await turn_and_extract(engine, cid, "Número equivocado.")
     r = row(store, cid)
-    # Sin datos el resultado es el default (no_demo) y no cumple el objetivo, pero el agente la termino: completa.
-    # Sin usage del proveedor, 0 tokens.
-    assert (r.outcome, r.goal, r.conversion, r.llm_input_tokens) == ("no_demo", False, "complete", 0)
+    # Sin datos y sin resultado de plataforma (el agente la termino): completa. Sin usage del proveedor, 0 tokens.
+    assert (r.outcome, r.conversion, r.llm_input_tokens) == (None, "complete", 0)
 
 
 async def test_openai_stream_usage(store):
@@ -164,28 +159,3 @@ async def test_wa_account_status_log(sessions):
         s.commit()
     log = status_log(sessions, w.account_id)
     assert log[1:] == [("connected", None, "TIER_10K"), ("disconnected", None, "TIER_10K")]
-
-
-def test_reports_backfill(sessions):
-    old = datetime.datetime(2026, 9, 1, 12, 0)
-    full = {**BASE, "wants_demo": True, "email": "juan@acme.com"}
-    with sessions() as s:
-        s.add_all([
-            # Anterior a progress.outcome: el resultado se calcula con los datos.
-            ConversationRow(id="a", legacy_workflow_id="sales_discovery", status="completed", fields=full,
-                            messages=[], progress={}, created_at=old, updated_at=old),
-            ConversationRow(id="b", agent_id="sales_discovery", agent_version=1, status="active",
-                            fields={"contact_name": "Ana"}, messages=[], progress={}, created_at=old, updated_at=old),
-            ConversationRow(id="c", agent_id="sales_discovery", agent_version=1, status="completed", fields={},
-                            messages=[], progress={"outcome": "fuera_de_tema"}, created_at=old, updated_at=old),
-            # Ya tiene conversion: no se toca.
-            ConversationRow(id="d", agent_id="sales_discovery", agent_version=1, status="completed", fields={},
-                            messages=[], progress={}, conversion="partial", created_at=old, updated_at=old),
-        ])
-        s.commit()
-        assert reports_backfill(s, batch=2, definitions=ReferenceDefinitions()) == 3
-        assert reports_backfill(s, batch=2, definitions=ReferenceDefinitions()) == 0
-        s.expire_all()
-        got = {r.id: (r.outcome, r.goal, r.conversion, r.updated_at) for r in s.scalars(select(ConversationRow))}
-    assert got == {"a": ("demo", True, "complete", old), "b": (None, None, "partial", old),
-                   "c": ("fuera_de_tema", False, "empty", old), "d": (None, None, "partial", old)}

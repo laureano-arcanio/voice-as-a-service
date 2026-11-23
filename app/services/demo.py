@@ -184,7 +184,6 @@ def call_result(s: Session, definitions: DefinitionSource, conversation_id: str,
         raise NotFound("Llamada inexistente")
     reports = Reports(s, definitions)
     workflow = reports.workflow(conv)
-    outcome = reports.outcome(workflow, conv)
     specs = list(workflow.analysis_fields.items()) if workflow else []
     return {
         "final": call.status not in ACTIVE_CALL_STATUSES,
@@ -193,7 +192,6 @@ def call_result(s: Session, definitions: DefinitionSource, conversation_id: str,
         "duration_seconds": call.duration_seconds,
         "agent_name": workflow.agent.name if workflow else "",
         "completed": conv.status == "completed",
-        "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
         "fields": [{"name": name, "label": spec.label or name.replace("_", " ").capitalize(), "type": spec.type,
                     "value": conv.fields.get(name)} for name, spec in specs],
         "messages": [{"role": m["role"], "text": m["text"]} for m in conv.messages or []],

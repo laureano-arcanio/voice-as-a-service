@@ -5,8 +5,6 @@ import random
 import pytest
 
 from app.agents.templates import load_reference
-from app.conversation.models import ConversationState
-from app.conversation.workflow import outcome_for
 from scripts.eval import checks
 from scripts.eval.canal import CanalSttSim
 from scripts.eval.escenarios import escenarios, grupos_disponibles
@@ -29,22 +27,7 @@ def _strings(obj):
 @pytest.mark.parametrize("wid", EVAL_WORKFLOWS)
 def test_eval_workflows_load(wid):
     wf = load_reference(wid)
-    assert wf.external is None and wf.outcomes
-
-
-def test_cobranza_outcomes():
-    wf = load_reference("eval_cobranza")
-
-    def outcome(**fields):
-        st = ConversationState(conversation_id="x", agent_id=wf.id, fields={**{f: None for f in wf.analysis_fields}, **fields})
-        return outcome_for(wf, st).id
-
-    assert outcome(titular=False) == "tercero"
-    assert outcome(titular=True, promesa="paga_total", fecha_pago="viernes") == "acuerdo_total"
-    # Sin datos obligatorios: el resultado sale solo de las condiciones (incompleta ya no se asigna).
-    assert outcome(titular=True, promesa="paga_total") == "acuerdo_total"
-    assert outcome(titular=True, promesa="cuotas", cuotas=3) == "acuerdo_cuotas"
-    assert outcome(titular=True, promesa="no_paga") == "sin_acuerdo"
+    assert wf.external is None and wf.analysis_fields
 
 
 def test_all_groups_have_filled_scenarios():
@@ -57,7 +40,7 @@ def test_all_groups_have_filled_scenarios():
         for texto in _strings([e.estilo, e.ficha, e.esperado, e.guion or []]):
             assert "{" not in texto, f"{e.id}: variable sin rellenar en {texto[:80]}"
         assert set(e.esperado["fields"]) <= set(load_reference(e.agente).analysis_fields), e.id
-        assert e.esperado["outcome"]
+        assert e.esperado["cierre"]
     # Misma semilla, misma ficha; otra repeticion, otra ficha.
     assert generar(1, "datos", "cooperativo", 0) == generar(1, "datos", "cooperativo", 0)
     assert generar(1, "datos", "cooperativo", 0)["email"] != generar(1, "datos", "cooperativo", 1)["email"]
@@ -111,15 +94,15 @@ def test_evaluar_summarizes_a_conversation():
          "llm": [{"kind": "turno", "ms": 700}, {"kind": "extraccion", "ms": 900}]},
     ]
     fields = {"titular": True, "promesa": "paga_total", "fecha_pago": v["fecha_semana"], "cuotas": 2}
-    c = checks.evaluar(esc, fields, "acuerdo_total", "completed", mensajes, None)
+    c = checks.evaluar(esc, fields, "terminada", mensajes, None)
     assert c["datos"]["titular"] == "ok" and c["datos"]["fecha_pago"] == "ok"
     assert c["datos"]["cuotas"] == "mal" and c["inventados"] == ["cuotas"]
-    assert c["outcome_ok"] and c["termino"] and c["turnos"] == 2
+    assert c["cierre_ok"] and c["termino"] and c["turnos"] == 2
     assert c["llm_turno_ms_p50"] == 600 and c["llm_extraccion_ms_p50"] == 900
     assert c["reglas_n"] == 0 and c["problemas"] == 3
     # Sin cerrar y con error: peor puntaje, cierre "sin_terminar".
-    c2 = checks.evaluar(esc, {}, None, "active", mensajes[:3], "Timeout")
-    assert c2["outcome"] == "sin_terminar" and not c2["outcome_ok"] and c2["problemas"] > c["problemas"]
+    c2 = checks.evaluar(esc, {}, "sin_terminar", mensajes[:3], "Timeout")
+    assert c2["cierre"] == "sin_terminar" and not c2["cierre_ok"] and c2["problemas"] > c["problemas"]
 
 
 def test_parsear_simulador():

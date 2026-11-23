@@ -53,30 +53,6 @@
         "description": "Si confirma la clase de prueba después de que se la repiten.",
         "type": "boolean"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "clase_prueba",
-        "label": "Clase de prueba",
-        "when": {
-          "confirma": true
-        },
-        "goal": true
-      },
-      {
-        "id": "consulta",
-        "label": "Consulta",
-        "when": {
-          "interes": false
-        },
-        "goal": false
-      },
-      {
-        "id": "sin_cierre",
-        "label": "Sin cierre",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

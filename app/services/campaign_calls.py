@@ -12,8 +12,6 @@ intento, asi la logica no vive en el worker:
 - Recuperacion: un `in_progress` cuya llamada ya no esta activa (reinicio o caida del worker) vuelve a `retry`.
 - Seguimiento: al cerrar el ultimo intento con un resultado de `followup.after`, el contacto queda con
   `followup_status` `pending` y lo manda el sender de WhatsApp (app/whatsapp/sender.py).
-- Baja: si el outcome de la conversacion esta marcado `no_contact` (conversation/models.py, Outcome),
-  el telefono queda en contact_optouts (canal voice, source outcome): `apply_outcome_optout`.
 - Webhook: cada contacto que termina, y la campaña que termina, se encolan (campaign_callbacks.py).
 
 Funciones sincronicas con la Session del que llama; el commit lo hace el que llama.
@@ -26,7 +24,6 @@ import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..db import utcnow
 from ..models import (
@@ -34,13 +31,10 @@ from ..models import (
     CallRow,
     Campaign,
     CampaignContact,
-    ConversationRow,
 )
 from . import campaign_callbacks as callbacks
 from . import campaigns as common
-from . import contacts as contacts_service
 from .quota import STALE_MARGIN_SECONDS
-from .reports import Reports
 
 # Codigo SIP -> resultado (plan, seccion 5). Lo que no esta aca (otro codigo, 5xx) es `failed`.
 SIP_RESULTS = {486: "busy", 600: "busy", 408: "no_answer", 480: "no_answer", 487: "no_answer",
@@ -166,34 +160,5 @@ def recover_in_progress(s: Session, now: datetime.datetime | None = None, grace_
         close_contact(s, r.id, "failed", error={"message": "Intento interrumpido: la llamada no terminó de registrarse"},
                       now=now, retry_at=now, check_streak=False)
         n += 1
-    return n
-
-
-def apply_outcome_optout(s: Session, conversation_id: str, definitions: DefinitionSource) -> bool:
-    """Si la conversacion de un intento de campaña termino en un outcome `no_contact` (el contacto pidio
-    que no lo llamen mas), el telefono queda en la lista de bajas de voz del cliente. True si lo agrego."""
-    call = s.get(CallRow, conversation_id)
-    conv = s.get(ConversationRow, conversation_id)
-    if call is None or call.campaign_contact_id is None or conv is None:
-        return False
-    reports = Reports(s, definitions)
-    outcome = reports.outcome(reports.workflow(conv), conv)
-    r = s.get(CampaignContact, call.campaign_contact_id)
-    if outcome is None or not outcome.no_contact or r is None:
-        return False
-    contacts_service.add_optout(s, conv.client_id, r.contact.phone, "voice", "outcome")
-    return True
-
-
-def goal_count(s: Session, campaign_id: str, definitions: DefinitionSource) -> int:
-    """Contactos atendidos cuya conversacion (la del ultimo intento) llego al objetivo del agente
-    (outcome con `goal`)."""
-    reports = Reports(s, definitions)
-    q = (select(ConversationRow).join(CampaignContact, CampaignContact.conversation_id == ConversationRow.id)
-         .where(CampaignContact.campaign_id == campaign_id, CampaignContact.result == "answered"))
-    n = 0
-    for conv in s.scalars(q):
-        outcome = reports.outcome(reports.workflow(conv), conv)
-        n += bool(outcome and outcome.goal)
     return n
 

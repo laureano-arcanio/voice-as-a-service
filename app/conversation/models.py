@@ -51,24 +51,12 @@ class AnalysisField(BaseModel):
     options: list[str] | None = None  # valores posibles de un campo choice
 
 
-class Outcome(BaseModel):
-    id: str
-    label: str                                    # para el dashboard
-    when: dict[str, Any] = Field(default_factory=dict)  # igualdades sobre los campos; vacio = default
-    goal: bool = False                            # cumple el objetivo del agente
-    # El contacto pidio que no lo llamen mas: en una llamada de campaña, el telefono queda en la lista
-    # de bajas de voz del cliente (contact_optouts, source "outcome": campaign_calls.apply_outcome_optout).
-    no_contact: bool = False
-
-
 class Analysis(BaseModel):
-    """Lo que se saca de la conversacion al terminar, en una llamada guiada: datos, resumen y resultado."""
+    """Lo que se saca de la conversacion al terminar, en una llamada guiada: datos y resumen."""
     summary: bool = True
     instructions: str = Field(default="", max_length=4000)
     # Lista y no mapa: jsonb no conserva el orden de las claves, y el orden es el del analisis y la UI.
     fields: list[AnalysisField] = Field(default_factory=list)
-    # El primero cuyo `when` se cumple; si hay, el ultimo es el default, sin when.
-    outcomes: list[Outcome] = Field(default_factory=list)
 
     @field_validator("fields", mode="before")
     @classmethod
@@ -283,7 +271,7 @@ class Workflow(BaseModel):
     # Variables declaradas con su default; las demas pueden venir del pedido, la campaña o una herramienta.
     # Lista, como analysis.fields: el orden de la declaracion se conserva en jsonb.
     variables: list[VariableSpec] = Field(default_factory=list)
-    # Analisis al terminar; sin el, no hay extraccion ni resultado (salvo fuera de tema).
+    # Analisis al terminar; sin el, no hay extraccion de datos ni resumen.
     analysis: Analysis | None = None
     # Herramientas del cliente que usa el agente (no con external: las tiene su propio agente).
     tools: list[ToolGrant] = Field(default_factory=list)
@@ -350,16 +338,6 @@ class Workflow(BaseModel):
                 if spec.type == "choice" and not spec.options:
                     raise ValueError(f"analysis.fields.{i}.options: {name}: un campo choice necesita options")
                 fields.add(name)
-            outcomes = self.analysis.outcomes
-            if outcomes and outcomes[-1].when:
-                raise ValueError("analysis.outcomes: el ultimo resultado tiene que ser el default, sin when")
-            ids = [o.id for o in outcomes]
-            if len(set(ids)) != len(ids):
-                raise ValueError("analysis.outcomes: ids repetidos")
-            for o in outcomes:
-                for dep in o.when:
-                    if dep not in fields:
-                        raise ValueError(f"analysis.outcomes.{o.id}.when: {dep} no es un campo")
         if self.generation is not None and not self.generation.params:
             self.generation = None
         if self.handoff is not None and self.handoff.areas:
@@ -394,10 +372,6 @@ class Workflow(BaseModel):
     def variable_specs(self) -> dict[str, VariableSpec]:
         """Las variables declaradas {nombre: spec}, en el orden de la lista."""
         return {v.name: v for v in self.variables}
-
-    @property
-    def outcomes(self) -> list[Outcome]:
-        return self.analysis.outcomes if self.analysis is not None else []
 
 
 class Message(BaseModel):
@@ -445,7 +419,7 @@ class TurnMedia(BaseModel):
 class Progress(BaseModel):
     """Registro de la app; no decide el flujo."""
     rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos de la ultima extraccion (para el panel)
-    outcome: str | None = None                               # Outcome.id al completar (para el dashboard)
+    outcome: str | None = None                               # id de resultado de plataforma (fuera_de_tema); None en los demas cierres
     undo: dict[str, Any] | None = None                       # estado previo al ultimo turno (retract_last_turn)
     # Variables dinamicas (app/conversation/variables.py): valor, las ocultas al LLM y la fuente de cada una.
     variables: dict[str, Any] = Field(default_factory=dict)

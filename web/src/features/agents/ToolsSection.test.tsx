@@ -28,7 +28,6 @@ const BASE = toDraft({
   objective: { description: 'o' },
   conversation: { opening: 'Hola', rules: [] },
   fields: {},
-  completion: { outcomes: [{ id: 'default', label: 'C', when: {}, message: 'Chau' }] },
   // Una entrada vieja de apps se descarta al leer.
   tools: [{ tool: 'borrada' }, { app: 'otra-app', tools: ['*'] }],
 });

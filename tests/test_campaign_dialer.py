@@ -508,15 +508,15 @@ def test_recover_in_progress(api, voice):  # noqa: F811
 
 # ---------- polling ----------
 
-def test_polling_has_goal_minutes_and_window(api, voice):  # noqa: F811
+def test_polling_has_minutes_and_window(api, voice):  # noqa: F811
     user, agent, c = voice
     camp = make_voice(user, agent, concurrency=3, window_start=0, window_end=24)
     a, b, _ = members(api, camp["id"])
     with api.sessions() as s:
-        for m, outcome in ((a, "demo"), (b, "callback")):
+        for m in (a, b):
             conv = str(uuid.uuid4())
             s.add(ConversationRow(id=conv, client_id=c["id"], agent_id=agent["id"], agent_version=1, channel="voice",
-                                  status="completed", fields={}, messages=[], progress={"outcome": outcome}))
+                                  status="completed", fields={}, messages=[], progress={}))
             s.flush()
             s.add(CallRow(conversation_id=conv, client_id=c["id"], mode="saliente", duration_seconds=120,
                           campaign_contact_id=m.id))
@@ -525,37 +525,6 @@ def test_polling_has_goal_minutes_and_window(api, voice):  # noqa: F811
                 "done", "answered", conv, 1, utcnow())
         s.commit()
     d = user.get(f"{V1}/campaigns/{camp['id']}").json()
-    assert d["goal"] == 1 and d["minutes_used"] == 4.0 and d["in_window"] is True
+    assert d["minutes_used"] == 4.0 and d["in_window"] is True
     assert d["results"]["answered"] == 2 and d["percent"] == 66.7 and d["eta_minutes"] is not None
     assert d["progress"]["done"] == 2 and d["progress"]["pending"] == 1
-    assert user.get(f"{V1}/campaigns").json()[0]["goal"] is None      # la lista no la calcula
-
-
-def test_goal_is_only_recomputed_when_a_conversation_changes(api, voice, monkeypatch):  # noqa: F811
-    """El detalle se consulta cada 5 s: el conteo no recorre las conversaciones si ninguna cambio."""
-    user, agent, c = voice
-    camp = make_voice(user, agent, concurrency=3, window_start=0, window_end=24)
-    a, b, _ = members(api, camp["id"])
-    convs = {}
-    with api.sessions() as s:
-        for m, outcome in ((a, "demo"), (b, "callback")):
-            conv = str(uuid.uuid4())
-            convs[m.id] = conv
-            s.add(ConversationRow(id=conv, client_id=c["id"], agent_id=agent["id"], agent_version=1, channel="voice",
-                                  status="completed", fields={}, messages=[], progress={"outcome": outcome}))
-            s.flush()
-            s.add(CallRow(conversation_id=conv, client_id=c["id"], mode="saliente", campaign_contact_id=m.id))
-            r = s.get(CampaignContact, m.id)
-            r.status, r.result, r.conversation_id, r.attempts, r.last_attempt_at = (
-                "done", "answered", conv, 1, utcnow())
-        s.commit()
-    calls = []
-    real = campaign_calls.goal_count
-    monkeypatch.setattr(campaign_calls, "goal_count", lambda *a, **k: calls.append(1) or real(*a, **k))
-    url = f"{V1}/campaigns/{camp['id']}"
-    assert [user.get(url).json()["goal"] for _ in range(3)] == [1, 1, 1] and len(calls) == 1
-    assert user.get(f"{url}/stats").json()["goal"] == 1 and len(calls) == 1
-    with api.sessions() as s:      # la conversacion de b llega al objetivo
-        s.get(ConversationRow, convs[b.id]).progress = {"outcome": "demo"}
-        s.commit()
-    assert user.get(url).json()["goal"] == 2 and len(calls) == 2

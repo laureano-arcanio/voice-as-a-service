@@ -30,7 +30,7 @@ personas:
         fecha_pago: ["{fecha_dia_num} de {fecha_mes}", "{fecha_dia_palabra} de {fecha_mes}", "{fecha_semana}", "{fecha_dia_num}"]
         cuotas: null
         no_llamar: null
-      outcome: [acuerdo_total]
+      cierre: [terminada]
     guion:
       - "Sí, soy yo."
       - "Uy, sí, {motivo_deuda}. ¿Cuánto era?"
@@ -56,7 +56,7 @@ personas:
         promesa: cuotas
         cuotas: "{cuotas}"
         no_llamar: null
-      outcome: [acuerdo_cuotas]
+      cierre: [terminada]
     turnos_max: 10
     guion:
       - "Sí. Decime rápido que estoy trabajando."
@@ -84,7 +84,7 @@ personas:
         promesa: paga_total
         fecha_pago: ["{fecha_semana}", "{fecha_dia_num} de {fecha_mes}", "{fecha_dia_palabra} de {fecha_mes}", "{fecha_dia_num}"]
         cuotas: null
-      outcome: [acuerdo_total]
+      cierre: [terminada]
     turnos_max: 14
 
   hostil:
@@ -106,7 +106,7 @@ personas:
         no_llamar: true
         fecha_pago: null
         cuotas: null
-      outcome: [sin_acuerdo]
+      cierre: [terminada]
     turnos_max: 10
 
   evasivo:
@@ -127,7 +127,7 @@ personas:
         promesa: cuotas
         cuotas: 3
         no_llamar: null
-      outcome: [acuerdo_cuotas]
+      cierre: [terminada]
     turnos_max: 14
 
   tercero:
@@ -147,7 +147,7 @@ personas:
         mejor_momento: ["{fecha_semana}", "seis"]
         promesa: null
         fecha_pago: null
-      outcome: [tercero]
+      cierre: [terminada]
     prohibido:
       - regex: "deuda|factura|debe |vencid|pesos|mora|monto|pago|pagar"
         motivo: "revela la deuda a un tercero"
@@ -168,5 +168,5 @@ personas:
         titular: true
         promesa: ya_pago
         cuotas: null
-      outcome: [ya_pago]
+      cierre: [terminada]
     turnos_max: 8

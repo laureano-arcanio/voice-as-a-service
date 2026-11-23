@@ -298,19 +298,18 @@ def _kpis(s: Session, flt: ReportFilter) -> dict:
     row = s.execute(_convs(
         flt, func.count(), _count_if(ConversationRow.agent_id.is_not(None)), _count_if(KIND == "voice_in"),
         _count_if(KIND == "voice_out"), _count_if(KIND == "whatsapp"), _count_if(KIND == "web"),
-        _count_if(ConversationRow.conversion == "complete"), _count_if(ConversationRow.goal.is_(True)),
+        _count_if(ConversationRow.conversion == "complete"),
         _count_if(_transfer(REQUEST_EVENTS)), _count_if(_transfer(ANSWER_EVENTS)),
         CALL_MINUTES,
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
         _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))),
         _count_if(CallRow.status == "fallida"))).one()
-    total, with_agent, voice_in, voice_out, wa, web, complete, goal, transfers, answered, minutes, fin_seconds, fin, rejected, failed = (
+    total, with_agent, voice_in, voice_out, wa, web, complete, transfers, answered, minutes, fin_seconds, fin, rejected, failed = (
         map(_n, row))
     return {
         "conversations": total, "by_channel": {"voice_in": voice_in, "voice_out": voice_out, "whatsapp": wa, "web": web},
-        # Conversion, objetivo y transferencias son de las conversaciones con agente (no las directas).
+        # Conversion y transferencias son de las conversaciones con agente (no las directas).
         "with_agent": with_agent, "conversions": complete, "conversion_pct": _pct(complete, with_agent),
-        "goals": goal, "goal_pct": _pct(goal, with_agent),
         "transfers": transfers, "transfers_answered": answered, "transfer_pct": _pct(transfers, with_agent),
         "minutes": minutes, "finished": fin, "failed": failed, "avg_duration": _avg(fin_seconds, fin),
         "rejected_by_limit": rejected,
@@ -440,13 +439,13 @@ def calls(s: Session, flt: ReportFilter) -> dict:
     agent_rows = s.execute(_calls(
         flt, ConversationRow.agent_id, func.count(), CALL_MINUTES,
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
-        complete, _count_if(ConversationRow.goal.is_(True)))
+        complete)
         .where(ConversationRow.agent_id.is_not(None)).group_by(ConversationRow.agent_id)).all()
     names = _agent_names(s, [r[0] for r in agent_rows])
     by_agent = sorted(({"agent_id": aid, "agent_name": names.get(aid, ""), "calls": n,
                         "minutes": _n(sec), "avg_duration": _avg(_n(fsec), _n(fin)),
-                        "conversion_pct": _pct(_n(comp), n), "goal_pct": _pct(_n(goal), n)}
-                       for aid, n, sec, fsec, fin, comp, goal in agent_rows), key=lambda r: -r["calls"])
+                        "conversion_pct": _pct(_n(comp), n)}
+                       for aid, n, sec, fsec, fin, comp in agent_rows), key=lambda r: -r["calls"])
 
     bucket = _duration_bucket()
     counts = dict(s.execute(_calls(flt, bucket, func.count()).where(finished).group_by(bucket)).all())
@@ -467,15 +466,6 @@ def calls(s: Session, flt: ReportFilter) -> dict:
 
 # ---------- resultados ----------
 
-def _outcome_defs(definition: dict | None) -> dict[str, dict]:
-    from ..conversation.workflow import INCOMPLETE, OFF_TOPIC
-    defs = {o.id: {"label": o.label, "goal": o.goal} for o in (INCOMPLETE, OFF_TOPIC)}
-    for o in (((definition or {}).get("analysis") or {}).get("outcomes") or []):
-        if isinstance(o, dict) and o.get("id"):
-            defs[o["id"]] = {"label": o.get("label") or o["id"], "goal": bool(o.get("goal"))}
-    return defs
-
-
 def _analysis_fields(definition: dict | None) -> list[tuple[str, str]]:
     """Los datos del analisis de la definicion, en el orden de la lista: (nombre, etiqueta)."""
     fields = ((definition or {}).get("analysis") or {}).get("fields")
@@ -484,7 +474,7 @@ def _analysis_fields(definition: dict | None) -> list[tuple[str, str]]:
 
 
 def outcomes(s: Session, flt: ReportFilter) -> dict:
-    """Conversion por dia y agente, resultados, embudo, datos capturados y comparacion por version."""
+    """Conversion por dia y agente, embudo, datos capturados y comparacion por version."""
     hour = _hour(s, ConversationRow.created_at)
     rows = s.execute(_convs(flt, hour, CONVERSION, func.count()).where(ConversationRow.agent_id.is_not(None))
                      .group_by(hour, CONVERSION)).all()
@@ -492,30 +482,19 @@ def outcomes(s: Session, flt: ReportFilter) -> dict:
     for local, conv, n in _local_hours(flt, rows):
         daily[local.date()][conv if conv in ("complete", "partial") else "empty"] += n
 
-    goal = _count_if(ConversationRow.goal.is_(True))
     agent_rows = s.execute(_convs(
         flt, ConversationRow.agent_id, func.count(), _count_if(CONVERSION == "complete"),
-        _count_if(CONVERSION == "partial"), goal).where(ConversationRow.agent_id.is_not(None))
+        _count_if(CONVERSION == "partial")).where(ConversationRow.agent_id.is_not(None))
         .group_by(ConversationRow.agent_id)).all()
     agents = {a.id: a for a in s.scalars(select(Agent).where(Agent.id.in_([r[0] for r in agent_rows])))}
     name = lambda aid: agents[aid].name if aid in agents else ""
     by_agent = sorted(({"agent_id": aid, "agent_name": name(aid), "total": n, "complete": _n(c), "partial": _n(p),
-                        "empty": n - _n(c) - _n(p), "goal": _n(g)} for aid, n, c, p, g in agent_rows),
+                        "empty": n - _n(c) - _n(p)} for aid, n, c, p in agent_rows),
                       key=lambda r: -r["total"])
 
-    out = []
-    defs = {aid: _outcome_defs(a.definition) for aid, a in agents.items()}
-    for aid, oid, n, g in s.execute(_convs(flt, ConversationRow.agent_id, ConversationRow.outcome, func.count(), goal)
-                                    .where(ConversationRow.outcome.is_not(None), ConversationRow.agent_id.is_not(None))
-                                    .group_by(ConversationRow.agent_id, ConversationRow.outcome)):
-        d = defs.get(aid, {}).get(oid)
-        out.append({"agent_id": aid, "agent_name": name(aid), "outcome": oid, "label": d["label"] if d else oid,
-                    "goal": d["goal"] if d else _n(g) > 0, "count": n})
-    out.sort(key=lambda r: (r["agent_name"], -r["count"]))
-
-    total, with_data, complete, goals = map(_n, s.execute(_convs(
-        flt, func.count(), _count_if(CONVERSION.in_(("complete", "partial"))), _count_if(CONVERSION == "complete"),
-        goal).where(ConversationRow.agent_id.is_not(None))).one())
+    total, with_data, complete = map(_n, s.execute(_convs(
+        flt, func.count(), _count_if(CONVERSION.in_(("complete", "partial"))), _count_if(CONVERSION == "complete"))
+        .where(ConversationRow.agent_id.is_not(None))).one())
 
     fields = []
     for aid, a in agents.items():
@@ -532,16 +511,16 @@ def outcomes(s: Session, flt: ReportFilter) -> dict:
 
     by_version = [
         {"agent_id": aid, "agent_name": name(aid), "version": version, "total": n,
-         "conversion_pct": _pct(_n(c), n), "goal_pct": _pct(_n(g), n)}
-        for aid, version, n, c, g in s.execute(_convs(
+         "conversion_pct": _pct(_n(c), n)}
+        for aid, version, n, c in s.execute(_convs(
             flt, ConversationRow.agent_id, ConversationRow.agent_version, func.count(),
-            _count_if(CONVERSION == "complete"), goal)
+            _count_if(CONVERSION == "complete"))
             .where(ConversationRow.agent_id.is_not(None), ConversationRow.agent_version.is_not(None))
             .group_by(ConversationRow.agent_id, ConversationRow.agent_version)
             .order_by(ConversationRow.agent_id, ConversationRow.agent_version))]
     return {
-        "conversion_daily": list(daily.values()), "by_agent": by_agent, "outcomes": out,
-        "funnel": {"conversations": total, "with_data": with_data, "complete": complete, "goal": goals},
+        "conversion_daily": list(daily.values()), "by_agent": by_agent,
+        "funnel": {"conversations": total, "with_data": with_data, "complete": complete},
         "fields": fields, "by_version": by_version,
     }
 
@@ -704,7 +683,7 @@ def campaigns(s: Session, flt: ReportFilter) -> dict:
     per = {cid: vals for cid, *vals in s.execute(
         select(cc.campaign_id, func.count(), func.coalesce(func.sum(cc.attempts), 0), _count_if(cc.sent_at.is_not(None)),
                _count_if(cc.result == "answered"), _count_if(cc.replied_at.is_not(None)),
-               _count_if(conv.conversion == "complete"), _count_if(conv.goal.is_(True)))
+               _count_if(conv.conversion == "complete"))
         .outerjoin(conv, conv.id == func.coalesce(cc.followup_conversation_id, cc.conversation_id))
         .where(cc.campaign_id.in_(ids)).group_by(cc.campaign_id))}
     minutes = dict(s.execute(
@@ -719,11 +698,11 @@ def campaigns(s: Session, flt: ReportFilter) -> dict:
         .where(cc.campaign_id.in_(ids)).group_by(cc.campaign_id)).all())
     rows = []
     for c in found:
-        n, attempts, sent, answered, replied, complete, goal = map(_n, per.get(c.id, [0] * 7))
+        n, attempts, sent, answered, replied, complete = map(_n, per.get(c.id, [0] * 6))
         voice = c.channel == "voice"
         rows.append({"campaign_id": c.id, "name": c.name, "channel": c.channel, "status": c.status, "contacts": n,
                      "attempts": attempts if voice else sent, "reached": answered if voice else replied,
-                     "complete": complete, "goal": goal, "optouts": _n(optouts.get(c.id)),
+                     "complete": complete, "optouts": _n(optouts.get(c.id)),
                      "minutes": _n(minutes.get(c.id))})
 
     reasons: dict[str, int] = defaultdict(int)
@@ -809,21 +788,7 @@ def _split_counts(values, all_values=None) -> list[dict]:
     return [{"reason": k, "count": counts[k]} for k in sorted(counts, key=lambda k: (-counts[k], k))]
 
 
-def _split_outcomes(rows: list[dict], defs: dict[str, dict]) -> list[dict]:
-    counts: dict[str, int] = defaultdict(int)
-    for c in rows:
-        if c["outcome"]:
-            counts[c["outcome"]] += 1
-    out = []
-    for oid in sorted(counts, key=lambda k: (-counts[k], k)):
-        d = defs.get(oid) or {}
-        out.append({"outcome": oid, "label": d.get("label") or oid, "goal": bool(d.get("goal")),
-                    "count": counts[oid]})
-    return out
-
-
-def _split_group(rows: list[dict], events: dict[str, set[str]], callbacks: dict[str, bool],
-                 defs: dict[str, dict]) -> dict:
+def _split_group(rows: list[dict], events: dict[str, set[str]], callbacks: dict[str, bool]) -> dict:
     """Los campos de un grupo (experimento, porcentaje y brazo), calculados en Python: percentiles y llamantes."""
     finished = [c["duration_seconds"] or 0 for c in rows if c["status"] == "finalizada"]
     percentiles = [None if (p := _percentile(finished, q)) is None else int(round(p)) for q in (0.25, 0.5, 0.75, 0.9)]
@@ -843,8 +808,6 @@ def _split_group(rows: list[dict], events: dict[str, set[str]], callbacks: dict[
         "handoff_requested": sum(1 for c in rows if events.get(c["cid"], set()) & set(REQUEST_EVENTS)),
         "handoff_connected": sum(1 for c in rows if "handoff.connected" in events.get(c["cid"], set())),
         "callbacks_24h": sum(1 for c in rows if callbacks.get(c["cid"])),
-        "outcomes": _split_outcomes([c for c in rows if c["arm"] == "agent"], defs),
-        "goals": sum(1 for c in rows if c["arm"] == "agent" and c["goal"]),
     }
 
 
@@ -855,21 +818,18 @@ def split(s: Session, flt: ReportFilter) -> dict:
     q = _calls(flt, CallRow.conversation_id, CallRow.phone, CallRow.split_arm, CallRow.split_reason,
                CallRow.split_percent, CallRow.split_experiment, CallRow.status, CallRow.ended_reason,
                CallRow.duration_seconds, CallRow.ended_at, CallRow.created_at, CallRow.phone_number_id,
-               ConversationRow.agent_id, ConversationRow.outcome, ConversationRow.goal).where(
+               ConversationRow.agent_id).where(
         CallRow.split_arm.is_not(None))
     if flt.split_experiment:
         q = q.where(CallRow.split_experiment == flt.split_experiment)
     calls = [{"cid": cid, "phone": phone, "arm": arm, "reason": reason, "percent": percent,
               "experiment": experiment, "status": status, "ended_reason": ended, "duration_seconds": duration,
               "ended_at": ended_at, "created_at": created_at, "phone_number_id": number_id,
-              "agent_id": agent_id, "outcome": outcome, "goal": goal}
+              "agent_id": agent_id}
              for cid, phone, arm, reason, percent, experiment, status, ended, duration, ended_at, created_at,
-             number_id, agent_id, outcome, goal in s.execute(q)]
+             number_id, agent_id in s.execute(q)]
     events = _split_events(s, [c["cid"] for c in calls])
     callbacks = _split_callbacks(s, flt, calls)
-    agent_ids = {c["agent_id"] for c in calls if c["agent_id"]}
-    agents = {a.id: a for a in s.scalars(select(Agent).where(Agent.id.in_(agent_ids)))} if agent_ids else {}
-    defs_per_agent = {aid: _outcome_defs(a.definition) for aid, a in agents.items()}
 
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for c in calls:
@@ -877,11 +837,8 @@ def split(s: Session, flt: ReportFilter) -> dict:
     out = []
     for (experiment, percent, arm), rows in sorted(
             groups.items(), key=lambda kv: (kv[0][0] or "", kv[0][1] or 0, kv[0][2])):
-        defs = {}
-        for aid in {c["agent_id"] for c in rows if c["agent_id"]}:
-            defs.update(defs_per_agent.get(aid, {}))
         out.append({"experiment": experiment, "percent": percent, "arm": arm,
-                    **_split_group(rows, events, callbacks, defs)})
+                    **_split_group(rows, events, callbacks)})
 
     both = []
     pairs: dict[tuple, list[dict]] = defaultdict(list)
@@ -894,14 +851,11 @@ def split(s: Session, flt: ReportFilter) -> dict:
             continue
         mine = [c for c in rows if _last10(c["phone"]) in shared]
         rest = [c for c in rows if _last10(c["phone"]) not in shared]
-        defs = {}
-        for aid in {c["agent_id"] for c in rows if c["agent_id"]}:
-            defs.update(defs_per_agent.get(aid, {}))
         arms = [{"experiment": experiment, "percent": percent, "arm": arm,
-                 **_split_group([c for c in mine if c["arm"] == arm], events, callbacks, defs)}
+                 **_split_group([c for c in mine if c["arm"] == arm], events, callbacks)}
                 for arm in SPLIT_ARMS if any(c["arm"] == arm for c in mine)]
         rest_arms = [{"experiment": experiment, "percent": percent, "arm": arm,
-                      **_split_group([c for c in rest if c["arm"] == arm], events, callbacks, defs)}
+                      **_split_group([c for c in rest if c["arm"] == arm], events, callbacks)}
                      for arm in SPLIT_ARMS if any(c["arm"] == arm for c in rest)]
         both.append({"experiment": experiment, "percent": percent, "callers": len(shared), "calls": len(mine),
                      "arms": arms, "rest": rest_arms})

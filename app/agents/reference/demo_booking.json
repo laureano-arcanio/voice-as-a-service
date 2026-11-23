@@ -68,39 +68,6 @@
         "description": "Cuándo le conviene que lo llamen, si lo dice. No se pregunta.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "demo",
-        "label": "Demo agendada",
-        "when": {
-          "demo_answer": "si"
-        },
-        "goal": true
-      },
-      {
-        "id": "callback",
-        "label": "Volver a llamar",
-        "when": {
-          "demo_answer": "dudas",
-          "callback_wanted": true
-        },
-        "goal": false
-      },
-      {
-        "id": "no_pitch",
-        "label": "No quiso escuchar",
-        "when": {
-          "wants_pitch": false
-        },
-        "goal": false
-      },
-      {
-        "id": "no_interest",
-        "label": "Sin interés",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

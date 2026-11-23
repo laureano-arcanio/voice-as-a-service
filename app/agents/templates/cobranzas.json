@@ -64,46 +64,6 @@
         "description": "Por qué no pagó, en una frase.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "tercero",
-        "label": "No es el titular",
-        "when": {
-          "titular": false
-        },
-        "goal": false
-      },
-      {
-        "id": "ya_pago",
-        "label": "Ya pagó",
-        "when": {
-          "promesa": "ya pagó"
-        },
-        "goal": true
-      },
-      {
-        "id": "acuerdo_total",
-        "label": "Pago total",
-        "when": {
-          "promesa": "pago total"
-        },
-        "goal": true
-      },
-      {
-        "id": "acuerdo_cuotas",
-        "label": "Plan en cuotas",
-        "when": {
-          "promesa": "cuotas"
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_acuerdo",
-        "label": "Sin acuerdo",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

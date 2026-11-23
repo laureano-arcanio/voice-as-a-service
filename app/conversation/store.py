@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ..db import create_schema, make_engine, make_sessions
 from ..models import ConversationRow
 from .models import ConversationState, Progress, Workflow
-from .workflow import conversion, outcome_goal
+from .workflow import conversion
 
 if TYPE_CHECKING:
     from ..agents.definitions import DefinitionSource
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 class ConversationStore:
     def __init__(self, sessions: sessionmaker[Session]):
         self.sessions = sessions
-        # De donde sale la definicion del agente para las columnas de los reportes (conversion, goal); la fija el
-        # motor (ConversationEngine). Sin ella, la conversion sale solo del resultado y goal no cambia.
+        # De donde sale la definicion del agente para la columna de los reportes (conversion); la fija el
+        # motor (ConversationEngine). Sin ella, la conversion sale solo del estado guardado.
         self.definitions: "DefinitionSource | None" = None
 
     @classmethod
@@ -60,8 +60,8 @@ class ConversationStore:
     @staticmethod
     def add(s: Session, state: ConversationState, workflow: Workflow | None = None) -> None:
         """Agrega o actualiza la conversacion en la sesion `s`, sin commit (quien llama
-        la guarda junto con lo suyo, ej. la llamada). workflow: la definicion, para las columnas de los
-        reportes (conversion y goal)."""
+        la guarda junto con lo suyo, ej. la llamada). workflow: la definicion, para la columna de los
+        reportes (conversion)."""
         data = state.model_dump(mode="json")
         row = s.get(ConversationRow, state.conversation_id)
         if row is None:
@@ -74,13 +74,9 @@ class ConversationStore:
         row.fields = data["fields"]
         row.messages = data["messages"]
         row.progress = data["progress"]
-        # Reportes (docs/features/REPORTES.md): el resultado al completarse, si cumple el objetivo y la conversion.
-        outcome = state.progress.outcome if state.status == "completed" else None
-        if workflow is not None:
-            row.goal = outcome_goal(workflow, outcome)
-        elif outcome != row.outcome:
-            row.goal = None
-        row.outcome = outcome
+        # Reportes (docs/features/REPORTES.md): el resultado (solo plataforma) y la conversion. La columna
+        # goal quedo congelada con sus valores historicos: ya no se escribe.
+        row.outcome = state.progress.outcome if state.status == "completed" else None
         row.conversion = conversion(workflow, state)
         row.llm_input_tokens = state.llm_input_tokens
         row.llm_output_tokens = state.llm_output_tokens

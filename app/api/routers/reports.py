@@ -76,7 +76,7 @@ def _advanced(p, db) -> None:
 @router.get("/summary", response_model=ReportSummaryOut)
 def summary(flt: Filter, db: DB):
     """Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior
-    (conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el
+    (conversaciones, % de conversión, derivadas, minutos, duración media, rechazadas por el
     plan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes."""
     return service.summary(db, flt)
 
@@ -91,8 +91,8 @@ def calls(flt: Filter, db: DB):
 
 @router.get("/outcomes", response_model=ReportOutcomesOut, responses=PLAN_ERROR)
 def outcomes(flt: Filter, p: CurrentPrincipal, db: DB):
-    """Resultados: conversión (completa, parcial, sin datos) por día y agente, resultados por agente,
-    embudo, datos obligatorios capturados y comparación por versión del agente. Plan con reportes completos."""
+    """Conversión (completa, parcial, sin datos) por día y agente, embudo, datos obligatorios
+    capturados y comparación por versión del agente. Plan con reportes completos."""
     _advanced(p, db)
     return service.outcomes(db, flt)
 
@@ -116,7 +116,7 @@ def transfers(flt: Filter, p: CurrentPrincipal, db: DB):
 @router.get("/split", response_model=ReportSplitOut, responses=PLAN_ERROR)
 def split(flt: Filter, p: CurrentPrincipal, db: DB):
     """Reparto agente/equipo de la entrante: llamadas, llamantes, motivos, estados, duración y cortes,
-    derivaciones, rellamadas en 24 h y resultados del agente, por experimento, porcentaje y brazo; y los
+    derivaciones y rellamadas en 24 h, por experimento, porcentaje y brazo; y los
     llamantes que pasaron por los dos brazos. Histórico, sin mirar la configuración actual del número.
     Plan con reportes completos."""
     _advanced(p, db)

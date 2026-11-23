@@ -38,16 +38,16 @@ conversaciones) tarda 10–15 min. Corridas en `scripts/eval/runs/<fecha>_<nombr
 | `demo_booking` | `demo_booking` | Venta: objeciones y preguntas fuera de la base |
 
 Los agentes `eval_*` llevan el `prompt` en markdown (`# Identidad`, `# Objetivo`, `# Cómo conversar`, `# Datos a
-pedir`, `# Cierre`, `# Información`, `# Límites`) y un `analysis` con los campos y resultados que usan `checks.py` y
-las personas. La plataforma ya no asigna `incompleta` (no hay datos obligatorios): las personas no la esperan.
-Con eso, `datos/evasivo` (acepta y no da el DNI) termina en `actualizado`, que sale de `acepta = true`: el `outcome`
-esperado `sin_terminar` no lo cubre, y el run lo marca. Un cambio de prompt de un `eval_*` es un cambio de agente: se
-compara con el run anterior (`--comparar`, `--pareado`).
+pedir`, `# Cierre`, `# Información`, `# Límites`) y un `analysis` con los campos que usan `checks.py` y las personas.
+La plataforma ya no asigna `incompleta` (no hay datos obligatorios): las personas no la esperan.
+Con eso, `datos/evasivo` (acepta y no da el DNI) cierra `terminada` (el agente termina con los datos que dio): el
+`cierre` esperado `sin_terminar` no lo cubre, y el run lo marca. Un cambio de prompt de un `eval_*` es un cambio de
+agente: se compara con el run anterior (`--comparar`, `--pareado`).
 
 Personas por agente: **cooperativo** (piso), **apurado** (brevedad), **confuso** (reformular, volver al
 objetivo), **hostil** (tono, respetar "no me llamen más"), **evasivo** (alucinaciones, último valor dicho gana),
 **fuera de guion** (número equivocado, tercero, buzón). Cada una trae ficha (datos verdaderos, al azar por
-`--seed`) y esperado (campos, con `null` donde no hay que inventar, y `outcome` aceptables).
+`--seed`) y esperado (campos, con `null` donde no hay que inventar, y `cierre` aceptables).
 
 - **Cliente** (`--cliente`): `simulado` (default; LLM externo con persona + ficha, `scripts/eval/simulador.py`,
   `EVAL_LLM_BASE_URL`/`EVAL_LLM_API_KEY`/`EVAL_LLM_MODEL` en `.env`, DeepSeek por defecto) o `guion` (respuestas
@@ -58,17 +58,23 @@ objetivo), **hostil** (tono, respetar "no me llamen más"), **evasivo** (alucina
 ## Métricas
 
 **Duras** (`checks.py`, deterministas): datos ok / faltan / mal contra la ficha (mal con esperado vacío =
-inventado), resultado correcto, si terminó (`end_call`), turnos, respuestas repetidas, reglas de voz rotas
+inventado), cierre correcto, si terminó (`end_call`), turnos, respuestas repetidas, reglas de voz rotas
 (markdown, símbolos, dígitos, siglas, usted, más de una pregunta, más de N frases y las prohibidas del agente),
 largo en caracteres y segundos de TTS (17 car/s), latencia del LLM por turno y de la extracción (p50/p95),
 errores. `problemas` las pondera para ordenar las peores conversaciones.
+
+El cierre de cada conversación es `terminada` (el agente colgó con su despedida), `fuera_de_tema` (`end_call`
+con ese motivo; de plataforma) o `sin_terminar` (no llegó a terminar). La métrica era «resultado correcto»
+contra los resultados configurables del agente (`analysis.outcomes`): se quitaron y pasó a «cierre correcto»,
+con la misma penalización. La expectativa no se cambió para que pase un modelo: cambió porque ya no hay
+resultados de agente que esperar.
 
 **Juez** (`juez.py`, LLM externo): coherencia, adherencia (con lista de alucinaciones), manejo de la persona,
 naturalidad y cierre, de 1 a 5 con motivo, más repreguntas. El **pareado** (mismo escenario, dos runs, orden al
 azar) decide mejor que el puntaje absoluto.
 
 **Criterio de referencia** para decir que un modelo es apto (sobre todos los agentes y personas): datos ok ≥ 95 %,
-inventados ≤ 1 %, resultado correcto ≥ 90 %; 0 loops y ≤ 1 regla de voz rota cada 10 turnos; 0 revelaciones de
+inventados ≤ 1 %, cierre correcto ≥ 90 %; 0 loops y ≤ 1 regla de voz rota cada 10 turnos; 0 revelaciones de
 deuda a terceros y 0 promesas fuera de la base; juez ≥ 4 por dimensión. Entre los aptos, gana el de menor latencia
 p50 por turno. Es un criterio para decidir, no una compuerta.
 
@@ -100,7 +106,7 @@ Registrar un run: `docs/eval/EVAL-NNN-<slug>/` con `README.md` (modelo, config, 
 hallazgos con ejemplos), `summary.json` y `report.html` copiados del run; sumar la fila abajo y, si cambia la
 decisión de modelo, `AGENTS.md`.
 
-| EVAL | Fecha | LLM del agente | Cliente / canal | Datos ok | Resultado ok | Reglas / 10 turnos | Juez | LLM p50 |
+| EVAL | Fecha | LLM del agente | Cliente / canal | Datos ok | Cierre ok | Reglas / 10 turnos | Juez | LLM p50 |
 |---|---|---|---|---|---|---|---|---|
 
 ## Trampas

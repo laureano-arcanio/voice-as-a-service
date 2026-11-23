@@ -10,7 +10,6 @@ from app.agents.templates import (
 from app.conversation.models import AgentInfo, ConversationState, Workflow
 from app.conversation.workflow import (
     check_updates,
-    outcome_for,
     validate_updates,
 )
 
@@ -19,20 +18,6 @@ def state_with(workflow, **fields):
     values = {name: None for name in workflow.analysis_fields}
     values.update(fields)
     return ConversationState(conversation_id="c", agent_id=workflow.id, fields=values)
-
-
-def test_outcome_is_the_first_whose_when_holds(workflow):
-    assert outcome_for(workflow, state_with(workflow, wants_demo=True)).id == "demo"
-    assert outcome_for(workflow, state_with(workflow, wants_demo=False)).id == workflow.outcomes[-1].id
-
-
-def test_without_outcomes_there_is_no_outcome():
-    w = Workflow.model_validate({"id": "x", "version": 1, "agent": {"name": "A", "language": "es"},
-                                 "prompt": "# Identidad\nSos A.", "analysis": {"fields": [
-                                     {"name": "nombre", "description": "Nombre"}]}})
-    assert outcome_for(w, state_with(w, nombre="Ana")) is None
-    assert outcome_for(Workflow.model_validate({"id": "y", "version": 1, "agent": {"name": "A", "language": "es"}}),
-                       state_with(w)) is None
 
 
 def test_unknown_fields_are_ignored(workflow):

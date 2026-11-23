@@ -2,7 +2,7 @@ import re
 import unicodedata
 from typing import Any
 
-from .models import AnalysisField, ConversationState, Outcome, Workflow
+from .models import AnalysisField, ConversationState, Workflow
 
 EMAIL_RE = re.compile(r"^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}$")
 
@@ -74,37 +74,25 @@ def validate_updates(workflow: Workflow, updates: dict[str, Any]) -> dict[str, A
     return check_updates(workflow, updates)[0]
 
 
-# Resultado de las conversaciones guardadas cuando terminaban sin los datos obligatorios: ya no se asigna, se
-# conserva para leerlas (reportes).
-INCOMPLETE = Outcome(id="incompleta", label="Incompleta")
+# Resultados de plataforma: los asigna el motor, no la definicion del agente. "incompleta" es de las
+# conversaciones guardadas cuando terminaban sin los datos obligatorios: ya no se asigna, se conserva para
+# leerlas (reportes; un id viejo de agente se muestra tal cual).
+INCOMPLETE_ID = "incompleta"
+OFF_TOPIC_ID = "fuera_de_tema"
+PLATFORM_OUTCOMES = {"incompleta": "Incompleta", "fuera_de_tema": "Fuera de tema"}
 
 # El agente corto porque la conversacion no tenia que ver con su objetivo (broma, burla, acoso,
-# numero equivocado; llamada 07381a4d): resultado propio, no el default del workflow, y
-# ended_reason OFF_TOPIC_REASON en la llamada.
-OFF_TOPIC = Outcome(id="fuera_de_tema", label="Fuera de tema")
+# numero equivocado; llamada 07381a4d): ended_reason OFF_TOPIC_REASON en la llamada.
 OFF_TOPIC_REASON = "off_topic"
-
-
-def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome | None:
-    """El primer resultado de analysis.outcomes cuyas condiciones se cumplen; sin resultados, None."""
-    return next((o for o in workflow.outcomes if all(state.fields.get(k) == v for k, v in o.when.items())), None)
 
 
 def conversion(workflow: Workflow | None, state: ConversationState) -> str:
     """Para los reportes (docs/features/REPORTES.md). complete: el agente termino la conversacion y no fue fuera de
     tema; partial: algun dato del analisis capturado; empty: ninguno. Sin la definicion (workflow None), los
     campos guardados."""
-    outcome = state.progress.outcome
-    if state.status == "completed" and outcome not in (INCOMPLETE.id, OFF_TOPIC.id):
+    if state.status == "completed" and state.progress.outcome not in (INCOMPLETE_ID, OFF_TOPIC_ID):
         return "complete"
     names = workflow.analysis_fields if workflow is not None else state.fields
     if any(state.fields.get(n) not in (None, "") for n in names):
         return "partial"
     return "empty"
-
-
-def outcome_goal(workflow: Workflow, outcome_id: str | None) -> bool | None:
-    """Si el resultado cumple el objetivo del agente (None sin resultado; incompleta y fuera de tema, no)."""
-    if outcome_id is None:
-        return None
-    return any(o.goal for o in workflow.outcomes if o.id == outcome_id)

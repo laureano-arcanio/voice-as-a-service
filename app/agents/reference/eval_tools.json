@@ -22,14 +22,6 @@
           "otro"
         ]
       }
-    ],
-    "outcomes": [
-      {
-        "id": "atendida",
-        "label": "Atendida",
-        "when": {},
-        "goal": true
-      }
     ]
   },
   "tools": [

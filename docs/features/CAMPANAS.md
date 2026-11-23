@@ -15,7 +15,7 @@ Modelos en `app/models/campaigns.py` (migración 0017; `contacts.notes` en la 00
 | Tabla | Columnas clave |
 |---|---|
 | `contacts` | `client_id`, `phone` (E.164, **único por cliente**, lo único obligatorio), `name`, `email`, `notes` (nota libre), `source` (`manual`, `csv`, `api`, `campaign`, `inbound`), `archived_at` (NULL = activo; no se borran) |
-| `contact_optouts` | PK `(client_id, phone, channel)`; `channel` `whatsapp`, `voice` o `all`; `source` `keyword`, `outcome`, `manual`. Aparte de `contacts`: la baja es del teléfono, sigue aunque se archive y se carga sin ficha |
+| `contact_optouts` | PK `(client_id, phone, channel)`; `channel` `whatsapp`, `voice` o `all`; `source` `keyword`, `outcome` (histórico: ya no se escribe), `manual`. Aparte de `contacts`: la baja es del teléfono, sigue aunque se archive y se carga sin ficha |
 | `campaigns` | Comunes: `client_id`, `agent_id` (NULL en WhatsApp = el del número), `name`, `channel`, `status` (`draft`, `scheduled`, `running`, `paused`, `done`, `cancelled`), `status_reason`, `rate_per_minute`, `window_start`/`window_end` (horas locales de `BILLING_TIMEZONE`, default 9–20), `weekdays` (0 = lunes; NULL = todos), `starts_at`/`ends_at`, `purpose` (`comercial`, `cobranza`, `turnos`, `aviso`), `no_call_confirmed_at`, `callback_url`, `callback_secret` (cifrado). WhatsApp: `account_id`, `template_name`/`language`/`category`/`body`/`params`, `template_param_names`. Voz: `from_number_id`, `voice`, `concurrency` (1 = secuencial), `max_attempts`, `retry_minutes`, `retry_on`, `followup` (JSON; NULL = apagado). Un `CHECK` por canal exige sus campos |
 | `campaign_contacts` | `campaign_id`, `contact_id` (único por par), `vars` (copia de nombre, teléfono y email al agregarlo, las columnas de datos del CSV de una campaña de voz y `params` de WhatsApp), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result`, `error`, `conversation_id`. WhatsApp: `wamid`, `sent_at`, `replied_at`. Voz: `attempts`, `next_attempt_at`, `last_attempt_at`, `followup_status`/`wamid`/`sent_at`/`error`/`conversation_id` |
 | `campaign_callbacks` | Cola del webhook: `event`, `status` (`pending`, `sent`, `failed`), `attempts`, `next_attempt_at`, `last_status_code` |
@@ -48,11 +48,11 @@ Modelos en `app/models/campaigns.py` (migración 0017; `contacts.notes` en la 00
 | `POST /campaigns` | Crea en `draft` con `channel` y su config; opcional `contacts` y `"start": true` en el mismo cuerpo |
 | `GET /campaigns?channel=&status=` | Lista con contadores |
 | `GET /campaigns/plan` | Qué permite el plan y cuánto se usó |
-| `GET /campaigns/{id}` | **Polling**: `status`, `in_window`, `total`, `percent`, `eta_minutes` (ritmo de los últimos 15 min), `progress`, `results`, `goal` (voz), `minutes_used` (voz), `followup` |
+| `GET /campaigns/{id}` | **Polling**: `status`, `in_window`, `total`, `percent`, `eta_minutes` (ritmo de los últimos 15 min), `progress`, `results`, `minutes_used` (voz), `followup` |
 | `PATCH /campaigns/{id}`, `DELETE /campaigns/{id}` | Editar; borrar solo en borrador (si empezó, se cancela) |
 | `POST /campaigns/{id}/contacts` | Suma por `contact_ids`, `contacts` o `csv` (los nuevos entran en la agenda), en borrador o pausada |
 | `GET /campaigns/{id}/contacts?status=&result=` | Paginado, con `conversation_id` |
-| `GET /campaigns/{id}/stats` | `attempts`, `reached`, `contact_rate`, `goal`, `goal_rate`, `avg_duration_seconds`, `minutes`, `results`, `by_hour` |
+| `GET /campaigns/{id}/stats` | `attempts`, `reached`, `contact_rate`, `avg_duration_seconds`, `minutes`, `results`, `by_hour` |
 | `GET /campaigns/{id}/report.csv` | Una fila por contacto (UTF-8 con BOM; celdas que Excel tomaría por fórmula con `'`) |
 | `POST /campaigns/{id}/start`, `/resume`, `/pause`, `/cancel` | `start`/`resume` validan plan, agente, número o plantilla, horario y, en `comercial`, `no_call_registry_checked: true` |
 
@@ -147,8 +147,8 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
   agrega solo al prompt ni precarga datos del análisis.
 - **Contestador** (`app/campaigns/voicemail.py`): lista de frases ("deje su mensaje", "buzón", "después de la
   señal"…) sobre las primeras 4 transcripciones del que atendió; si matchea, `voicemail`, corta y reintenta.
-- **Baja por voz:** un resultado del agente con `no_contact` ("No volver a llamar" en el editor) agrega
-  `contact_optouts` (voice, `outcome`) al cerrar (`apply_outcome_optout`). WhatsApp sigue habilitado.
+- **Baja por voz:** la que pedía la persona en un resultado del agente (`no_contact`) ya no existe: las bajas de voz
+  quedan por respuesta del contacto (WhatsApp, `keyword`) o manuales (contacts.py).
 - **Seguimiento por WhatsApp** (`followup`: `after`, `account_id`, `template_name`, `template_language`, `params`,
   `agent_id`): requiere `campaign_followup` en el plan, cuenta conectada del cliente y plantilla aprobada (se
   revalida al iniciar y retomar). Al cerrar el último intento con un resultado de `after`, el contacto queda

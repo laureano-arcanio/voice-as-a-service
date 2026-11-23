@@ -33,7 +33,7 @@ def test_written_in_the_current_form(kind, name):
     assert all(t in data["prompt"] for t in TITLES)
     assert data["first_message"] and data["analysis"]["summary"] is True
     wf = Workflow.model_validate(data)
-    assert wf.analysis_fields and wf.outcomes and wf.outcomes[-1].when == {}
+    assert wf.analysis_fields and wf.analysis.summary is True
     assert objective_of(data)
 
 
@@ -58,4 +58,4 @@ def test_cobranzas_names_its_variables():
 @pytest.mark.parametrize("name", EVAL_IDS)
 def test_eval_agents_load(name):
     wf = load_reference(name)
-    assert wf.external is None and wf.outcomes
+    assert wf.external is None and wf.analysis_fields

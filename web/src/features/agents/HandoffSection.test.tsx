@@ -52,7 +52,6 @@ const DEF = {
     summary: true,
     instructions: '',
     fields: [{ name: 'nombre', description: 'n', type: 'string' }],
-    outcomes: [{ id: 'ok', label: 'ok', when: {}, goal: true }],
   },
 };
 

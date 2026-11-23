@@ -63,7 +63,6 @@ def test_apply_replaces_the_content_and_keeps_the_rest(old):
         assert agent.version == version + 1 and versions(s, agent) == version + 1
         assert d["prompt"] == ref["prompt"] and d["first_message"] == ref["first_message"]
         assert [f["name"] for f in d["analysis"]["fields"]] == [f["name"] for f in ref["analysis"]["fields"]]
-        assert [o["id"] for o in d["analysis"]["outcomes"]] == [o["id"] for o in ref["analysis"]["outcomes"]]
         assert [v["name"] for v in d["variables"]] == [v["name"] for v in ref["variables"]]
         # Lo que el cliente edito, intacto.
         assert d["agent"]["voice"] == "belen" and d["record_audio"] is True and d["call_summary_email"] is True
@@ -123,5 +122,5 @@ def test_reference_is_written_in_the_current_form(rid):
     declared = {v["name"] for v in data.get("variables", [])}
     assert all(name in declared or name.startswith("call.") for name in used)
     wf = load_reference(rid)
-    assert wf.analysis_fields and wf.outcomes and not wf.outcomes[-1].when
+    assert wf.analysis_fields
     assert all("question" not in f.model_dump() for f in wf.analysis_fields.values())

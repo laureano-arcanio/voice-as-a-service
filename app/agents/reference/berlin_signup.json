@@ -63,30 +63,6 @@
         "description": "Nombre de la persona, para el mensaje con el link",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "link",
-        "label": "Pide el link",
-        "when": {
-          "wants_link": true
-        },
-        "goal": true
-      },
-      {
-        "id": "no_pitch",
-        "label": "No quiso escuchar",
-        "when": {
-          "wants_pitch": false
-        },
-        "goal": false
-      },
-      {
-        "id": "no_interest",
-        "label": "Sin interés",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

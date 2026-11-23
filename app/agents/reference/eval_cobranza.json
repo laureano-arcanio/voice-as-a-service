@@ -52,46 +52,6 @@
         "description": "Si pidió que no lo vuelvan a llamar. Solo si lo dice; no se pregunta.",
         "type": "boolean"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "tercero",
-        "label": "Atendió otra persona",
-        "when": {
-          "titular": false
-        },
-        "goal": false
-      },
-      {
-        "id": "ya_pago",
-        "label": "Dice que ya pagó",
-        "when": {
-          "promesa": "ya_pago"
-        },
-        "goal": false
-      },
-      {
-        "id": "acuerdo_total",
-        "label": "Compromiso de pago total",
-        "when": {
-          "promesa": "paga_total"
-        },
-        "goal": true
-      },
-      {
-        "id": "acuerdo_cuotas",
-        "label": "Plan en cuotas",
-        "when": {
-          "promesa": "cuotas"
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_acuerdo",
-        "label": "Sin compromiso",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

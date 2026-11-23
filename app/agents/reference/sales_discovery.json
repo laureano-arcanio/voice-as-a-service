@@ -66,22 +66,6 @@
         "description": "Correo electrónico del interesado para coordinar la demo",
         "type": "email"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "demo",
-        "label": "Pide demo",
-        "when": {
-          "wants_demo": true
-        },
-        "goal": true
-      },
-      {
-        "id": "no_demo",
-        "label": "Sin demo",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

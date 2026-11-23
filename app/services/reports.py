@@ -16,7 +16,7 @@ from ..config import settings
 from ..conversation import variables
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.recordings import full_recording_path
-from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, outcome_for
+from ..conversation.workflow import PLATFORM_OUTCOMES
 from ..models import (
     ACTIVE_CALL_STATUSES,
     Agent,
@@ -163,17 +163,16 @@ class Reports:
             pass
         return None
 
-    def outcome(self, workflow: Workflow | None, conv: ConversationRow):
-        """Resultado de una conversacion completa (el guardado, o calculado si es anterior a outcomes)."""
-        if workflow is None or conv.status != "completed":
+    def outcome(self, conv: ConversationRow) -> str | None:
+        """Etiqueta del resultado de una conversación completada: solo plataforma ("Fuera de tema", "Incompleta");
+        un id viejo de agente (definiciones anteriores a quitar los resultados) se muestra tal cual. None si no
+        completó o no tiene."""
+        if conv.status != "completed":
             return None
         progress = Progress.model_validate(conv.progress or {})
-        outcomes = [*workflow.outcomes, INCOMPLETE, OFF_TOPIC]
-        outcome = next((o for o in outcomes if o.id == progress.outcome), None)
-        if outcome is None:
-            outcome = outcome_for(workflow, ConversationState(
-                conversation_id=conv.id, agent_id=conv.agent_id or "", fields=conv.fields, progress=Progress()))
-        return outcome
+        if progress.outcome is None:
+            return None
+        return PLATFORM_OUTCOMES.get(progress.outcome, progress.outcome)
 
     def summary(self, conv: ConversationRow, call: CallRow | None, agent_name: str | None,
                 client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
@@ -181,7 +180,6 @@ class Reports:
         f = conv.fields
         # Todos los datos del analisis: cuantos se capturaron.
         names = list(workflow.analysis_fields) if workflow else list(f)
-        outcome = self.outcome(workflow, conv)
         lat = (call.latency or {}).get("stats", {}).get("total") if call else None
         if conv.channel == "whatsapp":
             mode, phone = "whatsapp", thread.wa_id if thread else None
@@ -194,7 +192,7 @@ class Reports:
             "created_at": iso(conv.created_at),
             "contact_name": f.get("contact_name"),
             "company": f.get("company_name") or f.get("company_context"),
-            "outcome": outcome.label if outcome else None, "goal": bool(outcome and outcome.goal),
+            "outcome": self.outcome(conv),
             "captured": sum(f.get(n) is not None for n in names), "total": len(names),
             "mode": mode, "phone": phone,
             "status": call.status if call else None,
@@ -255,7 +253,6 @@ class Reports:
             fields = [{"name": n, "label": n, "description": n, "value": v} for n, v in conv.fields.items()]
         for f in fields:
             f["rejected"] = progress.rejected.get(f["name"])
-        outcome = self.outcome(workflow, conv)
         number = self.s.get(PhoneNumber, call.phone_number_id) if call and call.phone_number_id else None
         key = (conv.client_id, _normalize(call.phone if call else None))
         contact = self._contacts({key}).get(key) if conv.client_id else None
@@ -266,7 +263,7 @@ class Reports:
             "agent_id": conv.agent_id, "agent_name": agent_name or conv.legacy_workflow_id,
             "agent_version": conv.agent_version, "created_at": iso(conv.created_at),
             "workflow_status": conv.status, "fields": fields,
-            "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
+            "outcome": self.outcome(conv),
             "messages": conv.messages,
             "summary": progress.summary,
             "variables": variables.detail(state, workflow),

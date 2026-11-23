@@ -19,10 +19,9 @@ from .models import (
 )
 from .store import ConversationStore
 from .workflow import (
-    OFF_TOPIC,
+    OFF_TOPIC_ID,
     OFF_TOPIC_REASON,
     check_updates,
-    outcome_for,
 )
 
 if TYPE_CHECKING:
@@ -96,7 +95,7 @@ class ConversationEngine:
         self.llms = LLMResolver(llm, store.sessions)
         self.store = store
         self.definitions = definitions or ReferenceDefinitions()
-        # El store completa con la definicion las columnas de los reportes (conversion, goal).
+        # El store completa con la definicion la columna de los reportes (conversion).
         store.definitions = self.definitions
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
         # Herramientas del cliente (http y code, docs/features/HERRAMIENTAS.md): las del agente y su contexto, por turno.
@@ -243,8 +242,8 @@ class ConversationEngine:
         undo["n_messages"] = len(state.messages)
         state.status = result.status
         _add_usage(state, result)
-        # Fuera de tema (end_call): el resultado lo decide el agente al cortar, no los datos (_extract no lo pisa).
-        state.progress.outcome = OFF_TOPIC.id if result.end_reason == OFF_TOPIC_REASON else None
+        # Fuera de tema (end_call): el outcome lo pone aca; la extraccion no toca progress.outcome.
+        state.progress.outcome = OFF_TOPIC_ID if result.end_reason == OFF_TOPIC_REASON else None
         state.progress.undo = undo
         if turn_tools:
             for slug, values, hidden in turn_tools.assigned:
@@ -273,10 +272,9 @@ class ConversationEngine:
         if self.external is None:
             self.external = ExternalAgents(self.store.sessions)
         cfg = workflow.external
-        outcome = None
         try:
             result = await self.external.turn(workflow, state, user_message, on_message, actor)
-            turn, outcome, trace, errors = result.turn, result.outcome, result.trace, 0
+            turn, trace, errors = result.turn, result.trace, 0
             trace = {**trace, **_usage(turn)}
         except ExternalError as e:
             errors = state.progress.external_errors + 1
@@ -301,8 +299,9 @@ class ConversationEngine:
         state.progress.external_errors = errors
         state.status = turn.status
         _add_usage(state, turn)
-        if turn.status == "completed" and turn.end_reason is None and (ids := [o.id for o in workflow.outcomes]):
-            state.progress.outcome = outcome if outcome in ids else ids[-1]
+        # Igual que en el camino clasico: fuera de tema (end_call con ese motivo) es el unico resultado
+        # de plataforma que se asigna.
+        state.progress.outcome = OFF_TOPIC_ID if turn.end_reason == OFF_TOPIC_REASON else None
         # La repeticion (repeat_last_reply), igual que en el camino clasico: sin texto del modelo, la ultima
         # respuesta (docs/features/ATENCION_TURNO.md). Sin esto, un agente propio que la llama queda mudo.
         _use_last_reply(turn, state)
@@ -401,12 +400,6 @@ class ConversationEngine:
             await self._run_extraction(workflow, state, reply, "extraccion")
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
-        finally:
-            state = self.store.get(conversation_id)
-            if state is not None and state.status == "completed" and state.progress.outcome != OFF_TOPIC.id:
-                outcome = outcome_for(self.workflow(state), state)
-                state.progress.outcome = outcome.id if outcome else None
-                self.store.save(state)
 
     async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str) -> None:
         started = time.perf_counter()

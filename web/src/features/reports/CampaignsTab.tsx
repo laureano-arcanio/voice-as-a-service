@@ -48,7 +48,6 @@ function campaignCols(open: ((c: Campaign) => void) | null, admin: boolean): Col
     { label: 'Intentos', value: 'attempts', num: true },
     { label: 'Contactados', value: 'reached', num: true },
     { label: 'Completas', value: 'complete', num: true },
-    { label: 'Objetivo', value: 'goal', num: true },
     { label: 'Bajas', value: 'optouts', num: true },
     { label: 'Minutos', value: 'minutes', num: true },
   ];

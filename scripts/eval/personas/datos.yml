@@ -33,7 +33,7 @@ personas:
         celular: "{telefono}"
         domicilio: ["{calle}"]
         dni: "{dni}"
-      outcome: [actualizado]
+      cierre: [terminada]
     guion:
       - "Sí, soy yo."
       - "Dale, sí."
@@ -68,7 +68,7 @@ personas:
         celular: "{telefono}"
         domicilio: ["{calle}"]
         dni: "{dni}"
-      outcome: [actualizado]
+      cierre: [terminada]
     turnos_max: 10
     guion:
       - "Sí. Dale, anotá que estoy apurada: el mail es {email_dicho}, el celular {telefono}, vivo en {direccion} y el DNI es {dni}."
@@ -99,7 +99,7 @@ personas:
         email: "{email}"
         celular: "{telefono}"
         dni: "{dni}"
-      outcome: [actualizado]
+      cierre: [terminada]
     turnos_max: 16
 
   desconfiado:
@@ -119,7 +119,7 @@ personas:
         email: null
         celular: null
         dni: null
-      outcome: [rechaza]
+      cierre: [terminada]
     turnos_max: 8
 
   evasivo:
@@ -142,7 +142,7 @@ personas:
         email: "{email}"
         celular: "{telefono}"
         dni: null
-      outcome: [sin_terminar]
+      cierre: [sin_terminar]
     turnos_max: 12
 
   tercero:
@@ -160,5 +160,5 @@ personas:
         email: null
         celular: null
         dni: null
-      outcome: [tercero]
+      cierre: [terminada]
     turnos_max: 8

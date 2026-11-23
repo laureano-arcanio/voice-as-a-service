@@ -41,46 +41,6 @@
         "description": "Por qué no puede ir o cancela, si lo dice. No se pregunta.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "tercero",
-        "label": "Atendió otra persona",
-        "when": {
-          "paciente": false
-        },
-        "goal": false
-      },
-      {
-        "id": "confirmado",
-        "label": "Turno confirmado",
-        "when": {
-          "decision": "confirma"
-        },
-        "goal": true
-      },
-      {
-        "id": "reprogramado",
-        "label": "Turno reprogramado",
-        "when": {
-          "decision": "reprograma"
-        },
-        "goal": true
-      },
-      {
-        "id": "cancelado",
-        "label": "Turno cancelado",
-        "when": {
-          "decision": "cancela"
-        },
-        "goal": false
-      },
-      {
-        "id": "sin_terminar",
-        "label": "Sin terminar",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

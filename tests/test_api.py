@@ -274,16 +274,11 @@ def test_invalid_definition_reports_paths(api, admin):
     c = make_client(admin)
     agent = make_agent(admin, c)
     analysis = agent["definition"]["analysis"]
-    bad = {**agent["definition"], "analysis": {**analysis, "fields": [{"name": "Mal Nombre", "description": "x"}], "outcomes": []}}
+    bad = {**agent["definition"], "analysis": {**analysis, "fields": [{"name": "Mal Nombre", "description": "x"}]}}
     r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": bad})
     assert r.status_code == 422 and r.json()["code"] == "invalid_definition"
     assert r.json()["errors"] == [{"path": "analysis.fields.0.name",
                                    "message": "Mal Nombre: usar minusculas, numeros y _ (ej. contact_name)"}]
-    no_default = {**agent["definition"], "analysis": {**analysis, "outcomes": [
-        {"id": "a", "label": "A", "when": {"contact_name": "x"}}]}}
-    check = admin.post(f"{V1}/agents/validate", json={"definition": no_default}).json()
-    assert check["valid"] is False and "default" in check["errors"][0]["message"]
-    assert check["errors"][0]["path"] == "analysis.outcomes"
     wrong_voice = {**agent["definition"], "agent": {**agent["definition"]["agent"], "voice": "no_existe"}}
     r = admin.post(f"{V1}/agents/validate", json={"definition": wrong_voice}).json()
     assert r["errors"][0]["path"] == "agent.voice"

@@ -55,7 +55,6 @@ const AGENT_COLS: Column<Agent>[] = [
     render: (r) => formatDuration(r.avg_duration),
   },
   { label: '% completas', value: 'conversion_pct', num: true, render: (r) => pct(r.conversion_pct) },
-  { label: '% objetivo', value: 'goal_pct', num: true, render: (r) => pct(r.goal_pct) },
 ];
 
 const LINE_COLS: Column<Line>[] = [
@@ -162,7 +161,7 @@ export function CallsTab({ query }: { query: ReportQuery }) {
               <>
                 <TableCard
                   title="Por tipo"
-                  description="Con el agente, directas que hace el equipo y entrantes que atiende el equipo. Las dos últimas no tienen conversión ni resultados."
+                  description="Con el agente, directas que hace el equipo y entrantes que atiende el equipo. Las dos últimas no tienen conversión."
                   rows={r.by_type}
                   columns={TYPE_COLS}
                   rowKey={(x) => x.type}

@@ -14,7 +14,7 @@ const DEF = {
   prompt: 'Sos Sofía. Saludá con {{saludo}} y hoy es {{today}}.',
   first_message: '',
   variables: [{ name: 'deuda', default: '1000', description: 'Lo que debe' }],
-  analysis: { summary: true, instructions: '', fields: [], outcomes: [] },
+  analysis: { summary: true, instructions: '', fields: [] },
 };
 
 function Harness({ initial = toDraft(DEF) }: { initial?: Draft }) {

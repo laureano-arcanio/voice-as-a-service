@@ -140,11 +140,7 @@ const phone = list.find((agent) => agent.phone)?.phone;
   </div>
 
   <div class:list={[panel, "group-data-[state=result]/call:flex"]} data-result>
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <span
-        class="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-[.85rem] font-semibold text-ink-2 data-[goal]:bg-ok-soft data-[goal]:text-ok"
-        data-outcome
-      ></span>
+    <div class="flex flex-wrap items-center justify-end gap-2">
       <span class="font-mono text-[.8rem] text-muted tabular-nums" data-duration></span>
     </div>
     <p class="text-[.85rem] text-muted" data-fields-title><span data-result-agent></span> tomó estos datos:</p>

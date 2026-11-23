@@ -59,7 +59,6 @@ const DEF = {
   fields: {},
   completion: {
     when: 'all_required_fields_completed',
-    outcomes: [{ id: 'ok', label: 'ok', when: {}, message: 'm', goal: true }],
   },
 };
 

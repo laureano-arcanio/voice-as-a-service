@@ -29,7 +29,6 @@ const DEF = {
     summary: true,
     instructions: '',
     fields: [{ name: 'quiere', description: 'Quiere', type: 'boolean' }],
-    outcomes: [{ id: 'ok', label: 'Ok', when: { quiere: true }, goal: true }],
   },
 } as Definition;
 

@@ -102,26 +102,38 @@ async def test_the_llm_decides_when_it_ends(store):
     state, turn = await turn_and_extract(engine, cid, "Juan, no me interesa, chau.")
     assert turn.status == "completed" and state.status == "completed"
     assert turn.assistant_message == "Chau."
-    assert state.progress.outcome == "no_demo"
+    assert state.progress.outcome is None
 
 
-async def test_outcome_is_recorded_after_the_extraction(store):
+def _row(store, cid):
+    from app.models import ConversationRow
+
+    with store.sessions() as s:
+        return s.get(ConversationRow, cid)
+
+
+async def test_completing_leaves_no_outcome(store):
+    """El resultado es solo de plataforma: un cierre normal (aunque la extraccion encuentre datos) queda
+    outcome None y conversion complete."""
     llm = FakeLLM(AgentTurn(assistant_message="Listo.", status="completed"),
                   extractions=[{"wants_demo": True, "email": "juan@acme.com"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
     state, _ = await turn_and_extract(engine, cid, "Sí, a juan arroba acme punto com.")
-    assert state.fields["email"] == "juan@acme.com" and state.progress.outcome == "demo"
+    assert state.fields["email"] == "juan@acme.com" and state.progress.outcome is None
+    row = _row(store, cid)
+    assert row.outcome is None and row.conversion == "complete"
 
 
-async def test_outcome_comes_only_from_the_conditions(store):
-    """Sin datos obligatorios: el resultado es el primero cuyo when se cumple (incompleta ya no se asigna)."""
-    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"),
-                  extractions=[{"wants_demo": True}])
+async def test_off_topic_records_the_platform_outcome(store):
+    """end_call con motivo fuera_de_tema: el unico resultado que asigna la plataforma."""
+    llm = FakeLLM(AgentTurn(assistant_message="Que le vaya bien.", status="completed", end_reason="off_topic"))
     engine = ConversationEngine(llm, store)
-    cid = start_with(engine, **BASE)
-    state, _ = await turn_and_extract(engine, cid, "Sí, pero ahora tengo que cortar.")
-    assert state.progress.outcome == "demo"
+    cid = start_with(engine)
+    state, _ = await turn_and_extract(engine, cid, "Me equivocué de número.")
+    assert state.status == "completed" and state.progress.outcome == "fuera_de_tema"
+    row = _row(store, cid)
+    assert row.outcome == "fuera_de_tema" and row.conversion == "empty"
 
 
 async def test_extracted_email_is_stored_if_valid(store):

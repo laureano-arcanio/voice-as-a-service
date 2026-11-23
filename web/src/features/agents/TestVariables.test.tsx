@@ -12,7 +12,7 @@ const DEF = {
   prompt: 'Saludá con {{saludo}}. La deuda es {{deuda}} y hoy es {{today}}.',
   first_message: '{{saludo}}',
   variables: [{ name: 'deuda', default: '1000', description: 'Lo que debe' }],
-  analysis: { summary: true, instructions: '', fields: [], outcomes: [] },
+  analysis: { summary: true, instructions: '', fields: [] },
 } as Definition;
 
 const CAT = CATALOG;

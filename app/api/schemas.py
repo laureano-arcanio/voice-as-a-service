@@ -1374,7 +1374,6 @@ class CallSummary(BaseModel):
     contact_name: Any = None
     company: Any = None
     outcome: str | None
-    goal: bool
     captured: int
     total: int = Field(description="Datos del análisis de la versión con que corrió la conversación")
     mode: str
@@ -1455,11 +1454,6 @@ class CallInfo(BaseModel):
                                                                  "nadie, el respaldo usado")
 
 
-class OutcomeOut(BaseModel):
-    label: str
-    goal: bool
-
-
 class LlmCall(BaseModel):
     """Una llamada al LLM en un turno (conversacion o extraccion), tal cual."""
     kind: str
@@ -1522,7 +1516,8 @@ class CallDetail(BaseModel):
     created_at: str | None
     workflow_status: str
     fields: list[FieldValue]
-    outcome: OutcomeOut | None
+    # Etiqueta del resultado de plataforma ("Fuera de tema", "Incompleta"); un id viejo de agente, tal cual.
+    outcome: str | None
     messages: list[MessageOut]
     # Del análisis (app/conversation/engine.py): el resumen y las variables de la conversación, en el orden de la
     # definición; las ocultas, enmascaradas.
@@ -1752,11 +1747,6 @@ class DemoField(BaseModel):
     value: Any
 
 
-class DemoOutcome(BaseModel):
-    label: str
-    goal: bool
-
-
 class DemoMessage(BaseModel):
     role: Literal["assistant", "user"]
     text: str
@@ -1769,7 +1759,6 @@ class DemoCallResult(BaseModel):
     duration_seconds: int
     agent_name: str
     completed: bool
-    outcome: DemoOutcome | None
     fields: list[DemoField]
     messages: list[DemoMessage]
 
@@ -2392,7 +2381,6 @@ class CampaignOut(BaseModel):
     eta_minutes: int | None = Field(default=None, description="Al ritmo de los ultimos 15 minutos; null sin ritmo o fuera de curso")
     progress: CampaignProgress
     results: dict[str, int]
-    goal: int | None = Field(default=None, description="Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)")
     minutes_used: int | None = Field(default=None, description="Voz: minutos de llamada")
     followup: dict[str, int] | None = Field(
         default=None, description="Voz con seguimiento: contactos pending, sent, replied (de los enviados), failed y skipped")
@@ -2449,8 +2437,6 @@ class CampaignStatsOut(BaseModel):
     attempts: int
     reached: int
     contact_rate: float = Field(description="reached / attempts, en %")
-    goal: int = Field(description="Conversaciones que llegaron al objetivo del agente")
-    goal_rate: float = Field(description="goal / reached, en %")
     avg_duration_seconds: int | None = Field(default=None, description="Voz: duracion media de las atendidas")
     minutes: int | None = Field(default=None, description="Voz: minutos de llamada, con los intentos que no se atendieron")
     results: dict[str, int] = Field(description="Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied")
@@ -2808,8 +2794,6 @@ class ReportKpisOut(BaseModel):
                                         "llamadas directas del equipo)")
     conversions: int = Field(description="Las que tienen todos los datos requeridos (conversion complete)")
     conversion_pct: float | None = Field(description="conversions / with_agent, en %")
-    goals: int = Field(description="Las que tienen un resultado que cumple el objetivo")
-    goal_pct: float | None = Field(description="goals / with_agent, en %")
     transfers: int = Field(description="Conversaciones con un pedido de derivación a una persona")
     transfers_answered: int = Field(description="Derivaciones atendidas por una persona")
     transfer_pct: float | None
@@ -2868,7 +2852,6 @@ class ReportCallsAgentOut(BaseModel):
     minutes: int
     avg_duration: int | None
     conversion_pct: float | None
-    goal_pct: float | None
 
 
 class ReportCallTypeOut(BaseModel):
@@ -2946,23 +2929,12 @@ class ReportOutcomesAgentOut(BaseModel):
     complete: int
     partial: int
     empty: int
-    goal: int
-
-
-class ReportOutcomeOut(BaseModel):
-    agent_id: str
-    agent_name: str
-    outcome: str
-    label: str
-    goal: bool
-    count: int
 
 
 class ReportFunnelOut(BaseModel):
     conversations: int
     with_data: int
     complete: int
-    goal: int
 
 
 class ReportFieldOut(BaseModel):
@@ -2981,13 +2953,11 @@ class ReportVersionOut(BaseModel):
     version: int
     total: int
     conversion_pct: float | None
-    goal_pct: float | None
 
 
 class ReportOutcomesOut(BaseModel):
     conversion_daily: list[ReportConversionDayOut]
     by_agent: list[ReportOutcomesAgentOut]
-    outcomes: list[ReportOutcomeOut]
     funnel: ReportFunnelOut
     fields: list[ReportFieldOut] = Field(description="Datos del análisis de la versión vigente de cada agente")
     by_version: list[ReportVersionOut]
@@ -3094,13 +3064,6 @@ class ReportSplitStatusOut(BaseModel):
     count: int
 
 
-class ReportSplitOutcomeOut(BaseModel):
-    outcome: str
-    label: str
-    goal: bool
-    count: int
-
-
 class ReportSplitGroupOut(BaseModel):
     """Un brazo del reparto en un experimento y porcentaje (docs/features/EQUIPO_TELEFONIA.md)."""
     experiment: str | None = Field(description="Etiqueta del experimento; agrupa las llamadas, no cambia el sorteo")
@@ -3123,8 +3086,6 @@ class ReportSplitGroupOut(BaseModel):
     handoff_connected: int = Field(description="Llamadas con una derivación atendida")
     callbacks_24h: int = Field(description="Llamadas con otra entrante de los mismos 10 dígitos al mismo número "
                                             "dentro de 24 h del fin")
-    outcomes: list[ReportSplitOutcomeOut] = Field(description="Solo el brazo agente: resultados del análisis")
-    goals: int = Field(description="Solo el brazo agente: conversaciones con objetivo cumplido")
 
 
 class ReportSplitBothArmsOut(BaseModel):
@@ -3152,7 +3113,6 @@ class ReportCampaignOut(BaseModel):
     attempts: int = Field(description="Voz: llamadas; WhatsApp: plantillas enviadas")
     reached: int = Field(description="Voz: atendidas; WhatsApp: respondidas")
     complete: int
-    goal: int
     optouts: int
     minutes: int
 

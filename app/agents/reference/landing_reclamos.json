@@ -65,30 +65,6 @@
         "description": "Teléfono de contacto para el número de reclamo, solo cifras, con la característica, por ejemplo 1155551234.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "reclamo",
-        "label": "Reclamo registrado",
-        "when": {
-          "gestion": "reclamo"
-        },
-        "goal": true
-      },
-      {
-        "id": "consulta",
-        "label": "Consulta respondida",
-        "when": {
-          "gestion": "consulta"
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_terminar",
-        "label": "Sin terminar",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

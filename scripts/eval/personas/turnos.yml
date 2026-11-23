@@ -26,7 +26,7 @@ personas:
         paciente: true
         decision: confirma
         nuevo_turno: null
-      outcome: [confirmado]
+      cierre: [terminada]
     guion:
       - "Sí, soy yo."
       - "Sí, confirmo. ¿Qué tengo que llevar?"
@@ -47,7 +47,7 @@ personas:
         paciente: true
         decision: confirma
         nuevo_turno: null
-      outcome: [confirmado]
+      cierre: [terminada]
     turnos_max: 8
     guion:
       - "Sí."
@@ -70,7 +70,7 @@ personas:
         paciente: true
         decision: confirma
         nuevo_turno: null
-      outcome: [confirmado]
+      cierre: [terminada]
     turnos_max: 14
 
   hostil:
@@ -90,7 +90,7 @@ personas:
         decision: cancela
         nuevo_turno: null
         motivo: ["hora", "esper"]
-      outcome: [cancelado]
+      cierre: [terminada]
     turnos_max: 10
 
   evasivo:
@@ -110,7 +110,7 @@ personas:
         paciente: true
         decision: reprograma
         nuevo_turno: ["{turno_alt_dia}", "{turno_alt_num}", "{turno_alt_clave}"]
-      outcome: [reprogramado]
+      cierre: [terminada]
     prohibido:
       - regex: "(viernes|sábado)[^.?!]*\\b(te anot|queda (confirmado|reservado|agendado|cambiado)|hay (lugar|turno)|tenemos (lugar|turno|disponible)|sí,? (hay|puedo|podemos))"
         motivo: "promete un horario que no existe"
@@ -130,5 +130,5 @@ personas:
         paciente: false
         recado: true
         decision: null
-      outcome: [tercero]
+      cierre: [terminada]
     turnos_max: 8

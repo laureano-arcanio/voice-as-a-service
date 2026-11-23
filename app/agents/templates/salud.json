@@ -52,22 +52,6 @@
         "description": "Si confirma el turno después de que se lo repiten completo. \"Sí\", \"dale\" o \"perfecto\" es true.",
         "type": "boolean"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "turno_dado",
-        "label": "Turno dado",
-        "when": {
-          "confirma": true
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_turno",
-        "label": "Sin turno",
-        "when": {},
-        "goal": false
-      }
     ]
   },
   "turn_attention": {

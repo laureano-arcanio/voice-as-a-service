@@ -1,6 +1,6 @@
-"""Metricas duras de una conversacion (docs/eval/README.md): datos
-contra la ficha, resultado, cierre, loops, reglas de voz por regex, largo y
-latencia del LLM. Sin juez: deterministas y gratis.
+"""Metricas duras de una conversacion (docs/eval/README.md): datos contra la
+ficha, cierre, loops, reglas de voz por regex, largo y latencia del LLM. Sin
+juez: deterministas y gratis.
 """
 import re
 import statistics
@@ -87,9 +87,10 @@ def _pct(xs: list[float], q: float) -> float | None:
     return round(xs[lo] + (xs[hi] - xs[lo]) * (pos - lo), 3)
 
 
-def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes: list[dict],
+def evaluar(escenario, fields: dict, cierre: str, mensajes: list[dict],
             error: str | None, checks: dict | None = None) -> dict:
-    """mensajes: los del estado final (role, text, llm). Devuelve el bloque
+    """mensajes: los del estado final (role, text, llm). cierre: terminada | fuera_de_tema |
+    sin_terminar, lo calcula run.py con el turno que completo. Devuelve el bloque
     `checks` de la conversacion."""
     checks = checks if checks is not None else escenario.checks
     esperado = escenario.esperado
@@ -112,8 +113,8 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
     largos = [len(m.get("text") or "") for m in respuestas]
     ms_turno = [tr["ms"] for m in respuestas for tr in (m.get("llm") or []) if tr.get("kind") == "turno" and tr.get("ms") is not None]
     ms_extr = [tr["ms"] for m in agente for tr in (m.get("llm") or []) if tr.get("kind", "").startswith("extraccion") and tr.get("ms") is not None]
-    termino = status == "completed"
-    outcome_ok = (outcome or ("sin_terminar" if not termino else None)) in (esperado.get("outcome") or [])
+    termino = cierre != "sin_terminar"
+    cierre_ok = cierre in (esperado.get("cierre") or [])
     por_regla: dict[str, int] = {}
     for r in reglas:
         por_regla[r["regla"]] = por_regla.get(r["regla"], 0) + 1
@@ -124,8 +125,8 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
         "datos_falta": sum(r == "falta" for r in datos.values()),
         "datos_mal": sum(r == "mal" for r in datos.values()),
         "inventados": inventados,
-        "outcome": outcome or ("sin_terminar" if not termino else None),
-        "outcome_ok": outcome_ok,
+        "cierre": cierre,
+        "cierre_ok": cierre_ok,
         "termino": termino,
         "turnos": n_turnos,
         "repetidas": repetidas,
@@ -148,5 +149,5 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
 
 def puntaje_problemas(c: dict) -> int:
     """Para ordenar las peores conversaciones: cuanto mas alto, peor."""
-    return (3 * c["datos_mal"] + c["datos_falta"] + 3 * (not c["outcome_ok"]) + 2 * (not c["termino"])
+    return (3 * c["datos_mal"] + c["datos_falta"] + 3 * (not c["cierre_ok"]) + 2 * (not c["termino"])
             + 2 * c["repetidas"] + c["reglas_n"] + 5 * bool(c.get("error")))

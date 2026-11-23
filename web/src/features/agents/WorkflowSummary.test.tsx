@@ -15,12 +15,11 @@ const DEF = {
     summary: true,
     instructions: 'Extraé lo que dijo.',
     fields: [{ name: 'quiere_pagar', label: 'Quiere pagar', description: 'Si dijo que sí', type: 'boolean' }],
-    outcomes: [{ id: 'pago', label: 'Promete pagar', when: { quiere_pagar: true }, goal: true }],
   },
 } as Definition;
 
 describe('WorkflowSummary', () => {
-  it('muestra prompt, variables y análisis, sin obligatorio ni mensaje de cierre', () => {
+  it('muestra prompt, variables y análisis, sin resultados ni mensaje de cierre', () => {
     renderWithProviders(<WorkflowSummary definition={DEF} />, { me: CLIENT_USER });
     expect(screen.getByText(/Sos Sofía/)).toBeInTheDocument();
     expect(screen.getByText('Variables')).toBeInTheDocument();
@@ -29,7 +28,7 @@ describe('WorkflowSummary', () => {
     expect(screen.getByText('Análisis al terminar')).toBeInTheDocument();
     expect(screen.getByText('Sí, un párrafo')).toBeInTheDocument();
     expect(screen.getByText('Quiere pagar')).toBeInTheDocument();
-    expect(screen.queryByText(/Obligatorio/)).toBeNull();
+    expect(screen.queryByText('Resultados')).toBeNull();
     expect(screen.queryByText(/Mensaje de cierre/)).toBeNull();
   });
 

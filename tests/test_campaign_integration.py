@@ -9,11 +9,9 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from app.agents.templates import load_reference
 from app.campaigns.callbacks import CallbackDispatcher, backoff
 from app.campaigns.voicemail import VoicemailDetector, looks_like_voicemail, normalize
 from app.config import settings
-from app.conversation.models import Outcome
 from app.models import (
     Campaign,
     CampaignCallback,
@@ -231,80 +229,6 @@ def test_whatsapp_commercial_campaign_also_asks(api, account):  # noqa: F811
     assert user.post(f"{V1}/campaigns/{camp['id']}/start").status_code == 422
     r = user.post(f"{V1}/campaigns/{camp['id']}/start", json={"no_call_registry_checked": True})
     assert r.status_code == 200 and r.json()["status"] == "running"
-
-
-# ---------- baja por voz (seccion 4) ----------
-
-class StubDefinitions:
-    def __init__(self, workflow):
-        self.workflow = workflow
-
-    def get(self, agent_id, version, session=None):
-        return self.workflow
-
-
-def flagged_workflow(no_contact=True):
-    """El resultado "no_llamar" se elige por el id guardado en la conversacion; su `when` no se cumple solo."""
-    wf = load_reference("sales_discovery").model_copy(deep=True)
-    wf.analysis.outcomes.insert(0, Outcome(id="no_llamar", label="No llamar", when={"baja": True},
-                                           no_contact=no_contact))
-    return wf
-
-
-def test_outcome_flag_is_part_of_the_definition():
-    assert Outcome(id="x", label="X").no_contact is False
-    wf = load_reference("sales_discovery").model_dump()
-    wf["analysis"]["outcomes"][-1:] = [{"id": "baja", "label": "Baja", "when": {}, "no_contact": True}]
-    from app.conversation.models import Workflow
-    assert Workflow.model_validate(wf).outcomes[-1].no_contact is True
-
-
-async def test_no_contact_outcome_adds_a_voice_optout(api, voice):  # noqa: F811
-    user, agent, c = voice
-    camp = make_voice(user, agent, n=2, concurrency=2, rate_per_minute=600)
-    await dialer_for(api).tick()
-    first, second = members(api, camp["id"])
-    for m in (first, second):
-        close(api, m.id, "answered")
-    # La primera conversacion termino en el resultado "no contactar"; la segunda, en uno comun.
-    with api.sessions() as s:
-        for m, outcome in ((first, "no_llamar"), (second, flagged_workflow().outcomes[-1].id)):
-            conv = s.get(ConversationRow, m.conversation_id)
-            conv.status, conv.progress = "completed", {"outcome": outcome}
-        s.commit()
-    defs = StubDefinitions(flagged_workflow())
-    with api.sessions() as s:
-        assert campaign_calls.apply_outcome_optout(s, first.conversation_id, defs) is True
-        assert campaign_calls.apply_outcome_optout(s, second.conversation_id, defs) is False
-        assert campaign_calls.apply_outcome_optout(s, "no-existe", defs) is False
-        s.commit()
-        optouts = list(s.scalars(select(ContactOptout)))
-        assert [(o.client_id, o.phone, o.channel, o.source) for o in optouts] == [
-            (c["id"], "+5493515551001", "voice", "outcome")]
-        # Idempotente.
-        assert campaign_calls.apply_outcome_optout(s, first.conversation_id, defs) is True
-        s.commit()
-        assert len(list(s.scalars(select(ContactOptout)))) == 1
-    # No llamar es de voz: WhatsApp sigue habilitado. Y otra campaña de voz ya no lo marca.
-    assert user.get(f"{V1}/contacts/optouts").json()[0]["channel"] == "voice"
-    other = user.post(f"{V1}/campaigns", json=voice_body(agent, name="Otra", contact_ids=everyone(user), window_start=0, window_end=24,
-                                                         concurrency=5, rate_per_minute=600)).json()
-    assert other["added"] == 1 and other["skipped"][0]["reason"] == "pidió la baja"
-
-
-async def test_outcome_without_the_flag_or_unfinished_does_nothing(api, voice):  # noqa: F811
-    user, agent, _ = voice
-    camp = make_voice(user, agent, n=1, concurrency=1, rate_per_minute=600)
-    await dialer_for(api).tick()
-    (m,) = members(api, camp["id"])
-    defs = StubDefinitions(flagged_workflow(no_contact=False))
-    with api.sessions() as s:
-        conv = s.get(ConversationRow, m.conversation_id)
-        conv.status, conv.progress = "completed", {"outcome": "no_llamar"}
-        s.commit()
-        assert campaign_calls.apply_outcome_optout(s, m.conversation_id, defs) is False
-        conv.status = "active"
-        assert campaign_calls.apply_outcome_optout(s, m.conversation_id, StubDefinitions(flagged_workflow())) is False
 
 
 # ---------- seguimiento por WhatsApp (seccion 6) ----------
@@ -878,7 +802,7 @@ async def test_whatsapp_sender_queues_events_and_followup_ones(api, both, privat
 
 def make_dispatcher(api, handler, now=None, **kw) -> CallbackDispatcher:
     transport = httpx.MockTransport(handler)
-    return CallbackDispatcher(api.sessions, definitions=lambda: api.engine.definitions, now=now or Now(),
+    return CallbackDispatcher(api.sessions, now=now or Now(),
                               client_factory=lambda: httpx.AsyncClient(transport=transport), **kw)
 
 
@@ -920,7 +844,7 @@ async def test_delivery_is_signed_and_has_the_report_fields(api, voice, private_
         "+5493515551001", "Ana1", "done", "busy", 1)
     assert contact["campaign_contact_id"] == a.id and contact["conversation_id"] == a.conversation_id
     assert set(contact) >= {"telefono", "nombre", "vars", "estado", "resultado", "intentos",
-                            "ultimo_intento", "duracion_segundos", "outcome", "objetivo", "campos", "seguimiento",
+                            "ultimo_intento", "duracion_segundos", "campos", "seguimiento",
                             "error", "conversation_id", "link"}
     done = signed_ok(by_event["campaign.finished"])
     assert done["campaign"]["status"] == "done" and done["campaign"]["total"] == 1

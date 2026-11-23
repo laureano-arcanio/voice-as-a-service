@@ -35,10 +35,8 @@ GUIDES = {
    - `analysis`: qué se saca al terminar. `fields` es una lista `[{"name", "type", "description",
      "label", "options"}]` en el orden en que se analizan y en el que salen en el detalle y el email
      (`type`: `string`, `integer`, `boolean`, `email`, `email_or_phone`, `phone` o `choice` con
-     `options`); `summary: true` pide un resumen; `instructions`, en palabras, qué mirar; `outcomes`,
-     los resultados posibles (`id`, `label`, `when` con igualdades sobre los campos, `goal` si es el
-     objetivo y `no_contact` si pidió no ser contactado; el último, sin `when`, es el default). Sin
-     `analysis` no hay datos ni resultado.
+     `options`); `summary: true` pide un resumen; `instructions`, en palabras, qué mirar. Sin
+     `analysis` no hay datos ni resumen (el cierre lo pone el agente con `end_call`).
 4. `validate_agent_definition` hasta que no tenga errores, y `create_agent` (o `update_agent_definition`
    si ya existe: cada cambio es una versión nueva).
 5. Probarlo por texto: `test_agent_start` y varios `test_agent_turn` como si fueras el cliente final,

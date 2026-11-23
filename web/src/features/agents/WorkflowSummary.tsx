@@ -1,9 +1,9 @@
 import { Card, List, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import type { Definition } from '@/api/types';
-import { Dash, OutcomeBadge } from '@/components/Badges';
+import { Dash } from '@/components/Badges';
 import { useLlmConnections } from '@/features/llm/api';
 import { LOCAL_LABEL } from '@/features/llm/labels';
-import { conditionLabel, firstLines, readWorkflow } from './definition';
+import { firstLines, readWorkflow } from './definition';
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -135,8 +135,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
         )}
         {w.external && (
           <Text size="xs" c="dimmed" mb="sm">
-            Con tu propio agente el análisis lo hace tu agente: acá solo se eligen los resultados que puede
-            devolver al llamar a end_call.
+            Con tu propio agente el análisis lo hace tu agente: Atentina no extrae datos ni resumen.
           </Text>
         )}
         {w.analysisInstructions && (
@@ -187,42 +186,6 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
             </Table>
           </Table.ScrollContainer>
         )}
-        <Title order={5} mt="md" mb={4}>
-          Resultados
-        </Title>
-        <Text size="xs" c="dimmed" mb="sm">
-          Clasifican la conversación al terminar (el primero cuyas condiciones se cumplen); el último es el de
-          por defecto.
-        </Text>
-        <Table.ScrollContainer minWidth={640}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Resultado</Table.Th>
-                <Table.Th>Cuándo</Table.Th>
-                <Table.Th>No volver a llamar</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {w.outcomes.map((o) => (
-                <Table.Tr key={o.id}>
-                  <Table.Td>
-                    <OutcomeBadge label={o.label} goal={o.goal} />
-                    {o.goal && (
-                      <Text size="xs" c="dimmed" mt={2}>
-                        Cumple el objetivo
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{conditionLabel(o.when)}</Text>
-                  </Table.Td>
-                  <Table.Td>{o.noContact ? 'Sí' : <Dash />}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
       </Card>
     </Stack>
   );

@@ -629,7 +629,6 @@ def test_contacts_import_ignores_extra_columns(api, voice):
 
 def test_webhook_contact_has_summary_and_visible_variables(sessions):
     """`contact.finished`: el cuerpo suma el resumen del análisis y las variables visibles (las ocultas no salen)."""
-    from app.agents.templates import ReferenceDefinitions
     from app.campaigns.callbacks import payload
 
     with sessions() as s:
@@ -658,6 +657,6 @@ def test_webhook_contact_has_summary_and_visible_variables(sessions):
         row = CampaignCallback(campaign_id=camp.id, campaign_contact_id=member.id, event="contact.finished")
         s.add(row)
         s.commit()
-        body = payload(s, row, camp, ReferenceDefinitions())
+        body = payload(s, row, camp)
     assert body["contact"]["summary"] == "Quiere una demo el jueves."
     assert body["contact"]["variables"] == {"deuda": "125000"}

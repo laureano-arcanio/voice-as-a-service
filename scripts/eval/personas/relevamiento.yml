@@ -31,7 +31,7 @@ personas:
         funcionamiento: bien
         recomendaria: "{puntaje_3}"
         comentario: "*"
-      outcome: [completa]
+      cierre: [terminada]
     guion:
       - "Sí, dale."
       - "{puntaje_1}."
@@ -61,7 +61,7 @@ personas:
         funcionamiento: bien
         recomendaria: "{puntaje_3}"
         comentario: null
-      outcome: [completa]
+      cierre: [terminada]
     turnos_max: 10
     guion:
       - "Sí, rápido."
@@ -95,7 +95,7 @@ personas:
         funcionamiento: con_problemas
         recomendaria: "{puntaje_3}"
         comentario: ["alcance", "wifi", "fondo"]
-      outcome: [completa]
+      cierre: [terminada]
     turnos_max: 14
 
   hostil:
@@ -120,7 +120,7 @@ personas:
         funcionamiento: con_problemas
         recomendaria: 2
         comentario: ["corte"]
-      outcome: [completa]
+      cierre: [terminada]
     turnos_max: 14
 
   evasivo:
@@ -136,7 +136,7 @@ personas:
         acepta: false
         puntualidad: null
         recomendaria: null
-      outcome: [rechaza]
+      cierre: [terminada]
     turnos_max: 6
 
   fuera_de_guion:
@@ -152,5 +152,5 @@ personas:
         acepta: false
         puntualidad: null
         funcionamiento: null
-      outcome: [rechaza, sin_terminar]
+      cierre: [terminada, sin_terminar]
     turnos_max: 6

@@ -55,7 +55,6 @@ class Target:
 @dataclass
 class ExternalResult:
     turn: AgentTurn
-    outcome: str | None         # el de end_call, si vino
     trace: dict
 
 
@@ -172,7 +171,7 @@ class ExternalAgents:
         """El turno del agente del cliente. ExternalError si no contesta (nada se dijo todavia); si se corta
         despues de empezar a hablar, queda lo dicho y el error en la traza."""
         target = self.target(workflow, state.client_id)
-        tools = platform_tools.tools_for(state, [o.id for o in workflow.outcomes] or None, workflow=workflow)
+        tools = platform_tools.tools_for(state, workflow=workflow)
         request = dict(model=target.model, messages=build_messages(workflow, state, user_message), tools=tools,
                        stream=True, user=state.conversation_id,
                        extra_headers=self.headers(workflow, state, actor))
@@ -251,5 +250,5 @@ class ExternalAgents:
     @staticmethod
     def _result(text: str, tools_used: list[dict], state: ConversationState, trace: dict) -> ExternalResult:
         turn = AgentTurn(assistant_message=text)
-        outcome = platform_tools.apply(turn, tools_used, state)
-        return ExternalResult(turn=turn, outcome=outcome, trace=trace)
+        platform_tools.apply(turn, tools_used, state)
+        return ExternalResult(turn=turn, trace=trace)

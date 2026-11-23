@@ -83,11 +83,11 @@ async def conversar(engine: ConversationEngine, esc: Escenario, cliente, canal, 
     async with sem:
         t0 = time.time()
         error, cid, historial, dicho, wall = None, None, [], [], []
+        cierre = None
         try:
             state, opening = engine.start_conversation(esc.agente)
             cid = state.conversation_id
             historial.append(("agente", opening))
-            completed = False
             for _ in range(esc.turnos_max):
                 dice, corta = await cliente.responder(esc, historial)
                 if not dice:
@@ -100,9 +100,10 @@ async def conversar(engine: ConversationEngine, esc: Escenario, cliente, canal, 
                     wall.append(round(time.perf_counter() - t, 3))
                     historial += [("usuario", parte), ("agente", turn.assistant_message)]
                     if turn.status == "completed":
-                        completed = True
+                        # Fuera de tema (end_call con ese motivo) es el unico cierre que no es terminada.
+                        cierre = "fuera_de_tema" if turn.end_reason == "off_topic" else "terminada"
                         break
-                if completed or corta:
+                if cierre or corta:
                     break
             await engine.finish(cid)
             await engine.wait_extraction(cid)
@@ -111,16 +112,16 @@ async def conversar(engine: ConversationEngine, esc: Escenario, cliente, canal, 
         state = engine.store.get(cid) if cid else None
         mensajes = [m.model_dump() for m in state.messages] if state else []
         fields = {k: v for k, v in (state.fields if state else {}).items() if v is not None}
-        outcome = state.progress.outcome if state else None
         status = state.status if state else "error"
+        cierre = cierre or "sin_terminar"
         return {
             "id": esc.id, "grupo": esc.grupo, "agente": esc.agente, "persona": esc.persona, "rep": esc.rep,
             "resumen": esc.resumen, "cliente": cliente.nombre, "canal": canal.nombre,
             "ficha": esc.ficha, "esperado": esc.esperado, "turnos_max": esc.turnos_max,
             "mensajes": mensajes, "dicho": dicho if canal.nombre != "texto" else [],
-            "fields": fields, "status": status, "outcome": outcome, "error": error,
+            "fields": fields, "status": status, "cierre": cierre, "error": error,
             "duracion_s": round(time.time() - t0, 1), "turno_wall_s": wall,
-            "checks": checks.evaluar(esc, fields, outcome, status, mensajes, error),
+            "checks": checks.evaluar(esc, fields, cierre, mensajes, error),
         }
 
 
@@ -221,7 +222,7 @@ async def correr(engine, escs, cliente_para, canal, paralelo, rundir: Path) -> N
             rec = await fut
             out.write(json.dumps(rec, ensure_ascii=False) + "\n")
             c = rec["checks"]
-            estado = rec["error"] or (f"{c['outcome']}{'' if c['outcome_ok'] else ' (esperado ' + '/'.join(rec['esperado'].get('outcome') or []) + ')'}"
+            estado = rec["error"] or (f"{c['cierre']}{'' if c['cierre_ok'] else ' (esperado ' + '/'.join(rec['esperado'].get('cierre') or []) + ')'}"
                                       f"  datos {c['datos_ok']}/{len(c['datos'])}  reglas {c['reglas_n']}")
             print(f"[{i:3}/{len(escs)}] {time.time() - t0:5.0f}s  {rec['id']:38} {c['turnos']:2} turnos  {estado}")
 

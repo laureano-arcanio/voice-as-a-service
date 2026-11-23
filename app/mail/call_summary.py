@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..conversation.models import Workflow
+from ..conversation.workflow import PLATFORM_OUTCOMES
 from ..db import utcnow
 from ..models import Agent, CallMode, CallRow, CallStatus, Client, ConversationRow, PhoneNumber, Role, User
 from . import messages
@@ -65,7 +66,9 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
     reports = Reports(s, definitions)
     workflow = reports.workflow(conv)
     state = state_of(conv)
-    outcome = reports.outcome(workflow, conv)
+    # Solo el resultado de plataforma llega al mail ("Fuera de tema", "Incompleta"); un id viejo de
+    # agente no (para el cliente no dice nada).
+    outcome = PLATFORM_OUTCOMES.get(state.progress.outcome) if state.status == "completed" else None
     agent = s.get(Agent, conv.agent_id) if conv.agent_id else None
     number = s.get(PhoneNumber, call.phone_number_id) if call.phone_number_id else None
     # Los datos en el orden del análisis (la lista de la definición), no el del mapa guardado en jsonb.
@@ -93,7 +96,7 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
         to="", client_name=client.name, agent_name=agent.name if agent else speaker, mode=call.mode,
         phone=phone, client_number=number.e164 if number else None,
         started_at=call.started_at or call.created_at, duration_seconds=call.duration_seconds,
-        outcome=outcome.label if outcome else None, fields=fields, transcript=transcript, truncated=truncated,
+        outcome=outcome, fields=fields, transcript=transcript, truncated=truncated,
         context=state.progress.variables.get("motivo"), summary=state.progress.summary,
         call_url=f"{settings.app_url.rstrip('/')}/calls/{conv.id}")
 

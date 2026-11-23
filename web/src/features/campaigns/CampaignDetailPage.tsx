@@ -119,8 +119,6 @@ function tilesFor(c: Campaign): Tile[] {
     })),
     { label: 'Salteados', value: p.skipped, tone: p.skipped ? ('yellow' as Tone) : undefined },
   ];
-  if (c.goal != null)
-    tiles.push({ label: 'Cumplieron el objetivo', value: c.goal, sub: pct(c.goal, r.answered ?? 0) });
   if (c.minutes_used != null) tiles.push({ label: 'Minutos', value: formatNumber(c.minutes_used, 1) });
   return tiles;
 }
@@ -222,7 +220,6 @@ function StatsCard({ stats }: { stats: CampaignStats }) {
             ({stats.reached} atendidas)
           </Text>
         </Datum>
-        <Datum label="Tasa de objetivo">{formatNumber(stats.goal_rate, 0)} % de las atendidas</Datum>
         <Datum label="Duración media">{formatDuration(stats.avg_duration_seconds)}</Datum>
       </SimpleGrid>
       <Text className="label" mb={6}>

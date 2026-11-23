@@ -112,10 +112,13 @@ def test_definition_validation():
     w = Workflow.model_validate({**base, "engine": "external", "analysis": {"outcomes": [
         {"id": "fin", "label": "Fin"}]}, "external": {"connection": "c", "model": " "}})
     assert w.analysis_fields == {} and w.external.model is None and w.external.on_errors == "hang_up"
-    # Sin analysis, sin resultados: el agente no elige outcome.
+    # Una definicion guardada con outcomes (antes de quitarlos) valida igual: la clave se ignora y al
+    # re-guardar una version (model_dump) queda sin ella.
+    assert "outcomes" not in w.analysis.model_dump()
+    # Sin analysis, sin extraccion de datos ni resumen.
     bare = Workflow.model_validate({"id": "x", "version": 1, "agent": {"name": "A", "language": "es"},
                                     "external": {"connection": "c"}})
-    assert bare.outcomes == [] and bare.analysis is None
+    assert bare.analysis is None
 
 
 def test_create_requires_plan_and_openai_compatible_connection(api, admin):
@@ -164,22 +167,35 @@ async def test_turn_streams_text_and_sends_history_tools_and_headers(api, admin,
         state.messages[0].text, "Quiero un turno", "Hola, ¿en qué te ayudo?", "El jueves"]
 
 
-async def test_end_call_completes_with_outcome(api, admin, endpoint):
+async def test_end_call_completes_and_ignores_an_unknown_outcome(api, admin, endpoint):
+    """end_call cierra la conversacion; un `outcome` que mande un endpoint viejo se ignora sin error
+    (el resultado es solo de plataforma: fuera_de_tema)."""
     state = await start(api, admin)
-    outcomes = [o["id"] for o in reference_data("sales_discovery")["analysis"]["outcomes"]]
     endpoint.replies = [sse({"content": "Chau."}, {"tool_calls": [
         {"index": 0, "id": "c1", "type": "function", "function": {"name": "end_call", "arguments": ""}}]},
-        {"tool_calls": [{"index": 0, "function": {"arguments": json.dumps({"outcome": outcomes[0]})}}]})]
+        {"tool_calls": [{"index": 0, "function": {"arguments": json.dumps({"outcome": "venta"})}}]})]
     state, turn = await api.engine.process_turn(state.conversation_id, "Nada más")
     assert turn.status == "completed" and turn.end_reason is None and turn.assistant_message == "Chau."
-    assert state.status == "completed" and state.progress.outcome == outcomes[0]
+    assert state.status == "completed" and state.progress.outcome is None
 
-    # Un outcome que no existe: el default (el ultimo).
+    # Y tambien si vino en la primera llamada a la herramienta.
     state = await start(api, admin)
     endpoint.replies = [sse({"tool_calls": [{"index": 0, "id": "c", "type": "function",
                                              "function": {"name": "end_call", "arguments": '{"outcome": "x"}'}}]})]
     state, turn = await api.engine.process_turn(state.conversation_id, "Chau")
-    assert turn.status == "completed" and state.progress.outcome == outcomes[-1]
+    assert turn.status == "completed" and state.progress.outcome is None
+
+
+async def test_end_call_off_topic_records_the_platform_outcome(api, admin, endpoint):
+    """Tu propio agente cierra con `motivo`: fuera_de_tema queda como resultado de plataforma, igual que
+    con el LLM de Atentina."""
+    state = await start(api, admin)
+    endpoint.replies = [sse({"tool_calls": [{"index": 0, "id": "c", "type": "function",
+                                             "function": {"name": "end_call",
+                                                          "arguments": '{"motivo": "fuera_de_tema"}'}}]})]
+    state, turn = await api.engine.process_turn(state.conversation_id, "Me equivqué de número")
+    assert (turn.status, turn.end_reason) == ("completed", "off_topic")
+    assert state.status == "completed" and state.progress.outcome == "fuera_de_tema"
 
 
 async def test_transfer_call_only_with_areas(api, admin, endpoint):

@@ -2,7 +2,6 @@ import { Stack, Text } from '@mantine/core';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { formatDuration, formatNumber } from '@/lib/format';
 import { useReport } from './api';
-import { pct } from './format';
 import { ENDED_REASON, label, SPLIT_ARM, SPLIT_REASON } from './labels';
 import { KpiGrid, ReportCard, ReportTable, type Column } from './parts';
 import type { ReportQuery, SplitGroup, SplitReport } from './types';
@@ -43,9 +42,6 @@ function comparison(arms: SplitGroup[]): Row[] {
     row('Cortes antes de 15 s', (g) => formatNumber(g.early_hangups, 0)),
     row('Duración P50', (g) => formatDuration(g.duration_p50)),
     row('Duración P90', (g) => formatDuration(g.duration_p90)),
-    row('Llamadas con objetivo cumplido', (g) =>
-      g.arm === 'agent' ? `${formatNumber(g.goals, 0)} de ${formatNumber(g.calls, 0)}` : '–',
-    ),
   ];
 }
 
@@ -75,17 +71,6 @@ const ENDED_COLS: Column<EndedRow>[] = [
     value: (r) => label(ENDED_REASON, r.reason),
   },
   { label: 'Llamadas', value: 'count', num: true },
-];
-
-type OutcomeRow = { label: string; goal: boolean; count: number; pct: string };
-
-const OUTCOME_COLS: Column<OutcomeRow>[] = [
-  {
-    label: 'Resultado',
-    value: (r) => (r.goal ? `${r.label} (objetivo)` : r.label),
-  },
-  { label: 'Llamadas', value: 'count', num: true },
-  { label: '% del brazo agente', value: 'pct', num: true },
 ];
 
 export function SplitTab({ query }: { query: ReportQuery }) {
@@ -122,19 +107,12 @@ export function SplitTab({ query }: { query: ReportQuery }) {
               const title = `Reparto${b.percent != null ? ` ${b.percent} % al agente` : ''}${
                 b.experiment ? ` · experimento ${b.experiment}` : ''
               }`;
-              const agent = armOf(b.arms, 'agent');
               const reasons: ReasonRow[] = b.arms.flatMap((g) =>
                 g.reasons.map((x) => ({ arm: label(SPLIT_ARM, g.arm), reason: x.reason, count: x.count })),
               );
               const ended: EndedRow[] = b.arms.flatMap((g) =>
                 g.ended.map((x) => ({ arm: label(SPLIT_ARM, g.arm), reason: x.reason, count: x.count })),
               );
-              const outcomes: OutcomeRow[] = (agent?.outcomes ?? []).map((o) => ({
-                label: o.label,
-                goal: o.goal,
-                count: o.count,
-                pct: pct(agent?.calls ? (o.count / agent.calls) * 100 : null),
-              }));
               return (
                 <Stack key={`${b.experiment ?? ''}-${b.percent ?? ''}`} gap="md">
                   <ReportCard
@@ -182,22 +160,6 @@ export function SplitTab({ query }: { query: ReportQuery }) {
                       }}
                     >
                       <ReportTable rows={ended} columns={ENDED_COLS} rowKey={(x, i) => `${x.arm}-${i}`} />
-                    </ReportCard>
-                  )}
-                  {outcomes.length > 0 && (
-                    <ReportCard
-                      title="Resultados del brazo agente"
-                      csv={{
-                        rows: outcomes,
-                        columns: [
-                          { label: 'Resultado', value: 'label' },
-                          { label: 'Objetivo', value: (x) => (x.goal ? 'Sí' : 'No') },
-                          { label: 'Llamadas', value: 'count' },
-                          { label: '% del brazo agente', value: 'pct' },
-                        ],
-                      }}
-                    >
-                      <ReportTable rows={outcomes} columns={OUTCOME_COLS} rowKey={(x) => x.label} />
                     </ReportCard>
                   )}
                 </Stack>

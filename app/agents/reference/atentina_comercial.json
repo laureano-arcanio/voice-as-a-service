@@ -83,22 +83,6 @@
         "description": "Correo electrónico del interesado para coordinar la reunión",
         "type": "email"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "reunion",
-        "label": "Pide reunión",
-        "when": {
-          "wants_meeting": true
-        },
-        "goal": true
-      },
-      {
-        "id": "interesado",
-        "label": "Interesado sin reunión",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }

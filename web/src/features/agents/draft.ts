@@ -100,7 +100,6 @@ export const SECTION_PART: Record<string, Part> = {
   variables: 'conversacion',
   analisis: 'datos',
   dato: 'datos',
-  resultado: 'datos',
   herramientas: 'herramientas',
   derivacion: 'herramientas',
   automaticas: 'herramientas',
@@ -109,13 +108,6 @@ export const SECTION_PART: Record<string, Part> = {
   externo: 'modelo',
   modelo: 'modelo',
 };
-export type ConditionValue = string | number | boolean;
-
-export interface ConditionDraft {
-  key: string;
-  field: string;
-  value: ConditionValue | null;
-}
 
 /** Un dato del analisis (Analysis.fields). Lista y no mapa: el orden es el del analisis y de jsonb. */
 export interface FieldDraft {
@@ -125,17 +117,6 @@ export interface FieldDraft {
   type: FieldType;
   options: string[];
   description: string;
-}
-
-/** Un resultado del analisis (Analysis.outcomes): el primero cuyo `when` se cumple; el ultimo es el default. */
-export interface OutcomeDraft {
-  key: string;
-  id: string;
-  label: string;
-  goal: boolean;
-  /** Campañas de voz: el contacto pidió que no lo llamen más; el teléfono pasa a la lista de bajas. */
-  noContact: boolean;
-  conditions: ConditionDraft[];
 }
 
 export type VariableValue = string | number | boolean;
@@ -148,13 +129,12 @@ export interface VariableDraft {
   description: string;
 }
 
-/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos, instrucciones ni resultados, no va a
+/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos ni instrucciones, no va a
  * la definicion: un agente sin analisis no extrae nada. */
 export interface AnalysisDraft {
   summary: boolean;
   instructions: string;
   fields: FieldDraft[];
-  outcomes: OutcomeDraft[];
 }
 
 /** Un parametro de generacion enviado al LLM (app/llm/params.py), agregado por el usuario. */
@@ -484,21 +464,6 @@ const obj = (x: unknown): Record<string, unknown> =>
   x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
 const str = (x: unknown): string => (typeof x === 'string' ? x : x == null ? '' : String(x));
 
-function toConditions(when: unknown): ConditionDraft[] {
-  return Object.entries(obj(when)).map(([field, value]) => ({
-    key: newKey(),
-    field,
-    value:
-      typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : null,
-  }));
-}
-
-function fromConditions(conditions: ConditionDraft[]): Record<string, ConditionValue> {
-  const out: Record<string, ConditionValue> = {};
-  for (const c of conditions) if (c.field && c.value !== null && c.value !== '') out[c.field] = c.value;
-  return out;
-}
-
 function toVariables(raw: unknown): VariableDraft[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r) => {
@@ -531,21 +496,6 @@ function toFields(raw: unknown): FieldDraft[] {
   });
 }
 
-function toOutcomes(raw: unknown): OutcomeDraft[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((r) => {
-    const o = obj(r);
-    return {
-      key: newKey(),
-      id: str(o.id),
-      label: str(o.label),
-      goal: o.goal === true,
-      noContact: o.no_contact === true,
-      conditions: toConditions(o.when),
-    };
-  });
-}
-
 export function toDraft(d: Definition): Draft {
   const agent = obj(d.agent);
   const analysis = d.analysis != null && typeof d.analysis === 'object' ? obj(d.analysis) : {};
@@ -569,7 +519,6 @@ export function toDraft(d: Definition): Draft {
       summary: analysis.summary !== false,
       instructions: str(analysis.instructions),
       fields: toFields(analysis.fields),
-      outcomes: toOutcomes(analysis.outcomes),
     },
     // Las entradas viejas de apps ({app, tools}) no tienen tool: se descartan, como en el servidor.
     clientTools: (Array.isArray(d.tools) ? d.tools : [])
@@ -589,9 +538,9 @@ export function toDraft(d: Definition): Draft {
   };
 }
 
-/** Sin datos, instrucciones ni resultados no hay analisis: el agente no extrae nada al terminar. */
+/** Sin datos ni instrucciones no hay analisis: el agente no extrae nada al terminar. */
 export function hasAnalysis(a: AnalysisDraft): boolean {
-  return a.fields.length > 0 || a.outcomes.length > 0 || a.instructions.trim() !== '';
+  return a.fields.length > 0 || a.instructions.trim() !== '';
 }
 
 /** Los datos del analisis como van a la definicion, en el orden de las filas. */
@@ -613,7 +562,6 @@ function fromVariables(variables: VariableDraft[]): Record<string, unknown>[] {
 }
 
 export function fromDraft(draft: Draft): Definition {
-  const last = draft.analysis.outcomes.length - 1;
   const handoff = fromHandoffDraft(draft.handoff);
   const turnAttention = fromTurnAttentionDraft(draft.turnAttention);
   const workflows = fromWorkflowsDraft(draft.workflows);
@@ -651,15 +599,6 @@ export function fromDraft(draft: Draft): Definition {
             summary: draft.analysis.summary,
             instructions: draft.analysis.instructions,
             fields: fromFields(draft.analysis.fields),
-            outcomes: draft.analysis.outcomes.map((o, i) => ({
-              id: o.id,
-              label: o.label,
-              // El ultimo es el resultado por defecto: sin condiciones.
-              when: i === last ? {} : fromConditions(o.conditions),
-              goal: o.goal,
-              // Solo si esta marcado: las definiciones sin la bandera quedan igual.
-              ...(o.noContact ? { no_contact: true } : {}),
-            })),
           },
         }
       : {}),
@@ -736,31 +675,15 @@ export function withPhoneField(draft: Draft): Draft {
   return { ...draft, analysis: { ...draft.analysis, fields: [...draft.analysis.fields, field] } };
 }
 
-export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
-  const ids = new Set(outcomes.map((o) => o.id));
-  let n = outcomes.length;
-  while (ids.has(`resultado_${n}`)) n++;
-  return {
-    key: newKey(),
-    id: `resultado_${n}`,
-    label: '',
-    goal: false,
-    noContact: false,
-    conditions: [],
-  };
-}
-
-/** Renombra un dato del analisis y lo que lo nombra (las condiciones de los resultados). */
+/** Renombra un dato del analisis. */
 export function renameField(draft: Draft, index: number, name: string): Draft {
   const old = draft.analysis.fields[index]?.name;
   if (old === undefined) return draft;
-  const fix = (cs: ConditionDraft[]) => cs.map((c) => (c.field === old ? { ...c, field: name } : c));
   return {
     ...draft,
     analysis: {
       ...draft.analysis,
       fields: draft.analysis.fields.map((f, i) => (i === index ? { ...f, name } : f)),
-      outcomes: draft.analysis.outcomes.map((o) => ({ ...o, conditions: fix(o.conditions) })),
     },
   };
 }
@@ -786,7 +709,6 @@ export function keepKeys(draft: Draft, fresh: Draft): Draft {
     analysis: {
       ...fresh.analysis,
       fields: keep(draft.analysis.fields, fresh.analysis.fields, (f) => f.name),
-      outcomes: keep(draft.analysis.outcomes, fresh.analysis.outcomes, (o) => o.id),
     },
   };
 }
@@ -835,15 +757,7 @@ export type ErrorTarget =
         | 'externo';
     }
   | { section: 'variable'; key: string }
-  | { section: 'dato'; key: string }
-  | { section: 'resultado'; key: string };
-
-/** El resultado de una ruta: por indice (pydantic) o por id (validaciones propias). */
-function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefined {
-  if (seg === undefined) return undefined;
-  const list = draft.analysis.outcomes;
-  return /^\d+$/.test(seg) ? list[Number(seg)] : list.find((o) => o.id === seg);
-}
+  | { section: 'dato'; key: string };
 
 /** La fila de una lista por indice (las dos son listas en la definicion). */
 function at<T>(list: T[], seg: string | undefined): T | undefined {
@@ -880,10 +794,6 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
       const f = at(draft.analysis.fields, third);
       return f ? { section: 'dato', key: f.key } : { section: 'analisis' };
     }
-    if (second === 'outcomes') {
-      const o = outcomeAt(draft, third);
-      return o ? { section: 'resultado', key: o.key } : { section: 'analisis' };
-    }
     return { section: 'analisis' };
   }
   return null;
@@ -912,11 +822,8 @@ const PATH_WORDS: Record<string, string> = {
   label: 'etiqueta',
   type: 'tipo',
   options: 'opciones',
-  outcomes: '',
   id: 'ID',
   when: 'condiciones',
-  goal: 'objetivo cumplido',
-  no_contact: 'no volver a llamar',
   tools: 'Herramientas',
   tool: 'herramienta',
   tool_settings: 'Herramientas',
@@ -972,10 +879,7 @@ export function pathLabel(draft: Draft, path: string): string {
       out.push(draft.variables[Number(p)]?.name || `variable ${Number(p) + 1}`);
     else if (prev === 'fields' && /^\d+$/.test(p))
       out.push(draft.analysis.fields[Number(p)]?.name || `dato ${Number(p) + 1}`);
-    else if (prev === 'outcomes') {
-      const o = outcomeAt(draft, p);
-      out.push(o?.label || o?.id || p);
-    } else if (prev === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
+    else if (prev === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
     else if (prev === 'stages' && /^\d+$/.test(p)) out.push(`etapa ${Number(p) + 1}`);
     else if (prev === 'areas' && /^\d+$/.test(p)) out.push(`área ${Number(p) + 1}`);
     else if (prev === 'tools' && /^\d+$/.test(p))

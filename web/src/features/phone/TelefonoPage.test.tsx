@@ -59,7 +59,6 @@ const MY_CALL = {
   contact_name: 'Luis Gómez',
   company: null,
   outcome: null,
-  goal: false,
   captured: 0,
   required: 0,
   mode: 'directa',

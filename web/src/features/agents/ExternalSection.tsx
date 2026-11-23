@@ -191,9 +191,9 @@ export function ExternalSection({
               />
             </SimpleGrid>
             <Text size="xs" c="dimmed">
-              Tu agente recibe dos herramientas: end_call (cortar, con el resultado de la conversación) y, si
-              el agente tiene áreas, transfer_call (pasar la llamada). Los datos de la llamada llegan en los
-              headers X-Atentina-*.
+              Tu agente recibe dos herramientas: end_call (cortar; con motivo avisa si la conversación fue
+              fuera de tema) y, si el agente tiene áreas, transfer_call (pasar la llamada). Los datos de la
+              llamada llegan en los headers X-Atentina-*.
             </Text>
           </>
         )}

@@ -276,7 +276,7 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
     const target = errorTarget(draft, path);
     if (!target) return;
     let id: string;
-    if (target.section === 'dato' || target.section === 'resultado') {
+    if (target.section === 'dato') {
       toggle(target.key, true);
       id = sectionId(`${target.section}-${target.key}`);
     } else id = sectionId(target.section);

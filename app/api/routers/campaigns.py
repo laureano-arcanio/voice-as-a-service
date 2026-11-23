@@ -31,7 +31,7 @@ from ...services import campaigns as common
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import Principal
 from ...whatsapp import campaigns as wa
-from ..deps import DB, CurrentPrincipal, Definitions, scoped_client_id
+from ..deps import DB, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     CampaignContactIn,
     CampaignContactOut,
@@ -277,14 +277,10 @@ def campaign_plan(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 
 @router.get("/{campaign_id}", response_model=CampaignOut)
-def get_campaign(campaign_id: str, p: CurrentPrincipal, db: DB, definitions: Definitions):
-    """El estado y el avance de la campaña, para consultar cada pocos segundos: `progress` (contactos
-    por estado), `results`, `percent`, `eta_minutes` y, en voz, `goal` y `minutes_used`."""
-    c = _get(db, campaign_id, p)
-    out = _out(db, c)
-    if c.channel == "voice":     # recorre las conversaciones atendidas: solo en el detalle, no en la lista
-        out.goal = campaign_reports.goal_count(db, c, definitions)
-    return out
+def get_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+    """El estado y el avance de la campaña, para consultar cada pocos segundos: `progress`, `results`,
+    `percent`, `eta_minutes` y `minutes_used`."""
+    return _out(db, _get(db, campaign_id, p))
 
 
 @router.patch("/{campaign_id}", response_model=CampaignOut)
@@ -365,18 +361,18 @@ def list_campaign_contacts(
 
 
 @router.get("/{campaign_id}/stats", response_model=CampaignStatsOut)
-def campaign_stats(campaign_id: str, p: CurrentPrincipal, db: DB, definitions: Definitions):
-    """Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios), tasa
-    de objetivo, duracion media, minutos, distribucion de resultados y llamadas por hora del dia."""
-    return campaign_reports.stats(db, _get(db, campaign_id, p), definitions)
+def campaign_stats(campaign_id: str, p: CurrentPrincipal, db: DB):
+    """Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios),
+    duracion media, minutos, distribucion de resultados y llamadas por hora del dia."""
+    return campaign_reports.stats(db, _get(db, campaign_id, p))
 
 
 @router.get("/{campaign_id}/report.csv", response_class=Response, responses={200: {"content": {"text/csv": {}}}})
-def campaign_report(campaign_id: str, p: CurrentPrincipal, db: DB, definitions: Definitions):
+def campaign_report(campaign_id: str, p: CurrentPrincipal, db: DB):
     """El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,
-    duracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion."""
+    duracion, campos capturados, seguimiento y link a la conversacion."""
     c = _get(db, campaign_id, p)
-    return Response(campaign_reports.report_csv(db, c, definitions), media_type="text/csv; charset=utf-8",
+    return Response(campaign_reports.report_csv(db, c), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="campana-{c.id[:8]}.csv"'})
 
 

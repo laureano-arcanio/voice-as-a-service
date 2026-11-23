@@ -40,12 +40,13 @@ def test_converts_and_validates_with_every_old_section(path):
         assert " ".join(o["message"].split()) in prompt
     for title in ("# Objetivo", "# Datos a pedir", "# Cómo conversar", "# Cierres"):
         assert title in prompt
-    # El primer mensaje, la apertura; el analisis, los campos por prioridad y los resultados sin mensaje.
+    # El primer mensaje, la apertura; el analisis, los campos por prioridad (los outcomes viejos no se
+    # convierten: el resultado es solo de plataforma y su texto quedo en el prompt).
     assert w.first_message == old["conversation"]["opening"]
     by_priority = [n for n, _ in sorted(old["fields"].items(), key=lambda kv: kv[1]["priority"])]
     assert list(w.analysis_fields) == by_priority
     assert all(spec.type != "digits" for spec in w.analysis_fields.values())
-    assert [o.id for o in w.outcomes] == [o["id"] for o in old["completion"]["outcomes"]]
+    assert "outcomes" not in (w.analysis.model_dump() if w.analysis else {})
     assert w.analysis.summary is True
 
 

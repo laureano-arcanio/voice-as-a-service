@@ -111,10 +111,6 @@ const agentDefinition = `{
       {"name": "contact_name", "type": "string", "label": "Nombre", "description": "Nombre de la persona"},
       {"name": "wants_demo", "type": "boolean", "label": "Quiere demo", "description": "Quiere una reunión o una demo"},
       {"name": "topic", "type": "choice", "label": "Tema", "description": "Qué vino a resolver", "options": ["turnos", "precios", "otro"]}
-    ],
-    "outcomes": [
-      {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "goal": true},
-      {"id": "otro", "label": "Sin demo"}
     ]
   }
 }`;
@@ -199,7 +195,7 @@ const planErrors = [
 const reportEndpoints = [
   { path: "GET /reports/summary", plan: "Todos", text: "Consultas por día y canal con cuántas terminaron en una transferencia, indicadores contra el período anterior (cantidades y porcentajes)" },
   { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea, por agente, por tipo (agente, directas y entrantes del equipo) y por usuario, duración, cómo terminaron y llamantes nuevos o que vuelven" },
-  { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
+  { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos) por día y por agente, embudo, datos capturados por campo y comparación por versión del agente" },
   { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
   { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo" },
   { path: "GET /reports/split", plan: "Completos", text: "Reparto agente/equipo de las entrantes: por experimento, porcentaje y brazo, llamadas, llamantes, motivos, duración, derivaciones, rellamadas en 24 h y resultados del brazo agente; los llamantes que pasaron por los dos brazos" },
@@ -666,7 +662,7 @@ const campaignEndpoints = [
         <li><strong><code>variables</code></strong>: las que el prompt y el primer mensaje nombran con <code>{"{{"}nombre{"}}"}</code>, como lista de <code>{"{"}"name", "default", "description"{"}"}</code> (hasta 30; el nombre en minúsculas, números y <code>_</code>; el <code>default</code>, de hasta 2.000 caracteres). Lista y no objeto porque la definición se guarda en un JSON de base que no conserva el orden de las claves, y el orden es el del panel y los reportes. Un <code>{"{{"}x{"}}"}</code> sin declarar vale igual: puede venir de un contacto, de una campaña o de una herramienta.</li>
         <li><strong>De dónde sale cada valor</strong>, de menor a mayor prioridad: el <code>default</code> de <code>variables</code>; los datos de la persona (su ficha de la agenda o las <a href="#campanas">columnas del CSV de la campaña</a>, con el nombre del encabezado); las <code>variables</code> del pedido (<code>POST /calls</code>, <code>POST /conversations</code>); el <code>assign</code> de la herramienta de antes de la conversación; el <code>assign</code> de una herramienta durante la conversación, que siempre pisa. Las del sistema no se declaran ni se pueden pisar: <code>{"{{"}call.from{"}}"}</code>, <code>{"{{"}call.to{"}}"}</code>, <code>{"{{"}call.phone{"}}"}</code> (la otra punta), <code>{"{{"}call.direction{"}}"}</code>, <code>{"{{"}call.mode{"}}"}</code>, <code>{"{{"}call.id{"}}"}</code>, <code>{"{{"}channel{"}}"}</code>, <code>{"{{"}today{"}}"}</code>, <code>{"{{"}now{"}}"}</code>, <code>{"{{"}agent.slug{"}}"}</code> y <code>{"{{"}agent.version{"}}"}</code>. Un valor de hasta 2.000 caracteres; el texto se sustituye una sola vez, y lo que no tiene valor queda vacío.</li>
         <li><strong>Una variable oculta</strong> (<code>hide</code> en el <code>assign</code> de una herramienta) llega a las herramientas y nunca al modelo: es para un token o un dato interno que el agente no tiene que decir ni leer.</li>
-        <li><strong><code>analysis</code></strong> (opcional): lo que se saca al terminar, en una llamada guiada. <code>fields</code> es una lista de <code>{"{"}"name", "type", "description", "label", "options"{"}"}</code> y su orden es el del análisis, el detalle, el email y el reporte; <code>type</code> es <code>string</code>, <code>integer</code>, <code>boolean</code>, <code>email</code>, <code>email_or_phone</code>, <code>phone</code> o <code>choice</code> (con <code>options</code>). <code>summary</code> pide un resumen e <code>instructions</code> explica qué mirar. En <code>outcomes</code> gana el primero cuyo <code>when</code> (igualdades sobre esos campos) se cumple; si hay resultados, el último va sin <code>when</code> y es el que vale por defecto; <code>goal</code> lo marca como objetivo y <code>no_contact</code> da de baja el teléfono en las campañas. Sin <code>analysis</code> no se extraen datos ni hay resultado.</li>
+        <li><strong><code>analysis</code></strong> (opcional): lo que se saca al terminar, en una llamada guiada. <code>fields</code> es una lista de <code>{"{"}"name", "type", "description", "label", "options"{"}"}</code> y su orden es el del análisis, el detalle, el email y el reporte; <code>type</code> es <code>string</code>, <code>integer</code>, <code>boolean</code>, <code>email</code>, <code>email_or_phone</code>, <code>phone</code> o <code>choice</code> (con <code>options</code>). <code>summary</code> pide un resumen e <code>instructions</code> explica qué mirar. Sin <code>analysis</code> no se extraen datos ni resumen.</li>
       </ul>
 
       <h3>Una llamada</h3>

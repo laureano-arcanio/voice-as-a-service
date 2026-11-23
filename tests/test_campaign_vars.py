@@ -8,7 +8,6 @@ import io
 import pytest
 from sqlalchemy import select
 
-from app.agents.definitions import DbDefinitions
 from app.agents.templates import load_reference, reference_data
 from app.conversation import variables
 from app.conversation.engine import ConversationEngine
@@ -152,12 +151,26 @@ async def test_the_call_carries_the_contact_data(api, cobranza):
 
 # ---------- reporte e indicadores ----------
 
+def at_hour(hour: int) -> datetime.datetime:
+    """Esa hora local (UTC-3) del 19-oct-2026, como fecha UTC naive: el reporte agrupa por hora local."""
+    return datetime.datetime(2026, 10, 19, hour + 3, 0, tzinfo=datetime.UTC).replace(tzinfo=None)
+
+
+def fix_hour(api, member: CampaignContact, hour: int):
+    """La hora del intento de un contacto que no llego a atenderse: todas las llamadas con hora fija,
+    nunca la del reloj (si no, el reporte por hora depende de cuando corra el test)."""
+    with api.sessions() as s:
+        call = s.scalar(select(CallRow).where(CallRow.campaign_contact_id == member.id))
+        call.created_at = at_hour(hour)
+        s.commit()
+
+
 def answer(api, member: CampaignContact, *, seconds=60, hour=14, promesa=None):
     """El intento atendido: la llamada se conecto, duro `seconds` y la conversacion termino con esa promesa."""
     with api.sessions() as s:
         call = s.scalar(select(CallRow).where(CallRow.campaign_contact_id == member.id))
         call.status, call.duration_seconds = "finalizada", seconds
-        call.created_at = call.started_at = datetime.datetime(2026, 10, 19, hour + 3, 0, tzinfo=datetime.UTC).replace(tzinfo=None)    # hora local = UTC-3
+        call.created_at = call.started_at = at_hour(hour)
         s.commit()
     if promesa:
         state = api.engine.store.get(member.conversation_id)
@@ -177,6 +190,8 @@ async def test_report_csv_and_stats(api, cobranza):
     answer(api, b, seconds=60, hour=14, promesa="ya_pago")             # atendio, sin objetivo
     close(api, c.id, "busy")                                            # reintenta
     close(api, d.id, "invalid", error={"message": "Número inexistente"})
+    fix_hour(api, c, 15)                                                # los intentos no atendidos, tambien con hora fija (15)
+    fix_hour(api, d, 15)
 
     r = user.get(f"{V1}/campaigns/{camp['id']}/report.csv")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
@@ -187,19 +202,17 @@ async def test_report_csv_and_stats(api, cobranza):
     a, bb, cc, dd = table
     assert (a["telefono"], a["nombre"], a["estado"], a["resultado"], a["intentos"]) == (
         "+5493515551001", "Ana", "done", "answered", "1")
-    assert (a["duracion_segundos"], a["outcome"]) == ("120", "Compromiso de pago total")
-    assert (bb["duracion_segundos"], bb["outcome"]) == ("60", "Dice que ya pagó")
-    assert (a["objetivo"], bb["objetivo"]) == ("si", "no")
+    assert a["duracion_segundos"] == "120" and bb["duracion_segundos"] == "60"
     assert '"email":"ana@x.com"' in a["vars"] and '"promesa":"paga_total"' in a["campos"]
     assert a["conversation_id"] == ana.conversation_id and a["link"].endswith(f"/calls/{ana.conversation_id}")
-    assert (cc["estado"], cc["resultado"], cc["intentos"], cc["objetivo"]) == ("retry", "busy", "1", "")
+    assert (cc["estado"], cc["resultado"], cc["intentos"]) == ("retry", "busy", "1")
     assert (dd["estado"], dd["resultado"], dd["error"]) == ("failed", "invalid", "Número inexistente")
     assert user.get(f"{V1}/campaigns/{camp['id']}/report.csv").status_code == 200
     assert api.client.get(f"{V1}/campaigns/{camp['id']}/report.csv").status_code == 401
 
     st = user.get(f"{V1}/campaigns/{camp['id']}/stats").json()
     assert (st["channel"], st["contacts"], st["attempts"], st["reached"]) == ("voice", 4, 4, 2)
-    assert st["contact_rate"] == 50.0 and st["goal"] == 1 and st["goal_rate"] == 50.0
+    assert st["contact_rate"] == 50.0
     assert st["avg_duration_seconds"] == 90 and st["minutes"] == 3.0
     assert st["results"]["answered"] == 2 and st["results"]["busy"] == 1 and st["results"]["invalid"] == 1
     by_hour = {h["hour"]: h for h in st["by_hour"]}
@@ -239,7 +252,6 @@ async def test_calls_and_stats_filter_by_campaign(api, cobranza):
     page = user.get(f"{V1}/calls", params={"campaign_id": camp["id"]}).json()
     assert page["total"] == 2 and {i["id"] for i in page["items"]} >= {ana.conversation_id}
     assert other.json()["conversation_id"] not in {i["id"] for i in page["items"]}
-    assert sum(bool(i["goal"]) for i in page["items"]) == 1
     assert user.get(f"{V1}/calls", params={"campaign_id": "inexistente"}).json()["total"] == 0
 
 
@@ -261,11 +273,10 @@ async def test_whatsapp_campaign_report_and_stats(sessions):
     await send(w, status_payload("status_read.json", "wamid.tpl1"))
     await send(w, text_payload("sí, contame", "wamid.in1"))
     (conv,) = conversations(sessions)
-    definitions = DbDefinitions(sessions)
     with sessions() as s:
         camp = s.get(Campaign, cid)
-        st = campaign_reports.stats(s, camp, definitions)
-        table = list(csv.DictReader(io.StringIO(campaign_reports.report_csv(s, camp, definitions).lstrip("﻿"))))
+        st = campaign_reports.stats(s, camp)
+        table = list(csv.DictReader(io.StringIO(campaign_reports.report_csv(s, camp).lstrip("﻿"))))
     assert (st["channel"], st["contacts"], st["attempts"], st["reached"], st["contact_rate"]) == (
         "whatsapp", 2, 2, 1, 50.0)
     assert st["results"] == {"sent": 2, "delivered": 1, "read": 1, "replied": 1}

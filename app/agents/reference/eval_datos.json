@@ -41,38 +41,6 @@
         "description": "Número de DNI, solo cifras, sin puntos, por ejemplo 28456789.",
         "type": "string"
       }
-    ],
-    "outcomes": [
-      {
-        "id": "tercero",
-        "label": "Atendió otra persona",
-        "when": {
-          "titular": false
-        },
-        "goal": false
-      },
-      {
-        "id": "rechaza",
-        "label": "No quiso dar datos",
-        "when": {
-          "acepta": false
-        },
-        "goal": false
-      },
-      {
-        "id": "actualizado",
-        "label": "Datos actualizados",
-        "when": {
-          "acepta": true
-        },
-        "goal": true
-      },
-      {
-        "id": "sin_terminar",
-        "label": "Sin terminar",
-        "when": {},
-        "goal": false
-      }
     ]
   }
 }
