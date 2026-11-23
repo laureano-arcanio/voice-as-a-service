@@ -119,8 +119,8 @@ function TemplateField({
 
 /**
  * WhatsApp de un area (docs/features/EQUIPO_TELEFONIA.md): el numero, las plantillas aprobadas y la espera.
- * En un area de llamada, la plantilla rota entre las personas y la de la llamada acompana al timbre; en un area
- * de aviso, la plantilla es el aviso.
+ * En un area de llamada, la plantilla rota entre las personas, la de la llamada acompana al timbre y la de al
+ * aceptar le llega a quien toma la llamada; en un area de aviso, la plantilla es el aviso.
  */
 export function AreaWhatsapp({
   value,
@@ -160,9 +160,9 @@ function WhatsappConnected({
   const notice = delivery === 'whatsapp';
   const templates = useWaTemplates(value.accountId || undefined);
   const approved = (templates.data ?? []).filter((t) => t.status === 'APPROVED');
-  // `cliente` (el telefono de la persona) solo en el aviso: antes de aceptar no se entrega.
-  const noticeVars = BASE_VARIABLES;
-  const rotationVars = BASE_VARIABLES.filter((v) => v !== 'cliente');
+  // `cliente` (el telefono de la persona) no sale antes de aceptar: solo lo llevan el aviso y la de al aceptar.
+  const phoneVars = BASE_VARIABLES;
+  const noPhoneVars = BASE_VARIABLES.filter((v) => v !== 'cliente');
 
   return (
     <QueryState query={accounts}>
@@ -202,7 +202,7 @@ function WhatsappConnected({
                   id === value.accountId
                     ? value
                     : // Las plantillas son de la cuenta: al cambiarla se eligen de nuevo.
-                      { ...value, accountId: id ?? '', template: null, callTemplate: null },
+                      { ...value, accountId: id ?? '', template: null, callTemplate: null, acceptTemplate: null },
                 )
               }
               clearable
@@ -222,7 +222,7 @@ function WhatsappConnected({
                       templates={approved}
                       value={value.template}
                       onChange={(template) => onChange({ ...value, template })}
-                      variables={notice ? noticeVars : rotationVars}
+                      variables={notice ? phoneVars : noPhoneVars}
                       expect={notice ? 'no_button' : 'button'}
                     />
                     {!notice && (
@@ -232,7 +232,18 @@ function WhatsappConnected({
                         templates={approved}
                         value={value.callTemplate}
                         onChange={(callTemplate) => onChange({ ...value, callTemplate })}
-                        variables={rotationVars}
+                        variables={noPhoneVars}
+                        expect="no_button"
+                      />
+                    )}
+                    {!notice && (
+                      <TemplateField
+                        label="Plantilla al aceptar"
+                        description="Le llega a la persona que acepta la derivación, con los datos que trajeron las herramientas de «Antes de la conversación», si los hay. Sin botón."
+                        templates={approved}
+                        value={value.acceptTemplate}
+                        onChange={(acceptTemplate) => onChange({ ...value, acceptTemplate })}
+                        variables={phoneVars}
                         expect="no_button"
                       />
                     )}

@@ -80,7 +80,8 @@ class HandoffArea(IdMixin, TimestampMixin, Base):
     # whisper, deteccion de contestador ni tecla 1; el pasajero escucha el mensaje de la central y marca el interno.
     # La persona de «Si nadie atiende» mantiene el whisper y el 1 (es una persona, no la central).
     connect_on_answer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # {"account_id", "template": {"name", "language", "params"}, "call_template": {...}, "wait_seconds"}
+    # {"account_id", "template": {"name", "language", "params"}, "call_template": {...}, "accept_template": {...}
+    # (a la persona que acepta la derivacion), "wait_seconds"}
     whatsapp: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
 
 

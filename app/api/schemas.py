@@ -2600,7 +2600,8 @@ class HandoffWhatsappTemplate(BaseModel):
     language: str = Field(min_length=1, max_length=16, description="Código de Meta (ej. es_AR)")
     params: list[str] = Field(default_factory=list, max_length=20, description=(
         "Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la "
-        "conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp"))
+        "conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp "
+        "y en accept_template, que sale después de aceptar"))
 
 
 class HandoffWhatsapp(BaseModel):
@@ -2610,6 +2611,9 @@ class HandoffWhatsapp(BaseModel):
         default=None, description="Rotación, con botón; en un área delivery=whatsapp, el aviso, sin botón")
     call_template: HandoffWhatsappTemplate | None = Field(
         default=None, description="Complemento de la llamada, sin botón")
+    accept_template: HandoffWhatsappTemplate | None = Field(
+        default=None, description="A la persona que acepta la derivación, sin botón; puede llevar cliente y los datos "
+                                  "que trajo la herramienta de «Antes de la conversación»")
     wait_seconds: int = Field(default=120, ge=30, le=3600, description="Espera por persona en la rotación")
 
 

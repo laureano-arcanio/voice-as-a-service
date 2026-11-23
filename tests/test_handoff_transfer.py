@@ -793,8 +793,92 @@ def test_complement_with_summary_outlives_a_transfer_that_ends_first(api, admin,
     assert [x[2] for x in chain.graph.sent] == [["Pide un turno"]]
 
 
+# ---------- plantilla al aceptar (accept_template) ----------
+
+def test_accept_notice_goes_to_who_accepted_with_the_pre_call_vars(chain):
+    """Solo a la persona que marca 1, con las variables del pre-call (ocultas incluidas), el telefono de quien
+    llama y - si falta un dato."""
+    chain.area("Ventas", ("Ana", "Juan"), whatsapp=chain.whatsapp(
+        accept_template={"name": "equipo_acepta", "language": "es_AR",
+                         "params": ["area", "nombre", "ficha", "cliente"]}))
+    line = FakeLine({ANA: "no_answer", JUAN: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = chain.run(line, "Ventas", variables={"nombre": "María"})
+    assert outcome.status == "connected"
+    assert chain.graph.sent == [(team_notify_recipient(JUAN), "equipo_acepta",
+                                 ["Ventas", "María", "-", "+5493513962553"])]
+    assert len(chain.events("handoff.whatsapp_sent")) == 1
+
+
+def test_accept_notice_goes_beside_the_complement_to_the_same_person(chain):
+    """El complemento va al marcar y el de al aceptar, al aceptar: a la misma persona le llegan los dos."""
+    chain.area("Ventas", whatsapp=chain.whatsapp(call_template=COMPLEMENT,
+                                                 accept_template={"name": "a", "language": "es_AR",
+                                                                  "params": ["area"]}))
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Ventas")[0].status == "connected"
+    assert [x[1] for x in chain.graph.sent] == ["equipo_llamada", "a"]
+
+
+def test_accept_notice_with_the_toggle_off_leaves_no_failure(api, admin, monkeypatch):
+    chain = Chain(api, admin, monkeypatch, notify=False)
+    chain.area("Ventas", whatsapp=chain.whatsapp(
+        accept_template={"name": "a", "language": "es_AR", "params": ["area"]}))
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Ventas")[0].status == "connected"
+    assert chain.graph.sent == [] and "handoff.whatsapp_failed" not in chain.types()
+
+
+def test_accept_notice_failure_does_not_touch_the_call(api, admin, monkeypatch):
+    chain = Chain(api, admin, monkeypatch, graph=FakeGraph(fail={team_notify_recipient(ANA)}))
+    chain.area("Ventas", whatsapp=chain.whatsapp(
+        accept_template={"name": "a", "language": "es_AR", "params": ["area"]}))
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    assert chain.run(line, "Ventas")[0].status == "connected"
+    assert chain.graph.sent == [] and "handoff.whatsapp_failed" in chain.types()
+
+
+def test_no_accept_notice_if_nobody_accepts(chain):
+    chain.area("Ventas", whatsapp=chain.whatsapp(
+        accept_template={"name": "a", "language": "es_AR", "params": ["area"]}))
+    outcome, _ = chain.run(FakeLine({ANA: "no_answer", JUAN: "busy"}), "Ventas")
+    assert outcome.status == "failed" and chain.graph.sent == []
+
+
+def test_accept_notice_asks_for_the_summary_without_a_whisper(chain):
+    """Conectar al atender no susurra: el resumen lo pide igual la plantilla al aceptar."""
+    calls = []
+
+    async def summary():
+        calls.append(1)
+        return "Pide un turno"
+
+    chain.area("Central", ("Ana",), connect_on_answer=True, whatsapp=chain.whatsapp(
+        accept_template={"name": "a", "language": "es_AR", "params": ["resumen"]}))
+    line = FakeLine({ANA: "confirm"}, connected=[("dtmf", "PERSON", "2")])
+    outcome, _ = chain.run(line, "Central", summary=summary)
+    assert outcome.status == "connected"
+    assert chain.graph.sent[-1][2] == ["Pide un turno"] and calls == [1]
+
+
 def test_team_ring_has_no_complement():
     assert transfer.TeamRing(name="Equipo", ring_seconds=20).whatsapp is None
+
+
+def test_team_ring_does_not_send_the_accept_notice(api, admin, monkeypatch):
+    """La entrante al equipo (run_team) no tiene bloque whatsapp: aceptar no manda ninguna plantilla."""
+    chain = Chain(api, admin, monkeypatch)
+    with chain.api.sessions() as s:
+        members = list(s.scalars(select(TeamMember).order_by(TeamMember.name)))
+    tr = transfer.Transfer(sessions=chain.api.sessions, line=FakeLine({ANA: "confirm"}, connected=[("left", "PERSON")]),
+                           conversation_id=chain.conv, client_id=chain.client["id"], areas=chain.areas,
+                           customer=CUSTOMER)
+    team = transfer.TeamRing(name="Equipo", ring_seconds=20)
+
+    async def go():
+        return await tr.run_team(team, members, "Equipo: {{resumen}}. Marcá 1.", {})
+
+    outcome = asyncio.run(go())
+    assert outcome.status == "connected" and chain.graph.sent == []
 
 
 def test_person_leg_is_billed_from_answer_rounded_up_like_anura(api, admin):

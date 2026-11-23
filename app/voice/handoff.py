@@ -17,7 +17,8 @@ Sigue por las rutas del area: `after_hours_area_id` fuera de horario y `no_answe
 puede llamar, con la musica sin cortar y el mensaje solo al final; en lugar de `no_answer_area_id`, el area puede
 llamar despues de los miembros a la persona de `no_answer_member_id`. Un area `delivery=whatsapp` no llama: avisa a una
 persona, en una tarea propia, que termina aunque el cliente corte. Un area de llamada con `call_template` le manda
-ademas un WhatsApp a cada persona, sin demorar el marcado.
+ademas un WhatsApp a cada persona, sin demorar el marcado, y con `accept_template` la persona que acepta recibe la
+suya, con las variables del pre-call (la ficha de la persona que llama).
 
 `Transfer` es la logica, sin LiveKit; `RoomLine` es el lado de LiveKit (los tests usan un falso). Cada intento
 queda en handoff_legs (minutos salientes y canales) y en events (linea de tiempo).
@@ -465,9 +466,10 @@ class Transfer:
                 # atiende" es una persona: mantiene el whisper y el 1.
                 member_texts = {**texts, "whisper": None} if area.connect_on_answer else texts
                 # El resumen solo si alguien lo va a oir (el whisper de los miembros o de la persona de respaldo) o
-                # lo lleva la plantilla de WhatsApp que acompaña la llamada.
+                # lo lleva una plantilla de WhatsApp (la que acompana la llamada o la de al aceptar).
                 needs_summary = (member_texts["whisper"] is not None or step.backup is not None
-                                 or _uses_summary((area.whatsapp or {}).get("call_template")))
+                                 or _uses_summary((area.whatsapp or {}).get("call_template"))
+                                 or _uses_summary((area.whatsapp or {}).get("accept_template")))
                 summary = self._shared_summary() if needs_summary else None
                 if self.hold_music and not holding:
                     holding = True
@@ -487,7 +489,7 @@ class Transfer:
                         await self._stop_hold(area.id)
                         outcome.status = "connected"
                         outcome.ended = await self._connected(area, member, leg_id, identity, person_texts, values,
-                                                              rotate=not backup)
+                                                              summary=summary, rotate=not backup)
                         return outcome
                     await self._announce(area, result, texts, values)
                 route = None if step.backup else self._route(area, "no_answer_area_id", visited)
@@ -566,6 +568,18 @@ class Transfer:
         if not template_cfg or not member.whatsapp_notify or member.id in self._complemented:
             return
         self._complemented.add(member.id)
+        if _uses_summary(template_cfg):
+            self._summary_shared = True
+        self.spawn_notice(self._complement(area, member, template_cfg, values, summary))
+
+    def _spawn_accept_notice(self, area: HandoffArea | TeamRing, member: TeamMember, values: dict,
+                             summary: asyncio.Task | None) -> None:
+        """WhatsApp a la persona que acepto (`accept_template`), en una tarea: no demora la conexion. Sin dedupe:
+        cada aceptacion lleva su ficha. Sin el toggle no se lo llama, igual que el complemento. La entrante al
+        equipo (TeamRing) no tiene bloque whatsapp: aca no sale nada."""
+        template_cfg = (area.whatsapp or {}).get("accept_template")
+        if not template_cfg or not member.whatsapp_notify:
+            return
         if _uses_summary(template_cfg):
             self._summary_shared = True
         self.spawn_notice(self._complement(area, member, template_cfg, values, summary))
@@ -748,8 +762,9 @@ class Transfer:
                 whisper.cancel()
 
     async def _connected(self, area: HandoffArea | TeamRing, member: TeamMember, leg_id: str, identity: str,
-                         texts: dict, values: dict, rotate: bool = True) -> str:
-        """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino. rotate: anota a la persona como
+                         texts: dict, values: dict, summary: asyncio.Task | None = None, rotate: bool = True) -> str:
+        """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino. summary: el resumen compartido
+        de la derivacion, si se pidio (lo espera la plantilla al aceptar). rotate: anota a la persona como
         la ultima del round robin (la de "Si nadie atiende" no entra en la rueda)."""
         ids = {"area_id": area.id, "member_id": member.id}
         auto = texts["whisper"] is None     # conectar al atender: nadie marco 1
@@ -765,6 +780,7 @@ class Transfer:
         if self.on_connected is not None:
             self.on_connected(member)
         self._event("handoff.connected", **ids, person=member.name)
+        self._spawn_accept_notice(area, member, values, summary)
         digits = ""
         ended = ""
         next_check = time.monotonic() + settings.quota_check_seconds

@@ -23409,6 +23409,17 @@
       ],
       "description": "Complemento de la llamada, sin botón"
      },
+     "accept_template": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffWhatsappTemplate"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "A la persona que acepta la derivación, sin botón; puede llevar cliente y los datos que trajo la herramienta de «Antes de la conversación»"
+     },
      "wait_seconds": {
       "type": "integer",
       "maximum": 3600.0,
@@ -23447,7 +23458,7 @@
       "type": "array",
       "maxItems": 20,
       "title": "Params",
-      "description": "Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp"
+      "description": "Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp y en accept_template, que sale después de aceptar"
      }
     },
     "type": "object",

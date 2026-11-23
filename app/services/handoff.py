@@ -351,7 +351,8 @@ def _template(raw, key: str) -> dict:
 
 def validate_whatsapp(s: Session, client_id: str, raw: dict | None, delivery: str) -> dict | None:
     """El bloque `whatsapp` normalizado, o Invalid. La cuenta tiene que ser del cliente del area. El telefono de la
-    persona (`cliente`) no sale antes de que acepte: solo lo lleva la plantilla de un area de aviso."""
+    persona (`cliente`) no sale antes de que acepte: solo lo llevan la plantilla de un area de aviso y la de al
+    aceptar, que sale cuando ya acepto."""
     if raw is None:
         if delivery == "whatsapp":
             raise Invalid("Un área que avisa por WhatsApp necesita su cuenta y su plantilla")
@@ -360,10 +361,10 @@ def validate_whatsapp(s: Session, client_id: str, raw: dict | None, delivery: st
     if account is None or account.client_id != client_id:
         raise Invalid("whatsapp.account_id: la cuenta no existe o es de otro cliente")
     out: dict = {"account_id": account.id}
-    for key in ("template", "call_template"):
+    for key in ("template", "call_template", "accept_template"):
         if raw.get(key) is not None:
             out[key] = _template(raw[key], key)
-    if "template" not in out and "call_template" not in out:
+    if not any(k in out for k in ("template", "call_template", "accept_template")):
         raise Invalid("whatsapp: indicá al menos una plantilla")
     if delivery == "whatsapp" and "template" not in out:
         raise Invalid("whatsapp.template: un área que avisa por WhatsApp necesita su plantilla")

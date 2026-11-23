@@ -17,6 +17,8 @@ export interface WhatsappDraft {
   accountId: string;
   template: TemplateDraft | null;
   callTemplate: TemplateDraft | null;
+  /** A la persona que acepta la derivacion; a diferencia de las otras, puede llevar cliente. */
+  acceptTemplate: TemplateDraft | null;
   waitSeconds: number | string;
 }
 
@@ -33,6 +35,7 @@ export function toWhatsappDraft(w: HandoffArea['whatsapp'] | undefined): Whatsap
     accountId: w?.account_id ?? '',
     template: toTemplate(w?.template),
     callTemplate: toTemplate(w?.call_template),
+    acceptTemplate: toTemplate(w?.accept_template),
     waitSeconds: w?.wait_seconds ?? WAIT_SECONDS.default,
   };
 }
@@ -43,14 +46,16 @@ const fromTemplate = (t: TemplateDraft) => ({
   params: t.params.map((p) => p.trim()),
 });
 
-/** El bloque a mandar, o null si el area no usa WhatsApp. En un area de aviso no hay complemento de llamada. */
+/** El bloque a mandar, o null si el area no usa WhatsApp. En un area de aviso no hay plantilla de llamada ni de aceptar. */
 export function fromWhatsappDraft(d: WhatsappDraft, delivery: string): AreaWhatsapp | null {
   const call = delivery === 'call' ? d.callTemplate : null;
-  if (!d.accountId && !d.template && !call) return null;
+  const accept = delivery === 'call' ? d.acceptTemplate : null;
+  if (!d.accountId && !d.template && !call && !accept) return null;
   return {
     account_id: d.accountId,
     ...(d.template ? { template: fromTemplate(d.template) } : {}),
     ...(call ? { call_template: fromTemplate(call) } : {}),
+    ...(accept ? { accept_template: fromTemplate(accept) } : {}),
     wait_seconds: typeof d.waitSeconds === 'number' ? d.waitSeconds : WAIT_SECONDS.default,
   };
 }
@@ -71,16 +76,19 @@ function templateError(t: TemplateDraft, label: string, allowClient: boolean): s
 export function whatsappError(d: WhatsappDraft, delivery: string): string | null {
   const notice = delivery === 'whatsapp';
   const call = notice ? null : d.callTemplate;
-  if (!d.accountId && !d.template && !call) {
+  const accept = notice ? null : d.acceptTemplate;
+  if (!d.accountId && !d.template && !call && !accept) {
     return notice ? 'Elegí el número de WhatsApp y la plantilla del aviso.' : null;
   }
   if (!d.accountId) return 'Elegí el número de WhatsApp.';
-  if (!d.template && !call) return 'Elegí al menos una plantilla.';
+  if (!d.template && !call && !accept) return 'Elegí al menos una plantilla.';
   if (notice && !d.template) return 'Elegí la plantilla del aviso.';
   const label = notice ? 'Plantilla del aviso' : 'Plantilla de rotación';
   const err =
     (d.template && templateError(d.template, label, notice)) ||
     (call && templateError(call, 'Plantilla de la llamada', false)) ||
+    // Al aceptar ya se entregó el teléfono de la persona: cliente puede ir.
+    (accept && templateError(accept, 'Plantilla al aceptar', true)) ||
     null;
   if (err) return err;
   const wait = d.waitSeconds;

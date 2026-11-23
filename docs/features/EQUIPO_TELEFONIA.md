@@ -19,7 +19,7 @@ saliente necesita además `outbound_calls`).
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
 | `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o usuario | 0023, 0042, 0048 |
-| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `connect_on_answer` (bool, default `false`: los miembros conectan apenas atienden, para una centralita o IVR), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `wait_seconds`) | 0023, 0048, 0052, 0063 |
+| `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `connect_on_answer` (bool, default `false`: los miembros conectan apenas atienden, para una centralita o IVR), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `accept_template`, `wait_seconds`) | 0023, 0048, 0052, 0063 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
 | `tiers.max_team_members` | Tope de personas (`NULL` sin tope, `0` no incluido) | 0023 |
@@ -147,7 +147,8 @@ la marque devuelve el pasajero a la IA: con esta opción conviene un código que
 El `*` del pasajero también llega a Anura (Reglas y trampas). Los minutos del tramo corren desde que el teléfono
 atiende, así que la espera en la cola del IVR de la central consume salientes del plan (en La Estrella, ~24 s de
 cola: ~0,4 min por llamada). El complemento por WhatsApp (`call_template`) le llega a todo miembro con «Recibe
-WhatsApp»: a la central se le apaga ese switch. Medido en `make e2e-sip`: un destino que manda 183 con su IVR y no
+WhatsApp»: a la central se le apaga ese switch, y la de al aceptar sigue la misma regla. Medido en `make e2e-sip`: un
+destino que manda 183 con su IVR y no
 contesta (early media) lo da por atendido livekit-sip, así que el pasajero se conecta con ese IVR; una central que
 solo hace sonar sin audio (180) no atiende y sigue a la persona de «Si nadie atiende» o a `no_answer_area_id`.
 
@@ -231,13 +232,19 @@ texto).
   no se intentó con nadie el resultado es `no_members`, y si la relectura falla, `internal` y no se envía.
 - **Complemento de la llamada** (`call_template`, sin botón): a cada persona a la que se llama, una vez por derivación, sin
   demorar el marcado. Va sin botón para que no toquen «Aceptar» en vez de atender.
+- **Al aceptar** (`accept_template`, sin botón): a la persona que marca 1 y queda conectada, en una tarea que no demora la
+  conexión. Lleva las variables del equipo, ocultas incluidas (los datos de la ficha del pre-call), y a diferencia de las
+  otras plantillas puede llevar `cliente`: ya aceptó. Sin dedupe: si acepta otra derivación de la misma llamada, recibe
+  otra. Sin «Recibe WhatsApp» no sale ni queda falla; si el envío falla, `handoff.whatsapp_failed` y la llamada no se
+  entera. Un área de llamada puede tener solo esta plantilla; la entrante al equipo no tiene bloque `whatsapp`, así que no
+  sale nunca.
 - **Plantillas** (`handoff_areas.whatsapp`): `params` es una lista ordenada (Meta recibe por posición): `area`, `persona`,
   `cliente`, `resumen`, `horario` o cualquier nombre `[a-z][a-z0-9_]*` de una variable del pre-call; sin valor va `-`.
-  `cliente` (el teléfono) solo en la plantilla de un área de aviso: se rechaza en `call_template` y en la `template` de un
-  área de llamada, porque antes de aceptar no se entrega el teléfono. Con menos de 8 dígitos (caller oculto), `cliente`
-  va `-`. El resumen del LLM (hasta 4 s) solo se pide si la plantilla lo lleva. El envío usa la cuenta del área, que tiene
-  que ser del cliente, estar activa y conectada, con plan con WhatsApp; tope de 20 s. Si falla, queda
-  `handoff.whatsapp_failed` con el motivo y la derivación sigue: nada de esto lanza.
+  `cliente` (el teléfono) solo en la plantilla de un área de aviso y en `accept_template`: se rechaza en `call_template` y
+  en la `template` de un área de llamada, porque antes de aceptar no se entrega el teléfono. Con menos de 8 dígitos
+  (caller oculto), `cliente` va `-`. El resumen del LLM (hasta 4 s) solo se pide si una plantilla lo lleva. El envío usa la
+  cuenta del área, que tiene que ser del cliente, estar activa y conectada, con plan con WhatsApp; tope de 20 s. Si falla,
+  queda `handoff.whatsapp_failed` con el motivo y la derivación sigue: nada de esto lanza.
 - **Datos del pre-call en la voz:** los mensajes y las plantillas leen `progress.tool_vars` en cada área. Un whisper como
   `Derivación de {{area}}: {{resumen}}. {{nota_operador}}. Marcá 1 para atender.` le dice al operador quién es y si está
   al día; **no oye si se cobró**. Un mensaje `whisper` con `{{cliente}}` da el teléfono antes del 1 (comportamiento previo).
@@ -596,6 +603,8 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 
 ## Pendientes
 
+- **Plantilla al aceptar** (`accept_template`): sin probar con Meta real (los tests usan el Graph falso): que le
+  llegue a quien marca 1, con los datos del pre-call, y que el envío no demore la conexión.
 - **Conectar al atender con la central real** (La Estrella): que su desvío presente nuestro número (guarda
   `team_loop`), si responde con IVR en early media sin atender (en `make e2e-sip`, livekit-sip lo da por atendido y
   conecta; con la central real, no verificado) y que su IVR reciba los dígitos por Anura (en `make e2e-sip`, el

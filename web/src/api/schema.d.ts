@@ -7301,6 +7301,8 @@ export interface components {
             template?: components["schemas"]["HandoffWhatsappTemplate"] | null;
             /** @description Complemento de la llamada, sin botón */
             call_template?: components["schemas"]["HandoffWhatsappTemplate"] | null;
+            /** @description A la persona que acepta la derivación, sin botón; puede llevar cliente y los datos que trajo la herramienta de «Antes de la conversación» */
+            accept_template?: components["schemas"]["HandoffWhatsappTemplate"] | null;
             /**
              * Wait Seconds
              * @description Espera por persona en la rotación
@@ -7322,7 +7324,7 @@ export interface components {
             language: string;
             /**
              * Params
-             * @description Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp
+             * @description Valores del cuerpo, en orden: area, persona, cliente, resumen, horario o un dato que traiga la herramienta de «Antes de la conversación» del agente. Si el dato no llega, va -. cliente solo en la plantilla de un área delivery=whatsapp y en accept_template, que sale después de aceptar
              */
             params?: string[];
         };

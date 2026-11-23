@@ -421,7 +421,7 @@ def test_area_whatsapp_rules(api, admin):
     r = patch(whatsapp={"account_id": account, "template": {"name": "rotacion", "language": "es_AR"},
                         "call_template": template("area", "nota_operador")})
     assert r.status_code == 200, r.text
-    assert r.json()["whatsapp"] == {"account_id": account, "wait_seconds": 120,
+    assert r.json()["whatsapp"] == {"account_id": account, "wait_seconds": 120, "accept_template": None,
                                     "template": {"name": "rotacion", "language": "es_AR", "params": []},
                                     "call_template": template("area", "nota_operador")}
 
@@ -437,6 +437,37 @@ def test_area_whatsapp_rules(api, admin):
     r = admin.patch(f"{V1}/handoff-areas/{aviso['id']}", json={"description": "Consultas"})
     assert r.status_code == 200 and r.json()["whatsapp"]["template"]["name"] == "equipo"
     assert patch(whatsapp=None).json()["whatsapp"] is None
+
+
+def test_area_accept_template(api, admin):
+    """accept_template sale a la persona que acepta, despues de aceptar: puede llevar cliente y un area de
+    llamada puede tener solo ella. No reemplaza a las otras: un area de aviso sigue necesitando template."""
+    c = make_client(admin)
+    account = wa_account(api, c, make_agent(admin, c))
+    area = new_area(admin, c["id"])
+
+    def patch(**body):
+        return admin.patch(f"{V1}/handoff-areas/{area['id']}", json=body)
+
+    # Solo ella, con cliente y una variable del pre-call; los defaults anidados se completan.
+    only = {"account_id": account, "accept_template": template("area", "cliente", "ficha")}
+    r = patch(whatsapp=only)
+    assert r.status_code == 200, r.text
+    assert r.json()["whatsapp"] == {"account_id": account, "wait_seconds": 120, "template": None,
+                                    "call_template": None, "accept_template": template("area", "cliente", "ficha")}
+    r = patch(whatsapp={"account_id": account, "accept_template": {"name": "ficha", "language": "es_AR"}})
+    assert r.status_code == 200 and r.json()["whatsapp"]["accept_template"]["params"] == []
+    # Convive con las otras y sobrevive un PATCH que no la toca.
+    both = {"account_id": account, "call_template": template("area"),
+            "accept_template": template("cliente")}
+    assert patch(whatsapp=both).status_code == 200
+    assert patch(description="x").json()["whatsapp"]["accept_template"] == template("cliente")
+    # Un parametro invalido se rechaza igual que en las otras.
+    assert patch(whatsapp={"account_id": account, "accept_template": template("Con Espacio")}).status_code == 422
+    # Un area de aviso sigue necesitando template: accept_template no la reemplaza.
+    assert patch(delivery="whatsapp").status_code == 422
+    assert patch(delivery="whatsapp",
+                 whatsapp={"account_id": account, "accept_template": template("area")}).status_code == 422
 
 
 def test_area_connect_on_answer(api, admin):
