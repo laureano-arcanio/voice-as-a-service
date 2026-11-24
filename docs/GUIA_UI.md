@@ -470,10 +470,14 @@ alcanza. En la navegación, arriba de todo.
 - Se puede filtrar por campaña (también en Reportes): los intentos de una campaña de llamadas y las
   conversaciones que abrió la respuesta de un contacto.
 - Tabla paginada, filtrable además por estado y origen. Cada conversación ocupa una fila de una línea, con las
-  columnas **Fecha**, **Cliente** (solo el admin), **Atendió**, **Contacto**, **Empresa**, **Número** y
-  **Duración**; lo que falta se ve con una raya. Una llamada en curso suma la marca **En vivo** en la duración.
-  Las de WhatsApp no tienen duración. Un click en la fila abre el detalle; las acciones del admin (ver como el
-  cliente, borrar) son íconos fijos a la derecha, a la vista aunque la tabla tenga scroll.
+  columnas **Fecha**, **Cliente**, **Atendió**, **Contacto**, **Empresa**, **Número**, **Duración** y **Estado**;
+  lo que falta se ve con una raya. **Cliente** y **Empresa** son solo del admin: el cliente no las ve. Una llamada
+  en curso suma la marca **En vivo** en la duración; las de WhatsApp no tienen duración.
+- **Estado:** los datos extraídos del análisis, `captured/total datos`, con un punto: verde si están todos,
+  amarillo si falta alguno y rojo si no se extrajo ninguno. Sin datos que extraer (llamadas directas sin campos de
+  análisis) va una raya.
+- Un click en la fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la
+  derecha, a la vista aunque la tabla tenga scroll.
 - En el detalle, **Fin de llamada** dice quién cortó ("Cortó el destinatario", la persona del otro lado de la
   llamada), del mismo `ended_reason`.
 - En todas las tablas de llamadas (Teléfono del equipo, Llamadas del agente, ficha del contacto, contactos de una

@@ -67,6 +67,27 @@ h6 {
   animation: live-dot 1.4s ease-in-out infinite;
 }
 
+/* Punto de estado fijo (datos extraídos): verde completo, amarillo parcial, rojo sin datos. */
+.status-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot-green {
+  background: var(--mantine-color-green-5);
+}
+
+.status-dot-yellow {
+  background: var(--mantine-color-yellow-5);
+}
+
+.status-dot-red {
+  background: var(--mantine-color-red-5);
+}
+
 /* Fila de un dato recien obtenido en el detalle de una conversacion. */
 @keyframes just-set {
   from {

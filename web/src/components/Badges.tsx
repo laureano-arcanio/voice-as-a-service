@@ -29,6 +29,11 @@ export function LiveBadge({ children }: { children: ReactNode }) {
   );
 }
 
+/** Punto de estado: el color no es el único aviso, `label` lo dice. */
+export function StatusDot({ color, label }: { color: 'green' | 'yellow' | 'red'; label: string }) {
+  return <span role="img" aria-label={label} className={`status-dot status-dot-${color}`} />;
+}
+
 function MappedBadge({ map, value }: { map: Record<string, Label>; value: string | null | undefined }) {
   if (!value) return <Dash />;
   const l = map[value] ?? { label: value, color: 'gray' };

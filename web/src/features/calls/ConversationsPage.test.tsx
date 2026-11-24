@@ -101,31 +101,65 @@ describe('conversaciones', () => {
     expect(screen.queryByRole('button', { name: 'Borrar conversación' })).not.toBeInTheDocument();
   });
 
-  it('admin: el cliente va en su columna y no se muestran estado ni resultado', async () => {
+  it('admin: cliente y empresa en sus columnas, con los datos extraídos', async () => {
     mockApi(listRoutes([CALL]));
     renderWithProviders(<ConversationsPage />, { me: ADMIN });
 
     const row = await screen.findByRole('row', { name: /Acme SA/ });
     const table = screen.getByRole('table');
     expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Empresa' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Atendió' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Atendió y cliente' })).not.toBeInTheDocument();
     expect(within(row).getByText('Acme')).toBeInTheDocument();
-    // La duración va en su columna; el estado, el resultado y los datos obtenidos ya no están en la tabla.
+    expect(within(row).getByText('Acme SA')).toBeInTheDocument();
     expect(within(row).getByText('1:05')).toBeInTheDocument();
+    // Estado: 3/3 datos con el punto verde; el resultado y el estado de la llamada ya no están.
+    expect(within(row).getByText('3/3')).toBeInTheDocument();
+    expect(within(row).getByRole('img', { name: 'Todos los datos extraídos' })).toBeInTheDocument();
     expect(within(table).queryByText('Fuera de tema')).not.toBeInTheDocument();
-    expect(within(table).queryByText('3/3')).not.toBeInTheDocument();
     expect(within(table).queryByText('Finalizada')).not.toBeInTheDocument();
   });
 
-  it('cliente: sin columna Cliente, con la fecha y la duración en una línea', async () => {
+  it('cliente: sin Cliente ni Empresa, con la fecha, la duración y los datos extraídos', async () => {
     mockApi(listRoutes([CALL]));
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
 
     await screen.findByRole('link', { name: /Ver conversación del/ });
     expect(screen.getByRole('columnheader', { name: 'Atendió' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Empresa' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Acme')).not.toBeInTheDocument();
+    expect(screen.queryByText('Acme SA')).not.toBeInTheDocument();
     expect(screen.getByText('1:05')).toBeInTheDocument();
+    expect(screen.getByText('3/3')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Todos los datos extraídos' })).toBeInTheDocument();
+  });
+
+  it('el punto del estado va con los datos extraídos y no aparece si no hay datos que extraer', async () => {
+    mockApi(
+      listRoutes([
+        { ...CALL, id: 'cv-full', contact_name: 'Ana', captured: 3, total: 3 },
+        { ...CALL, id: 'cv-some', contact_name: 'Beto', captured: 1, total: 3 },
+        { ...CALL, id: 'cv-none', contact_name: 'Caro', captured: 0, total: 3 },
+        { ...CALL, id: 'cv-empty', contact_name: 'Dani', captured: 0, total: 0 },
+      ]),
+    );
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+
+    const row = (contact: string) => screen.getByRole('row', { name: new RegExp(contact) });
+    await screen.findByText('3/3');
+    expect(within(row('Ana')).getByText('3/3')).toBeInTheDocument();
+    expect(within(row('Ana')).getByRole('img', { name: 'Todos los datos extraídos' })).toBeInTheDocument();
+    expect(within(row('Beto')).getByText('1/3')).toBeInTheDocument();
+    expect(within(row('Beto')).getByRole('img', { name: 'Faltan datos por extraer' })).toBeInTheDocument();
+    expect(within(row('Caro')).getByText('0/3')).toBeInTheDocument();
+    expect(within(row('Caro')).getByRole('img', { name: 'No se extrajo ningún dato' })).toBeInTheDocument();
+    // Sin campos de análisis (total 0): raya y ningún círculo.
+    expect(within(row('Dani')).queryByText('0/0')).not.toBeInTheDocument();
+    expect(within(row('Dani')).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(row('Dani')).getByText('–')).toBeInTheDocument();
   });
 
   it('una llamada en curso muestra En vivo al lado de la duración', async () => {

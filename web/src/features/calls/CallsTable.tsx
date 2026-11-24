@@ -17,7 +17,7 @@ import { IconLogin2, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
-import { Dash, LiveBadge } from '@/components/Badges';
+import { Dash, LiveBadge, StatusDot } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { RowLink } from '@/components/RowLink';
@@ -56,6 +56,28 @@ function PersonText({ c }: { c: CallSummary }) {
   const who = callPerson(c);
   if (!who) return '–';
   return who.verb ? `${who.verb}: ${who.name}` : who.name;
+}
+
+/** Datos extraídos del análisis: `captured/total` y un punto verde (todos), amarillo (algunos) o rojo (ninguno). */
+function ExtractionStatus({ captured, total }: { captured: number; total: number }) {
+  const color = captured === total ? 'green' : captured === 0 ? 'red' : 'yellow';
+  const label =
+    color === 'green'
+      ? 'Todos los datos extraídos'
+      : color === 'red'
+        ? 'No se extrajo ningún dato'
+        : 'Faltan datos por extraer';
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Text span className="mono">
+        {captured}/{total}
+      </Text>
+      <Text span c="dimmed">
+        datos
+      </Text>
+      <StatusDot color={color} label={label} />
+    </Group>
+  );
 }
 
 export function CallsTable({
@@ -107,6 +129,8 @@ export function CallsTable({
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const del = useDeleteConversations();
   const isAdmin = useIsAdmin();
+  // Ancho mínimo: las columnas de todos, más las que solo ve el admin (Cliente sin filtro, Empresa y acciones).
+  const minWidth = 900 + (showClient ? 130 : 0) + (isAdmin ? 130 : 0);
   const areaPath = useAreaPath();
   const rowLink = useRowLink();
   const { enter, pending: entering } = useSupportSwitch();
@@ -247,7 +271,7 @@ export function CallsTable({
       ) : (
         // Cada conversación ocupa una fila de una línea y las acciones quedan fijas a la derecha: así están a la
         // vista aunque la tabla tenga scroll.
-        <Table.ScrollContainer minWidth={showClient ? 1040 : 900}>
+        <Table.ScrollContainer minWidth={minWidth}>
           <Table highlightOnHover style={{ whiteSpace: 'nowrap' }}>
             <Table.Thead>
               <Table.Tr>
@@ -265,9 +289,10 @@ export function CallsTable({
                 {showClient && <Table.Th>Cliente</Table.Th>}
                 <Table.Th>Atendió</Table.Th>
                 <Table.Th>Contacto</Table.Th>
-                <Table.Th>Empresa</Table.Th>
+                {isAdmin && <Table.Th>Empresa</Table.Th>}
                 <Table.Th>Número</Table.Th>
                 <Table.Th>Duración</Table.Th>
+                <Table.Th>Estado</Table.Th>
                 {isAdmin && <Table.Th className="row-actions" />}
               </Table.Tr>
             </Table.Thead>
@@ -321,7 +346,7 @@ export function CallsTable({
                     )}
                   </Table.Td>
                   <Table.Td>{formatValue(c.contact_name) || <Dash />}</Table.Td>
-                  <Table.Td>{formatValue(c.company) || <Dash />}</Table.Td>
+                  {isAdmin && <Table.Td>{formatValue(c.company) || <Dash />}</Table.Td>}
                   <Table.Td>
                     {c.phone ? (
                       <Text span className="mono">
@@ -342,6 +367,9 @@ export function CallsTable({
                       )}
                       {isLiveStatus(c.status) && <LiveBadge>En vivo</LiveBadge>}
                     </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    {c.total > 0 ? <ExtractionStatus captured={c.captured} total={c.total} /> : <Dash />}
                   </Table.Td>
                   {isAdmin && (
                     <Table.Td ta="right" className="row-actions" onClick={(e) => e.stopPropagation()}>
