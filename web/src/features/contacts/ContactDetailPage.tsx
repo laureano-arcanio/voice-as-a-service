@@ -163,7 +163,7 @@ function CallsCard({ contactId }: { contactId: string }) {
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          {who ? `${who.verb}: ${who.name}` : (c.agent_name ?? <Dash />)}
+                          {who ? (who.verb ? `${who.verb}: ${who.name}` : who.name) : (c.agent_name ?? <Dash />)}
                           {c.opted_out_confirmed && (
                             <Text size="xs" c="dimmed">
                               Había pedido no recibir llamadas

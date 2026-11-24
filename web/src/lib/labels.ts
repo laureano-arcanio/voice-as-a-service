@@ -117,20 +117,23 @@ export function isPersonCall(c: { mode?: string | null; answered_by?: string | n
 }
 
 /**
- * Quién habló, en las llamadas sin agente: "Llamó: Ana" (directa) o "Atendió: Ana" (entrante del equipo); una
- * entrante del equipo que terminó sin que nadie atienda, "Atendió: nadie". Null si no es una llamada de persona,
- * o si la entrante todavía está sonando.
+ * Quién habló, en las llamadas sin agente: "Llamó: Ana" (directa) o "Atendió: Ana" (entrante del equipo). Una
+ * entrante del equipo terminada: "Atendió: el equipo" si atendió alguien sin usuario del panel vinculado (atendió
+ * desde su celular, o en el panel sin que entrara la sesión), o "Nadie atendió" a secas (`verb` null) si terminó
+ * en `team_no_answer`. Null si no es una llamada de persona, o si la entrante todavía está sonando.
  */
 export function callPerson(c: {
   mode?: string | null;
   answered_by?: string | null;
   user_name?: string | null;
   status?: string | null;
-}): { verb: 'Llamó' | 'Atendió'; name: string } | null {
+  ended_reason?: string | null;
+}): { verb: 'Llamó' | 'Atendió' | null; name: string } | null {
   if (c.mode === 'directa') return { verb: 'Llamó', name: c.user_name || 'alguien del equipo' };
   if (!isTeamInbound(c)) return null;
   if (c.user_name) return { verb: 'Atendió', name: c.user_name };
-  return c.status && !isLiveStatus(c.status) ? { verb: 'Atendió', name: 'nadie' } : null;
+  if (!c.status || isLiveStatus(c.status)) return null;
+  return c.ended_reason === 'team_no_answer' ? { verb: null, name: 'Nadie atendió' } : { verb: 'Atendió', name: 'el equipo' };
 }
 
 export const WORKFLOW_STATUS: Record<string, Label> = {

@@ -234,8 +234,8 @@ function CallHeader({ c }: { c: CallDetail }) {
   // Directa o entrante del equipo: no hay agente, ni datos que obtener, ni resultado.
   const person = call ? callPerson(call) : null;
   const agentless = isPersonOnly(c);
-  // Entrante al equipo sin atender: sin agente o con el respaldo al agente (que sigue mostrándose abajo).
-  const nobodyAnswered = call?.team?.answered === false;
+  // Entrante al equipo sin atender: team.answered falso (o terminó en team_no_answer, llamadas sin equipo anotado).
+  const nobodyAnswered = call?.team?.answered === false || call?.ended_reason === 'team_no_answer';
   return (
     <Card>
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="md" verticalSpacing="md">

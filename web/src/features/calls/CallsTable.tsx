@@ -51,10 +51,11 @@ const ANSWERED_OPTIONS = [
   ...Object.entries(ANSWERED_BY).map(([value, label]) => ({ value, label: `Atendió: ${label}` })),
 ];
 
-/** Sin agente: quién habló, "Llamó: Ana" o "Atendió: Ana". */
+/** Sin agente: quién habló, "Llamó: Ana", "Atendió: Ana", "Atendió: el equipo" o "Nadie atendió". */
 function PersonText({ c }: { c: CallSummary }) {
   const who = callPerson(c);
-  return who ? `${who.verb}: ${who.name}` : '–';
+  if (!who) return '–';
+  return who.verb ? `${who.verb}: ${who.name}` : who.name;
 }
 
 export function CallsTable({
@@ -264,7 +265,7 @@ export function CallsTable({
                   </Table.Th>
                 )}
                 <Table.Th>Fecha</Table.Th>
-                <Table.Th>{showClient ? 'Agente y cliente' : 'Agente'}</Table.Th>
+                <Table.Th>{showClient ? 'Atendió y cliente' : 'Atendió'}</Table.Th>
                 <Table.Th>Contacto</Table.Th>
                 <Table.Th>Origen</Table.Th>
                 <Table.Th>Estado</Table.Th>

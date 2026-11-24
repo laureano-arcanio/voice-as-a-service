@@ -483,7 +483,8 @@ alcanza. En la navegación, arriba de todo.
   escuchó (agente, música, equipo).
 - **Llamadas del equipo** (planes con llamadas directas): el origen **Directa** es la que hace una persona desde
   Teléfono, y **Entrante del equipo** la que atendió una persona en un número del equipo. Sin agente, la columna
-  del agente dice "Llamó: Ana" o "Atendió: Ana" (o "Atendió: nadie"), y no tienen datos obtenidos ni resultado.
+  **Atendió** dice "Llamó: Ana" o "Atendió: Ana"; si atendió alguien sin usuario del panel vinculado, "Atendió:
+  el equipo"; si terminó sin que nadie atienda, "Nadie atendió". No tienen datos obtenidos ni resultado.
   Dos filtros más: **Atendió** (todas, agente o equipo) y **Usuario** (quién llamó o atendió); el admin elige
   antes un cliente.
 - **Borrar (solo en `/admin/calls`):** cada fila tiene el ícono de borrar a la derecha y las casillas para
