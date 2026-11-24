@@ -469,22 +469,22 @@ alcanza. En la navegación, arriba de todo.
   del cliente Atentina); **WhatsApp y otras** (WhatsApp, API y loadtest). El cliente ve todas juntas.
 - Se puede filtrar por campaña (también en Reportes): los intentos de una campaña de llamadas y las
   conversaciones que abrió la respuesta de un contacto.
-- Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
-  muestran el teléfono del contacto. Lo secundario va en una segunda línea de su columna (cliente bajo el agente,
-  teléfono bajo el origen, duración y workflow bajo el estado, datos obtenidos bajo el resultado). Un click en la
-  fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la derecha, a la vista
-  aunque la tabla tenga scroll.
-- El estado de una finalizada dice quién cortó ("Finalizada por el destinatario", la persona del otro lado de la
-  llamada) y el detalle lo repite en **Fin de llamada** ("Cortó el destinatario"): salen del mismo `ended_reason`.
+- Tabla paginada, filtrable además por estado y origen. Cada conversación ocupa una fila de una línea, con las
+  columnas **Fecha**, **Cliente** (solo el admin), **Atendió**, **Contacto**, **Empresa**, **Número** y
+  **Duración**; lo que falta se ve con una raya. Una llamada en curso suma la marca **En vivo** en la duración.
+  Las de WhatsApp no tienen duración. Un click en la fila abre el detalle; las acciones del admin (ver como el
+  cliente, borrar) son íconos fijos a la derecha, a la vista aunque la tabla tenga scroll.
+- En el detalle, **Fin de llamada** dice quién cortó ("Cortó el destinatario", la persona del otro lado de la
+  llamada), del mismo `ended_reason`.
 - En todas las tablas de llamadas (Teléfono del equipo, Llamadas del agente, ficha del contacto, contactos de una
   campaña) un click en la fila abre la conversación.
 - **Llamada completa** (número con **Grabar la llamada completa**): arriba de la transcripción, un reproductor con el
   audio entero y **Descargar** (Ogg/Opus). Estéreo: a la izquierda quien está en el teléfono, a la derecha lo que
   escuchó (agente, música, equipo).
-- **Llamadas del equipo** (planes con llamadas directas): el origen **Directa** es la que hace una persona desde
-  Teléfono, y **Entrante del equipo** la que atendió una persona en un número del equipo. Sin agente, la columna
+- **Llamadas del equipo** (planes con llamadas directas): las **directas** las hace una persona desde Teléfono y
+  las **entrantes del equipo** las atiende una persona en un número del equipo. Sin agente, la columna
   **Atendió** dice "Llamó: Ana" o "Atendió: Ana"; si atendió alguien sin usuario del panel vinculado, "Atendió:
-  el equipo"; si terminó sin que nadie atienda, "Nadie atendió". No tienen datos obtenidos ni resultado.
+  el equipo"; si terminó sin que nadie atienda, "Nadie atendió".
   Dos filtros más: **Atendió** (todas, agente o equipo) y **Usuario** (quién llamó o atendió); el admin elige
   antes un cliente.
 - **Borrar (solo en `/admin/calls`):** cada fila tiene el ícono de borrar a la derecha y las casillas para

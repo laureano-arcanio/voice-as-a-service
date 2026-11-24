@@ -101,6 +101,53 @@ describe('conversaciones', () => {
     expect(screen.queryByRole('button', { name: 'Borrar conversación' })).not.toBeInTheDocument();
   });
 
+  it('admin: el cliente va en su columna y no se muestran estado ni resultado', async () => {
+    mockApi(listRoutes([CALL]));
+    renderWithProviders(<ConversationsPage />, { me: ADMIN });
+
+    const row = await screen.findByRole('row', { name: /Acme SA/ });
+    const table = screen.getByRole('table');
+    expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Atendió' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Atendió y cliente' })).not.toBeInTheDocument();
+    expect(within(row).getByText('Acme')).toBeInTheDocument();
+    // La duración va en su columna; el estado, el resultado y los datos obtenidos ya no están en la tabla.
+    expect(within(row).getByText('1:05')).toBeInTheDocument();
+    expect(within(table).queryByText('Fuera de tema')).not.toBeInTheDocument();
+    expect(within(table).queryByText('3/3')).not.toBeInTheDocument();
+    expect(within(table).queryByText('Finalizada')).not.toBeInTheDocument();
+  });
+
+  it('cliente: sin columna Cliente, con la fecha y la duración en una línea', async () => {
+    mockApi(listRoutes([CALL]));
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+
+    await screen.findByRole('link', { name: /Ver conversación del/ });
+    expect(screen.getByRole('columnheader', { name: 'Atendió' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
+    expect(screen.getByText('1:05')).toBeInTheDocument();
+  });
+
+  it('una llamada en curso muestra En vivo al lado de la duración', async () => {
+    mockApi(listRoutes([{ ...CALL, status: 'en_curso' }]));
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+
+    const row = await screen.findByRole('row', { name: /En vivo/ });
+    expect(within(row).getByText('1:05')).toBeInTheDocument();
+    expect(within(row).getByText('En vivo')).toBeInTheDocument();
+  });
+
+  it('una llamada en curso sin duración muestra solo En vivo, sin raya', async () => {
+    mockApi(listRoutes([{ ...CALL, status: 'en_curso', duration_seconds: 0 }]));
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+
+    const row = await screen.findByRole('row', { name: /En vivo/ });
+    expect(within(row).getByText('En vivo')).toBeInTheDocument();
+    // Ni raya ni 0:00 en la duración; el resto de las celdas de esta fila tienen dato.
+    expect(within(row).queryByText('–')).not.toBeInTheDocument();
+    expect(within(row).queryByText('0:00')).not.toBeInTheDocument();
+  });
+
   it('admin: cada solapa pide sus orígenes', async () => {
     const urls: URL[] = [];
     vi.stubGlobal(

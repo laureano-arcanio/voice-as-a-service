@@ -100,18 +100,19 @@ const listRoutes = (plan: object = PLAN_DIRECT) => ({
 afterEach(() => vi.unstubAllGlobals());
 
 describe('conversaciones: llamadas directas', () => {
-  it('la tabla dice el tipo y quién llamó o atendió', async () => {
+  it('la tabla dice quién llamó o atendió y muestra el número, sin origen ni resultado', async () => {
     mockApi(listRoutes());
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
     expect(await screen.findByText('Llamó: Ana')).toBeInTheDocument();
     expect(screen.getByText('Atendió: Pedro')).toBeInTheDocument();
-    expect(screen.getByText('Entrante del equipo')).toBeInTheDocument();
     const row = (name: RegExp) => screen.getByRole('row', { name });
-    // La directa no tiene datos que obtener: raya en vez de 0/0.
-    expect(within(row(/Llamó: Ana/)).getByText('Directa')).toBeInTheDocument();
-    expect(within(row(/Llamó: Ana/)).queryByText('0/0')).not.toBeInTheDocument();
-    // La del agente sigue igual.
-    expect(within(row(/Ventas/)).getByText('2/3')).toBeInTheDocument();
+    const table = screen.getByRole('table');
+    // El número va en su columna.
+    expect(within(row(/Llamó: Ana/)).getByText('+5493515551234')).toBeInTheDocument();
+    // Ya no hay badges de origen, datos obtenidos ni resultado (el filtro de origen sigue en la barra).
+    expect(within(table).queryByText('Directa')).not.toBeInTheDocument();
+    expect(within(table).queryByText('Entrante del equipo')).not.toBeInTheDocument();
+    expect(within(table).queryByText('2/3')).not.toBeInTheDocument();
   });
 
   it('filtra por quién atendió y por usuario con los params de la API', async () => {

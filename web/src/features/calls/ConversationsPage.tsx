@@ -67,7 +67,6 @@ export function ConversationsPage() {
         error={calls.error}
         loading={calls.isPending}
         showClient={isAdmin && !filters.client}
-        showWorkflow={isAdmin}
         selectable={isAdmin}
         page={filters.page}
         status={filters.status}

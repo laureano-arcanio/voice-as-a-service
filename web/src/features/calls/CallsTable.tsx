@@ -17,7 +17,7 @@ import { IconLogin2, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
-import { CallStatusBadge, Dash, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
+import { Dash, LiveBadge } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { RowLink } from '@/components/RowLink';
@@ -66,7 +66,6 @@ export function CallsTable({
   error,
   loading,
   showClient,
-  showWorkflow,
   page,
   status,
   mode,
@@ -88,8 +87,6 @@ export function CallsTable({
   error: unknown;
   loading: boolean;
   showClient: boolean;
-  /** El estado del workflow es vocabulario interno: solo admin. */
-  showWorkflow: boolean;
   page: number;
   status: string | null;
   mode: string | null;
@@ -248,9 +245,9 @@ export function CallsTable({
           lanzá una llamada arriba o usá el modo prueba.
         </EmptyState>
       ) : (
-        // Lo secundario va debajo de su columna (cliente, workflow, duración, datos) y las acciones quedan fijas
-        // a la derecha: así están a la vista aunque la tabla tenga scroll.
-        <Table.ScrollContainer minWidth={760}>
+        // Cada conversación ocupa una fila de una línea y las acciones quedan fijas a la derecha: así están a la
+        // vista aunque la tabla tenga scroll.
+        <Table.ScrollContainer minWidth={showClient ? 1040 : 900}>
           <Table highlightOnHover style={{ whiteSpace: 'nowrap' }}>
             <Table.Thead>
               <Table.Tr>
@@ -265,11 +262,12 @@ export function CallsTable({
                   </Table.Th>
                 )}
                 <Table.Th>Fecha</Table.Th>
-                <Table.Th>{showClient ? 'Atendió y cliente' : 'Atendió'}</Table.Th>
+                {showClient && <Table.Th>Cliente</Table.Th>}
+                <Table.Th>Atendió</Table.Th>
                 <Table.Th>Contacto</Table.Th>
-                <Table.Th>Origen</Table.Th>
-                <Table.Th>Estado</Table.Th>
-                <Table.Th>Resultado</Table.Th>
+                <Table.Th>Empresa</Table.Th>
+                <Table.Th>Número</Table.Th>
+                <Table.Th>Duración</Table.Th>
                 {isAdmin && <Table.Th className="row-actions" />}
               </Table.Tr>
             </Table.Thead>
@@ -294,6 +292,9 @@ export function CallsTable({
                       {formatDateTime(c.created_at)}
                     </RowLink>
                   </Table.Td>
+                  {showClient && (
+                    <Table.Td>{formatValue(c.client_name) || <Dash />}</Table.Td>
+                  )}
                   <Table.Td>
                     {c.agent_id && isAdmin && c.client_id ? (
                       // El editor del agente es del panel del cliente: el admin entra como el cliente.
@@ -318,51 +319,29 @@ export function CallsTable({
                         v{c.agent_version}
                       </Text>
                     )}
-                    {showClient && (
-                      <Text size="xs" c="dimmed">
-                        {c.client_name ?? '–'}
-                      </Text>
-                    )}
                   </Table.Td>
+                  <Table.Td>{formatValue(c.contact_name) || <Dash />}</Table.Td>
+                  <Table.Td>{formatValue(c.company) || <Dash />}</Table.Td>
                   <Table.Td>
-                    {formatValue(c.contact_name) || <Dash />}
-                    {formatValue(c.company) && (
-                      <Text size="xs" c="dimmed">
-                        {formatValue(c.company)}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <OriginBadge mode={c.mode} answeredBy={c.answered_by} />
-                    {c.phone && (
-                      <Text size="xs" c="dimmed" className="mono">
+                    {c.phone ? (
+                      <Text span className="mono">
                         {c.phone}
                       </Text>
+                    ) : (
+                      <Dash />
                     )}
                   </Table.Td>
                   <Table.Td>
-                    <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
-                    {(!!c.duration_seconds || (showWorkflow && c.workflow_status)) && (
-                      <Group gap={6} wrap="nowrap" mt={2}>
-                        {!!c.duration_seconds && (
-                          <Text size="xs" c="dimmed" className="mono">
-                            {formatDuration(c.duration_seconds)}
-                          </Text>
-                        )}
-                        {showWorkflow && c.workflow_status && <WorkflowBadge status={c.workflow_status} />}
-                      </Group>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <OutcomeBadge label={c.outcome} />
-                    {!!(c.agent_id || c.total) && (
-                      <Text size="xs" c="dimmed">
-                        <span className="mono">
-                          {c.captured}/{c.total}
-                        </span>{' '}
-                        datos
-                      </Text>
-                    )}
+                    <Group gap={6} wrap="nowrap">
+                      {c.duration_seconds ? (
+                        <Text span className="mono">
+                          {formatDuration(c.duration_seconds)}
+                        </Text>
+                      ) : (
+                        !isLiveStatus(c.status) && <Dash />
+                      )}
+                      {isLiveStatus(c.status) && <LiveBadge>En vivo</LiveBadge>}
+                    </Group>
                   </Table.Td>
                   {isAdmin && (
                     <Table.Td ta="right" className="row-actions" onClick={(e) => e.stopPropagation()}>
