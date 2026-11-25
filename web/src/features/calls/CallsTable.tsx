@@ -394,6 +394,7 @@ export function CallsTable({
                         )}
                         <ReanalyzeButton
                           conversationId={c.id}
+                          agentVersion={c.agent_version}
                           hasAnalysis={c.has_analysis}
                           callStatus={c.status}
                           compact

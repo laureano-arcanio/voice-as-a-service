@@ -489,12 +489,13 @@ alcanza. En la navegación, arriba de todo.
 - **Estado:** los datos extraídos del análisis, `captured/total datos`, con un punto: verde si están todos,
   amarillo si falta alguno y rojo si no se extrajo ninguno. Sin datos que extraer (llamadas directas sin campos de
   análisis) va una raya.
-- **Volver a correr el análisis:** el ícono de la fila (y el botón del detalle, arriba a la derecha, con
-  confirmación que avisa que pisa los datos y el resumen actuales) re-analiza esa conversación con el prompt
-  vigente del agente; solo aparece si el agente tiene análisis, no es tu propio agente y la llamada no está en
-  curso. Lo que la nueva corrida no extraiga queda vacío. Solo un Admin del cliente o de la plataforma, con tope
-  por hora; si la extracción no llega a tiempo, sigue en el fondo (aviso amarillo) y la lista, que se refresca
-  sola, la muestra cuando termina.
+- **Volver a correr el análisis:** el ícono de la fila (y el botón del detalle, arriba a la derecha) abre un menú
+  con **La última versión del agente** o **La versión de esta conversación (vN)**; la confirmación avisa que pisa
+  los datos y el resumen actuales. La primera usa el análisis completo de la última versión (prompt, datos, tipos y
+  etapa del LLM); la segunda, el de la versión con la que corrió. Solo aparece si el agente tiene análisis, no es tu
+  propio agente y la llamada no está en curso. Lo que la nueva corrida no extraiga queda vacío. Solo un Admin del
+  cliente o de la plataforma, con tope por hora; si la extracción no llega a tiempo, sigue en el fondo (aviso
+  amarillo) y la lista, que se refresca sola, la muestra cuando termina.
 - Un click en la fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la
   derecha, a la vista aunque la tabla tenga scroll.
 - En el detalle, **Fin de llamada** dice quién cortó ("Cortó el destinatario", la persona del otro lado de la
@@ -613,7 +614,8 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
 - **Cortar llamada** (arriba a la derecha, mientras está en curso): cuelga en el momento; termina con
   `hangup_by_user`.
 - **Volver a correr el análisis** (arriba a la derecha, terminada y con análisis, solo Admin del cliente):
-  lo mismo que el ícono de la lista; al terminar, el detalle se actualiza solo.
+  el mismo menú de la lista (la última versión del agente o la de la conversación); al terminar, el detalle se
+  actualiza solo y muestra los campos de la versión que lo corrió.
 - **Bloquear número** (en las entrantes): las próximas llamadas de ese número a los números del cliente se
   cortan sin atender. Se desbloquea en Tus clientes, **Números bloqueados**.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y

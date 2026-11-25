@@ -136,15 +136,17 @@ export function useCloseWhatsApp(conversationId: string) {
 }
 
 /** Vuelve a correr el análisis de una conversación (solo Admin del cliente): re-extrae los datos y el
- * resumen con el prompt vigente del agente, pisando los actuales. `pending` si al vencer la espera la
- * extracción sigue corriendo en el fondo. */
+ * resumen, pisando los actuales. `version=latest` usa la última versión del agente; `conversation`, la de la
+ * conversación. `pending` si al vencer la espera la extracción sigue corriendo en el fondo. */
+export type ReanalyzeVersion = 'conversation' | 'latest';
+
 export function useReanalyze(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
+    mutationFn: (version: ReanalyzeVersion) =>
       unwrap(
         api.POST('/api/v1/calls/{conversation_id}/analyze', {
-          params: { path: { conversation_id: conversationId } },
+          params: { path: { conversation_id: conversationId }, query: { version } },
         }),
       ),
     onSettled: () => void qc.invalidateQueries({ queryKey: callKeys.all }),

@@ -983,8 +983,9 @@ export interface paths {
         put?: never;
         /**
          * Reanalyze Call
-         * @description Vuelve a correr el análisis de una conversación con el prompt vigente del agente: los datos y el
-         *     resumen quedan como los deje esta corrida (lo que no extraiga, en null). Solo Admin del cliente.
+         * @description Vuelve a correr el análisis de una conversación: los datos y el resumen quedan como los deje esta corrida
+         *     (lo que no extraiga, en null). Con `version=latest` usa el análisis completo de la última versión del agente
+         *     (prompt, campos, tipos, resumen y etapa del LLM); la conversación conserva su versión. Solo Admin del cliente.
          *     `pending=true` si al vencer la espera la extracción sigue corriendo en el fondo (no se cancela).
          */
         post: operations["reanalyze_call_api_v1_calls__conversation_id__analyze_post"];
@@ -14304,7 +14305,10 @@ export interface operations {
     };
     reanalyze_call_api_v1_calls__conversation_id__analyze_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Versión del agente con la que se extrae: la de la conversación (default) o la última del agente */
+                version?: "conversation" | "latest";
+            };
             header?: never;
             path: {
                 conversation_id: string;

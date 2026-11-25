@@ -541,7 +541,12 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
         </Tooltip>
       )}
       {canRerun && (
-        <ReanalyzeButton conversationId={c.id} hasAnalysis={c.has_analysis} callStatus={c.call?.status} />
+        <ReanalyzeButton
+          conversationId={c.id}
+          agentVersion={c.agent_version}
+          hasAnalysis={c.has_analysis}
+          callStatus={c.call?.status}
+        />
       )}
       {canBlock && <BlockCallerButton c={c} />}
       {canHangUp && <HangUpButton c={c} />}

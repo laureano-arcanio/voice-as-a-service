@@ -124,20 +124,35 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
              responses={409: {"description": "Sin análisis o agente propio (external), o llamada en curso"},
                         429: {"description": "Límite por hora del cliente"}})
 async def reanalyze_call(conversation_id: str, p: ClientAdminPrincipal, db: DB,
-                         definitions: Definitions, engine: Engine):
-    """Vuelve a correr el análisis de una conversación con el prompt vigente del agente: los datos y el
-    resumen quedan como los deje esta corrida (lo que no extraiga, en null). Solo Admin del cliente.
+                         definitions: Definitions, engine: Engine,
+                         version: Annotated[Literal["conversation", "latest"], Query(
+                             description="Versión del agente con la que se extrae: la de la conversación (default) "
+                                         "o la última del agente")] = "conversation"):
+    """Vuelve a correr el análisis de una conversación: los datos y el resumen quedan como los deje esta corrida
+    (lo que no extraiga, en null). Con `version=latest` usa el análisis completo de la última versión del agente
+    (prompt, campos, tipos, resumen y etapa del LLM); la conversación conserva su versión. Solo Admin del cliente.
     `pending=true` si al vencer la espera la extracción sigue corriendo en el fondo (no se cancela)."""
     conv = db.get(ConversationRow, conversation_id)
     if conv is None or not p.can_access(conv.client_id):
         raise NotFound("Conversación inexistente")
-    workflow = Reports(db, definitions).workflow(conv)
-    if workflow is None or workflow.analysis is None or workflow.external is not None:
-        raise Conflict("La conversación no tiene análisis", "no_analysis")
+    if version == "latest":
+        if conv.agent_id is None:
+            raise Conflict("La última versión del agente no tiene análisis", "no_analysis")
+        try:
+            _, selected = definitions.current(conv.agent_id, db)
+        except KeyError:
+            raise Conflict("La última versión del agente no tiene análisis", "no_analysis") from None
+    else:
+        selected = Reports(db, definitions).workflow(conv)
+        if selected is None:
+            raise Conflict("La conversación no tiene análisis", "no_analysis")
+    if selected.analysis is None or selected.external is not None:
+        raise Conflict("La última versión del agente no tiene análisis"
+                       if version == "latest" else "La conversación no tiene análisis", "no_analysis")
     call = db.get(CallRow, conversation_id)
     if call is not None and call.status in ACTIVE_CALL_STATUSES:
         raise Conflict("La llamada sigue en curso", "call_in_progress")
-    await engine.analyze(conversation_id, timeout=15, reset=True, kind="reanalisis")
+    await engine.analyze(conversation_id, timeout=15, reset=True, kind="reanalisis", workflow=selected)
     return CallAnalyzeOut(pending=bool(engine.extractions.get(conversation_id)))
 
 

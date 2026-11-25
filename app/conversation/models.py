@@ -434,6 +434,9 @@ class Progress(BaseModel):
     system_prompt: str | None = None
     # Resumen del analisis (analysis.summary).
     summary: str | None = None
+    # Version del agente que produjo el ultimo analisis: la de la conversacion, o la ultima si se re-corrio con
+    # ella. None en las conversaciones viejas: se usa la de la conversacion.
+    analysis_version: int | None = None
     # Herramientas del turno que se deshizo (retract_last_turn) y todavia no vio el modelo: van en la respuesta
     # del turno siguiente, que las limpia (una herramienta con efecto no se repite).
     carry_tools: list[dict[str, Any]] = Field(default_factory=list)

@@ -339,11 +339,12 @@ class ConversationEngine:
                 return True
         return False
 
-    def _launch_extraction(self, conversation_id: str, reply: int, *,
-                           reset: bool = False, kind: str = "extraccion") -> asyncio.Task:
+    def _launch_extraction(self, conversation_id: str, reply: int, *, reset: bool = False, kind: str = "extraccion",
+                           workflow: Workflow | None = None) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None
-        task = asyncio.create_task(self._extract(conversation_id, reply, previous, reset=reset, kind=kind))
+        task = asyncio.create_task(self._extract(conversation_id, reply, previous, reset=reset, kind=kind,
+                                                 workflow=workflow))
         tasks.append(task)
         task.add_done_callback(lambda t: self._forget(conversation_id, t))
         return task
@@ -359,26 +360,27 @@ class ConversationEngine:
         await self._analyze_now(state, timeout)
 
     async def analyze(self, conversation_id: str, timeout: float = 10, *,
-                      reset: bool = False, kind: str = "extraccion") -> None:
+                      reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None) -> None:
         """El analisis sin terminar la conversacion (no cambia status): espera el que este en curso o lanza uno
         y lo espera, hasta timeout. Para el post-call de WhatsApp, que corre antes de cerrar el chat, y para
         re-correrlo en una conversacion ya guardada (reset: el extractor no ve los datos viejos y el
-        resultado los pisa; kind: la marca de la traza, "reanalisis" para ese caso)."""
+        resultado los pisa; kind: la marca de la traza, "reanalisis" para ese caso). workflow: la version a
+        usar (re-analisis con la ultima del agente); sin el, la de la conversacion."""
         if self.extractions.get(conversation_id):
             await self.wait_extraction(conversation_id, timeout)
             return
         state = self.store.get(conversation_id)
         if state is None or len(state.messages) < 2:
             return
-        await self._analyze_now(state, timeout, reset=reset, kind=kind)
+        await self._analyze_now(state, timeout, reset=reset, kind=kind, workflow=workflow)
 
     async def _analyze_now(self, state: ConversationState, timeout: float, *,
-                           reset: bool = False, kind: str = "extraccion") -> None:
-        workflow = self.workflow(state)
+                           reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None) -> None:
+        workflow = workflow or self.workflow(state)
         if workflow.external is not None or workflow.analysis is None:
             return
         await asyncio.wait([self._launch_extraction(state.conversation_id, len(state.messages) - 1,
-                                                    reset=reset, kind=kind)],
+                                                    reset=reset, kind=kind, workflow=workflow)],
                            timeout=timeout)
 
     def _forget(self, conversation_id: str, task: asyncio.Task) -> None:
@@ -396,14 +398,14 @@ class ConversationEngine:
             await asyncio.wait([tasks[-1]], timeout=timeout)
 
     async def _extract(self, conversation_id: str, reply: int, previous: asyncio.Task | None, *,
-                       reset: bool = False, kind: str = "extraccion") -> None:
+                       reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None) -> None:
         """Extrae los datos de toda la conversacion y los aplica. reply: indice
         del mensaje del agente de este turno (ahi va la traza)."""
         if previous is not None:
             await asyncio.wait([previous])      # en orden; y cancelar esta no cancela la anterior
         try:
             state = self.store.get(conversation_id)
-            workflow = self.workflow(state)
+            workflow = workflow or self.workflow(state)
             await self._run_extraction(workflow, state, reply, kind, reset=reset)
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
@@ -413,9 +415,10 @@ class ConversationEngine:
         started = time.perf_counter()
         if reset:
             # El extractor no ve los datos viejos: una copia con los campos en null y sin resumen, para que
-            # KNOWN FIELDS no sesgue la extraccion.
+            # KNOWN FIELDS no sesgue la extraccion. Los campos son los de la version que corre (la ultima, si se
+            # re-corrio con ella): si agrego o quito alguno, el resultado queda con los suyos.
             state = state.model_copy(update={
-                "fields": {name: None for name in state.fields},
+                "fields": {name: None for name in workflow.analysis_fields},
                 "progress": state.progress.model_copy(update={"summary": None})})
         # La etapa del ultimo turno del usuario.
         llm = self.llms.for_turn(workflow, sum(m.role == "user" for m in state.messages), state.client_id)
@@ -429,12 +432,14 @@ class ConversationEngine:
         if reset:
             # Pisa: esta corrida es la que vale, lo que no extrajo queda en null. Recien ahora, despues del
             # await: si fallo el LLM, los datos viejos siguen.
-            state.fields = {name: None for name in state.fields}
+            state.fields = {name: None for name in workflow.analysis_fields}
         state.fields.update(updates)
         state.progress.rejected = rejected
         # Con reset, el resumen se reemplaza (aunque esta corrida no lo trajo); sin el, solo si vino.
         if reset or result.summary:
             state.progress.summary = result.summary
+        # La version que produjo este analisis: el detalle y la lista muestran sus campos.
+        state.progress.analysis_version = workflow.version
         _add_usage(state, result)
         message = state.messages[reply]
         message.llm = (message.llm or []) + [{"kind": kind, "input": "conversación completa", "ms": ms,

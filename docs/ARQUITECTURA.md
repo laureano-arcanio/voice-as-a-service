@@ -379,6 +379,10 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   guardadas lo conservan). **Volver a correrla:** `POST /calls/{id}/analyze` (solo Admin del cliente, tope por hora)
   re-analiza una conversación guardada con `reset`: el extractor no ve los datos viejos (sin `KNOWN FIELDS`) y el
   resultado pisa `fields` y `summary` (lo que no extraiga queda en null; si el LLM falla, los viejos no se tocan).
+  `?version=conversation` (default) usa la versión de la conversación; `?version=latest`, el `analysis` completo de
+  la última del agente (prompt, campos, tipos, resumen y etapa del LLM); la conversación conserva su
+  `agent_version`. `progress.analysis_version` guarda la versión que produjo el último análisis y el detalle y la
+  lista muestran sus campos (las viejas, sin ese dato, los de su `agent_version`).
   Espera hasta 15 s y responde `{pending}`: `true` si la extracción sigue en el fondo (no se cancela). 409 sin
   `analysis`, con `external` o con la llamada en curso.
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
@@ -726,9 +730,10 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`, y filtra por uno o varios `mode` y por `landing`; el resto, listas simples. Las
   fechas de `/calls` y `/reports` toman días locales de `tz` (default `BILLING_TIMEZONE`). Los admins pasan
   `client_id` en las rutas de recursos de un cliente. Cada ítem trae `captured` (datos capturados) y `total` (los del
-  análisis de la versión con que corrió) y `has_analysis` (si se puede volver a correr el análisis).
-- **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis con `name`,
-  `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
+  análisis de la versión que lo produjo, `progress.analysis_version`) y `has_analysis` (si se puede volver a correr el
+  análisis).
+- **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis de la versión
+  que lo produjo, con `name`, `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
   (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`); `system_prompt` es
   el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar);
   `has_analysis`, como en la lista, dice si se puede volver a correr su análisis. No
@@ -744,7 +749,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `branding.py` | `/clients/{id}/branding*`, `/public/branding/{slug}*` | "Marca blanca" |
 | `agents.py` | `/agents` (CRUD, `schema`, `validate`, `prompt`, `definition`, `versions`), `/agent-templates` | "Definición de un agente" |
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
-| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), `analyze` (re-correr el análisis, admin del cliente), borrar y `bulk-delete` solo admin) | "Flujos" |
+| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), `analyze` (re-correr el análisis, admin del cliente, con la versión de la conversación o la última), borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
 | `variables.py` | `GET /variables/catalog` (reglas de nombres, topes y variables del sistema con `applies_to`) | "Definición de un agente" |
 | `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |

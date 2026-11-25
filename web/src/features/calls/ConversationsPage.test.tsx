@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -36,15 +36,16 @@ const CALL: CallSummary = {
 };
 
 function mockApi(routes: Record<string, () => Response>) {
-  const calls: { method: string; path: string; body?: unknown }[] = [];
+  const calls: { method: string; path: string; search: string; body?: unknown }[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const req = input instanceof Request ? input : new Request(input);
-      const path = new URL(req.url).pathname;
+      const url = new URL(req.url);
+      const path = url.pathname;
       // Un POST sin cuerpo (el analyze) no lleva JSON: queda en undefined.
       const body = req.method === 'POST' ? await req.clone().json().catch(() => undefined) : undefined;
-      calls.push({ method: req.method, path, body });
+      calls.push({ method: req.method, path, search: url.search, body });
       const route = routes[`${req.method} ${path}`];
       return route ? route() : jsonResponse({ detail: 'no mock' }, 404);
     }),
@@ -266,6 +267,8 @@ describe('conversaciones', () => {
 });
 
 describe('volver a correr el análisis', () => {
+  // En jsdom, Floating UI puede dejar el menú con `display: none` aunque esté abierto (hideDetached), como en
+  // WhatsAppPage.test.tsx: los ítems se buscan entre los ocultos y se clickean con fireEvent.
   it('solo con análisis y llamada terminada; un Usuario del cliente no lo ve', async () => {
     mockApi(
       listRoutes([
@@ -306,24 +309,56 @@ describe('volver a correr el análisis', () => {
     await screen.findByRole('link', { name: /Ver conversación del/ });
     const before = listGets();
 
+    // El ícono abre el menú con las dos versiones; el menú de la fila dice la versión de la conversación.
     await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    expect(
+      await screen.findByRole('menuitem', { name: 'La versión de esta conversación (v1)', hidden: true }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     const dialog = await screen.findByRole('dialog', { name: 'Volver a correr el análisis' });
     expect(within(dialog).getByText(/pisan los actuales/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/última versión/)).toBeInTheDocument();
     // Cancelar no manda nada.
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/analyze'))).toBe(false);
 
     await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
     );
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/analyze'))).toBe(true),
     );
-    // El POST no lleva cuerpo y al terminar se invalida la lista.
-    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/analyze'))?.body).toBeUndefined();
+    // El POST no lleva cuerpo, pide la última versión y al terminar se invalida la lista.
+    const post = calls.find((c) => c.method === 'POST' && c.path.endsWith('/analyze'));
+    expect(post?.body).toBeUndefined();
+    expect(post?.search).toBe('?version=latest');
     await waitFor(() => expect(listGets()).toBeGreaterThan(before));
-    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr.');
+    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr con la última versión.');
+  });
+
+  it('con la versión de la conversación, el POST la pide y el aviso la nombra', async () => {
+    const calls = mockApi({
+      ...listRoutes([{ ...CALL, has_analysis: true }]),
+      'POST /api/v1/calls/cv-1/analyze': () => jsonResponse({ pending: false }),
+    });
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    await screen.findByRole('link', { name: /Ver conversación del/ });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'La versión de esta conversación (v1)', hidden: true }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Volver a correr el análisis' });
+    expect(within(dialog).getByText(/versión de esta conversación \(v1\)/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Volver a correr' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/analyze'))?.search).toBe(
+        '?version=conversation',
+      ),
+    );
+    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr con la versión de la conversación.');
   });
 
   it('pending: avisa que sigue corriendo en el fondo', async () => {
@@ -333,6 +368,7 @@ describe('volver a correr el análisis', () => {
     });
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
     );
@@ -351,6 +387,7 @@ describe('volver a correr el análisis', () => {
     });
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
     );

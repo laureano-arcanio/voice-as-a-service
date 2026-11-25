@@ -524,6 +524,65 @@ def test_reanalyze_call_overwrites_fields_and_summary(api, admin):
     assert items[0]["has_analysis"] is True
 
 
+def test_reanalyze_call_with_the_latest_agent_version(api, admin):
+    """`version=latest` re-corre el análisis con la última versión del agente: su prompt, campos, tipos y etapa
+    del LLM (el extractor ve la definición nueva y el resultado queda con sus campos). La conversación conserva
+    su `agent_version`; sin `version` (o con `conversation`) vuelve a la suya. 409 si la última no tiene análisis."""
+    c = make_client(admin)
+    definition = reference_data("sales_discovery")
+    definition["analysis"]["prompt"] = "Analizá la llamada (v1)."
+    definition["analysis"]["fields"] = [{"name": "motivo", "description": "Por qué llamó"}]
+    agent = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Ventas",
+                                             "definition": definition}).json()
+    api.llm.turns = [AgentTurn(assistant_message="Gracias.", status="active")]
+    cid = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()["conversation_id"]
+    admin.post(f"{V1}/conversations/{cid}/turns", json={"message": "Quería consultar."})
+
+    # v2: otro prompt y otro campo.
+    v2 = {**definition, "analysis": {
+        "prompt": "Analizá la llamada (v2).", "summary": True,
+        "fields": [{"name": "acuerdo", "description": "Qué acordaron", "type": "string"}]}}
+    assert admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": v2}).status_code == 200
+
+    seen = []
+
+    async def extract(workflow, state):
+        seen.append({"version": workflow.version, "prompt": workflow.analysis.prompt,
+                     "fields": sorted(state.fields)})
+        return Extraction(fields={"acuerdo": "El viernes"}, summary="Acordaron el viernes.",
+                          input_tokens=5, output_tokens=2)
+    api.llm.extract = extract
+
+    r = admin.post(f"{V1}/calls/{cid}/analyze", params={"version": "latest"})
+    assert r.status_code == 200 and r.json() == {"pending": False}
+    # El extractor vio la definición de v2, con sus campos y sin los viejos.
+    assert seen[-1] == {"version": 2, "prompt": "Analizá la llamada (v2).", "fields": ["acuerdo"]}
+    detail = admin.get(f"{V1}/calls/{cid}").json()
+    assert detail["agent_version"] == 1                 # la historia no se reescribe
+    assert [f["name"] for f in detail["fields"]] == ["acuerdo"]
+    assert detail["fields"][0]["value"] == "El viernes"
+    assert detail["summary"] == "Acordaron el viernes."
+    items = admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["items"]
+    assert (items[0]["captured"], items[0]["total"]) == (1, 1)
+
+    # Con la versión de la conversación vuelve a v1: sus campos, y lo que v2 extrajo se va.
+    r = admin.post(f"{V1}/calls/{cid}/analyze", params={"version": "conversation"})
+    assert r.status_code == 200 and seen[-1]["version"] == 1
+    detail = admin.get(f"{V1}/calls/{cid}").json()
+    assert [f["name"] for f in detail["fields"]] == ["motivo"]
+    assert {f["name"]: f["value"] for f in detail["fields"]} == {"motivo": None}
+    items = admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["items"]
+    assert (items[0]["captured"], items[0]["total"]) == (0, 1)
+
+    # Una última versión sin análisis: 409 al pedirla; la de la conversación sigue andando.
+    no_analysis = {k: v for k, v in v2.items() if k != "analysis"}
+    assert admin.put(f"{V1}/agents/{agent['id']}/definition",
+                     json={"definition": no_analysis}).status_code == 200
+    r = admin.post(f"{V1}/calls/{cid}/analyze", params={"version": "latest"})
+    assert r.status_code == 409 and r.json()["code"] == "no_analysis"
+    assert admin.post(f"{V1}/calls/{cid}/analyze").status_code == 200
+
+
 def test_reanalyze_call_conflicts(api, admin, monkeypatch):
     """409 sin análisis, con tu propio agente (external) o con la llamada en curso; en esos casos la
     lista no muestra el botón (`has_analysis` false para los dos primeros)."""

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CallDetail } from '@/api/types';
@@ -48,13 +48,14 @@ const DETAIL: CallDetail = {
 };
 
 function renderDetail(detail: CallDetail, analyze?: () => Response) {
-  const calls: { method: string; path: string }[] = [];
+  const calls: { method: string; path: string; search: string }[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const req = input instanceof Request ? input : new Request(input);
-      const path = new URL(req.url).pathname;
-      calls.push({ method: req.method, path });
+      const url = new URL(req.url);
+      const path = url.pathname;
+      calls.push({ method: req.method, path, search: url.search });
       if (path === '/api/v1/calls/cv-1' && req.method === 'GET') return jsonResponse(detail);
       if (path === '/api/v1/calls/cv-1/analyze' && req.method === 'POST')
         return analyze ? analyze() : jsonResponse({ pending: false });
@@ -94,13 +95,14 @@ describe('detalle: volver a correr el análisis', () => {
     expect(screen.queryByRole('button', { name: 'Volver a correr el análisis' })).not.toBeInTheDocument();
   });
 
-  it('confirma, corre el POST y refresca el detalle', async () => {
+  it('confirma, corre el POST con la última versión y refresca el detalle', async () => {
     const { calls } = renderDetail(DETAIL);
     const detailGets = () => calls.filter((c) => c.method === 'GET' && c.path === '/api/v1/calls/cv-1').length;
     await screen.findByText('Resumen viejo.');
     const before = detailGets();
 
     await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     const dialog = await screen.findByRole('dialog', { name: 'Volver a correr el análisis' });
     expect(within(dialog).getByText(/pisan los actuales/)).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Volver a correr' }));
@@ -108,13 +110,35 @@ describe('detalle: volver a correr el análisis', () => {
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/calls/cv-1/analyze')).toBe(true),
     );
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/api/v1/calls/cv-1/analyze')?.search).toBe(
+      '?version=latest',
+    );
     await waitFor(() => expect(detailGets()).toBeGreaterThan(before));
-    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr.');
+    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr con la última versión.');
+  });
+
+  it('con la versión de la conversación, el menú la muestra con su vN y el POST la pide', async () => {
+    const { calls } = renderDetail(DETAIL);
+    await screen.findByText('Resumen viejo.');
+    await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'La versión de esta conversación (v1)', hidden: true }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
+    );
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/analyze'))?.search).toBe(
+        '?version=conversation',
+      ),
+    );
+    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr con la versión de la conversación.');
   });
 
   it('pending: avisa que sigue corriendo en el fondo', async () => {
     renderDetail(DETAIL, () => jsonResponse({ pending: true }));
     await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
     );
@@ -130,6 +154,7 @@ describe('detalle: volver a correr el análisis', () => {
       jsonResponse({ detail: 'La conversación no tiene análisis', code: 'no_analysis' }, 409),
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'La última versión del agente', hidden: true }));
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
     );

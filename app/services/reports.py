@@ -163,6 +163,17 @@ class Reports:
             pass
         return None
 
+    def analysis_workflow(self, conv: ConversationRow) -> Workflow | None:
+        """La version del agente que produjo el ultimo analisis (progress.analysis_version; un re-analisis con la
+        ultima la cambia), si existe; si no, la de la conversacion."""
+        version = Progress.model_validate(conv.progress or {}).analysis_version
+        if version and conv.agent_id:
+            try:
+                return self.definitions.get(conv.agent_id, version, self.s)
+            except KeyError:
+                pass
+        return self.workflow(conv)
+
     def outcome(self, conv: ConversationRow) -> str | None:
         """Etiqueta del resultado de una conversación completada: solo plataforma ("Fuera de tema", "Incompleta");
         un id viejo de agente (definiciones anteriores a quitar los resultados) se muestra tal cual. None si no
@@ -178,8 +189,9 @@ class Reports:
                 client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
         workflow = self.workflow(conv)
         f = conv.fields
-        # Todos los datos del analisis: cuantos se capturaron.
-        names = list(workflow.analysis_fields) if workflow else list(f)
+        # Todos los datos del analisis: cuantos se capturaron (los de la version que lo corrio).
+        analysis = self.analysis_workflow(conv)
+        names = list(analysis.analysis_fields) if analysis else list(f)
         lat = (call.latency or {}).get("stats", {}).get("total") if call else None
         if conv.channel == "whatsapp":
             mode, phone = "whatsapp", thread.wa_id if thread else None
@@ -248,9 +260,11 @@ class Reports:
         workflow = self.workflow(conv)
         state = state_of(conv)
         progress = state.progress
-        if workflow:
+        # Los datos y su orden, de la version que produjo el ultimo analisis.
+        analysis = self.analysis_workflow(conv)
+        if analysis:
             fields = [{"name": n, "label": spec.label or n, "description": spec.description.strip(),
-                       "value": conv.fields.get(n)} for n, spec in workflow.analysis_fields.items()]
+                       "value": conv.fields.get(n)} for n, spec in analysis.analysis_fields.items()]
         else:
             fields = [{"name": n, "label": n, "description": n, "value": v} for n, v in conv.fields.items()]
         for f in fields:
