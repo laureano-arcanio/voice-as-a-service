@@ -1301,6 +1301,12 @@ class CallHangupOut(BaseModel):
     ended_reason: str
 
 
+class CallAnalyzeOut(BaseModel):
+    """Volver a correr el analisis de una conversacion (POST /calls/{id}/analyze)."""
+    pending: bool = Field(description="true si la extraccion sigue corriendo en el fondo: al vencer la espera "
+                                      "no se cancela, deja su resultado en la conversacion")
+
+
 # ---------- llamadas directas (docs/features/EQUIPO_TELEFONIA.md) ----------
 
 class DirectCallIn(BaseModel):
@@ -1396,6 +1402,10 @@ class CallSummary(BaseModel):
     opted_out_confirmed: bool = False
     contact_id: str | None = Field(default=None, description="El contacto de la agenda con ese teléfono, si hay "
                                                              "(contact_name, si el agente no lo tomó, es el suyo)")
+    # Re-analizarla (POST /calls/{id}/analyze): solo si el agente de esta conversación tiene análisis y no
+    # es tu propio agente (external).
+    has_analysis: bool = Field(default=False, description="true si se puede volver a correr su análisis "
+                                                           "(POST /calls/{id}/analyze)")
 
 
 class CallPage(BaseModel):
@@ -1536,6 +1546,10 @@ class CallDetail(BaseModel):
     recordings: list[int] = []
     # Grabacion completa de la llamada (opcion del numero, Asterisk): GET /calls/{id}/recording.
     full_recording: bool = False
+    # Re-analizarla (POST /calls/{id}/analyze): solo si el agente de esta conversación tiene análisis y no
+    # es tu propio agente (external).
+    has_analysis: bool = Field(default=False, description="true si se puede volver a correr su análisis "
+                                                          "(POST /calls/{id}/analyze)")
     call: CallInfo | None
     whatsapp: WhatsAppInfo | None = None
 
@@ -1591,6 +1605,12 @@ class VariableLimitsOut(BaseModel):
     max_value_chars: int = Field(examples=[2000])
 
 
+class VariableDefaultsOut(BaseModel):
+    """Defaults de la plataforma: la UI los muestra como `placeholder` del editor y para los botones
+    "Partir del predeterminado" (copia el texto al editor) y "Restaurar el predeterminado" (vuelve a vacío)."""
+    analysis_prompt: str = Field(examples=["Sos el extractor de datos de {where}. No hablás con nadie…"])
+
+
 class VariableCatalogOut(BaseModel):
     """Reglas de las variables de usuario ({{nombre}}) y las del sistema."""
     name_pattern: str = Field(examples=["^[a-z][a-z0-9_]{0,63}$"])
@@ -1598,6 +1618,7 @@ class VariableCatalogOut(BaseModel):
     reserved_prefixes: list[str] = Field(examples=[["call.", "agent.", "secrets.", "fields."]])
     limits: VariableLimitsOut
     system: list[SystemVariableOut]
+    defaults: VariableDefaultsOut
 
 
 # ---------- voces ----------

@@ -18,6 +18,8 @@ export type FieldType = (typeof FIELD_TYPES)[number]['value'];
 /** Límites de la definición (app/conversation/models.py). */
 export const MAX_PROMPT = 40_000;
 export const MAX_FIRST_MESSAGE = 1_000;
+/** Tope del prompt del análisis (Analysis.prompt). */
+export const MAX_ANALYSIS_PROMPT = 20_000;
 export const MAX_VARIABLES = 30;
 export const MAX_VARIABLE_VALUE = 2_000;
 
@@ -129,11 +131,15 @@ export interface VariableDraft {
   description: string;
 }
 
-/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos ni instrucciones, no va a
+/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos ni prompt, no va a
  * la definicion: un agente sin analisis no extrae nada. */
 export interface AnalysisDraft {
   summary: boolean;
-  instructions: string;
+  /** System message completo del extractor; '' = el de la plataforma (defaults.analysis_prompt). */
+  prompt: string;
+  /** `analysis.instructions` de la definicion (deprecado): se conserva tal cual mientras el prompt
+   * este vacio y se puede traer al prompt desde el editor. */
+  legacyInstructions: string;
   fields: FieldDraft[];
 }
 
@@ -514,7 +520,8 @@ export function toDraft(d: Definition): Draft {
     variables: toVariables(d.variables),
     analysis: {
       summary: analysis.summary !== false,
-      instructions: str(analysis.instructions),
+      prompt: str(analysis.prompt),
+      legacyInstructions: str(analysis.instructions),
       fields: toFields(analysis.fields),
     },
     // Las entradas viejas de apps ({app, tools}) no tienen tool: se descartan, como en el servidor.
@@ -535,9 +542,9 @@ export function toDraft(d: Definition): Draft {
   };
 }
 
-/** Sin datos ni instrucciones no hay analisis: el agente no extrae nada al terminar. */
+/** Sin datos ni prompt (ni instrucciones viejas) no hay analisis: el agente no extrae nada al terminar. */
 export function hasAnalysis(a: AnalysisDraft): boolean {
-  return a.fields.length > 0 || a.instructions.trim() !== '';
+  return a.fields.length > 0 || a.prompt.trim() !== '' || a.legacyInstructions.trim() !== '';
 }
 
 /** Los datos del analisis como van a la definicion, en el orden de las filas. */
@@ -593,7 +600,11 @@ export function fromDraft(draft: Draft): Definition {
       ? {
           analysis: {
             summary: draft.analysis.summary,
-            instructions: draft.analysis.instructions,
+            // El prompt lleno migra de `instructions` (deprecado). Vacio, las instrucciones viejas se
+            // siguen guardando igual: guardar sin tocar el prompt no pierde nada.
+            ...(draft.analysis.prompt.trim()
+              ? { prompt: draft.analysis.prompt }
+              : { instructions: draft.analysis.legacyInstructions }),
             fields: fromFields(draft.analysis.fields),
           },
         }

@@ -54,7 +54,11 @@ class AnalysisField(BaseModel):
 class Analysis(BaseModel):
     """Lo que se saca de la conversacion al terminar, en una llamada guiada: datos y resumen."""
     summary: bool = True
+    # Deprecado: se sigue aceptando y, si `prompt` esta vacio, se pliega al default del analisis
+    # (app/llm/prompt.py, analysis_system_prompt). Sin tocar definiciones guardadas.
     instructions: str = Field(default="", max_length=4000)
+    # Prompt completo del analisis (system message del extractor); vacio = el default de la plataforma.
+    prompt: str = Field(default="", max_length=20_000)
     # Lista y no mapa: jsonb no conserva el orden de las claves, y el orden es el del analisis y la UI.
     fields: list[AnalysisField] = Field(default_factory=list)
 
@@ -319,6 +323,7 @@ class Workflow(BaseModel):
             seen.add(var.name)
         texts = [("prompt", self.prompt), ("first_message", self.first_message)]
         if self.analysis is not None:
+            texts.append(("analysis.prompt", self.analysis.prompt))
             texts.append(("analysis.instructions", self.analysis.instructions))
             texts += [(f"analysis.fields.{i}.description", f.description) for i, f in enumerate(self.analysis.fields)]
         for path, text in texts:

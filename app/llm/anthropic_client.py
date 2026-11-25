@@ -26,11 +26,11 @@ from app.conversation.models import (
 )
 
 from . import platform_tools
-from .client import extraction_schema, parse_extraction, wants_summary
+from .client import extraction_schema, parse_extraction
 from .prompt import (
+    analysis_system_prompt,
     build_extraction_prompt,
     build_turn_messages,
-    extraction_prompt,
     tool_history,
 )
 
@@ -243,7 +243,7 @@ class AnthropicClient:
 
     async def extract(self, workflow: Workflow, state: ConversationState) -> Extraction:
         content, message = await self._json_message(
-            [{"role": "system", "content": extraction_prompt(state.channel, wants_summary(workflow))},
+            [{"role": "system", "content": analysis_system_prompt(workflow, state)},
              {"role": "user", "content": build_extraction_prompt(workflow, state)}], extraction_schema(workflow))
         tokens_in, tokens_out = usage_of(message)
         return parse_extraction(content, input_tokens=tokens_in, output_tokens=tokens_out)

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClientTool } from '@/api/types';
+import { CATALOG } from '@/components/variables/fixtures';
 import { ADMIN, jsonResponse, renderWithProviders } from '@/test/render';
 import { type Draft, errorTarget, fromDraft, pathLabel, toDraft } from './draft';
 import { DefinitionForm } from './DefinitionForm';
@@ -134,7 +135,11 @@ describe('workflows del agente', () => {
   it('el formulario muestra la sección con tu propio agente', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse(TOOLS)),
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL((input instanceof Request ? input : new Request(input)).url);
+        if (url.pathname === '/api/v1/variables/catalog') return jsonResponse(CATALOG);
+        return jsonResponse(TOOLS);
+      }),
     );
     const draft = toDraft({
       ...DEF,

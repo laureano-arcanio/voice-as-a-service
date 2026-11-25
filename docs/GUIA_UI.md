@@ -164,7 +164,7 @@ admin, en **Agentes** de `/admin`, ve los de todos los clientes en solo lectura 
 y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abre para editarlo.
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, prompt (las primeras líneas), primer mensaje,
-  variables y el análisis (resumen, instrucciones y datos).
+  variables y el análisis (resumen, prompt y datos).
 - **Conversación:** qué dice. Es lo que recibe el modelo.
   - **Agente:** nombre e idioma.
   - **Prompt:** el texto que va tal cual al modelo, con los títulos `#` (`# Identidad`, `# Objetivo`,
@@ -185,10 +185,16 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
   - **Ver prompt** (en la barra): cómo lo ve el modelo con lo que está en pantalla, por llamada o por WhatsApp.
 - **Análisis:** qué obtiene al terminar. Una llamada guiada saca los datos y el resumen; sin análisis el
   agente no extrae nada.
-  - **Escribir un resumen de lo hablado:** un párrafo para el detalle, el email y las herramientas
+  - **Escribir un resumen de lo hablado:** un párrafo para el detalle y las herramientas
     (`{{call.summary}}`).
-  - **Instrucciones para el análisis:** qué mirar y cómo resumir; vacío usa las de la plataforma. Acepta
-    variables.
+  - **Prompt del análisis:** el system message del extractor (rol + instrucciones), completo y editable, con el
+    mismo editor de la pestaña Conversación (tipeá `{{` para insertar una variable). Vacío usa el de la plataforma,
+    que se muestra como sugerencia gris; **Partir del predeterminado** lo copia al editor para editarlo (al guardar,
+    el agente deja de seguir al de la plataforma) y **Restaurar el predeterminado** lo vuelve a dejar en blanco.
+    Los datos (`CAMPOS`, `VARIABLES`, `CONVERSATION`, `KNOWN FIELDS`), el esquema y, con el resumen activo, la frase
+    que lo pide los sigue agregando la plataforma. Tope 20.000 caracteres. Un agente con **instrucciones** de una
+    versión anterior muestra un aviso con **Traer al prompt** (las compone con el de la plataforma y al guardar
+    migran); mientras el prompt quede vacío, guardar sin tocar nada conserva esas instrucciones tal cual.
   - **Datos:** etiqueta, nombre interno, tipo (texto, número, sí o no, opción de una lista, email, email o
     teléfono, teléfono) y descripción. El orden de las filas es el del análisis; el nombre interno es la clave
     que usan las herramientas (`{{fields.nombre}}`).
@@ -483,6 +489,12 @@ alcanza. En la navegación, arriba de todo.
 - **Estado:** los datos extraídos del análisis, `captured/total datos`, con un punto: verde si están todos,
   amarillo si falta alguno y rojo si no se extrajo ninguno. Sin datos que extraer (llamadas directas sin campos de
   análisis) va una raya.
+- **Volver a correr el análisis:** el ícono de la fila (y el botón del detalle, arriba a la derecha, con
+  confirmación que avisa que pisa los datos y el resumen actuales) re-analiza esa conversación con el prompt
+  vigente del agente; solo aparece si el agente tiene análisis, no es tu propio agente y la llamada no está en
+  curso. Lo que la nueva corrida no extraiga queda vacío. Solo un Admin del cliente o de la plataforma, con tope
+  por hora; si la extracción no llega a tiempo, sigue en el fondo (aviso amarillo) y la lista, que se refresca
+  sola, la muestra cuando termina.
 - Un click en la fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la
   derecha, a la vista aunque la tabla tenga scroll.
 - En el detalle, **Fin de llamada** dice quién cortó ("Cortó el destinatario", la persona del otro lado de la
@@ -600,6 +612,8 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
 - Mientras la llamada sigue, todo se actualiza cada segundo.
 - **Cortar llamada** (arriba a la derecha, mientras está en curso): cuelga en el momento; termina con
   `hangup_by_user`.
+- **Volver a correr el análisis** (arriba a la derecha, terminada y con análisis, solo Admin del cliente):
+  lo mismo que el ícono de la lista; al terminar, el detalle se actualiza solo.
 - **Bloquear número** (en las entrantes): las próximas llamadas de ese número a los números del cliente se
   cortan sin atender. Se desbloquea en Tus clientes, **Números bloqueados**.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y
@@ -978,12 +992,6 @@ El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede
   panel y las que atiende en un número del equipo se graban siempre; con el switch prendido (apagado por
   defecto), al empezar suena "Esta llamada está siendo grabada." Avisar a quien llama y tener su
   consentimiento es responsabilidad de tu empresa. Está atenuada en los planes sin llamadas directas.
-- **Resumen de llamadas por email:** prende o apaga, para todos tus agentes, el email que manda Atentina
-  después de cada llamada, y elegís a quién le llega (vacío: a los usuarios de la cuenta). Cada agente lo
-  prende en su editor, sección Voz ("Resumen por email después de cada llamada"); al prenderlo se agrega el dato
-  "Teléfono" si el agente no lo tiene: en las llamadas por teléfono se completa solo con el número de quien llama, y
-  por el link para llamar el agente lo pide. El admin lo ve y lo
-  edita en la ficha del cliente.
 - **Contenido de la API:** switch **Guardar el contenido de la API y de las pruebas de voz** (prendido por defecto)
   y **Se borra a los** 7, 30 (por defecto), 90, 180, 365 días o **Indefinido** (avisa que no vence y ocupa disco
   hasta que lo borres). El plazo rige también para lo ya guardado; apagar el switch no borra nada. Muestra

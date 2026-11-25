@@ -36,6 +36,9 @@ export interface WorkflowView {
   /** Variables declaradas, en el orden en que se guardaron. */
   variables: VariableSpec[];
   summary: boolean;
+  /** System message del extractor (analysis.prompt); '' = el de la plataforma. */
+  analysisPrompt: string;
+  /** `analysis.instructions` (deprecado): se suma al default mientras el prompt esté vacío. */
   analysisInstructions: string;
   fields: FieldSpec[];
   /** Herramientas del cliente (APIs y codigo), por slug. */
@@ -91,6 +94,7 @@ export function readWorkflow(d: Definition): WorkflowView {
       return { name: str(v.name), default: value(v.default), description: str(v.description) };
     }),
     summary: analysis.summary !== false,
+    analysisPrompt: str(analysis.prompt),
     analysisInstructions: str(analysis.instructions),
     fields,
     clientTools: (Array.isArray(d.tools) ? d.tools : [])

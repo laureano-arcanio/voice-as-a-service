@@ -6,6 +6,7 @@ export const CATALOG: VariableCatalog = {
   reserved: ['channel', 'today', 'now'],
   reserved_prefixes: ['call.', 'agent.', 'secrets.', 'fields.'],
   limits: { max_variables: 30, max_value_chars: 2000 },
+  defaults: { analysis_prompt: 'Sos el extractor de datos de una llamada telefónica…' },
   system: [
     {
       name: 'call.phone',

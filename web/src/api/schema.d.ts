@@ -972,6 +972,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calls/{conversation_id}/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reanalyze Call
+         * @description Vuelve a correr el análisis de una conversación con el prompt vigente del agente: los datos y el
+         *     resumen quedan como los deje esta corrida (lo que no extraiga, en null). Solo Admin del cliente.
+         *     `pending=true` si al vencer la espera la extracción sigue corriendo en el fondo (no se cancela).
+         */
+        post: operations["reanalyze_call_api_v1_calls__conversation_id__analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calls/{conversation_id}/join": {
         parameters: {
             query?: never;
@@ -4228,7 +4250,9 @@ export interface paths {
         /**
          * Variable Catalog
          * @description Reglas de nombres de las variables de usuario, topes y las variables del sistema con donde se pueden usar
-         *     (`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente.
+         *     (`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente. `defaults` trae los
+         *     textos de la plataforma para los botones "Partir del predeterminado" y "Restaurar el predeterminado" del
+         *     editor del análisis.
          */
         get: operations["variable_catalog_api_v1_variables_catalog_get"];
         put?: never;
@@ -5023,6 +5047,17 @@ export interface components {
              */
             powered_by: boolean;
         };
+        /**
+         * CallAnalyzeOut
+         * @description Volver a correr el analisis de una conversacion (POST /calls/{id}/analyze).
+         */
+        CallAnalyzeOut: {
+            /**
+             * Pending
+             * @description true si la extraccion sigue corriendo en el fondo: al vencer la espera no se cancela, deja su resultado en la conversacion
+             */
+            pending: boolean;
+        };
         /** CallBulkDeleteIn */
         CallBulkDeleteIn: {
             /** Ids */
@@ -5079,6 +5114,12 @@ export interface components {
              * @default false
              */
             full_recording?: boolean;
+            /**
+             * Has Analysis
+             * @description true si se puede volver a correr su análisis (POST /calls/{id}/analyze)
+             * @default false
+             */
+            has_analysis?: boolean;
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
         };
@@ -5406,6 +5447,12 @@ export interface components {
              * @description El contacto de la agenda con ese teléfono, si hay (contact_name, si el agente no lo tomó, es el suyo)
              */
             contact_id?: string | null;
+            /**
+             * Has Analysis
+             * @description true si se puede volver a correr su análisis (POST /calls/{id}/analyze)
+             * @default false
+             */
+            has_analysis?: boolean;
         };
         /** CallsUsageOut */
         CallsUsageOut: {
@@ -11391,6 +11438,19 @@ export interface components {
             limits: components["schemas"]["VariableLimitsOut"];
             /** System */
             system: components["schemas"]["SystemVariableOut"][];
+            defaults: components["schemas"]["VariableDefaultsOut"];
+        };
+        /**
+         * VariableDefaultsOut
+         * @description Defaults de la plataforma: la UI los muestra como `placeholder` del editor y para los botones
+         *     "Partir del predeterminado" (copia el texto al editor) y "Restaurar el predeterminado" (vuelve a vacío).
+         */
+        VariableDefaultsOut: {
+            /**
+             * Analysis Prompt
+             * @example Sos el extractor de datos de {where}. No hablás con nadie…
+             */
+            analysis_prompt: string;
         };
         /** VariableLimitsOut */
         VariableLimitsOut: {
@@ -14239,6 +14299,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    reanalyze_call_api_v1_calls__conversation_id__analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallAnalyzeOut"];
+                };
+            };
+            /** @description Sin análisis o agente propio (external), o llamada en curso */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Límite por hora del cliente */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

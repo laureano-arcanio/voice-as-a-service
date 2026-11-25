@@ -34,7 +34,12 @@ export function testVariableNames(
     return { name: str(v.name), default: str(v.default), description: str(v.description) };
   });
   const analysis = obj(definition.analysis);
-  const text = [str(definition.prompt), str(definition.first_message), str(analysis.instructions)].join('\n');
+  const text = [
+    str(definition.prompt),
+    str(definition.first_message),
+    str(analysis.prompt),
+    str(analysis.instructions),
+  ].join('\n');
   const out = declared.filter((v) => v.name);
   for (const name of usedVariables(text)) {
     if (isSystemVariable(name, catalog) || out.some((v) => v.name === name)) continue;

@@ -66,6 +66,7 @@ export type CallSummary = S['CallSummary'];
 export type CallPage = S['CallPage'];
 export type CallDetail = S['CallDetail'];
 export type CallInfo = S['CallInfo'];
+export type CallAnalyzeOut = S['CallAnalyzeOut'];
 export type WhatsAppInfo = S['WhatsAppInfo'];
 export type FieldValue = S['FieldValue'];
 export type Voice = S['VoiceOut'];

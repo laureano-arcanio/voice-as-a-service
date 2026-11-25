@@ -90,7 +90,7 @@ def _analysis(data: dict) -> dict | None:
     # (workflow.PLATFORM_OUTCOMES); su texto ya quedo en el prompt, en la seccion "# Cierres".
     if not fields:
         return None
-    return {"summary": True, "instructions": "", "fields": fields}
+    return {"summary": True, "prompt": "", "fields": fields}
 
 
 def upgrade(data: dict) -> dict:

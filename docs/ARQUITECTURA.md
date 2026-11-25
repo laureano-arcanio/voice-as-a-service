@@ -238,7 +238,7 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   "first_message": "Hola {{nombre}}, te habla Sofía…",
   "variables": [{"name": "deuda", "default": "", "description": "Lo que debe, del pre-call"}],
   "analysis": {
-    "summary": true, "instructions": "…",
+    "summary": true, "prompt": "…",
     "fields": [
       {"name": "contact_name", "label": "Nombre", "description": "Nombre", "type": "string"},
       {"name": "wants_demo", "description": "Quiere una demo", "type": "boolean"}
@@ -256,7 +256,7 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   convención de las plantillas (`# Objetivo` da `AgentOut.objective`), no los lee el motor. **`first_message`**
   (hasta 1.000): lo primero que dice el agente en una llamada; por WhatsApp entrante escribe primero la persona.
 - **Variables** (`app/conversation/variables.py`): `{{x}}` se sustituye en `prompt`, `first_message`,
-  `analysis.instructions`, descripciones de campos, mensajes de derivación y herramientas; nada se agrega solo. Un espacio por conversación en
+  `analysis.prompt`, descripciones de campos, mensajes de derivación y herramientas; nada se agrega solo. Un espacio por conversación en
   `progress.variables` (texto, número o booleano; hasta 30 y 2.000 caracteres por valor), con `hidden_variables` y
   `variable_sources`. Fuentes, de menor a mayor: `default` de `variables` < `contact` (agenda o columnas de la
   campaña, nombre normalizado sin acentos ni mayúsculas) < `request` (`variables` de `POST /calls` y
@@ -270,11 +270,14 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   celular, `from` nuestro número y `to`/`phone` el de la persona, `outbound`; entrante, `from`/`phone` quien llama y
   `to` el número marcado, `inbound`; WhatsApp, `+wa_id` y el número de la cuenta (`outbound` si responde a una
   campaña, con los datos de su contacto); prueba, link y `POST /conversations` (`mode` `api`), `inbound` con el
-  número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos).
+  número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos),
+  con `defaults.analysis_prompt` para los botones "Partir del predeterminado" / "Restaurar el predeterminado" del editor.
 - **`analysis`** (opcional; sin él no hay extracción de datos ni resumen): `fields` en el orden de la
   lista, `type` `string`, `integer`, `boolean`, `email`, `email_or_phone`, `choice` (con `options`) o `phone`;
-  `label` es el nombre para mostrar. `summary: true` pide un resumen (`progress.summary`); `instructions` va al
-  extractor. **El resultado es solo de plataforma**: el agente cierra con `end_call` (`motivo` `terminada` o
+  `label` es el nombre para mostrar. `summary: true` pide un resumen (`progress.summary`); `prompt` es el
+  system message del extractor (hasta 20.000; vacío = el default de la plataforma). `instructions` quedó
+  deprecado: se sigue aceptando y, si `prompt` está vacío, se pliega al default en runtime.
+  **El resultado es solo de plataforma**: el agente cierra con `end_call` (`motivo` `terminada` o
   `fuera_de_tema`) y `conversations.outcome` guarda `fuera_de_tema` en ese caso (None en los demás cierres;
   `incompleta` y los ids viejos de agente se conservan solo para leer filas históricas).
 - **Definiciones viejas** (`objective`, `conversation`, `knowledge`, `fields`, `completion`, `agent.role`):
@@ -367,12 +370,17 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Qué LLM:** `app/llm/resolver.py` elige por turno entre la inferencia propia (default y respaldo) y una
   conexión del cliente según `Workflow.llm`.
 - **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`
-  (`summary` si se pide) y un prompt con el nombre del agente, `analysis.instructions`, los campos, las variables
-  visibles y la conversación completa; una vez, al terminar (`end_call`) o al cortar (`ConversationEngine.finish`).
+  (`summary` si se pide), un system message con el `analysis.prompt` (o el default) y un user message con el nombre
+  del agente, los campos, las variables visibles y la conversación completa; una vez, al terminar (`end_call`) o al
+  cortar (`ConversationEngine.finish`).
   `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
   inexistentes o de tipo inválido no se guardan). `conversion`: `complete` si el agente terminó la conversación y
   no fue fuera de tema, `partial` con algún dato capturado, `empty` el resto; `incompleta` ya no se asigna (las
-  guardadas lo conservan).
+  guardadas lo conservan). **Volver a correrla:** `POST /calls/{id}/analyze` (solo Admin del cliente, tope por hora)
+  re-analiza una conversación guardada con `reset`: el extractor no ve los datos viejos (sin `KNOWN FIELDS`) y el
+  resultado pisa `fields` y `summary` (lo que no extraiga queda en null; si el LLM falla, los viejos no se tocan).
+  Espera hasta 15 s y responde `{pending}`: `true` si la extracción sigue en el fondo (no se cancela). 409 sin
+  `analysis`, con `external` o con la llamada en curso.
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`
@@ -718,11 +726,12 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`, y filtra por uno o varios `mode` y por `landing`; el resto, listas simples. Las
   fechas de `/calls` y `/reports` toman días locales de `tz` (default `BILLING_TIMEZONE`). Los admins pasan
   `client_id` en las rutas de recursos de un cliente. Cada ítem trae `captured` (datos capturados) y `total` (los del
-  análisis de la versión con que corrió).
+  análisis de la versión con que corrió) y `has_analysis` (si se puede volver a correr el análisis).
 - **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis con `name`,
   `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
   (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`); `system_prompt` es
-  el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar). No
+  el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar);
+  `has_analysis`, como en la lista, dice si se puede volver a correr su análisis. No
   hay `context`: el motivo es la variable `motivo`. Los mensajes traen `tools` (`{id, name, arguments, result}`) si el
   turno usó herramientas del cliente.
 
@@ -735,7 +744,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `branding.py` | `/clients/{id}/branding*`, `/public/branding/{slug}*` | "Marca blanca" |
 | `agents.py` | `/agents` (CRUD, `schema`, `validate`, `prompt`, `definition`, `versions`), `/agent-templates` | "Definición de un agente" |
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
-| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), borrar y `bulk-delete` solo admin) | "Flujos" |
+| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), `analyze` (re-correr el análisis, admin del cliente), borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
 | `variables.py` | `GET /variables/catalog` (reglas de nombres, topes y variables del sistema con `applies_to`) | "Definición de un agente" |
 | `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |

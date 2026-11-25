@@ -339,10 +339,11 @@ class ConversationEngine:
                 return True
         return False
 
-    def _launch_extraction(self, conversation_id: str, reply: int) -> asyncio.Task:
+    def _launch_extraction(self, conversation_id: str, reply: int, *,
+                           reset: bool = False, kind: str = "extraccion") -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None
-        task = asyncio.create_task(self._extract(conversation_id, reply, previous))
+        task = asyncio.create_task(self._extract(conversation_id, reply, previous, reset=reset, kind=kind))
         tasks.append(task)
         task.add_done_callback(lambda t: self._forget(conversation_id, t))
         return task
@@ -357,22 +358,27 @@ class ConversationEngine:
             return
         await self._analyze_now(state, timeout)
 
-    async def analyze(self, conversation_id: str, timeout: float = 10) -> None:
+    async def analyze(self, conversation_id: str, timeout: float = 10, *,
+                      reset: bool = False, kind: str = "extraccion") -> None:
         """El analisis sin terminar la conversacion (no cambia status): espera el que este en curso o lanza uno
-        y lo espera, hasta timeout. Para el post-call de WhatsApp, que corre antes de cerrar el chat."""
+        y lo espera, hasta timeout. Para el post-call de WhatsApp, que corre antes de cerrar el chat, y para
+        re-correrlo en una conversacion ya guardada (reset: el extractor no ve los datos viejos y el
+        resultado los pisa; kind: la marca de la traza, "reanalisis" para ese caso)."""
         if self.extractions.get(conversation_id):
             await self.wait_extraction(conversation_id, timeout)
             return
         state = self.store.get(conversation_id)
         if state is None or len(state.messages) < 2:
             return
-        await self._analyze_now(state, timeout)
+        await self._analyze_now(state, timeout, reset=reset, kind=kind)
 
-    async def _analyze_now(self, state: ConversationState, timeout: float) -> None:
+    async def _analyze_now(self, state: ConversationState, timeout: float, *,
+                           reset: bool = False, kind: str = "extraccion") -> None:
         workflow = self.workflow(state)
         if workflow.external is not None or workflow.analysis is None:
             return
-        await asyncio.wait([self._launch_extraction(state.conversation_id, len(state.messages) - 1)],
+        await asyncio.wait([self._launch_extraction(state.conversation_id, len(state.messages) - 1,
+                                                    reset=reset, kind=kind)],
                            timeout=timeout)
 
     def _forget(self, conversation_id: str, task: asyncio.Task) -> None:
@@ -389,7 +395,8 @@ class ConversationEngine:
             # wait no cancela la extraccion si se cumple el timeout.
             await asyncio.wait([tasks[-1]], timeout=timeout)
 
-    async def _extract(self, conversation_id: str, reply: int, previous: asyncio.Task | None) -> None:
+    async def _extract(self, conversation_id: str, reply: int, previous: asyncio.Task | None, *,
+                       reset: bool = False, kind: str = "extraccion") -> None:
         """Extrae los datos de toda la conversacion y los aplica. reply: indice
         del mensaje del agente de este turno (ahi va la traza)."""
         if previous is not None:
@@ -397,12 +404,19 @@ class ConversationEngine:
         try:
             state = self.store.get(conversation_id)
             workflow = self.workflow(state)
-            await self._run_extraction(workflow, state, reply, "extraccion")
+            await self._run_extraction(workflow, state, reply, kind, reset=reset)
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
 
-    async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str) -> None:
+    async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str,
+                              *, reset: bool = False) -> None:
         started = time.perf_counter()
+        if reset:
+            # El extractor no ve los datos viejos: una copia con los campos en null y sin resumen, para que
+            # KNOWN FIELDS no sesgue la extraccion.
+            state = state.model_copy(update={
+                "fields": {name: None for name in state.fields},
+                "progress": state.progress.model_copy(update={"summary": None})})
         # La etapa del ultimo turno del usuario.
         llm = self.llms.for_turn(workflow, sum(m.role == "user" for m in state.messages), state.client_id)
         result: Extraction = await llm.extract(workflow, state)
@@ -412,9 +426,14 @@ class ConversationEngine:
         # Solo validacion de datos: campos inexistentes o con tipo invalido no se guardan (quedan en
         # progress.rejected, para el panel).
         updates, rejected = check_updates(workflow, result.fields)
+        if reset:
+            # Pisa: esta corrida es la que vale, lo que no extrajo queda en null. Recien ahora, despues del
+            # await: si fallo el LLM, los datos viejos siguen.
+            state.fields = {name: None for name in state.fields}
         state.fields.update(updates)
         state.progress.rejected = rejected
-        if result.summary:
+        # Con reset, el resumen se reemplaza (aunque esta corrida no lo trajo); sin el, solo si vino.
+        if reset or result.summary:
             state.progress.summary = result.summary
         _add_usage(state, result)
         message = state.messages[reply]

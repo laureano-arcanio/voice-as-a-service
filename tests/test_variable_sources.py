@@ -14,6 +14,7 @@ from app.conversation import variables
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
 from app.conversation.store import ConversationStore
+from app.llm.prompt import DEFAULT_ANALYSIS_PROMPT
 from app.services import calls as calls_service
 from app.tools import schema as S
 from app.tools.runtime import ToolContext, render
@@ -158,6 +159,7 @@ def test_catalog_same_for_everyone(api, admin):  # noqa: F811
     acme, other = make_client(admin), make_client(admin, slug="otro")
     key = admin.post(f"{V1}/clients/{other['id']}/api-keys", json={"name": "k"}).json()["key"]
     expected = variables.catalog()
+    expected["defaults"] = {"analysis_prompt": DEFAULT_ANALYSIS_PROMPT}
     user = client_user(api, admin, acme)
     for get in (admin.get, user.get,
                 lambda url: api.client.get(url, headers={"Authorization": f"Bearer {key}"})):

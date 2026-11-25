@@ -127,7 +127,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
           Análisis al terminar
         </Title>
         {!w.external && (
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mb={w.analysisInstructions ? 'md' : 0}>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
             <Item label="Resumen">{w.summary ? 'Sí, un párrafo' : 'No'}</Item>
             <Item label="Datos">{w.fields.length ? `${w.fields.length}` : 'Ninguno'}</Item>
           </SimpleGrid>
@@ -137,14 +137,25 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
             Con tu propio agente el análisis lo hace tu agente: Atentina no extrae datos ni resumen.
           </Text>
         )}
-        {w.analysisInstructions && (
+        {!w.external && (
           <>
             <Title order={5} mt="md" mb={4}>
-              Instrucciones
+              Prompt del análisis
             </Title>
             <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
-              {w.analysisInstructions}
+              {w.analysisPrompt ? firstLines(w.analysisPrompt) : 'El de la plataforma'}
             </Text>
+            {w.analysisInstructions && !w.analysisPrompt && (
+              <>
+                <Text size="xs" c="dimmed" mt="md">
+                  Instrucciones de una versión anterior: se suman al prompt de la plataforma hasta que se
+                  traigan al editor.
+                </Text>
+                <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+                  {w.analysisInstructions}
+                </Text>
+              </>
+            )}
           </>
         )}
         {!w.external && (

@@ -12,13 +12,17 @@ from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
 from app.llm.prompt import (
     CHANNEL,
+    DEFAULT_ANALYSIS_PROMPT,
     MAX_TOOL_ARGUMENTS,
     MAX_TOOL_RESULT,
+    SUMMARY_PROMPT,
     TRUNCATED,
+    analysis_system_prompt,
     build_extraction_prompt,
     build_system_prompt,
     build_turn_messages,
     tool_history,
+    where_text,
 )
 
 from .helpers import FakeLLM
@@ -81,17 +85,60 @@ def test_a_value_with_braces_is_not_rendered_again():
     assert build_system_prompt(wf, "voice", state).endswith("Dijo: {{call.phone}} {{secrets.X}}")
 
 
-def test_extraction_prompt_has_instructions_fields_and_variables():
+def test_build_extraction_prompt_has_fields_and_variables():
     wf = load_reference("sales_discovery").model_copy(deep=True)
-    wf.analysis.instructions = "Mirá solo lo que dijo {{nombre}}."
     state = state_for(wf)
     variables.merge(state, {"nombre": "Ana"}, "request")
     text = build_extraction_prompt(wf, state)
     assert text.startswith(f"AGENTE: {wf.agent.name}.")
-    assert "INSTRUCCIONES:\nMirá solo lo que dijo Ana." in text and "CAMPOS:" in text and "VARIABLES:" in text
-    assert "OBJETIVO" not in text
+    assert "CAMPOS:" in text and "VARIABLES:" in text and '"nombre": "Ana"' in text
+    # El system (rol e instrucciones) va aparte, en analysis_system_prompt.
+    assert "INSTRUCCIONES" not in text and "OBJETIVO" not in text
     # Los campos en el orden del JSON.
     assert text.index("contact_name") < text.index("wants_demo")
+
+
+def test_analysis_system_prompt_default_reproduces_the_current_text():
+    """Con `analysis.prompt` vacio, el system es byte a byte el default actual, por canal, con el resumen."""
+    wf = load_reference("sales_discovery").model_copy(deep=True)  # analysis.prompt == ""
+    state = state_for(wf)
+    assert analysis_system_prompt(wf, state) == \
+        DEFAULT_ANALYSIS_PROMPT.replace("{where}", where_text("voice")) + SUMMARY_PROMPT
+    # Por WhatsApp cambia solo `{where}`.
+    state.channel = "whatsapp"
+    assert analysis_system_prompt(wf, state) == \
+        DEFAULT_ANALYSIS_PROMPT.replace("{where}", where_text("whatsapp")) + SUMMARY_PROMPT
+    assert "llamada telefónica" not in analysis_system_prompt(wf, state)
+
+
+def test_analysis_system_prompt_folds_legacy_instructions():
+    """Una definicion guardada con `instructions` no pierde su texto: se pliega al default, con sus variables."""
+    wf = load_reference("sales_discovery").model_copy(deep=True)
+    wf.analysis.instructions = "Mirá solo lo que dijo {{nombre}}."
+    state = state_for(wf)
+    variables.merge(state, {"nombre": "Ana"}, "request")
+    system = analysis_system_prompt(wf, state)
+    expected = DEFAULT_ANALYSIS_PROMPT.replace("{where}", where_text("voice")) + \
+        "\n\nINSTRUCCIONES:\nMirá solo lo que dijo Ana." + SUMMARY_PROMPT
+    assert system == expected
+
+
+def test_analysis_prompt_wins_over_instructions():
+    """Si vienen los dos, gana `analysis.prompt` (el instructions legacy se ignora)."""
+    wf = load_reference("sales_discovery").model_copy(deep=True)
+    wf.analysis.prompt = "Sos mi extractor personalizado."
+    wf.analysis.instructions = "No debería aparecer."
+    state = state_for(wf)
+    assert analysis_system_prompt(wf, state) == "Sos mi extractor personalizado." + SUMMARY_PROMPT
+
+
+def test_analysis_prompt_keeps_literal_braces():
+    """`{where}` se reemplaza con `str.replace`, no `.format`: las llaves literales del cliente no rompen."""
+    wf = load_reference("sales_discovery").model_copy(deep=True)
+    wf.analysis.prompt = 'Devolvé JSON así: {"campo": valor}. Canal: {where}.'
+    state = state_for(wf)
+    assert analysis_system_prompt(wf, state) == \
+        'Devolvé JSON así: {"campo": valor}. Canal: una llamada telefónica.' + SUMMARY_PROMPT
 
 
 async def test_the_prompt_is_rendered_once_and_does_not_change(store, monkeypatch):
@@ -193,3 +240,5 @@ def test_tool_only_variables_are_rejected_in_the_prompt(text):
         Workflow.model_validate({**base, "first_message": text})
     with pytest.raises(ValidationError, match="analysis.instructions: "):
         Workflow.model_validate({**base, "analysis": {"instructions": text}})
+    with pytest.raises(ValidationError, match="analysis.prompt: "):
+        Workflow.model_validate({**base, "analysis": {"prompt": text}})

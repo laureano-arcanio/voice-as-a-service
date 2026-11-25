@@ -5,6 +5,7 @@ import {
   fromDraft,
   hasAnalysis,
   keepKeys,
+  MAX_ANALYSIS_PROMPT,
   move,
   newField,
   newVariable,
@@ -75,14 +76,62 @@ describe('toDraft / fromDraft', () => {
     expect(out.analysis.fields.map((f) => f.name)).toEqual(['z', 'a', 'm']);
   });
 
-  it('sin datos ni instrucciones no va analysis', () => {
+  it('sin datos ni prompt no va analysis', () => {
     const d = toDraft({ ...def, analysis: undefined });
-    expect(d.analysis).toEqual({ summary: true, instructions: '', fields: [] });
+    expect(d.analysis).toEqual({ summary: true, prompt: '', legacyInstructions: '', fields: [] });
     expect(hasAnalysis(d.analysis)).toBe(false);
     expect(fromDraft(d)).not.toHaveProperty('analysis');
     expect(fromDraft({ ...d, analysis: { ...d.analysis, summary: false } })).not.toHaveProperty('analysis');
     // Con un dato, sí, con su resumen.
     expect(fromDraft(withPhoneField(d))).toMatchObject({ analysis: { summary: true } });
+  });
+
+  it('analysis.prompt: ida y vuelta; con prompt no van las instrucciones viejas', () => {
+    const withPrompt = {
+      ...def,
+      analysis: { summary: true, prompt: 'Sos el extractor de {{today}}. Extraé el mail.', fields: def.analysis.fields },
+    };
+    const d = toDraft(withPrompt);
+    expect(d.analysis.prompt).toBe('Sos el extractor de {{today}}. Extraé el mail.');
+    expect(d.analysis.legacyInstructions).toBe('');
+    expect(MAX_ANALYSIS_PROMPT).toBe(20_000);
+    expect(stableJson(fromDraft(toDraft(withPrompt)))).toBe(stableJson(withPrompt));
+    // Con el prompt lleno, `instructions` no viaja: es la migración de lo deprecado.
+    expect(fromDraft(d).analysis).not.toHaveProperty('instructions');
+    // La forma que devuelve el servidor (model_dump: prompt '' explícito) canónica igual: sin cambios fantasma.
+    const server = { ...def, analysis: { ...def.analysis, prompt: '' } };
+    expect(stableJson(fromDraft(toDraft(server)))).toBe(stableJson(def));
+  });
+
+  it('instructions viejas: guardar sin tocar el prompt no las pierde; traerlas migra', () => {
+    // def.analysis tiene instructions y no prompt: tal cual se guarda, tal cual vuelve.
+    expect(stableJson(fromDraft(toDraft(def)))).toBe(stableJson(def));
+    const d = toDraft(def);
+    const out = fromDraft(d) as { analysis: Record<string, unknown> };
+    expect(out.analysis.instructions).toBe('Extraé lo que la persona dijo.');
+    expect(out.analysis).not.toHaveProperty('prompt');
+    // "Traer al prompt": compone default + INSTRUCCIONES + legacy; al guardar, ya no van.
+    const brought = {
+      ...d,
+      analysis: {
+        ...d.analysis,
+        prompt: `DEFAULT\n\nINSTRUCCIONES:\n${d.analysis.legacyInstructions}`,
+      },
+    };
+    const migrated = fromDraft(brought) as { analysis: Record<string, unknown> };
+    expect(migrated.analysis.prompt).toContain('INSTRUCCIONES:\nExtraé lo que la persona dijo.');
+    expect(migrated.analysis).not.toHaveProperty('instructions');
+  });
+
+  it('hasAnalysis: solo el prompt ya alcanza (los espacios no)', () => {
+    const d = toDraft({ ...def, analysis: { summary: true, prompt: 'Extraé el mail.', fields: [] } });
+    expect(hasAnalysis(d.analysis)).toBe(true);
+    expect(fromDraft(d).analysis).toMatchObject({ prompt: 'Extraé el mail.', fields: [] });
+    const blank = toDraft({ ...def, analysis: { summary: true, prompt: '  ', fields: [] } });
+    expect(hasAnalysis(blank.analysis)).toBe(false);
+    expect(fromDraft(blank)).not.toHaveProperty('analysis');
+    // Las instrucciones viejas solas también cuentan (no se borra el análisis al editar).
+    expect(hasAnalysis(toDraft(def).analysis)).toBe(true);
   });
 
   it('una variable a medio completar (sin nombre) no se guarda', () => {
@@ -257,6 +306,7 @@ describe('errores', () => {
     expect(errorTarget(d, 'variables.1.name')).toEqual({ section: 'variable', key: d.variables[1]!.key });
     expect(errorTarget(d, 'variables')).toEqual({ section: 'variables' });
     expect(errorTarget(d, 'analysis.instructions')).toEqual({ section: 'analisis' });
+    expect(errorTarget(d, 'analysis.prompt')).toEqual({ section: 'analisis' });
     expect(errorTarget(d, 'analysis.fields.1.description')).toEqual({
       section: 'dato',
       key: d.analysis.fields[1]!.key,

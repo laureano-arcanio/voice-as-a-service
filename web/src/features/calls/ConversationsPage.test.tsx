@@ -4,7 +4,14 @@ import { Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CallSummary } from '@/api/types';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import { ConversationsPage } from './ConversationsPage';
+
+vi.mock('@/lib/notify', () => ({
+  notifyError: vi.fn(),
+  notifySuccess: vi.fn(),
+  notifyInfo: vi.fn(),
+}));
 
 const CALL: CallSummary = {
   id: 'cv-1',
@@ -35,7 +42,8 @@ function mockApi(routes: Record<string, () => Response>) {
     vi.fn(async (input: RequestInfo | URL) => {
       const req = input instanceof Request ? input : new Request(input);
       const path = new URL(req.url).pathname;
-      const body = req.method === 'POST' ? await req.clone().json() : undefined;
+      // Un POST sin cuerpo (el analyze) no lleva JSON: queda en undefined.
+      const body = req.method === 'POST' ? await req.clone().json().catch(() => undefined) : undefined;
       calls.push({ method: req.method, path, body });
       const route = routes[`${req.method} ${path}`];
       return route ? route() : jsonResponse({ detail: 'no mock' }, 404);
@@ -254,5 +262,101 @@ describe('conversaciones', () => {
     await waitFor(() =>
       expect(urls.some((u) => u.startsWith('/api/v1/calls') && u.includes('campaign_id=cmp-9'))).toBe(true),
     );
+  });
+});
+
+describe('volver a correr el análisis', () => {
+  it('solo con análisis y llamada terminada; un Usuario del cliente no lo ve', async () => {
+    mockApi(
+      listRoutes([
+        { ...CALL, id: 'cv-si', contact_name: 'Ana', has_analysis: true },
+        { ...CALL, id: 'cv-no', contact_name: 'Beto' },
+        { ...CALL, id: 'cv-live', contact_name: 'Caro', has_analysis: true, status: 'en_curso' },
+      ]),
+    );
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    const row = (contact: string) => screen.getByRole('row', { name: new RegExp(contact) });
+    await screen.findAllByRole('link', { name: /Ver conversación del/ });
+    expect(
+      within(row('Ana')).getByRole('button', { name: 'Volver a correr el análisis' }),
+    ).toBeInTheDocument();
+    // Sin análisis (o agente borrado) y con la llamada en vivo, no aparece.
+    expect(
+      within(row('Beto')).queryByRole('button', { name: 'Volver a correr el análisis' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row('Caro')).queryByRole('button', { name: 'Volver a correr el análisis' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('un Usuario del cliente sin el rol de admin tampoco lo ve', async () => {
+    mockApi(listRoutes([{ ...CALL, has_analysis: true }]));
+    renderWithProviders(<ConversationsPage />, { me: { ...CLIENT_USER, client_role: 'user' } });
+    await screen.findByRole('link', { name: /Ver conversación del/ });
+    expect(screen.queryByRole('button', { name: 'Volver a correr el análisis' })).not.toBeInTheDocument();
+  });
+
+  it('confirma que pisa los datos, corre el POST y refresca la lista', async () => {
+    const calls = mockApi({
+      ...listRoutes([{ ...CALL, has_analysis: true }]),
+      'POST /api/v1/calls/cv-1/analyze': () => jsonResponse({ pending: false }),
+    });
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    const listGets = () => calls.filter((c) => c.method === 'GET' && c.path === '/api/v1/calls').length;
+    await screen.findByRole('link', { name: /Ver conversación del/ });
+    const before = listGets();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Volver a correr el análisis' });
+    expect(within(dialog).getByText(/pisan los actuales/)).toBeInTheDocument();
+    // Cancelar no manda nada.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/analyze'))).toBe(false);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volver a correr el análisis' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
+    );
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/analyze'))).toBe(true),
+    );
+    // El POST no lleva cuerpo y al terminar se invalida la lista.
+    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/analyze'))?.body).toBeUndefined();
+    await waitFor(() => expect(listGets()).toBeGreaterThan(before));
+    expect(notifySuccess).toHaveBeenCalledWith('Análisis vuelto a correr.');
+  });
+
+  it('pending: avisa que sigue corriendo en el fondo', async () => {
+    mockApi({
+      ...listRoutes([{ ...CALL, has_analysis: true }]),
+      'POST /api/v1/calls/cv-1/analyze': () => jsonResponse({ pending: true }),
+    });
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
+    );
+    await waitFor(() =>
+      expect(notifyInfo).toHaveBeenCalledWith(
+        'El análisis sigue corriendo en el fondo; los datos aparecen al terminar.',
+      ),
+    );
+  });
+
+  it('un 409 de la API llega como toast de error', async () => {
+    mockApi({
+      ...listRoutes([{ ...CALL, has_analysis: true }]),
+      'POST /api/v1/calls/cv-1/analyze': () =>
+        jsonResponse({ detail: 'La llamada sigue en curso', code: 'call_in_progress' }, 409),
+    });
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Volver a correr el análisis' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver a correr' }),
+    );
+    await waitFor(() => expect(notifyError).toHaveBeenCalled());
+    const [err, title] = vi.mocked(notifyError).mock.calls[0];
+    expect((err as Error).message).toBe('La llamada sigue en curso');
+    expect(title).toBe('No se pudo volver a correr el análisis');
   });
 });
