@@ -4,7 +4,7 @@ import asyncio
 import json
 
 from app.conversation.engine import ConversationEngine
-from app.conversation.models import AgentTurn, Message, TurnMedia
+from app.conversation.models import AgentTurn, Extraction, Message, TurnMedia
 from app.llm.prompt import classic_history
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
@@ -345,3 +345,94 @@ async def test_a_repeat_turn_can_be_retracted(store):
     n = len(state.messages)
     assert engine.retract_last_turn(cid)
     assert len(store.get(cid).messages) == n - 2
+
+
+# ---------- re-análisis (engine.analyze con reset: POST /calls/{id}/analyze) ----------
+
+
+async def test_reanalyze_overwrites_fields_and_summary(store):
+    """Volver a correr pisa: lo que esta corrida no extrajo queda en null y el resumen se reemplaza
+    (aunque no lo traiga). La traza se marca como re-análisis."""
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, contact_name="Juan", company_name="Acme")
+    state, _ = await turn_and_extract(engine, cid, "Chau.")
+    state.progress.summary = "Juan no quiso."
+    engine.store.save(state)
+
+    async def extract(workflow, state):
+        llm.extract_calls.append(len(state.messages))
+        return Extraction(fields={"company_name": "Acme SA"}, summary="Ahora sí.")
+    llm.extract = extract
+
+    await engine.analyze(cid, reset=True, kind="reanalisis")
+    state = store.get(cid)
+    assert state.fields["company_name"] == "Acme SA" and state.fields["contact_name"] is None
+    assert state.progress.summary == "Ahora sí."
+    assert state.messages[-1].llm[-1]["kind"] == "reanalisis"
+
+
+async def test_reanalyze_extractor_does_not_see_the_old_fields(store):
+    """Con reset, el extractor ve una copia sin los datos viejos (KNOWN FIELDS vacío, sin resumen): no
+    sesga la extracción. Sin reset los ve, y lo guardado no se pierde."""
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, contact_name="Juan", company_name="Acme")
+    state, _ = await turn_and_extract(engine, cid, "Chau.")
+    state.progress.summary = "Viejo."
+    engine.store.save(state)
+
+    seen = []
+
+    async def extract(workflow, state):
+        seen.append((dict(state.fields), state.progress.summary))
+        return Extraction(fields={})
+    llm.extract = extract
+
+    await engine.analyze(cid)
+    assert seen[-1][0]["contact_name"] == "Juan" and seen[-1][1] == "Viejo."
+    assert store.get(cid).fields["contact_name"] == "Juan"
+    await engine.analyze(cid, reset=True, kind="reanalisis")
+    assert all(v is None for v in seen[-1][0].values()) and seen[-1][1] is None
+    state = store.get(cid)
+    assert all(v is None for v in state.fields.values()) and state.progress.summary is None
+
+
+async def test_reanalyze_keeps_the_old_data_if_the_llm_fails(store):
+    """El reset no limpia antes del pedido: si el LLM falla, los datos viejos no se pierden."""
+    class Boom(FakeLLM):
+        async def extract(self, workflow, state):
+            raise RuntimeError("llm down")
+
+    engine = ConversationEngine(Boom(AgentTurn(assistant_message="Chau.", status="completed")), store)
+    cid = start_with(engine, contact_name="Juan")
+    await turn_and_extract(engine, cid, "Chau.")
+    await engine.analyze(cid, reset=True, kind="reanalisis")
+    state = store.get(cid)
+    assert state.fields["contact_name"] == "Juan" and cid not in engine.extractions
+
+
+async def test_reanalyze_waits_for_the_running_extraction(store):
+    """Si ya hay una extracción en curso, no lanza otra: la espera (y si vence, la conversación queda
+    con la que estaba corriendo)."""
+    gate = asyncio.Event()
+
+    class Slow(FakeLLM):
+        async def extract(self, workflow, state):
+            self.extract_calls.append(len(state.messages))
+            await gate.wait()
+            return await super().extract(workflow, state)
+
+    llm = Slow(AgentTurn(assistant_message="Gracias.", status="completed"),
+               extractions=[{"contact_name": "Juan"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    await engine.process_turn(cid, "Chau.")
+    assert cid in engine.extractions
+    await engine.analyze(cid, timeout=0.01, reset=True, kind="reanalisis")
+    assert len(llm.extract_calls) == 1 and cid in engine.extractions      # sigue la misma, no otra
+    gate.set()
+    await engine.wait_extraction(cid)
+    state = store.get(cid)
+    assert state.fields["contact_name"] == "Juan"
+    assert state.messages[-1].llm[-1]["kind"] == "extraccion"

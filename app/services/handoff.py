@@ -28,6 +28,7 @@ from ..models import (
     HandoffAreaMember,
     PhoneNumber,
     PhoneNumberMember,
+    Role,
     TeamMember,
     User,
     WaAccount,
@@ -97,14 +98,64 @@ def normalize_phone(raw: str | None, *, argentina: bool) -> str | None:
     return phone
 
 
-def _check_member(s: Session, client_id: str, member: TeamMember) -> None:
+def _check_member(s: Session, client_id: str, member: TeamMember, *, with_access: bool = False) -> None:
     # Solo con usuario del panel tambien: le suenan las entrantes directas ahi (docs/features/EQUIPO_TELEFONIA.md).
-    if not member.phone and not member.user_id:
-        raise Invalid("Cargá un teléfono o un usuario del panel")
+    if not with_access and not member.phone and not member.user_id:
+        raise Invalid("Cargá un teléfono o dale acceso al panel")
     if member.user_id:
         user = s.get(User, member.user_id)
         if user is None or user.client_id != client_id:
             raise Invalid("El usuario no es de este cliente")
+        other = s.scalar(select(TeamMember.id).where(TeamMember.user_id == member.user_id,
+                                                     TeamMember.id != (member.id or "")))
+        if other is not None:
+            raise Invalid("Ese usuario ya tiene una persona en el equipo")
+
+
+def _member_name(user: User) -> str:
+    """El nombre de la persona de un usuario: el suyo, recortado, o la parte local del email."""
+    return ((user.name or "").strip() or user.email.rsplit("@", 1)[0])[:120]
+
+
+def ensure_member(s: Session, user: User) -> TeamMember | None:
+    """La persona del usuario, creándola si falta. Sin tope del plan: es su lugar en el equipo, no una
+    persona que el cliente sumó. Solo usuarios `client`."""
+    if user.role != Role.client or not user.client_id:
+        return None
+    member = s.scalar(select(TeamMember).where(TeamMember.user_id == user.id))
+    if member is not None:
+        return member
+    member = TeamMember(client_id=user.client_id, name=_member_name(user), user_id=user.id, active=True)
+    s.add(member)
+    s.flush()
+    return member
+
+
+def sync_name(s: Session, user: User, name: str | None) -> None:
+    """El nombre es uno: el de la persona. Vacío no pisa el de la persona."""
+    name = (name or "").strip()
+    if name:
+        user.name = name[:120]
+    member = s.scalar(select(TeamMember).where(TeamMember.user_id == user.id))
+    if member is not None and name:
+        member.name = name[:120]
+
+
+def delete_member_of_user(s: Session, user: User) -> None:
+    member = s.scalar(select(TeamMember).where(TeamMember.user_id == user.id))
+    if member is not None:
+        delete_member(s, member)
+
+
+def delete_member_and_user(s: Session, member: TeamMember) -> None:
+    """Saca a la persona y su usuario: las llamadas viejas quedan sin `user_id` (SET NULL)."""
+    user = s.get(User, member.user_id) if member.user_id else None
+    member.user_id = None
+    delete_member(s, member)
+    if user is not None:
+        s.delete(user)
+        s.flush()
+
 
 
 def list_members(s: Session, client_id: str | None) -> list[TeamMember]:
@@ -122,7 +173,9 @@ def get_member(s: Session, client_id: str | None, member_id: str) -> TeamMember:
 
 
 def create_member(s: Session, client: Client, *, name: str, phone: str | None = None,
-                  user_id: str | None = None, active: bool = True, whatsapp_notify: bool = False) -> TeamMember:
+                  active: bool = True, whatsapp_notify: bool = False, with_access: bool = False) -> TeamMember:
+    # Con el lock del cliente: dos altas a la vez no pasan las dos el tope.
+    s.execute(select(Client.id).where(Client.id == client.id).with_for_update(key_share=True, of=Client))
     cap = limits_service.effective_limits(s, client).max_team_members
     if cap is not None:
         count = s.scalar(select(func.count()).select_from(TeamMember).where(TeamMember.client_id == client.id))
@@ -131,8 +184,8 @@ def create_member(s: Session, client: Client, *, name: str, phone: str | None = 
                        else f"Tu plan incluye {cap} persona{'s' if cap != 1 else ''} en el equipo")
             raise QuotaExceeded(message, "team_members_limit")
     member = TeamMember(client_id=client.id, name=name.strip(), phone=normalize_phone(phone, argentina=True),
-                        user_id=user_id or None, active=active, whatsapp_notify=whatsapp_notify)
-    _check_member(s, client.id, member)
+                        active=active, whatsapp_notify=whatsapp_notify)
+    _check_member(s, client.id, member, with_access=with_access)
     s.add(member)
     s.flush()
     return member
@@ -157,6 +210,10 @@ def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
     if "whatsapp_notify" in changes:
         member.whatsapp_notify = bool(changes["whatsapp_notify"])
     _check_member(s, member.client_id, member)
+    if member.user_id:
+        user = s.get(User, member.user_id)
+        if user is not None:
+            user.name = member.name[:120]
     s.flush()
     return member
 

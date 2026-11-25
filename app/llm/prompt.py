@@ -11,7 +11,7 @@ import yaml
 from app.conversation import variables
 from app.conversation.models import ConversationState, Message, Workflow
 
-EXTRACTION_PROMPT = """Sos el extractor de datos de {where}. No hablás con nadie: leés la conversación entre el agente y el usuario y devolvés, para cada campo, el valor que dio el usuario, o null si no lo dio. Cada campo con su tipo y su descripción. KNOWN FIELDS son los datos ya guardados."""
+DEFAULT_ANALYSIS_PROMPT = """Sos el extractor de datos de {where}. No hablás con nadie: leés la conversación entre el agente y el usuario y devolvés, para cada campo, el valor que dio el usuario, o null si no lo dio. Cada campo con su tipo y su descripción. KNOWN FIELDS son los datos ya guardados."""
 # Se suma si el agente pide resumen (analysis.summary).
 SUMMARY_PROMPT = " En summary, un resumen breve de la conversación: qué quería la persona y cómo terminó."
 
@@ -28,9 +28,25 @@ CHANNEL = {
                  f"{VOICE_NOTE_TAG}. No recibís imágenes."),
 }
 
-def extraction_prompt(channel: str = "voice", summary: bool = False) -> str:
-    return EXTRACTION_PROMPT.format(where="una conversación por WhatsApp" if channel == "whatsapp"
-                                    else "una llamada telefónica") + (SUMMARY_PROMPT if summary else "")
+
+def where_text(channel: str) -> str:
+    return "una conversación por WhatsApp" if channel == "whatsapp" else "una llamada telefónica"
+
+
+def analysis_system_prompt(workflow: Workflow, state: ConversationState) -> str:
+    """El system message del extractor: `analysis.prompt` (vacio = el default de la plataforma) o, si quedo un
+    `instructions` legacy y el prompt esta vacio, el default con esas instrucciones. Las {{variables}} se
+    sustituyen; `{where}` se reemplaza por el canal (replace, no .format: el prompt del cliente puede tener
+    llaves). La frase del resumen se suma si el agente la pide (atada a analysis.summary)."""
+    analysis = workflow.analysis
+    prompt = (analysis.prompt if analysis is not None else "").strip()
+    if not prompt and analysis is not None and analysis.instructions.strip():
+        prompt = DEFAULT_ANALYSIS_PROMPT + "\n\nINSTRUCCIONES:\n" + analysis.instructions.strip()
+    prompt = prompt or DEFAULT_ANALYSIS_PROMPT
+    prompt = variables.render(prompt, state, workflow).replace("{where}", where_text(state.channel))
+    if analysis is not None and analysis.summary:
+        prompt += SUMMARY_PROMPT
+    return prompt
 
 
 def render_workflow(workflow: Workflow) -> str:
@@ -71,16 +87,13 @@ def render_fields(workflow: Workflow, state: ConversationState | None = None) ->
 
 
 def build_extraction_prompt(workflow: Workflow, state: ConversationState) -> str:
-    """El analisis: el agente, sus instrucciones, los campos, las variables visibles como contexto y la
-    conversacion."""
+    """El analisis: el agente, los campos, las variables visibles como contexto y la conversacion. El system
+    message (rol e instrucciones del extractor) va aparte, en `analysis_system_prompt`."""
     known = {k: v for k, v in state.fields.items() if v is not None}
-    instructions = workflow.analysis.instructions.strip() if workflow.analysis else ""
-    instructions = f"INSTRUCCIONES:\n{variables.render(instructions, state, workflow)}\n\n" if instructions else ""
     context = variables.visible(state)
     context = f"VARIABLES:\n{json.dumps(context, ensure_ascii=False)}\n\n" if context else ""
     return (
         f"AGENTE: {workflow.agent.name}.\n\n"
-        f"{instructions}"
         f"CAMPOS:\n{render_fields(workflow, state)}\n"
         f"{context}"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"

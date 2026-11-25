@@ -28,7 +28,7 @@ propia. Este documento es la referencia técnica de la app (API, UI, worker de v
 | Proceso | Código | Qué hace |
 |---|---|---|
 | `migrate` | `migrations/`, `app/cli.py` | Una vez antes de `app` y `agent`: `alembic upgrade head` y el seed idempotente. |
-| `app` | `app/main.py`, `app/api/` | API `/api/v1`, la SPA, el MCP (`/mcp`), OAuth, los webhooks de WhatsApp y Mercado Pago, las páginas de `llamar.` y `telefono.`. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Loops en el lifespan: barrido de WhatsApp, campañas, webhook de campañas, cobros, resumen por email, post-call de los agentes (`post_call_loop`) y rotación de derivaciones por WhatsApp (`handoff_loop`). |
+| `app` | `app/main.py`, `app/api/` | API `/api/v1`, la SPA, el MCP (`/mcp`), OAuth, los webhooks de WhatsApp y Mercado Pago, las páginas de `llamar.` y `telefono.`. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Loops en el lifespan: barrido de WhatsApp, campañas, webhook de campañas, cobros, post-call de los agentes (`post_call_loop`) y rotación de derivaciones por WhatsApp (`handoff_loop`). |
 | `agent` | `app/voice/worker.py` | Worker de LiveKit Agents: STT → motor → TTS. Salientes (metadata del despacho) y entrantes (dispatch rule, sin metadata). Las llamadas directas del equipo (sin agente) van por `app/voice/direct.py`. |
 | `db` | `app/models/` | PostgreSQL 16: tenencia, agentes, conversaciones, llamadas, todo. |
 | `tools-runner` + `tools-egress` | `tools-runner/` | Sandbox Deno para las herramientas de código, con salida a internet solo por Smokescreen ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md)). |
@@ -102,7 +102,7 @@ app/
   campaigns/         loop.py (por canal), dialer.py (voz), voicemail.py (contestador), callbacks.py (webhook)
   billing/           service.py (ciclo del plan), mp.py (Mercado Pago), webhook.py, loop.py (vencimientos)
   legal/             texts/ (condiciones y privacidad con versión), sync.py (copia a la landing)
-  mail/              Resend: sender, layout, messages (bienvenida, número, clave), notify, call_summary (loop del resumen)
+  mail/              Resend: sender, layout, messages (bienvenida, número, clave), notify
   mcp/               server.py (POST /mcp), catalog.py (herramientas), guides.py (resources y prompts), docs.py (genera el catálogo)
 web/                 SPA React (ver "Frontend")
 crm/                 FastAPI propio: routes (leads, outreach, reminders), services (Resend, GA, envío), migrations
@@ -120,14 +120,14 @@ usan los mismos servicios (el MCP, por dentro de `/api/v1`).
 
 **Migraciones principales:** 0002 tenencia, 0003 inventario de números, 0004-0005 WhatsApp y Embedded Signup,
 0009 API de inferencia, 0011 ajustes de límites, 0012 cobros, 0015 ruteo de WhatsApp, 0016 conexiones de LLM,
-0017 agenda y campañas, 0018-0019 links para llamar, 0020 resumen por email, 0021 números bloqueados, 0022
+0017 agenda y campañas, 0018-0019 links para llamar, 0020 resumen por email (sin uso desde 0064), 0021 números bloqueados, 0022
 `api_requests`, 0023-0024 equipo, derivaciones y eventos, 0025-0026 funciones por plan, 0028-0029 OAuth y uso
 del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un solo motor y `tool_versions`, 0034
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
 propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`), 0048 workflows
 pre-call y post-call y derivación por WhatsApp de texto, 0049 tope de retomas de esa rotación, 0050 orden o rotativa en la
 entrante al equipo, 0057 definiciones guardadas a la forma con `prompt` (y `definition_legacy` para la vuelta atrás), 0058 contenido de la API
-(ajuste en `clients` y `api_requests.content_bytes`), 0060 reparto agente/equipo de la entrante, 0061 coexistencia
+(ajuste en `clients` y `api_requests.content_bytes`), 0060 reparto agente/equipo de la entrante, 0061 coexistencia, 0062 minutos unificados, 0064 una persona por usuario y rol del cliente
 de WhatsApp y 0062 minutos unificados (`tiers.call_minutes` y `tiers.unified_minutes`).
 
 ## Modelo de datos
@@ -165,10 +165,10 @@ incluido.
 | Tabla | Claves y reglas |
 |---|---|
 | `tiers` | Límites de llamadas: `max_concurrent_calls`, `max_calls_per_hour`/`_day`/`_month`, `call_minutes` (bolsa unificada, `unified_minutes=true`) o `inbound_minutes`/`outbound_minutes` (`unified_minutes=false`), `max_phone_numbers`. Campañas y agenda: `campaign_channels` (`[]`, `whatsapp`, `voice`), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts`, `campaign_followup`. Inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes`, `api_rate_limit`. Funciones: `max_call_links`, `max_team_members`, `max_tools`, `code_tools`, `whatsapp`, `external_agent`, `white_label`, `advanced_reports`, `direct_calls`. Venta: `price_ars` (NULL = no se vende por el dashboard, 0 = el gratis del registro), `public` (se ofrece en el registro y en Plan), `sort`. `internal`: el tier de Atentina, no se ofrece ni cuenta en las estadísticas. Ver "Funciones por plan". |
-| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)), contenido de la API (`store_api_content`, `true`; `api_content_retention_days`, 30, NULL = indefinido). |
+| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), `call_emails` y `call_emails_to` (sin uso desde 0064), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)), contenido de la API (`store_api_content`, `true`; `api_content_retention_days`, 30, NULL = indefinido). |
 | `client_limit_adjustments` | Ajuste de un límite numérico del tier para un cliente: `field`, `mode` (`add`/`set`), `value`, `starts_on`/`ends_on` (inclusive, `BILLING_TIMEZONE`), `note`, `created_by`. Ver "Límites por tier". |
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
-| `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
+| `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); `client_role` admin o user dentro del cliente (nulo = Usuario; todo usuario `client` tiene una persona en `team_members`, 0064); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
 | `api_keys` | SHA-256 (`key_hash` único), `prefix` visible, `revoked_at`, `last_used_at`, `scopes` (ver "Autenticación"). |
 | `studio_items` | Lo sintetizado y transcripto en el Estudio, con los segundos que descuenta de `api_tts_minutes` o `api_stt_minutes` (`origin='voice_test'`: pruebas de voz, que no descuentan ni se crean) ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |
 | `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo) y `content_bytes` (NULL = sin contenido). El contenido va a disco, en `CALL_RECORDINGS_DIR/api/<cliente>/<día UTC>/<pedido>/` (`app/services/api_content.py`): lo vence la purga del barrido de cobros según los días del cliente, se borra con el cliente y se sincroniza sin cifrar a R2 con los audios ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
@@ -238,7 +238,7 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   "first_message": "Hola {{nombre}}, te habla Sofía…",
   "variables": [{"name": "deuda", "default": "", "description": "Lo que debe, del pre-call"}],
   "analysis": {
-    "summary": true, "instructions": "…",
+    "summary": true, "prompt": "…",
     "fields": [
       {"name": "contact_name", "label": "Nombre", "description": "Nombre", "type": "string"},
       {"name": "wants_demo", "description": "Quiere una demo", "type": "boolean"}
@@ -256,7 +256,7 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   convención de las plantillas (`# Objetivo` da `AgentOut.objective`), no los lee el motor. **`first_message`**
   (hasta 1.000): lo primero que dice el agente en una llamada; por WhatsApp entrante escribe primero la persona.
 - **Variables** (`app/conversation/variables.py`): `{{x}}` se sustituye en `prompt`, `first_message`,
-  `analysis.instructions`, descripciones de campos, mensajes de derivación y herramientas; nada se agrega solo. Un espacio por conversación en
+  `analysis.prompt`, descripciones de campos, mensajes de derivación y herramientas; nada se agrega solo. Un espacio por conversación en
   `progress.variables` (texto, número o booleano; hasta 30 y 2.000 caracteres por valor), con `hidden_variables` y
   `variable_sources`. Fuentes, de menor a mayor: `default` de `variables` < `contact` (agenda o columnas de la
   campaña, nombre normalizado sin acentos ni mayúsculas) < `request` (`variables` de `POST /calls` y
@@ -270,11 +270,14 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   celular, `from` nuestro número y `to`/`phone` el de la persona, `outbound`; entrante, `from`/`phone` quien llama y
   `to` el número marcado, `inbound`; WhatsApp, `+wa_id` y el número de la cuenta (`outbound` si responde a una
   campaña, con los datos de su contacto); prueba, link y `POST /conversations` (`mode` `api`), `inbound` con el
-  número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos).
+  número simulado si hay. Catálogo para UI y MCP: `GET /variables/catalog` (`variables.catalog()`, igual para todos),
+  con `defaults.analysis_prompt` para los botones "Partir del predeterminado" / "Restaurar el predeterminado" del editor.
 - **`analysis`** (opcional; sin él no hay extracción de datos ni resumen): `fields` en el orden de la
   lista, `type` `string`, `integer`, `boolean`, `email`, `email_or_phone`, `choice` (con `options`) o `phone`;
-  `label` es el nombre para mostrar. `summary: true` pide un resumen (`progress.summary`); `instructions` va al
-  extractor. **El resultado es solo de plataforma**: el agente cierra con `end_call` (`motivo` `terminada` o
+  `label` es el nombre para mostrar. `summary: true` pide un resumen (`progress.summary`); `prompt` es el
+  system message del extractor (hasta 20.000; vacío = el default de la plataforma). `instructions` quedó
+  deprecado: se sigue aceptando y, si `prompt` está vacío, se pliega al default en runtime.
+  **El resultado es solo de plataforma**: el agente cierra con `end_call` (`motivo` `terminada` o
   `fuera_de_tema`) y `conversations.outcome` guarda `fuera_de_tema` en ese caso (None en los demás cierres;
   `incompleta` y los ids viejos de agente se conservan solo para leer filas históricas).
 - **Definiciones viejas** (`objective`, `conversation`, `knowledge`, `fields`, `completion`, `agent.role`):
@@ -311,15 +314,6 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
   versión, voz y texto, y si no (otra voz, `{{variables}}`, falló el TTS) la sintetiza en vivo frase por frase. Al
   cambiar el checkpoint del TTS, borrar `storage/openings/` o volver a guardar los agentes
   (`app/conversation/opening_audio.py`).
-- **`call_summary_email`** (default `false`): al terminar cada llamada conectada (entrante, saliente suelta o por
-  el link; no campañas, prueba ni loadtest) se manda al cliente un email con el resumen del análisis, los datos en el
-  orden de `analysis.fields`, el resultado, la conversación (hasta `CALL_SUMMARY_TRANSCRIPT_CHARS`) y el link. El
-  worker deja `call_logs.summary_email = pending` y un loop de `app`
-  lo manda por Resend (`app/mail/call_summary.py`, cada `CALL_SUMMARY_TICK_SECONDS`; 4 intentos: ya, 1 min,
-  10 min, 1 h; `Idempotency-Key` por llamada y destino). El cliente lo apaga o elige destinos en
-  `GET/PUT /clients/{id}/call-emails` (vacío = sus usuarios activos). Estados: `sent`, `disabled` (sin
-  `RESEND_API_KEY`), `skipped`, `failed`. Al prenderlo en el editor se agrega un dato `telefono` si no hay uno de
-  tipo `phone`; pedirlo es cosa del prompt.
 - **`record_audio`** (default `false`): un WAV mono de 16 kHz por mensaje en
   `storage/recordings/<conversation_id>/NNN.wav` (`CALL_RECORDINGS_DIR`, `app/conversation/recordings.py`), con su
   número en `Message.recording`. En llamadas, cliente y agente por separado; el del cliente recortado a lo que el
@@ -376,12 +370,17 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Qué LLM:** `app/llm/resolver.py` elige por turno entre la inferencia propia (default y respaldo) y una
   conexión del cliente según `Workflow.llm`.
 - **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`
-  (`summary` si se pide) y un prompt con el nombre del agente, `analysis.instructions`, los campos, las variables
-  visibles y la conversación completa; una vez, al terminar (`end_call`) o al cortar (`ConversationEngine.finish`).
+  (`summary` si se pide), un system message con el `analysis.prompt` (o el default) y un user message con el nombre
+  del agente, los campos, las variables visibles y la conversación completa; una vez, al terminar (`end_call`) o al
+  cortar (`ConversationEngine.finish`).
   `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
   inexistentes o de tipo inválido no se guardan). `conversion`: `complete` si el agente terminó la conversación y
   no fue fuera de tema, `partial` con algún dato capturado, `empty` el resto; `incompleta` ya no se asigna (las
-  guardadas lo conservan).
+  guardadas lo conservan). **Volver a correrla:** `POST /calls/{id}/analyze` (solo Admin del cliente, tope por hora)
+  re-analiza una conversación guardada con `reset`: el extractor no ve los datos viejos (sin `KNOWN FIELDS`) y el
+  resultado pisa `fields` y `summary` (lo que no extraiga queda en null; si el LLM falla, los viejos no se tocan).
+  Espera hasta 15 s y responde `{pending}`: `true` si la extracción sigue en el fondo (no se cancela). 409 sin
+  `analysis`, con `external` o con la llamada en curso.
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`
@@ -598,7 +597,13 @@ esta sección es lo que lo protege. Código en `app/api/http.py` y `app/api/deps
   `AUTH_TOKEN_HOURS`, `Secure` si `AUTH_COOKIE_SECURE=true` o el pedido llegó por HTTPS.
 - **Sesión revocable:** el JWT lleva `sv` = `users.session_version`; logout, cambio de clave o de email y
   desactivación lo incrementan y cierran **todas** las sesiones. Cada pedido relee el usuario de la base.
-- **Alta con link por mail** (`POST /clients` con `owner_email`, `POST /users/{id}/invite`, registro): el usuario
+- **Roles del cliente:** `users.client_role` (`admin`/`user`; nulo = Usuario) se relee en cada pedido, también con
+  OAuth. `deps.require_client_admin` (403 `client_admin_required`) cubre la escritura de la cuenta; una API key y el
+  admin de la plataforma cuentan como Admin, el token OAuth de un Usuario no. Plan, cobros y API keys piden usuario
+  (sesión del panel u OAuth), no API key. El último Admin activo no se baja, desactiva ni borra (409 `last_admin`,
+  `services/team_access.py`). Detalle: [`features/EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md#roles-y-acceso-al-panel).
+- **Alta con link por mail** (`POST /clients` con `owner_email`, `POST /users/{id}/invite`, `POST /team` con `email`,
+  registro): el usuario
   se crea con una clave al azar y recibe `/set-password?token=…`, un JWT con clave derivada de `AUTH_SECRET`, que
   vence a las `PASSWORD_SETUP_HOURS` (72) y lleva la huella de la clave (un solo uso, sin tabla).
   `POST /auth/password-setup/check|password-setup` (30 pedidos por hora por IP) y `/auth/password-reset` son
@@ -640,17 +645,20 @@ esta sección es lo que lo protege. Código en `app/api/http.py` y `app/api/deps
   `loadtest_forbidden`.
 - **Permisos:** un recurso de otro cliente responde 404, no 403.
 
-| Acción | Admin (`/admin`) | Usuario del cliente | API key `calls` |
-|---|---|---|---|
-| Tiers, clientes, ajustes de límites, usuarios, cobros, marca blanca, Sistema | Sí | No | No |
-| Números: cargar, asignar, liberar, borrar | Sí | No | No |
-| Conversaciones: borrar (una o en bulk) | Sí | No | No |
-| Agentes, herramientas, secretos, conexiones de LLM, WhatsApp, contactos, campañas, equipo, links, números (agente, etiqueta, quién atiende) | Entrando como el cliente | Lo suyo | Lo suyo |
-| Llamadas, conversaciones, reportes, consumo, voces | Todo (vistas de todos en `/admin`) | Lo suyo | Lo suyo |
-| Reportes `technical` y `platform` | Sí | No | No |
-| Llamadas directas: llamar | No | Sí, con el plan | Con `user_id` (y `join_url`) |
-| Llamadas directas: atender, rechazar, presencia | No | Sí | No (403 `panel_user_required`) |
-| API keys | Sí | Las suyas | No |
+| Acción | Admin de la plataforma (`/admin`) | Admin del cliente | Usuario del cliente | API key `calls` |
+|---|---|---|---|---|
+| Tiers, clientes, ajustes de límites, usuarios, marca blanca, Sistema | Sí | No | No | No |
+| Números: cargar, asignar, liberar, borrar | Sí | No | No | No |
+| Conversaciones: borrar (una o en bulk) | Sí | No | No | No |
+| Agentes, herramientas, secretos, conexiones de LLM, WhatsApp, campañas, contactos en lote y bajas, equipo y áreas, links | Entrando como el cliente | Sí | Lee y usa (valida agentes, prueba herramientas guardadas, contactos de a uno) | Sí |
+| Números: agente, etiqueta, quién atiende | Entrando como el cliente | Sí | No (403 `client_admin_required`) | Sí |
+| Llamadas, conversaciones, reportes, consumo, voces, Estudio | Todo (vistas de todos en `/admin`) | Lo suyo | Lo suyo | Lo suyo |
+| Reportes `technical` y `platform` | Sí | No | No | No |
+| Plan y cobros | Sí (en soporte, solo lectura) | Sí, con sesión u OAuth | No | No (403 `panel_user_required`) |
+| Llamadas directas: llamar | No | Sí, con el plan | Sí, con el plan | Con `user_id` (y `join_url`) |
+| Llamadas directas: atender, rechazar, presencia | No | Sí | Sí | No (403 `panel_user_required`) |
+| API keys | Sí | Sí, con sesión del panel | No | No |
+| Dar acceso, rol o invitación; borrar una persona con usuario | Entrando como el cliente | Sí, con sesión del panel | No | No (403 `panel_user_required`) |
 
 - **Headers:** HSTS (`max-age=31536000; includeSubDomains`) solo por HTTPS; CSP con el hash de cada `<script>`
   inline de `web/dist/index.html` y el SDK de Facebook (`connect.facebook.net`, `*.facebook.com`),
@@ -673,8 +681,7 @@ El admin administra en `/admin/*` y, para operar lo de un cliente (también los 
   `GET /auth/me` responde el cliente con `support: true`, sin `legal_pending` ni bienvenida.
 - **Solo lectura en soporte** (`require_not_support`, 403 `support_read_only`): `/auth/me/*` (perfil, clave,
   email, condiciones, bienvenida), plan y cobros del cliente (pagar, cambiar, dar de baja, datos fiscales), y
-  llamar, atender o cambiar presencia en las llamadas directas. El resto (agentes, WhatsApp, campañas, resúmenes
-  por email) se hace como el cliente, sin auditoría aparte.
+  llamar, atender o cambiar presencia en las llamadas directas. El resto (agentes, WhatsApp, campañas, equipo, accesos) se hace como el cliente, sin auditoría aparte.
 - **Frontend:** `src/api/client.ts` agrega el header si la pestaña está en un cliente (`src/features/support/`:
   `useSupportSwitch()` con `enter`/`exit`, `useAreaPath()`, `supportUrl()`); el cliente activo vive en
   `sessionStorage` (por pestaña) y al entrar o salir se vacía la caché de TanStack Query. Rutas `/admin/*` con
@@ -719,24 +726,25 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`, y filtra por uno o varios `mode` y por `landing`; el resto, listas simples. Las
   fechas de `/calls` y `/reports` toman días locales de `tz` (default `BILLING_TIMEZONE`). Los admins pasan
   `client_id` en las rutas de recursos de un cliente. Cada ítem trae `captured` (datos capturados) y `total` (los del
-  análisis de la versión con que corrió).
+  análisis de la versión con que corrió) y `has_analysis` (si se puede volver a correr el análisis).
 - **Detalle de la conversación** (`GET /calls/{id}`, `Reports.detail`): `fields` trae cada dato del análisis con `name`,
   `label`, `description`, `value` y `rejected`; `summary` es `progress.summary` y `variables` las de la conversación
   (`[{name, value, source, hidden?}]`: las ocultas con `•••`, las del sistema con `source: system`); `system_prompt` es
-  el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar). No
+  el prompt renderizado del primer turno (`progress.system_prompt`, null en las viejas o en WhatsApp sin renderizar);
+  `has_analysis`, como en la lista, dice si se puede volver a correr su análisis. No
   hay `context`: el motivo es la variable `motivo`. Los mensajes traen `tools` (`{id, name, arguments, result}`) si el
   turno usó herramientas del cliente.
 
 | Router (`app/api/routers/`) | Rutas | Detalle |
 |---|---|---|
 | `auth.py` | `/auth`: login, logout, `me` (perfil, bienvenida, condiciones, clave, email), alta y reset de clave, pase de sesión (`/switch*`, `/handoff`) | "Autenticación" |
-| `tiers.py`, `clients.py`, `users.py`, `api_keys.py` | `/tiers`, `/clients` (más `call-emails`, `api-content`, `usage`, `inference-usage`, `limits`, `limit-adjustments`), `/users` (`invite`), `/clients/{id}/api-keys` | [`GUIA_UI.md`](GUIA_UI.md) |
+| `tiers.py`, `clients.py`, `users.py`, `api_keys.py` | `/tiers`, `/clients` (más `api-content`, `usage`, `inference-usage`, `limits`, `limit-adjustments`), `/users` (`invite`), `/clients/{id}/api-keys` | [`GUIA_UI.md`](GUIA_UI.md) |
 | `plan.py` | `GET /plan/features` | "Funciones por plan" |
 | `billing.py` | `/clients/{id}/billing/*` (subscribe, cancel, fiscal, payments, suspend), `/billing/subscriptions`, `/billing/payments` | [`COBROS.md`](features/COBROS.md) |
 | `branding.py` | `/clients/{id}/branding*`, `/public/branding/{slug}*` | "Marca blanca" |
 | `agents.py` | `/agents` (CRUD, `schema`, `validate`, `prompt`, `definition`, `versions`), `/agent-templates` | "Definición de un agente" |
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
-| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), borrar y `bulk-delete` solo admin) | "Flujos" |
+| `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), `analyze` (re-correr el análisis, admin del cliente), borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |
 | `variables.py` | `GET /variables/catalog` (reglas de nombres, topes y variables del sistema con `applies_to`) | "Definición de un agente" |
 | `studio.py` | `/studio/speech`, `/studio/transcriptions`, `/studio/items` | Texto a voz y transcripción ([`features/ESTUDIO.md`](features/ESTUDIO.md)) |

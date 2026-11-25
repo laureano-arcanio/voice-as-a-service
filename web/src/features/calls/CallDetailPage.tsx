@@ -46,6 +46,7 @@ import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { callPerson, endReasonLabel, isPersonCall } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
+  canReanalyze,
   fullRecordingUrl,
   isCallLive,
   useCallDetail,
@@ -54,6 +55,7 @@ import {
 } from './api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
+import { ReanalyzeButton } from './ReanalyzeButton';
 import { useFreshFields } from './useFreshFields';
 import { asLatency } from './types';
 import { variableSourceLabel } from './variables';
@@ -521,7 +523,9 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
   const canHangUp = !!c.call && live;
   const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
   const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
-  if (!canView && !canHangUp && !canBlock && !canClose) return null;
+  // Re-analizar: con la llamada terminada; el propio botón se oculta si el usuario no es Admin del cliente.
+  const canRerun = canReanalyze({ has_analysis: c.has_analysis, status: c.call?.status });
+  if (!canView && !canHangUp && !canBlock && !canClose && !canRerun) return null;
   return (
     <Group gap="sm">
       {canView && (
@@ -535,6 +539,9 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
             Ver como el cliente
           </Button>
         </Tooltip>
+      )}
+      {canRerun && (
+        <ReanalyzeButton conversationId={c.id} hasAnalysis={c.has_analysis} callStatus={c.call?.status} />
       )}
       {canBlock && <BlockCallerButton c={c} />}
       {canHangUp && <HangUpButton c={c} />}

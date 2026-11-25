@@ -344,7 +344,7 @@ def team_setup(api, admin, monkeypatch, tmp_path, *people, **number):
         if user and user not in users:
             u = client_user(api, admin, c, email=f"{user}@acme.com")
             users[user] = (u, u.get(f"{V1}/auth/me").json()["id"])
-        body = {"name": name, "phone": phone} if phone else {"name": name, "whatsapp": "3510000000"}
+        body = {"name": name} if not phone else {"name": name, "phone": phone}
         if user:
             body["user_id"] = users[user][1]
         ids.append(member(admin, c["id"], **body)["id"])

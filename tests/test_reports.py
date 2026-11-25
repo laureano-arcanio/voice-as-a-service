@@ -83,7 +83,7 @@ def data(api, admin, monkeypatch):
                   phone="+5493510000001", ended_reason="customer_hangup", line=line.id,
                   latency={"turns": [{"total": 1.0, "stt": 0.1}, {"total": 2.0, "stt": 0.3}]},
                   messages=turn("local", 100) + [{"role": "user", "text": "chau"}],
-                  fields={"contact_name": "Ana", "company_name": "X"}, summary_email="failed",
+                  fields={"contact_name": "Ana", "company_name": "X"},
                   llm_input_tokens=100, llm_output_tokens=20)
         c2 = conv(s, ac, a, T(2, 11, 30), duration=10, conversion="partial", phone="+5493510000001",
                   ended_reason="completed", line=line.id, messages=turn("openrouter", 300, "boom"),
@@ -545,7 +545,6 @@ def test_technical_is_admin_only(api, data):
     assert {k: tool[k] for k in ("slug", "runs", "errors", "error_pct", "p50_ms", "p95_ms", "last_error")} == {
         "slug": "stock", "runs": 3, "errors": 1, "error_pct": 33.3, "p50_ms": 200, "p95_ms": 290,
         "last_error": "HTTP 500"}
-    assert out["failed_summary_emails"] == 1
     assert (out["tokens"]["input"], out["tokens"]["output"]) == (100, 20)
 
 

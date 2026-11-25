@@ -4,6 +4,11 @@ import type { Definition } from '@/api/types';
 import { CLIENT_USER, renderWithProviders } from '@/test/render';
 import { WorkflowSummary } from './WorkflowSummary';
 
+const ANALYSIS = {
+  summary: true,
+  instructions: 'Extraé lo que dijo.',
+  fields: [{ name: 'quiere_pagar', label: 'Quiere pagar', description: 'Si dijo que sí', type: 'boolean' }],
+};
 const DEF = {
   id: 'a',
   version: 4,
@@ -11,11 +16,7 @@ const DEF = {
   prompt: '# Identidad\nSos Sofía.\n\n# Objetivo\nCobrar.',
   first_message: 'Hola, {{nombre}}',
   variables: [{ name: 'deuda', default: '1000', description: 'Lo que debe' }],
-  analysis: {
-    summary: true,
-    instructions: 'Extraé lo que dijo.',
-    fields: [{ name: 'quiere_pagar', label: 'Quiere pagar', description: 'Si dijo que sí', type: 'boolean' }],
-  },
+  analysis: ANALYSIS,
 } as Definition;
 
 describe('WorkflowSummary', () => {
@@ -30,6 +31,31 @@ describe('WorkflowSummary', () => {
     expect(screen.getByText('Quiere pagar')).toBeInTheDocument();
     expect(screen.queryByText('Resultados')).toBeNull();
     expect(screen.queryByText(/Mensaje de cierre/)).toBeNull();
+  });
+
+  it('prompt del análisis vacío: el de la plataforma, y las instrucciones viejas con su nota', () => {
+    renderWithProviders(<WorkflowSummary definition={DEF} />, { me: CLIENT_USER });
+    expect(screen.getByText('Prompt del análisis')).toBeInTheDocument();
+    expect(screen.getByText('El de la plataforma')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Instrucciones de una versión anterior/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Extraé lo que dijo.')).toBeInTheDocument();
+  });
+
+  it('con prompt del análisis propio muestra sus primeras líneas, sin la nota', () => {
+    const def = {
+      ...DEF,
+      analysis: {
+        ...ANALYSIS,
+        prompt: 'Sos el extractor de esta cuenta.\nMirá la deuda.\nIgnorá los chistes.',
+      },
+    } as Definition;
+    renderWithProviders(<WorkflowSummary definition={def} />, { me: CLIENT_USER });
+    expect(screen.getByText(/Sos el extractor de esta cuenta/)).toBeInTheDocument();
+    expect(screen.getByText(/Mirá la deuda/)).toBeInTheDocument();
+    expect(screen.queryByText('El de la plataforma')).toBeNull();
+    expect(screen.queryByText(/Instrucciones de una versión anterior/)).toBeNull();
   });
 
   it('sin variables no muestra la tabla', () => {

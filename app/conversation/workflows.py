@@ -1,5 +1,5 @@
 """Post-call del agente: una herramienta oculta al modelo que corre una vez por conversacion, durable, con el patron
-del resumen por email (app/mail/call_summary.py). El worker o WhatsApp marcan en la base y lo ejecuta un loop de `app`:
+de una accion posterior a la llamada. El worker o WhatsApp marcan en la base y lo ejecuta un loop de `app`:
 el worker puede morir con la llamada.
 
 Estados en conversations.post_call_status:

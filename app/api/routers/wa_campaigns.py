@@ -15,7 +15,7 @@ from ...services import phones
 from ...services.errors import Invalid, NotFound
 from ...services.security import Principal
 from ...whatsapp import campaigns
-from ..deps import DB, CurrentPrincipal, ensure_access, scoped_client_id
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, ensure_access, scoped_client_id
 from ..schemas import (
     WaCampaignCreated,
     WaCampaignIn,
@@ -84,7 +84,7 @@ def list_campaigns(p: CurrentPrincipal, db: DB, client_id: str | None = None, ac
 
 
 @router.post("/campaigns", response_model=WaCampaignCreated, status_code=201)
-async def create_campaign(body: WaCampaignIn, p: CurrentPrincipal, db: DB):
+async def create_campaign(body: WaCampaignIn, p: ClientAdminPrincipal, db: DB):
     """Crea la campaña en borrador con sus contactos. Lee la plantilla de Meta: tiene que
     estar aprobada (422 si no). Los contactos invalidos, repetidos o dados de baja vuelven
     en `skipped`. Se envia con /start."""
@@ -106,7 +106,7 @@ def get_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.patch("/campaigns/{campaign_id}", response_model=WaCampaignOut)
-def update_campaign(campaign_id: str, body: WaCampaignPatch, p: CurrentPrincipal, db: DB):
+def update_campaign(campaign_id: str, body: WaCampaignPatch, p: ClientAdminPrincipal, db: DB):
     c, _ = _get_editable(db, campaign_id, p)
     changes = body.model_dump(exclude_unset=True)
     # null es "sin cambio", salvo agent_id (null: el agente del numero).
@@ -117,7 +117,7 @@ def update_campaign(campaign_id: str, body: WaCampaignPatch, p: CurrentPrincipal
 
 
 @router.delete("/campaigns/{campaign_id}", status_code=204)
-def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def delete_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     """Solo en borrador (409 si ya empezo: se cancela)."""
     c, _ = _get_editable(db, campaign_id, p)
     campaigns.delete(db, c)
@@ -125,7 +125,7 @@ def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/campaigns/{campaign_id}/recipients", response_model=WaRecipientsAdded)
-def add_recipients(campaign_id: str, body: WaRecipientsIn, p: CurrentPrincipal, db: DB):
+def add_recipients(campaign_id: str, body: WaRecipientsIn, p: ClientAdminPrincipal, db: DB):
     """Suma contactos a una campaña en borrador o pausada."""
     c, _ = _get_editable(db, campaign_id, p)
     added, skipped = campaigns.add_recipients(db, c, _rows(body))
@@ -152,7 +152,7 @@ def list_recipients(campaign_id: str, p: CurrentPrincipal, db: DB,
 
 
 @router.post("/campaigns/{campaign_id}/start", response_model=WaCampaignOut)
-async def start_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+async def start_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     """Empieza o retoma el envio. Relee la plantilla en Meta: si la pausaron, la rechazaron
     o le cambiaron las variables, no arranca (422)."""
     c, account = _get_editable(db, campaign_id, p)
@@ -167,7 +167,7 @@ async def start_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/campaigns/{campaign_id}/pause", response_model=WaCampaignOut)
-def pause_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def pause_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     c = _get(db, campaign_id, p)
     campaigns.pause(db, c)
     db.commit()
@@ -175,7 +175,7 @@ def pause_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/campaigns/{campaign_id}/cancel", response_model=WaCampaignOut)
-def cancel_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def cancel_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     """Termina la campaña: los pendientes no se mandan. Las respuestas siguen llegando al agente."""
     c = _get(db, campaign_id, p)
     campaigns.cancel(db, c)
@@ -195,7 +195,7 @@ def list_optouts(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 
 @router.post("/optouts", response_model=WaOptoutOut, status_code=201)
-def add_optout(body: WaOptoutIn, p: CurrentPrincipal, db: DB):
+def add_optout(body: WaOptoutIn, p: ClientAdminPrincipal, db: DB):
     """Agrega un numero a la lista de bajas del cliente (ninguna campaña le escribe)."""
     client_id = body.client_id if p.is_admin else p.client_id
     if not client_id or db.get(Client, client_id) is None:
@@ -211,7 +211,7 @@ def add_optout(body: WaOptoutIn, p: CurrentPrincipal, db: DB):
 
 
 @router.delete("/optouts/{wa_id}", status_code=204)
-def remove_optout(wa_id: str, p: CurrentPrincipal, db: DB, client_id: str | None = None):
+def remove_optout(wa_id: str, p: ClientAdminPrincipal, db: DB, client_id: str | None = None):
     """Saca un numero de la lista de bajas (por ejemplo, si volvio a pedir que le escriban)."""
     client_id = client_id if p.is_admin else p.client_id
     if not client_id:

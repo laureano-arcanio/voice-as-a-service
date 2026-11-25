@@ -389,13 +389,12 @@ def test_signup_admin_for_a_client(api, admin, meta, acme):  # noqa: F811
     assert r.status_code == 201 and r.json()["client_id"] == c["id"]
 
 
-def test_signup_requires_user_session(api, admin, meta, acme):  # noqa: F811
+def test_signup_with_an_api_key_acts_as_an_admin(api, admin, meta, acme):  # noqa: F811
     c, agent, _ = acme
     key = admin.post(f"{V1}/clients/{c['id']}/api-keys", json={"name": "crm"}).json()["key"]
     r = api.client.post(f"{V1}/whatsapp/signup", json=body(agent), headers={"Authorization": f"Bearer {key}"})
-    assert r.status_code == 403
+    assert r.status_code == 201, r.text
     assert api.client.post(f"{V1}/whatsapp/signup", json=body(agent)).status_code == 401
-    assert "exchange_code" not in meta.names()
 
 
 def test_signup_rate_limit(meta, acme, monkeypatch):

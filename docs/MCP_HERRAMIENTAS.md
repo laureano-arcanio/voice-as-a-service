@@ -41,11 +41,9 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `whoami` | El usuario y el cliente (empresa) de esta conexión. Para lo que incluye el plan y lo que queda del mes, usá get_plan_tools. | lectura | todos | `GET /auth/me` |
 | `get_plan_features` | Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para llamar) con `enabled` y, si no está, `reason`: lo que hace falta. Los minutos del plan pueden ser una bolsa compartida o dos (entrantes y salientes): lo dice `unified_minutes`. | lectura | todos | `GET /plan/features` |
 | `get_usage` | Minutos del plan (con su proyección a fin de mes), llamadas y demás consumo del mes contra los límites del plan. Con la bolsa unificada (`unified_minutes: true`), `minutes` es la fuente de verdad y `inbound`/`outbound` son el desglose con el tope y el restante compartidos. Es lo primero a consultar para "¿alcanza el plan?". | lectura | todos | `GET /clients/{client_id}/usage` |
-| `get_call_emails` | Si el resumen por email de cada llamada está prendido para el cliente y a qué direcciones llega. | lectura | todos | `GET /clients/{client_id}/call-emails` |
 | `get_direct_call_settings` | Si las llamadas directas (las que hace o atiende una persona del equipo) avisan "Esta llamada está siendo grabada" al empezar. Se graban siempre. | lectura | `direct_calls` | `GET /clients/{client_id}/direct-call-settings` |
 | `get_billing` | El plan contratado, su vencimiento, el medio de pago y los últimos pagos. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/billing` |
 | `list_api_keys` | Las API keys del cliente (nombre, prefijo, alcances, último uso); nunca la clave. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/api-keys` |
-| `update_call_emails` | Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a quién le llega (vacío: a los usuarios activos). | escritura | todos | `PUT /clients/{client_id}/call-emails` |
 | `update_direct_call_settings` | Prende o apaga el aviso "Esta llamada está siendo grabada" al empezar las llamadas directas. Las directas se graban siempre: avisar y tener el consentimiento es responsabilidad del cliente. | escritura | `direct_calls` | `PUT /clients/{client_id}/direct-call-settings` |
 
 ## `agents`: Agentes, voces y plantillas
@@ -194,8 +192,8 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `get_handoff_area` | Un área de derivación con su configuración. | lectura | `team` | `GET /handoff-areas/{area_id}` |
 | `list_team_presence` | Los usuarios del panel del cliente: quién está Disponible para atender llamadas en el navegador y quién está en una llamada. Sirve para elegir `user_id` en start_direct_call. | lectura | `direct_calls` | `GET /team/presence` |
 | `list_events` | Eventos en orden de llegada: llamadas (timbre, atención, fin), derivaciones y esperas. Para seguir nuevos, pasar `after_id` con el último visto. | lectura | todos | `GET /events` |
-| `create_team_member` | Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp. | escritura | `team` | `POST /team` |
-| `update_team_member` | Cambia los datos de una persona. | escritura | `team` | `PATCH /team/{member_id}` |
+| `create_team_member` | Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp. El acceso al panel, el rol y la invitación se dan solo desde el panel, no por acá: la persona queda sin usuario. | escritura | `team` | `POST /team` |
+| `update_team_member` | Cambia los datos de una persona. El acceso al panel, el rol y la invitación se dan solo desde el panel. | escritura | `team` | `PATCH /team/{member_id}` |
 | `delete_team_member` | Saca una persona del equipo. | **confirmar** | `team` | `DELETE /team/{member_id}` |
 | `get_handoff_area_defaults` | Los mensajes por defecto de un área de derivación y las variables que aceptan. También aceptan las que trae la herramienta de «Antes de la conversación» del agente, por su nombre. | lectura | `team` | `GET /handoff-areas/defaults` |
 | `list_hold_music` | Los temas de música de espera para la derivación. | lectura | `team` | `GET /hold-music` |

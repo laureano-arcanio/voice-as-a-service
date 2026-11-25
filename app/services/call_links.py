@@ -352,7 +352,7 @@ async def start_call(s: Session, engine: ConversationEngine, token: str, turnsti
         raise LinkUnavailable(UNAVAILABLE, "unavailable")
     if not await demo_service.verify_turnstile(turnstile_token, ip):
         raise Forbidden("No pudimos verificar que seas una persona. Recargá la página.", "captcha_failed")
-    principal = Principal("link", link.id, Role.client, link.client_id)
+    principal = Principal("link", link.id, Role.client, link.client_id, client_role="admin")
     try:
         await asyncio.to_thread(_check_daily, s, link)
         started = await calls.start_call(s, engine, principal, calls.CallRequest(

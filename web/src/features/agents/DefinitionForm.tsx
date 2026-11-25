@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Autocomplete,
   Badge,
   Button,
@@ -19,11 +20,11 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconChevronDown, IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { createContext, type ReactNode, useContext } from 'react';
 import type { FieldError } from '@/api/errors';
 import { PlanGate } from '@/components/PlanGate';
-import { PromptEditor, VariableField, type ExtraVariable } from '@/components/variables';
+import { PromptEditor, useVariableCatalog, VariableField, type ExtraVariable } from '@/components/variables';
 import { useTools } from '@/features/tools/api';
 import { useAreas } from '@/features/team/api';
 import { VoiceSelect } from '@/features/voices/VoiceSelect';
@@ -32,8 +33,8 @@ import {
   FIELD_TYPES,
   type FieldDraft,
   FIRST_MESSAGE_DELAY_MS,
-  hasPhoneField,
   type FieldType,
+  MAX_ANALYSIS_PROMPT,
   MAX_FIRST_MESSAGE,
   MAX_PROMPT,
   newField,
@@ -43,7 +44,6 @@ import {
   sectionId,
   TURN_ATTENTION_DEFAULTS,
   type TurnAttentionDraft,
-  withPhoneField,
 } from './draft';
 import { ExternalSection } from './ExternalSection';
 import { HandoffEditor } from './HandoffSection';
@@ -492,6 +492,8 @@ export function DefinitionForm({
   const areas = useAreas(clientId);
   const areaNames = new Map((areas.data ?? []).map((a) => [a.id, a.name]));
   const declared = declaredOf(draft);
+  // El default del prompt del análisis: sugerencia del editor y base para traer las instrucciones viejas.
+  const defaultPrompt = useVariableCatalog().data?.defaults.analysis_prompt ?? '';
   // Lo que asigna el pre-call: los textos lo pueden nombrar. Las ocultas no se ofrecen (no llegan al LLM).
   const preCall = draft.workflows.preCall?.tool;
   const preTool = (clientTools.data ?? []).find((t) => t.slug === preCall);
@@ -592,37 +594,6 @@ export function DefinitionForm({
                 onChange={(e) => set({ recordingNotice: e.currentTarget.checked })}
               />
             )}
-            <Switch
-              label="Resumen por email después de cada llamada"
-              description={
-                <>
-                  Al cortar, Atentina le manda al cliente el resumen, los datos y la conversación. El
-                  cliente lo apaga o elige a quién le llega en Mi cuenta.
-                  {draft.callSummaryEmail && (
-                    <Text
-                      component="span"
-                      display="block"
-                      size="xs"
-                      mt={4}
-                      c={external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
-                    >
-                      {external
-                        ? 'Con tu propio agente no se piden datos: en las llamadas por el link el email va sin teléfono.'
-                        : hasPhoneField(draft)
-                          ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
-                          : 'Falta un dato de tipo Teléfono en el análisis: en las llamadas por el link el email va a ir sin teléfono.'}
-                    </Text>
-                  )}
-                </>
-              }
-              checked={draft.callSummaryEmail}
-              onChange={(e) => {
-                const on = e.currentTarget.checked;
-                update((d) =>
-                  on ? withPhoneField({ ...d, callSummaryEmail: true }) : { ...d, callSummaryEmail: false },
-                );
-              }}
-            />
             <NumberInput
               label="Ventana de contexto en WhatsApp (minutos)"
               description="Minutos sin mensaje del contacto para dar la conversación por terminada: la siguiente arranca de cero, sin el historial anterior. Vacío = el default del servidor (1440 min = 24 hs)."
@@ -782,7 +753,7 @@ export function DefinitionForm({
             <Stack gap="md">
               <Switch
                 label="Escribir un resumen de lo hablado"
-                description="Un párrafo para el detalle de la conversación, el email y las herramientas ({{call.summary}})."
+                description="Un párrafo para el detalle y las herramientas ({{call.summary}})."
                 checked={draft.analysis.summary}
                 onChange={(e) =>
                   update((d) => ({ ...d, analysis: { ...d.analysis, summary: e.currentTarget.checked } }))
@@ -793,20 +764,92 @@ export function DefinitionForm({
                   {summaryError}
                 </Text>
               )}
-              <VariableField
-                label="Instrucciones para el análisis"
-                description="Qué mirar, qué ignorar y cómo resumir. Vacío: las instrucciones de la plataforma."
-                field="analysis"
-                declared={declared}
-                multiline
-                minRows={3}
-                maxRows={10}
-                value={draft.analysis.instructions}
-                onChange={(instructions) =>
-                  update((d) => ({ ...d, analysis: { ...d.analysis, instructions } }))
-                }
-                error={errorAt(errors, 'analysis.instructions')}
-              />
+              <Stack gap="xs">
+                <Group justify="space-between" wrap="nowrap">
+                  <Text size="sm" fw={600}>
+                    Prompt del análisis
+                  </Text>
+                  {/* Editor vacío: partir del default de la plataforma (deja de seguirlo al guardar).
+                      Con texto: volver al default (prompt en blanco). */}
+                  {!draft.analysis.prompt.trim() ? (
+                    <Button
+                      variant="default"
+                      size="compact-xs"
+                      disabled={!defaultPrompt}
+                      onClick={() =>
+                        update((d) => ({
+                          ...d,
+                          analysis: { ...d.analysis, prompt: defaultPrompt, legacyInstructions: '' },
+                        }))
+                      }
+                    >
+                      Partir del predeterminado
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="compact-xs"
+                      onClick={() =>
+                        update((d) => ({
+                          ...d,
+                          analysis: { ...d.analysis, prompt: '', legacyInstructions: '' },
+                        }))
+                      }
+                    >
+                      Restaurar el predeterminado
+                    </Button>
+                  )}
+                </Group>
+                <PromptEditor
+                  field="analysis"
+                  maxLength={MAX_ANALYSIS_PROMPT}
+                  minRows={8}
+                  declared={declared}
+                  extra={extra}
+                  value={draft.analysis.prompt}
+                  onChange={(prompt) =>
+                    update((d) => ({ ...d, analysis: { ...d.analysis, prompt } }))
+                  }
+                  error={errorAt(errors, 'analysis.prompt')}
+                  placeholder={defaultPrompt || undefined}
+                  description="El system message del extractor: va tal cual al modelo, con sus {{variables}}; {where} se reemplaza por el canal. La plataforma agrega los campos, la conversación, lo ya guardado y, si el resumen está activo, la frase que lo pide. Vacío: el de la plataforma (la sugerencia gris)."
+                />
+              </Stack>
+              {draft.analysis.legacyInstructions && !draft.analysis.prompt.trim() && (
+                <Alert color="yellow" icon={<IconInfoCircle size={18} />}>
+                  <Stack gap="xs">
+                    <Text size="sm">
+                      Instrucciones del análisis de una versión anterior: se suman al prompt de la
+                      plataforma hasta que las traigas al prompt (al guardar, pasan a ser el prompt).
+                    </Text>
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-line' }}>
+                      {draft.analysis.legacyInstructions}
+                    </Text>
+                    {errorAt(errors, 'analysis.instructions') && (
+                      <Text size="xs" c="red">
+                        {errorAt(errors, 'analysis.instructions')}
+                      </Text>
+                    )}
+                    <Button
+                      variant="default"
+                      size="compact-xs"
+                      w="fit-content"
+                      disabled={!defaultPrompt}
+                      onClick={() =>
+                        update((d) => ({
+                          ...d,
+                          analysis: {
+                            ...d.analysis,
+                            prompt: `${defaultPrompt}\n\nINSTRUCCIONES:\n${d.analysis.legacyInstructions}`,
+                          },
+                        }))
+                      }
+                    >
+                      Traer al prompt
+                    </Button>
+                  </Stack>
+                </Alert>
+              )}
               <Stack gap="xs">
                 <Text size="sm" fw={600}>
                   Datos

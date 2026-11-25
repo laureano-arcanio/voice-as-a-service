@@ -58,6 +58,12 @@ export function isCallLive(c: CallDetail | undefined): boolean {
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';
 }
 
+/** Se puede volver a correr su análisis (POST /calls/{id}/analyze): el agente lo tiene (no es tu propio
+ * agente) y la llamada no está en curso. */
+export function canReanalyze(c: { has_analysis?: boolean | null; status?: string | null }): boolean {
+  return !!c.has_analysis && !isLiveStatus(c.status);
+}
+
 /** Refresco del detalle: 1 s en una llamada en curso; 3 s en un chat de WhatsApp activo
  * (los mensajes llegan de a uno y el cliente puede volver a escribir horas despues). */
 export function detailRefetchMs(c: CallDetail | undefined): number | false {
@@ -122,6 +128,22 @@ export function useCloseWhatsApp(conversationId: string) {
     mutationFn: () =>
       unwrap(
         api.POST('/api/v1/whatsapp/threads/{conversation_id}/close', {
+          params: { path: { conversation_id: conversationId } },
+        }),
+      ),
+    onSettled: () => void qc.invalidateQueries({ queryKey: callKeys.all }),
+  });
+}
+
+/** Vuelve a correr el análisis de una conversación (solo Admin del cliente): re-extrae los datos y el
+ * resumen con el prompt vigente del agente, pisando los actuales. `pending` si al vencer la espera la
+ * extracción sigue corriendo en el fondo. */
+export function useReanalyze(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/calls/{conversation_id}/analyze', {
           params: { path: { conversation_id: conversationId } },
         }),
       ),

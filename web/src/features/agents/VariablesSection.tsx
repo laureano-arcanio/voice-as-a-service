@@ -13,7 +13,12 @@ import {
 
 /** Nombres que nombran los textos del agente, sin las del sistema (los valores los completa la plataforma). */
 function usedNames(draft: Draft, catalog: Parameters<typeof isSystemVariable>[1]): string[] {
-  const text = [draft.prompt, draft.firstMessage, draft.analysis.instructions].join('\n');
+  const text = [
+    draft.prompt,
+    draft.firstMessage,
+    draft.analysis.prompt,
+    draft.analysis.legacyInstructions,
+  ].join('\n');
   return usedVariables(text).filter((n) => !isSystemVariable(n, catalog));
 }
 

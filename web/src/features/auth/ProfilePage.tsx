@@ -114,7 +114,7 @@ function NameCard() {
         <TextInput label="Email de ingreso" value={me.email} readOnly disabled />
         <Group justify="flex-end">
           <Button
-            disabled={name.trim() === me.name}
+            disabled={!name.trim() || name.trim() === me.name}
             loading={update.isPending}
             onClick={() =>
               update.mutate(

@@ -261,8 +261,8 @@ Hechos del código que atan la plataforma a **un solo `app` y un solo server**:
 
 - **Loops de fondo en el proceso HTTP:** el `lifespan` de `app/main.py` arranca el barrido de WhatsApp
   (`sweep_loop`), las campañas (`campaign_loop`), los webhooks de campañas (`callback_loop`), los
-  vencimientos de planes (`billing_loop`), los resúmenes por mail (`call_summary_loop`), el post-call de los agentes
-  (`post_call_loop`) y la rotación de derivaciones por WhatsApp (`handoff_loop`). Cada copia de
+  vencimientos de planes (`billing_loop`), el post-call de los agentes (`post_call_loop`) y la rotación de
+  derivaciones por WhatsApp (`handoff_loop`). Cada copia de
   `app` los correría todos.
 - **Webhook de WhatsApp sin persistencia previa:** `app/whatsapp/webhook.py` devuelve 200 después de
   agendar tareas en memoria (`WhatsAppService.handle_payload`), sin guardar el evento. Un reinicio en ese

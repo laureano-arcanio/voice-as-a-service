@@ -42,8 +42,18 @@ describe('readWorkflow', () => {
     expect(w.fields.map((f) => f.name)).toEqual(['z', 'a', 'm']);
     expect(w.fields[1]).toMatchObject({ label: 'Alfa', type: 'choice', options: ['si', 'no'] });
     expect(w.analysisInstructions).toBe('Extraé lo que dijo.');
+    expect(w.analysisPrompt).toBe('');
     expect(w.summary).toBe(false);
     expect(w.agent.voice).toBe('sofia');
+  });
+
+  it('lee el prompt del análisis (nuevo) y las instrucciones viejas a la vez', () => {
+    const w = readWorkflow({
+      ...def,
+      analysis: { ...def.analysis, prompt: 'Sos el extractor de esta cuenta.' },
+    });
+    expect(w.analysisPrompt).toBe('Sos el extractor de esta cuenta.');
+    expect(w.analysisInstructions).toBe('Extraé lo que dijo.');
   });
 
   it('tolera definiciones incompletas', () => {

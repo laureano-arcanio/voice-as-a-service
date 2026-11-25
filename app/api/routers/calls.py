@@ -2,18 +2,29 @@ import datetime
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 
 from ...config import settings
 from ...conversation.recordings import full_recording_path
-from ...models import Contact
+from ...models import ACTIVE_CALL_STATUSES, CallRow, Contact, ConversationRow
 from ...services import calls as service
 from ...services import phones
-from ...services.errors import Invalid, NotFound
+from ...services.errors import Conflict, Invalid, NotFound
 from ...services.reports import CallFilter, Reports
-from ..deps import DB, AdminPrincipal, CurrentPrincipal, Definitions, Engine, scoped_client_id
+from ..deps import (
+    AdminPrincipal,
+    ClientAdminPrincipal,
+    CurrentPrincipal,
+    DB,
+    Definitions,
+    Engine,
+    Limit,
+    rate_limit,
+    scoped_client_id,
+)
 from ..schemas import (
+    CallAnalyzeOut,
     CallBulkDeleteIn,
     CallBulkDeleteOut,
     CallDetail,
@@ -25,6 +36,10 @@ from ..schemas import (
 )
 
 router = APIRouter(tags=["calls"])
+
+# Volver a correr el analisis: un turno de LLM con la conversacion completa. Tope por hora por cliente.
+_analyze_limit = Depends(rate_limit("call_analyze", Limit(30, 3600), per="client",
+                                    message="Demasiados re-análisis. Probá de nuevo en un rato."))
 
 TzQuery = Annotated[str | None, Query(description="Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); "
                                                   "default BILLING_TIMEZONE")]
@@ -102,6 +117,28 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")
     return detail
+
+
+@router.post("/calls/{conversation_id}/analyze", response_model=CallAnalyzeOut,
+             dependencies=[_analyze_limit],
+             responses={409: {"description": "Sin análisis o agente propio (external), o llamada en curso"},
+                        429: {"description": "Límite por hora del cliente"}})
+async def reanalyze_call(conversation_id: str, p: ClientAdminPrincipal, db: DB,
+                         definitions: Definitions, engine: Engine):
+    """Vuelve a correr el análisis de una conversación con el prompt vigente del agente: los datos y el
+    resumen quedan como los deje esta corrida (lo que no extraiga, en null). Solo Admin del cliente.
+    `pending=true` si al vencer la espera la extracción sigue corriendo en el fondo (no se cancela)."""
+    conv = db.get(ConversationRow, conversation_id)
+    if conv is None or not p.can_access(conv.client_id):
+        raise NotFound("Conversación inexistente")
+    workflow = Reports(db, definitions).workflow(conv)
+    if workflow is None or workflow.analysis is None or workflow.external is not None:
+        raise Conflict("La conversación no tiene análisis", "no_analysis")
+    call = db.get(CallRow, conversation_id)
+    if call is not None and call.status in ACTIVE_CALL_STATUSES:
+        raise Conflict("La llamada sigue en curso", "call_in_progress")
+    await engine.analyze(conversation_id, timeout=15, reset=True, kind="reanalisis")
+    return CallAnalyzeOut(pending=bool(engine.extractions.get(conversation_id)))
 
 
 @router.post("/calls/{conversation_id}/join", response_model=CallJoinOut,

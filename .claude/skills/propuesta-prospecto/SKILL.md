@@ -111,6 +111,6 @@ ruta del MP4, la duración, la locución por escena y dudas.
 - Resumen de la empresa en 5 líneas y la propuesta en una.
 - **A validar antes de mandar**, juntando lo de los dos README: funciones ofrecidas que no están desplegadas, datos sin
   verificar, promesas comerciales (piloto, fechas) y pronunciaciones a escuchar.
-- Los cambios del usuario sobre el PDF o el video van como versión nueva con el mismo agente (SendMessage si sigue
-  vivo); si cambia un texto o una cifra en el PDF, pasárselo también al de videos para que queden iguales.
+- Los cambios del usuario sobre el PDF o el video van como versión nueva con el mismo agente (retomándolo si sigue
+  vivo: `SendMessage` en Claude Code, `task` con su `task_id` en OpenCode); si cambia un texto o una cifra en el PDF, pasárselo también al de videos para que queden iguales.
 - Sin commit salvo que lo pida. No se manda nada al prospecto: lo manda el usuario.

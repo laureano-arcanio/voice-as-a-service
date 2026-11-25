@@ -2,7 +2,7 @@
 import pytest
 
 from app.agents.templates import reference_data
-from app.conversation.models import AgentTurn
+from app.conversation.models import AgentTurn, Extraction
 from app.models import (
     CallMode,
     CallRow,
@@ -51,9 +51,11 @@ def make_agent(admin, client, template="sales_discovery", **extra):
     return r.json()
 
 
-def client_user(api, admin, client, email="ana@acme.com"):
-    r = admin.post(f"{V1}/users", json={"email": email, "password": "cliente-password-1", "role": "client",
-                                         "client_id": client["id"]})
+def client_user(api, admin, client, email="ana@acme.com", client_role=None):
+    body = {"email": email, "password": "cliente-password-1", "role": "client", "client_id": client["id"]}
+    if client_role:
+        body["client_role"] = client_role
+    r = admin.post(f"{V1}/users", json=body)
     assert r.status_code == 201, r.text
     return api.login(email, "cliente-password-1")
 
@@ -80,8 +82,11 @@ def test_requires_auth(api):
 def test_deactivated_user_loses_access(api, admin):
     c = make_client(admin)
     user = client_user(api, admin, c)
+    # Otro Admin: el cliente no puede quedar sin uno (services/team_access.py).
+    admin.post(f"{V1}/users", json={"email": "otro-admin@acme.com", "password": "cliente-password-1",
+                                     "role": "client", "client_id": c["id"]}).raise_for_status()
     uid = user.get(f"{V1}/auth/me").json()["id"]
-    admin.patch(f"{V1}/users/{uid}", json={"active": False})
+    admin.patch(f"{V1}/users/{uid}", json={"active": False}).raise_for_status()
     assert user.get(f"{V1}/auth/me").status_code == 401
 
 
@@ -487,6 +492,97 @@ def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, t
         assert s.query(WaMessage).filter_by(conversation_id=conversation_id).count() == 0
         recipient = s.query(CampaignContact).filter_by(campaign_id="cmp-1").one()
         assert recipient.conversation_id is None
+
+
+def test_reanalyze_call_overwrites_fields_and_summary(api, admin):
+    """POST /calls/{id}/analyze re-corre el análisis de una conversación terminada: pisa los datos y el
+    resumen (lo que no extrae queda en null), suma tokens y marca la traza como re-análisis. La lista
+    muestra `has_analysis` para el botón de la UI."""
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    api.llm.turns = [AgentTurn(assistant_message="Gracias, Juan.", status="completed")]
+    api.llm.extractions = [{"contact_name": "Juan"}]
+    cid = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()["conversation_id"]
+    admin.post(f"{V1}/conversations/{cid}/turns", json={"message": "Juan."})
+
+    async def extract(workflow, state):
+        return Extraction(fields={"company_name": "Acme"}, summary="Juan quiere una demo.",
+                          input_tokens=7, output_tokens=3)
+    api.llm.extract = extract
+    r = admin.post(f"{V1}/calls/{cid}/analyze")
+    assert r.status_code == 200 and r.json() == {"pending": False}
+    detail = admin.get(f"{V1}/calls/{cid}").json()
+    values = {f["name"]: f["value"] for f in detail["fields"]}
+    assert values["company_name"] == "Acme" and values["contact_name"] is None
+    assert detail["summary"] == "Juan quiere una demo."
+    assert detail["messages"][-1]["llm"][-1]["kind"] == "reanalisis"
+    # Los tokens de la corrida se suman; no toca minutos (la conversación de texto no tiene llamada).
+    with api.sessions() as s:
+        row = s.get(ConversationRow, cid)
+        assert (row.llm_input_tokens, row.llm_output_tokens) == (7, 3)
+    items = admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["items"]
+    assert items[0]["has_analysis"] is True
+
+
+def test_reanalyze_call_conflicts(api, admin, monkeypatch):
+    """409 sin análisis, con tu propio agente (external) o con la llamada en curso; en esos casos la
+    lista no muestra el botón (`has_analysis` false para los dos primeros)."""
+    from cryptography.fernet import Fernet
+
+    from app.config import settings
+    from app.services import llm_connections as conn_svc
+
+    c = make_client(admin)
+    plain = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Sin análisis",
+                                             "definition": {k: v for k, v in reference_data(
+                                                 "sales_discovery").items() if k != "analysis"}}).json()
+    plain_cid = admin.post(f"{V1}/conversations", json={"agent_id": plain["id"]}).json()["conversation_id"]
+    r = admin.post(f"{V1}/calls/{plain_cid}/analyze")
+    assert r.status_code == 409 and r.json()["code"] == "no_analysis"
+
+    tier = make_tier(admin, name="ext", external_agent=True)
+    ext_client = make_client(admin, "extcli", tier=tier)
+    monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
+    monkeypatch.setattr(conn_svc, "check_base_url", lambda u: u)
+    conn = admin.post(f"{V1}/clients/{ext_client['id']}/llm-connections", json={
+        "name": "propio", "kind": "openai_compatible", "base_url": "http://agent.test/v1",
+        "api_key": "sk-1", "default_model": "acme-agent"}).json()
+    own = admin.post(f"{V1}/agents", json={"client_id": ext_client["id"], "name": "Propio", "definition": {
+        **reference_data("sales_discovery"), "external": {"connection": conn["id"]}}}).json()
+    own_cid = admin.post(f"{V1}/conversations", json={"agent_id": own["id"]}).json()["conversation_id"]
+    assert admin.post(f"{V1}/calls/{own_cid}/analyze").status_code == 409
+    page = admin.get(f"{V1}/calls", params={"client_id": ext_client["id"]}).json()
+    assert page["items"][0]["has_analysis"] is False
+    page = admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()
+    assert all(not i["has_analysis"] for i in page["items"])
+
+    agent = make_agent(admin, c)
+    live = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()
+    r = admin.post(f"{V1}/calls/{live['conversation_id']}/analyze")
+    assert r.status_code == 409 and r.json()["code"] == "call_in_progress"
+
+
+def test_reanalyze_call_admin_only_isolated_and_limited(api, admin):
+    """Re-correrlo es de un Admin del cliente: un Usuario no puede (403), el de otro cliente no la ve
+    (404), la API key del cliente sí; y tiene tope por hora (429)."""
+    acme, other = make_client(admin, "acme"), make_client(admin, "otro")
+    agent = make_agent(admin, acme)
+    cid = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()["conversation_id"]
+    url = f"{V1}/calls/{cid}/analyze"
+    assert api.client.post(url).status_code == 401
+    assert client_user(api, admin, acme, client_role="user").post(url).status_code == 403
+    assert client_user(api, admin, other, email="admin@otro.com", client_role="admin").post(url).status_code == 404
+    key = admin.post(f"{V1}/clients/{acme['id']}/api-keys", json={"name": "erp"}).json()["key"]
+    assert api.client.post(url, headers={"Authorization": f"Bearer {key}"}).status_code == 200
+    other_key = admin.post(f"{V1}/clients/{other['id']}/api-keys", json={"name": "erp"}).json()["key"]
+    assert api.client.post(url, headers={"Authorization": f"Bearer {other_key}"}).status_code == 404
+    assert admin.post(f"{V1}/calls/no-existe/analyze").status_code == 404
+
+    # El admin de plataforma cuenta por si mismo: 30 por hora (el 404 de arriba tambien consumio).
+    for _ in range(29):
+        assert admin.post(url).status_code == 200
+    r = admin.post(url)
+    assert r.status_code == 429 and r.json()["code"] == "rate_limited"
 
 
 def test_concurrency_limit(api, admin):

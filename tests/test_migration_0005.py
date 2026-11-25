@@ -56,8 +56,9 @@ def test_0005_upgrade_downgrade_upgrade(tmp_path):
              "Column('phone',", "Column('phone_verified_at',",
              # 0061 (coexistencia).
              "Column('attendance',", "Column('on_biz_app',",
-             # 0062 (minutos unificados).
-             "Column('call_minutes',", "Column('unified_minutes',")
+             # 0062 (minutos unificados) y 0064 (una persona por usuario y su rol).
+             "Column('call_minutes',", "Column('unified_minutes',",
+             "Column('client_role',", "uq_team_members_user_id")
     touched = [d for d in diff if not (isinstance(d, tuple) and d[0] == "add_table")
                and ("wa_accounts" in repr(d) or "'users'" in repr(d)) and not any(c in repr(d) for c in later)]
     assert touched == []

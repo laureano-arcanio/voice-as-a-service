@@ -18,6 +18,8 @@ export type FieldType = (typeof FIELD_TYPES)[number]['value'];
 /** Límites de la definición (app/conversation/models.py). */
 export const MAX_PROMPT = 40_000;
 export const MAX_FIRST_MESSAGE = 1_000;
+/** Tope del prompt del análisis (Analysis.prompt). */
+export const MAX_ANALYSIS_PROMPT = 20_000;
 export const MAX_VARIABLES = 30;
 export const MAX_VARIABLE_VALUE = 2_000;
 
@@ -129,11 +131,15 @@ export interface VariableDraft {
   description: string;
 }
 
-/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos ni instrucciones, no va a
+/** Lo que se saca de la conversacion al terminar (Analysis). Sin datos ni prompt, no va a
  * la definicion: un agente sin analisis no extrae nada. */
 export interface AnalysisDraft {
   summary: boolean;
-  instructions: string;
+  /** System message completo del extractor; '' = el de la plataforma (defaults.analysis_prompt). */
+  prompt: string;
+  /** `analysis.instructions` de la definicion (deprecado): se conserva tal cual mientras el prompt
+   * este vacio y se puede traer al prompt desde el editor. */
+  legacyInstructions: string;
   fields: FieldDraft[];
 }
 
@@ -155,8 +161,6 @@ export interface Draft {
   recordAudio: boolean;
   /** Con recordAudio, el agente avisa que la llamada se graba antes de la apertura. */
   recordingNotice: boolean;
-  /** Llamadas: al terminar, Atentina le manda al cliente el resumen por email (el cliente lo apaga en Mi cuenta). */
-  callSummaryEmail: boolean;
   /** WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y abrir
    * otra en limpio (ventana de contexto temporal). null = el default global del servidor
    * (WA_SESSION_HOURS, 1440 min = 24 hs). */
@@ -556,7 +560,6 @@ export function toDraft(d: Definition): Draft {
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
     recordingNotice: d.recording_notice === true,
-    callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     prompt: str(d.prompt),
     firstMessage: str(d.first_message),
@@ -566,7 +569,8 @@ export function toDraft(d: Definition): Draft {
     variables: toVariables(d.variables),
     analysis: {
       summary: analysis.summary !== false,
-      instructions: str(analysis.instructions),
+      prompt: str(analysis.prompt),
+      legacyInstructions: str(analysis.instructions),
       fields: toFields(analysis.fields),
     },
     // Las entradas viejas de apps ({app, tools}) no tienen tool: se descartan, como en el servidor.
@@ -587,9 +591,9 @@ export function toDraft(d: Definition): Draft {
   };
 }
 
-/** Sin datos ni instrucciones no hay analisis: el agente no extrae nada al terminar. */
+/** Sin datos ni prompt (ni instrucciones viejas) no hay analisis: el agente no extrae nada al terminar. */
 export function hasAnalysis(a: AnalysisDraft): boolean {
-  return a.fields.length > 0 || a.instructions.trim() !== '';
+  return a.fields.length > 0 || a.prompt.trim() !== '' || a.legacyInstructions.trim() !== '';
 }
 
 /** Los datos del analisis como van a la definicion, en el orden de las filas. */
@@ -624,7 +628,6 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     ...(draft.recordAudio ? { record_audio: true } : {}),
     ...(draft.recordAudio && draft.recordingNotice ? { recording_notice: true } : {}),
-    ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
     ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
     // Con el agente del cliente no hay LLM nuestro: ni etapas ni parametros.
     ...(!external && draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
@@ -646,7 +649,11 @@ export function fromDraft(draft: Draft): Definition {
       ? {
           analysis: {
             summary: draft.analysis.summary,
-            instructions: draft.analysis.instructions,
+            // El prompt lleno migra de `instructions` (deprecado). Vacio, las instrucciones viejas se
+            // siguen guardando igual: guardar sin tocar el prompt no pierde nada.
+            ...(draft.analysis.prompt.trim()
+              ? { prompt: draft.analysis.prompt }
+              : { instructions: draft.analysis.legacyInstructions }),
             fields: fromFields(draft.analysis.fields),
           },
         }
@@ -819,7 +826,6 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (
     head === 'record_audio' ||
     head === 'recording_notice' ||
-    head === 'call_summary_email' ||
     head === 'wa_session_minutes'
   )
     return { section: 'voz' };
@@ -855,7 +861,6 @@ const PATH_WORDS: Record<string, string> = {
   voice: 'voz',
   record_audio: 'grabar audio',
   recording_notice: 'avisar que se graba',
-  call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
   prompt: 'Prompt',
   first_message: 'Primer mensaje',

@@ -23,6 +23,7 @@ import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { RowLink } from '@/components/RowLink';
 import { useRowLink } from '@/components/useRowLink';
 import { useIsAdmin } from '@/features/auth/api';
+import { useIsClientAdmin } from '@/features/auth/useIsClientAdmin';
 import { useFeatureLock } from '@/features/billing/features';
 import { useDeleteConversations } from '@/features/calls/api';
 import { useTeamPresence } from '@/features/phone/api';
@@ -31,6 +32,7 @@ import { useAreaPath } from '@/features/support/paths';
 import { formatDateTime, formatDuration, formatValue } from '@/lib/format';
 import { ANSWERED_BY, CALL_MODE, CALL_STATUS, callPerson, isLiveStatus } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { ReanalyzeButton } from './ReanalyzeButton';
 
 export const PAGE_SIZE = 25;
 
@@ -129,8 +131,12 @@ export function CallsTable({
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const del = useDeleteConversations();
   const isAdmin = useIsAdmin();
+  const isClientAdmin = useIsClientAdmin();
+  // Las acciones de la fila: borrar y ver como el cliente son del admin de la plataforma; volver a correr
+  // el análisis, del Admin del cliente (que también lo es el admin entrando como él).
+  const showActions = isAdmin || isClientAdmin;
   // Ancho mínimo: las columnas de todos, más las que solo ve el admin (Cliente sin filtro, Empresa y acciones).
-  const minWidth = 900 + (showClient ? 130 : 0) + (isAdmin ? 130 : 0);
+  const minWidth = 900 + (showClient ? 130 : 0) + (showActions ? 130 : 0);
   const areaPath = useAreaPath();
   const rowLink = useRowLink();
   const { enter, pending: entering } = useSupportSwitch();
@@ -293,7 +299,7 @@ export function CallsTable({
                 <Table.Th>Número</Table.Th>
                 <Table.Th>Duración</Table.Th>
                 <Table.Th>Estado</Table.Th>
-                {isAdmin && <Table.Th className="row-actions" />}
+                {showActions && <Table.Th className="row-actions" />}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -371,10 +377,10 @@ export function CallsTable({
                   <Table.Td>
                     {c.total > 0 ? <ExtractionStatus captured={c.captured} total={c.total} /> : <Dash />}
                   </Table.Td>
-                  {isAdmin && (
+                  {showActions && (
                     <Table.Td ta="right" className="row-actions" onClick={(e) => e.stopPropagation()}>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
-                        {c.client_id && (
+                        {isAdmin && c.client_id && (
                           <Tooltip label="Ver como el cliente">
                             <ActionIcon
                               variant="subtle"
@@ -386,6 +392,12 @@ export function CallsTable({
                             </ActionIcon>
                           </Tooltip>
                         )}
+                        <ReanalyzeButton
+                          conversationId={c.id}
+                          hasAnalysis={c.has_analysis}
+                          callStatus={c.status}
+                          compact
+                        />
                         {selectable && (
                           <Tooltip
                             label={isLiveStatus(c.status) ? 'La llamada está en curso' : 'Borrar conversación'}

@@ -135,7 +135,7 @@ La traza de cada turno (`Message.llm`) dice proveedor y modelo; la UI los muestr
 
 `app/llm/external.py` (`ExternalAgents`) y `_external_turn` en `app/conversation/engine.py`. El agente del cliente
 contesta cada turno; Atentina pone número, telefonía, VAD, turnos, interrupciones, STT, TTS, apertura (de la
-definición, puede ir pregenerada), grabación, minutos, resumen por email, eventos y derivación. Vale en todos los
+definición, puede ir pregenerada), grabación, minutos, eventos y derivación. Vale en todos los
 canales que pasan por el motor (llamadas, WhatsApp, link para llamar, campañas, `/api/v1/conversations`).
 
 **Pedido** (Atentina → cliente): `POST {base_url}/chat/completions` con `Authorization: Bearer <key de la conexión>`,

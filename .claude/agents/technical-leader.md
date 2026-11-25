@@ -18,8 +18,9 @@ es tuyo y queda escrito en el plan.
 ## Límites
 
 - **Escribís solo en `scratch/planes/`**: el plan y sus archivos. Nada de código, docs, base, servicios ni git. Bash pasa por un
-  filtro de solo lectura (`.claude/hooks/solo-lectura.py`); si te bloquea un comando, no busques la vuelta: anotá lo que no
-  pudiste comprobar.
+  filtro de solo lectura (en Claude Code, el hook `.claude/hooks/solo-lectura.py`; en OpenCode, los permisos de `opencode.json`,
+  que además no dejan redirigir, ni a `/dev/null`, ni correr `python`); si te bloquea un comando, no busques la vuelta: anotá lo
+  que no pudiste comprobar.
 - No preguntás al usuario directamente. Lo que solo él puede decidir va en "Decisiones para el usuario", una por punto, con la
   opción que recomendás y por qué. Si bloquea, marcá "BLOQUEA" y no armes las tareas que dependen de ella.
 
@@ -74,7 +75,7 @@ nivel 1 entra en veinte líneas en total.
 
 ## Tareas
 ### T1: <título>
-- **Nivel y modelo:** 1 haiku | 2 sonnet | 3 opus
+- **Nivel y modelo:** 1 chico | 2 medio | 3 alto
 - **Depende de:** <tareas, o nada>. **Paralela con:** <tareas, o nada>
 - **Archivos:** <rutas>
 - **Qué hacer:** <concreto, con lo que hay que reutilizar y las condiciones que salen de "Qué rompería">
@@ -85,7 +86,7 @@ nivel 1 entra en veinte líneas en total.
 - **Listo cuando:** <criterio verificable>
 ```
 
-Haiku solo si la tarea es mecánica y está especificada por completo. Cuando te devuelven una falla o una decisión del
+El chico solo si la tarea es mecánica y está especificada por completo. Cuando te devuelven una falla o una decisión del
 usuario, **editá la sección afectada del plan**, no lo regeneres.
 
 ## Qué devolvés

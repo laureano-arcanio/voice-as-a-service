@@ -52,6 +52,7 @@ class Identity:
     token: str
     admin: bool = False     # toolset `admin`; en las de cliente elige el cliente en cada llamada
     read_only: bool = False  # key `mcp_read`: solo las herramientas de lectura
+    client_admin: bool = True  # un Usuario del cliente no ve ni llama las `admin_only`
 
 
 def _unauthorized_mcp(request: Request, detail: str) -> HTTPException:
@@ -70,8 +71,10 @@ def mcp_identity(request: Request, db: DB,
             raise _unauthorized_mcp(request, "Token OAuth inválido, vencido o revocado")
         if access.grant.resource.rstrip("/") != oauth_routes.resource(request):
             raise _unauthorized_mcp(request, "Este token es para otro servidor MCP")
+        client_admin = (access.grant.client_id is None or access.user.role == "admin"
+                        or (access.user.client_role or "user") == "admin")
         return Identity("oauth", access.grant.id, access.grant.client_id, token,
-                        admin=access.grant.client_id is None)
+                        admin=access.grant.client_id is None, client_admin=client_admin)
     if not token.startswith(API_KEY_PREFIX):
         raise _unauthorized_mcp(request, "Iniciá sesión (OAuth) o usá una API key con el alcance mcp "
                                          "(Authorization: Bearer vaas_...)")
@@ -211,7 +214,7 @@ def mcp_get():
 # ---------- herramientas ----------
 
 def _visible(toolsets: str | None, who: Identity) -> list[Tool]:
-    tools = catalog.select(toolsets, admin=who.admin)
+    tools = catalog.select(toolsets, admin=who.admin, client_admin=who.client_admin)
     plan_tools = catalog.BY_NAME["get_plan_tools"]
     tools = tools if plan_tools in tools else [plan_tools, *tools]
     return [t for t in tools if t.reads] if who.read_only else tools

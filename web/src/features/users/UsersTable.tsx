@@ -42,7 +42,9 @@ export function UsersTable({
     if (
       await confirmAction({
         title: 'Borrar usuario',
-        message: `Se borra ${u.email}. Si solo querés cortarle el acceso, desactivalo.`,
+        message: u.role === 'client'
+          ? `Se borra ${u.email} y su persona del equipo: sale de sus áreas y no puede volver a ingresar. Si solo querés cortarle el acceso al panel, desactivalo.`
+          : `Se borra ${u.email}.`,
         confirmLabel: 'Borrar',
         danger: true,
       })
@@ -82,6 +84,7 @@ export function UsersTable({
                     <Table.Th>Nombre</Table.Th>
                     <Table.Th>Celular</Table.Th>
                     <Table.Th>Rol</Table.Th>
+                    <Table.Th>En el cliente</Table.Th>
                     {!clientId && <Table.Th>Cliente</Table.Th>}
                     <Table.Th>Activo</Table.Th>
                     <Table.Th>Último ingreso</Table.Th>
@@ -119,6 +122,17 @@ export function UsersTable({
                         </Table.Td>
                         <Table.Td>
                           <Badge color="gray">{u.role === 'admin' ? 'Admin' : 'Cliente'}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          {u.role === 'client' ? (
+                            <Badge color={u.client_role === 'admin' ? 'blue' : 'gray'}>
+                              {u.client_role === 'admin' ? 'Admin' : 'Usuario'}
+                            </Badge>
+                          ) : (
+                            <Text span inherit c="dimmed">
+                              –
+                            </Text>
+                          )}
                         </Table.Td>
                         {!clientId && <Table.Td>{u.client_name ?? '–'}</Table.Td>}
                         <Table.Td>

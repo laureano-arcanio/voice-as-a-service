@@ -8,11 +8,11 @@ from app.llm.client import LLMClient
 from app.llm.prompt import (
     CHANNEL,
     VOICE_NOTE_TAG,
+    analysis_system_prompt,
     build_turn_messages,
     build_system_prompt,
     build_extraction_prompt,
     classic_history,
-    extraction_prompt,
     render_conversation,
 )
 
@@ -29,13 +29,16 @@ def test_voice_prompt_says_the_channel_and_nothing_else():
     system = build_system_prompt(wf)
     assert CHANNEL["voice"] in system and CHANNEL["whatsapp"] not in system
     assert "APERTURA" not in system
-    assert "llamada telefónica" in extraction_prompt() and "OBJETIVO:" not in build_extraction_prompt(wf, state_with(wf))
+    assert "llamada telefónica" in analysis_system_prompt(wf, state_with(wf)) and \
+        "OBJETIVO:" not in build_extraction_prompt(wf, state_with(wf))
 
 
 def test_whatsapp_extractor_names_the_channel():
     wf = load_reference("berlin_signup")
-    assert "WhatsApp" in extraction_prompt("whatsapp") and "telefónica" not in extraction_prompt("whatsapp")
-    user = build_extraction_prompt(wf, on_whatsapp(state_with(wf)))
+    whatsapp = on_whatsapp(state_with(wf))
+    assert "WhatsApp" in analysis_system_prompt(wf, whatsapp)
+    assert "telefónica" not in analysis_system_prompt(wf, whatsapp)
+    user = build_extraction_prompt(wf, whatsapp)
     assert "AGENTE: " in user and "CAMPOS:" in user
 
 
@@ -83,8 +86,8 @@ async def test_the_client_picks_the_extraction_prompt_by_the_state_channel():
     llm, calls = fake_client("{}")
     await llm.extract(wf, voice)
     await llm.extract(wf, whatsapp)
-    assert [r["messages"][0]["content"] for r in calls.requests] == [extraction_prompt(summary=True),
-                                                                      extraction_prompt("whatsapp", summary=True)]
+    assert [r["messages"][0]["content"] for r in calls.requests] == [analysis_system_prompt(wf, voice),
+                                                                      analysis_system_prompt(wf, whatsapp)]
     # La salida es siempre guiada por el esquema de los campos.
     assert all(r["response_format"]["type"] == "json_schema" for r in calls.requests)
 

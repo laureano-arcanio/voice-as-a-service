@@ -128,7 +128,7 @@ function LayoutShell() {
     });
 
   // Área: la administración (/admin) o el panel del cliente (también el de un admin que entró como el cliente).
-  const entries = navFor(me.role);
+  const entries = navFor(me.role, me.role === 'admin' || me.support || me.client_role === 'admin');
   const home = me.role === 'admin' ? '/admin' : '/';
   const link = (item: NavItem) => (
     <NavLink

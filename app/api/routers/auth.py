@@ -77,6 +77,7 @@ def _branding_out(db, client: Client | None, user: User) -> BrandingPublicOut | 
 def _me(db, user: User) -> MeOut:
     client = db.get(Client, user.client_id) if user.client_id else None
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role, client_id=user.client_id,
+                 client_role=user.client_role if user.role == "client" else None,
                  client_name=client.name if client else None,
                  branding=_branding_out(db, client, user),
                  welcome_pending=user.role == "client" and user.welcomed_at is None,
@@ -153,11 +154,12 @@ def me(p: CurrentPrincipal, db: DB):
         user, client = db.get(User, p.id), db.get(Client, p.client_id)
         b = branding.for_client(db, client)
         return MeOut(id=user.id, email=user.email, name=user.name, role="client", client_id=client.id,
-                     client_name=client.name, branding=BrandingPublicOut(**b.__dict__) if b else None, support=True)
+                     client_name=client.name, branding=BrandingPublicOut(**b.__dict__) if b else None, support=True,
+                     client_role="admin")
     if p.kind != "user":
         client = db.get(Client, p.client_id)
         return MeOut(id=p.id, email="", name="API key", role=p.role, client_id=p.client_id,
-                     client_name=client.name if client else None)
+                     client_name=client.name if client else None, client_role="admin")
     return _me(db, db.get(User, p.id))
 
 

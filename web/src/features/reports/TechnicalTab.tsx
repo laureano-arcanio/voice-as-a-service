@@ -74,11 +74,6 @@ export function TechnicalTab({ query }: { query: ReportQuery }) {
                 { label: 'Turnos por conversación', value: formatNumber(r.turns_avg) },
                 { label: 'Tokens de entrada', value: formatNumber(r.tokens.input, 0) },
                 { label: 'Tokens de salida', value: formatNumber(r.tokens.output, 0) },
-                {
-                  label: 'Mails de resumen fallidos',
-                  value: formatNumber(r.failed_summary_emails, 0),
-                  tone: r.failed_summary_emails ? 'red' : undefined,
-                },
               ]}
             />
             <ReportCard

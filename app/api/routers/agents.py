@@ -15,7 +15,7 @@ from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services import call_links
 from ...services.errors import Invalid, NotFound
-from ..deps import DB, CurrentPrincipal, scoped_client_id
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     AgentCreate,
     AgentDetail,
@@ -106,7 +106,7 @@ def list_agents(p: CurrentPrincipal, db: DB, client_id: str | None = None, inclu
 
 
 @router.post("/agents", response_model=AgentDetail, status_code=201)
-def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB, background: BackgroundTasks):
+def create_agent(body: AgentCreate, p: ClientAdminPrincipal, db: DB, background: BackgroundTasks):
     """Admin: en el cliente de client_id. Usuario o API key de un cliente: en el suyo
     (client_id se puede omitir; el de otro cliente da 404)."""
     client_id = body.client_id or p.client_id
@@ -126,7 +126,7 @@ def read_agent(agent_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.patch("/agents/{agent_id}", response_model=AgentDetail)
-def update_agent(agent_id: str, body: AgentUpdate, p: CurrentPrincipal, db: DB):
+def update_agent(agent_id: str, body: AgentUpdate, p: ClientAdminPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     if "archived" in data:
@@ -138,7 +138,8 @@ def update_agent(agent_id: str, body: AgentUpdate, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/agents/{agent_id}/definition", response_model=AgentDetail)
-def update_definition(agent_id: str, body: DefinitionIn, p: CurrentPrincipal, db: DB, background: BackgroundTasks):
+def update_definition(agent_id: str, body: DefinitionIn, p: ClientAdminPrincipal, db: DB,
+                      background: BackgroundTasks):
     """Guarda la definicion como version nueva (si cambio). Las llamadas en curso
     siguen con la version con que empezaron."""
     agent = service.update_definition(db, get_agent(db, p, agent_id), body.definition,
@@ -157,7 +158,7 @@ def _pregenerate_opening(background: BackgroundTasks, agent: Agent) -> None:
 
 
 @router.delete("/agents/{agent_id}", status_code=204)
-def delete_agent(agent_id: str, p: CurrentPrincipal, db: DB):
+def delete_agent(agent_id: str, p: ClientAdminPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
     agent_uuid = agent.id
     service.delete_agent(db, agent)

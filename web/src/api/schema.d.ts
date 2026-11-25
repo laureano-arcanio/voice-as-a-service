@@ -394,31 +394,6 @@ export interface paths {
         patch: operations["update_client_api_v1_clients__client_id__patch"];
         trace?: never;
     };
-    "/api/v1/clients/{client_id}/call-emails": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Call Emails
-         * @description Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que
-         *     agentes lo mandan.
-         */
-        get: operations["read_call_emails_api_v1_clients__client_id__call_emails_get"];
-        /**
-         * Update Call Emails
-         * @description El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos.
-         */
-        put: operations["update_call_emails_api_v1_clients__client_id__call_emails_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/clients/{client_id}/api-content": {
         parameters: {
             query?: never;
@@ -992,6 +967,28 @@ export interface paths {
          *     WhatsApp y sus grabaciones. Solo admin; 409 si la llamada esta en curso.
          */
         delete: operations["delete_call_api_v1_calls__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calls/{conversation_id}/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reanalyze Call
+         * @description Vuelve a correr el análisis de una conversación con el prompt vigente del agente: los datos y el
+         *     resumen quedan como los deje esta corrida (lo que no extraiga, en null). Solo Admin del cliente.
+         *     `pending=true` si al vencer la espera la extracción sigue corriendo en el fondo (no se cancela).
+         */
+        post: operations["reanalyze_call_api_v1_calls__conversation_id__analyze_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3023,6 +3020,7 @@ export interface paths {
          * Create Member
          * @description Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas y, con
          *     `whatsapp_notify`, para avisarle por WhatsApp. Cuenta para el tope del plan (`max_team_members`).
+         *     Con `email` le da acceso al panel (rol `user` por defecto) y le manda la invitación.
          */
         post: operations["create_member_api_v1_team_post"];
         delete?: never;
@@ -3041,12 +3039,36 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Member */
+        /**
+         * Delete Member
+         * @description Saca a la persona. Si tiene usuario, borra también su acceso (las llamadas viejas quedan sin usuario);
+         *     para conservarlo, quitale el acceso con `panel_access: false`.
+         */
         delete: operations["delete_member_api_v1_team__member_id__delete"];
         options?: never;
         head?: never;
         /** Update Member */
         patch: operations["update_member_api_v1_team__member_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/team/{member_id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite Member
+         * @description Reenvía la invitación para crear la clave (usuario activo del panel).
+         */
+        post: operations["invite_member_api_v1_team__member_id__invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/handoff-areas/defaults": {
@@ -4250,7 +4272,9 @@ export interface paths {
         /**
          * Variable Catalog
          * @description Reglas de nombres de las variables de usuario, topes y las variables del sistema con donde se pueden usar
-         *     (`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente.
+         *     (`applies_to`: prompt, first_message, analysis, handoff, tool). Sin datos del cliente. `defaults` trae los
+         *     textos de la plataforma para los botones "Partir del predeterminado" y "Restaurar el predeterminado" del
+         *     editor del análisis.
          */
         get: operations["variable_catalog_api_v1_variables_catalog_get"];
         put?: never;
@@ -5045,6 +5069,17 @@ export interface components {
              */
             powered_by: boolean;
         };
+        /**
+         * CallAnalyzeOut
+         * @description Volver a correr el analisis de una conversacion (POST /calls/{id}/analyze).
+         */
+        CallAnalyzeOut: {
+            /**
+             * Pending
+             * @description true si la extraccion sigue corriendo en el fondo: al vencer la espera no se cancela, deja su resultado en la conversacion
+             */
+            pending: boolean;
+        };
         /** CallBulkDeleteIn */
         CallBulkDeleteIn: {
             /** Ids */
@@ -5101,42 +5136,14 @@ export interface components {
              * @default false
              */
             full_recording?: boolean;
+            /**
+             * Has Analysis
+             * @description true si se puede volver a correr su análisis (POST /calls/{id}/analyze)
+             * @default false
+             */
+            has_analysis?: boolean;
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
-        };
-        /**
-         * CallEmailsIn
-         * @description Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su
-         *     definicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente.
-         */
-        CallEmailsIn: {
-            /** Enabled */
-            enabled: boolean;
-            /**
-             * Recipients
-             * @description Destinos; vacio = los usuarios activos del cliente
-             */
-            recipients?: string[];
-        };
-        /** CallEmailsOut */
-        CallEmailsOut: {
-            /** Enabled */
-            enabled: boolean;
-            /**
-             * Recipients
-             * @description Destinos; vacio = los usuarios activos del cliente
-             */
-            recipients?: string[];
-            /**
-             * Default Recipients
-             * @description Usuarios activos del cliente (los destinos si recipients va vacio)
-             */
-            default_recipients: string[];
-            /**
-             * Agents
-             * @description Agentes del cliente (no archivados) con el resumen prendido
-             */
-            agents: string[];
         };
         /** CallHangupOut */
         CallHangupOut: {
@@ -5462,6 +5469,12 @@ export interface components {
              * @description El contacto de la agenda con ese teléfono, si hay (contact_name, si el agente no lo tomó, es el suyo)
              */
             contact_id?: string | null;
+            /**
+             * Has Analysis
+             * @description true si se puede volver a correr su análisis (POST /calls/{id}/analyze)
+             * @default false
+             */
+            has_analysis?: boolean;
         };
         /** CallsUsageOut */
         CallsUsageOut: {
@@ -7969,6 +7982,8 @@ export interface components {
              * @default false
              */
             support?: boolean;
+            /** Client Role */
+            client_role?: ("admin" | "user") | null;
         };
         /** MessageOut */
         MessageOut: {
@@ -9655,8 +9670,6 @@ export interface components {
              * @description Llamadas fallidas por motivo
              */
             errors: components["schemas"]["ReportReasonOut"][];
-            /** Failed Summary Emails */
-            failed_summary_emails: number;
             tokens: components["schemas"]["ReportTokensOut"];
         };
         /** ReportTierCountOut */
@@ -10496,6 +10509,40 @@ export interface components {
              */
             applies_to: ("prompt" | "first_message" | "analysis" | "handoff" | "tool")[];
         };
+        /** TeamMemberCreatedOut */
+        TeamMemberCreatedOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string | null;
+            /** User Id */
+            user_id: string | null;
+            /** Email */
+            email?: string | null;
+            /** Role */
+            role?: ("admin" | "user") | null;
+            /**
+             * Panel Access
+             * @default false
+             */
+            panel_access?: boolean;
+            /** Last Login At */
+            last_login_at?: string | null;
+            /** Active */
+            active: boolean;
+            /** Whatsapp Notify */
+            whatsapp_notify: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            invite?: components["schemas"]["InviteOut"] | null;
+        };
         /** TeamMemberIn */
         TeamMemberIn: {
             /** Name */
@@ -10506,10 +10553,15 @@ export interface components {
              */
             phone?: string | null;
             /**
-             * User Id
-             * @description Usuario del panel (softphone web)
+             * Email
+             * @description Si viene, da acceso al panel: crea su usuario y le manda la invitación (solo con sesión del panel)
              */
-            user_id?: string | null;
+            email?: string | null;
+            /**
+             * Role
+             * @description Rol dentro del cliente al dar acceso; sin indicarlo, user
+             */
+            role?: ("admin" | "user") | null;
             /**
              * Active
              * @default true
@@ -10534,6 +10586,17 @@ export interface components {
             phone: string | null;
             /** User Id */
             user_id: string | null;
+            /** Email */
+            email?: string | null;
+            /** Role */
+            role?: ("admin" | "user") | null;
+            /**
+             * Panel Access
+             * @default false
+             */
+            panel_access?: boolean;
+            /** Last Login At */
+            last_login_at?: string | null;
             /** Active */
             active: boolean;
             /** Whatsapp Notify */
@@ -10550,8 +10613,18 @@ export interface components {
             name?: string | null;
             /** Phone */
             phone?: string | null;
-            /** User Id */
-            user_id?: string | null;
+            /**
+             * Email
+             * @description Da acceso a una persona que no lo tiene (solo con sesión del panel). Si ya tiene usuario, 422 email_readonly: lo cambia el usuario en Perfil con un código
+             */
+            email?: string | null;
+            /** Role */
+            role?: ("admin" | "user") | null;
+            /**
+             * Panel Access
+             * @description false desactiva el usuario y cierra sus sesiones; true lo reactiva
+             */
+            panel_access?: boolean | null;
             /** Active */
             active?: boolean | null;
             /** Whatsapp Notify */
@@ -11304,6 +11377,11 @@ export interface components {
             role: "admin" | "client";
             /** Client Id */
             client_id?: string | null;
+            /**
+             * Client Role
+             * @description Dentro del cliente; en un usuario client, sin indicarlo, admin
+             */
+            client_role?: ("admin" | "user") | null;
         };
         /** UserOut */
         UserOut: {
@@ -11315,6 +11393,8 @@ export interface components {
             name: string;
             /** Role */
             role: string;
+            /** Client Role */
+            client_role?: string | null;
             /** Client Id */
             client_id: string | null;
             /** Client Name */
@@ -11347,6 +11427,8 @@ export interface components {
             password?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Client Role */
+            client_role?: ("admin" | "user") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -11401,6 +11483,19 @@ export interface components {
             limits: components["schemas"]["VariableLimitsOut"];
             /** System */
             system: components["schemas"]["SystemVariableOut"][];
+            defaults: components["schemas"]["VariableDefaultsOut"];
+        };
+        /**
+         * VariableDefaultsOut
+         * @description Defaults de la plataforma: la UI los muestra como `placeholder` del editor y para los botones
+         *     "Partir del predeterminado" (copia el texto al editor) y "Restaurar el predeterminado" (vuelve a vacío).
+         */
+        VariableDefaultsOut: {
+            /**
+             * Analysis Prompt
+             * @example Sos el extractor de datos de {where}. No hablás con nadie…
+             */
+            analysis_prompt: string;
         };
         /** VariableLimitsOut */
         VariableLimitsOut: {
@@ -12984,72 +13079,6 @@ export interface operations {
             };
         };
     };
-    read_call_emails_api_v1_clients__client_id__call_emails_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CallEmailsOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_call_emails_api_v1_clients__client_id__call_emails_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                client_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CallEmailsIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CallEmailsOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     read_api_content_api_v1_clients__client_id__api_content_get: {
         parameters: {
             query?: never;
@@ -14315,6 +14344,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    reanalyze_call_api_v1_calls__conversation_id__analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallAnalyzeOut"];
+                };
+            };
+            /** @description Sin análisis o agente propio (external), o llamada en curso */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Límite por hora del cliente */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -18464,7 +18538,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamMemberOut"];
+                    "application/json": components["schemas"]["TeamMemberCreatedOut"];
                 };
             };
             /** @description Validation Error */
@@ -18528,7 +18602,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamMemberOut"];
+                    "application/json": components["schemas"]["TeamMemberCreatedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_member_api_v1_team__member_id__invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteOut"];
                 };
             };
             /** @description Validation Error */

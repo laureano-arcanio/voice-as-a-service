@@ -1,6 +1,6 @@
 // Campos de texto con variables dinámicas `{{nombre}}` (docs/features/HERRAMIENTAS.md, "Variables").
 //
-// - `PromptEditor`: textos largos (prompt, primer mensaje, instrucciones de análisis). CodeMirror 6 bajo
+// - `PromptEditor`: textos largos (prompt, primer mensaje, prompt del análisis). CodeMirror 6 bajo
 //   demanda; tipear `{{` abre la lista, Enter/Tab/clic inserta `{{nombre}}`, Ctrl+Espacio la abre en cualquier
 //   lugar, y cada `{{x}}` se marca: sistema (azul), declarada o asignada (verde), sin fuente (naranja).
 // - `VariableField`: campos cortos (valores de herramientas, mensajes de derivación), Mantine con la misma lista.
