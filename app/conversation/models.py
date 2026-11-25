@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..llm import params as llm_params
+from ..llm.openrouter import OpenRouterProvider
 from . import legacy, variables
 
 
@@ -106,13 +107,16 @@ class Generation(BaseModel):
 class LlmStage(BaseModel):
     """Desde el turno `from_turn` del usuario (1 = su primer mensaje) responde este LLM.
     connection: id de una conexion del cliente (llm_connections); None = el servidor propio.
-    generation: pisa el default del agente (Workflow.generation) en este tramo."""
+    generation: pisa el default del agente (Workflow.generation) en este tramo.
+    provider: enrutado a proveedores de OpenRouter (app/llm/openrouter.py); solo vale con una
+    conexion kind=openrouter (services/agents._check_llm lo exige al guardar)."""
     from_turn: int = Field(ge=1)
     connection: str | None = None
     model: str | None = None
     generation: Generation | None = None
     # Deprecado (se pliega en generation.temperature); se acepta para no romper definiciones viejas.
     temperature: float | None = Field(default=None, ge=0, le=2)
+    provider: OpenRouterProvider | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> "LlmStage":
@@ -120,6 +124,11 @@ class LlmStage(BaseModel):
             raise ValueError("model: una conexion externa necesita el modelo")
         if not self.connection and (self.model or "").strip():
             raise ValueError("connection: model solo vale con una conexion externa")
+        # Sin tags no hay enrutado: no se guarda un provider vacio.
+        if self.provider is not None and not self.provider.only:
+            self.provider = None
+        if self.provider is not None and not self.connection:
+            raise ValueError("provider: el enrutado de proveedores solo vale con una conexion externa")
         if self.temperature is not None:
             self.generation = Generation(params={**(self.generation.params if self.generation else {}),
                                                  "temperature": self.temperature})

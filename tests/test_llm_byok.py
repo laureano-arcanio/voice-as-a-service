@@ -337,3 +337,77 @@ def test_connection_without_guided_json_is_rejected(api, admin, monkeypatch):
     monkeypatch.setattr(LLMClient, "structured", structured)
     out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
     assert out["last_test_ok"] is False and "json_schema" in out["last_test_detail"]
+    assert "el proveedor no soporta" in out["last_test_detail"]
+
+
+def test_connection_probe_ceiling_leaves_room_for_reasoning(api, admin, monkeypatch):
+    """Tope 2048: un tope chico lo agotaba un razonador sin llegar al content (falso 'no soporta json_schema')."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+    seen = []
+
+    async def structured(self, messages, schema, name, max_tokens=None, **kw):
+        seen.append(max_tokens)
+        return '{"ok": true}', None
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert seen == [2048] and out["last_test_ok"] is True
+
+
+def test_connection_probe_empty_answer_blames_the_ceiling_not_json_schema(api, admin, monkeypatch):
+    """Sin content (tope agotado razonando): 'respuesta vacía', no un falso 'no soporta json_schema'."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+
+    async def structured(self, *a, **kw):
+        return "", None
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert out["last_test_ok"] is False
+    assert "respuesta vacía" in out["last_test_detail"]
+    assert "json_schema" not in out["last_test_detail"]
+
+
+def test_connection_probe_non_json_answer_is_reported_as_such(api, admin, monkeypatch):
+    """Texto que no es JSON: detalle propio, distinto del 400 del proveedor."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+
+    async def structured(self, *a, **kw):
+        return "Claro que sí, ¿en qué te ayudo?", None
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert out["last_test_ok"] is False
+    assert "la respuesta no fue JSON" in out["last_test_detail"]
+    assert "no soporta" not in out["last_test_detail"]
+
+
+def test_connection_probe_json_without_ok_fails_cleanly(api, admin, monkeypatch):
+    """JSON valido que no es objeto o sin ok=true: falla limpio, sin excepción."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+
+    async def structured(self, *a, **kw):
+        return "[]", None
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert out["last_test_ok"] is False and "no cumplió el esquema" in out["last_test_detail"]
+
+
+def test_connection_probe_missing_model_shows_provider_detail(api, admin, monkeypatch):
+    """404: el detalle incluye la causa del proveedor, no solo 'modelo inexistente'."""
+    import httpx
+    import openai
+
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+
+    async def structured(self, *a, **kw):
+        request = httpx.Request("POST", "https://x.example/v1/chat/completions")
+        raise openai.NotFoundError("Model not found: vendor/model",
+                                   response=httpx.Response(404, request=request), body=None)
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert out["last_test_ok"] is False
+    assert "inexistente" in out["last_test_detail"]
+    assert "Model not found" in out["last_test_detail"]

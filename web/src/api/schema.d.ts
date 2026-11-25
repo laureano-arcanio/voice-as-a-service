@@ -2753,6 +2753,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/llm/openrouter-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Openrouter Providers
+         * @description Los proveedores de OpenRouter que atienden un modelo: los tags que van en `provider.only` de una
+         *     etapa. Se pide a la URL publica de endpoints sin la clave del cliente, con cache de 5 min por modelo;
+         *     modelo invalido, de red caido o inexistente -> 422 (la UI deja escribir el tag a mano).
+         */
+        get: operations["openrouter_providers_api_v1_llm_openrouter_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/call-link": {
         parameters: {
             query?: never;
@@ -8176,6 +8198,29 @@ export interface components {
              */
             verify_available: boolean;
             trial: components["schemas"]["TrialCallsOut"];
+        };
+        /**
+         * OpenRouterProviderOut
+         * @description Un proveedor que atiende un modelo de OpenRouter (GET /llm/openrouter-providers): `tag` es lo
+         *     que va en `llm.stages[].provider.only` de la definicion (docs/features/LLM_CONEXIONES.md).
+         */
+        OpenRouterProviderOut: {
+            /** Tag */
+            tag: string;
+            /** Provider Name */
+            provider_name: string;
+            /** Quantization */
+            quantization?: string | null;
+            /**
+             * Supports Json Schema
+             * @description El endpoint declara structured_outputs (json_schema)
+             */
+            supports_json_schema: boolean;
+            /**
+             * Supports Tools
+             * @description El endpoint declara tools
+             */
+            supports_tools: boolean;
         };
         /** PasswordChangeIn */
         PasswordChangeIn: {
@@ -17798,6 +17843,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmParamsOut"];
+                };
+            };
+        };
+    };
+    openrouter_providers_api_v1_llm_openrouter_providers_get: {
+        parameters: {
+            query: {
+                model: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenRouterProviderOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

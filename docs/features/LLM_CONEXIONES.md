@@ -18,7 +18,9 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 "llm": {
   "stages": [
     {"from_turn": 1},
-    {"from_turn": 4, "connection": "<id>", "model": "gpt-4.1-mini", "generation": {"params": {"temperature": 0.3}}}
+    {"from_turn": 4, "connection": "<id>", "model": "gpt-4.1-mini", "generation": {"params": {"temperature": 0.3}}},
+    {"from_turn": 8, "connection": "<id openrouter>", "model": "deepseek/deepseek-v4.1-flash-1017",
+     "provider": {"only": ["nebius/fp4"], "allow_fallbacks": false, "require_parameters": true}}
   ],
   "fallback_local": true
 },
@@ -36,6 +38,16 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 - **Turno** = el N-ésimo mensaje del usuario (la apertura no cuenta), derivado de `state.messages`: sobrevive a
   reinicios y es igual en voz, WhatsApp y campañas. En WhatsApp cuenta por conversación.
 - Cambiar etapas o modelo es una versión nueva del agente; las conversaciones en curso siguen con la suya.
+- `provider` (`OpenRouterProvider`, `app/llm/openrouter.py`), **exclusivo de una etapa con conexión
+  OpenRouter**: fija qué proveedores atienden esa etapa. No está en `llm_connections`: el enrutado es de la
+  etapa, no de la conexión (al guardar, 422 si la conexión no es `openrouter`; `provider` sin `connection`
+  es error de modelo).
+  - `only`: hasta 10 tags, minúsculas/números/guiones con 0 a 3 barras (`baseten`, `openai/flex`,
+    `deepinfra/fp8/priority`); se normalizan (espacios y mayúsculas afuera, sin duplicados) y un tag inválido
+    es error de guardado. Sin tags se normaliza a `None` (no se guarda un objeto vacío). Los tags no se validan
+    contra la API al guardar: asiste el catálogo de la UI y OpenRouter termina de validar en el pedido.
+  - `allow_fallbacks` (default `true`): si los fijados fallan, OpenRouter puede elegir otros.
+  - `require_parameters` (default `true`): solo proveedores con todo lo que pide el pedido (json_schema, tools).
 - `external` (`ExternalConfig`): `model` vacío = `default_model` de la conexión; `system` (hasta 20.000) se antepone
   si está; `first_token_timeout_ms` 500 a 20.000; `max_errors` 1 a 10; `on_errors` `hang_up` o `transfer:<área>`
   (el área tiene que estar en `handoff.areas`). Un agente con `external` no lleva `tools` del cliente. Sí lleva `workflows` (antes y después de la conversación; [HERRAMIENTAS.md](HERRAMIENTAS.md#workflows-antes-y-después-de-la-conversación)): el pre-call llega al endpoint por `X-Atentina-Variables`, no como prompt, y el panel los conserva y edita.
@@ -50,12 +62,17 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 | `GET` | conexiones vigentes, con `used_by` (agentes que la usan) |
 | `POST` | crea: `name`, `kind`, `base_url` (solo `openai_compatible`), `api_key`, `default_model` |
 | `PATCH /{id}` | renombra, cambia URL o modelo, rota la key |
-| `POST /{id}/test` | `{model?, mode}`. `mode: llm`: pedido real con salida `json_schema`; guarda el resultado y `json_mode`. `mode: external`: un turno en streaming con `end_call`, mide el primer texto ("streaming · primer texto N ms") |
+| `POST /{id}/test` | `{model?, mode}`. `mode: llm`: pedido real con salida `json_schema` (tope 2048 tokens); guarda el resultado y `json_mode`. `mode: external`: un turno en streaming con `end_call`, mide el primer texto ("streaming · primer texto N ms") |
 | `GET /{id}/models` | modelos del proveedor |
 | `DELETE /{id}` | baja (`revoked_at`); los agentes que la usan caen al propio si tienen `fallback_local`, si no el turno falla |
 
 - `GET /api/v1/llm/params` (`app/api/routers/llm_params.py`): catálogo de parámetros por proveedor y los defaults del
   servidor propio, para el editor.
+- `GET /api/v1/llm/openrouter-providers?model=<autor/nombre>` (mismo router): los proveedores de OpenRouter que
+  atienden un modelo —`[{tag, provider_name, quantization, supports_json_schema, supports_tools}]`, deduplicados por
+  `tag`— para el selector de `provider.only` del editor. Requiere sesión del panel (no API key); llama a la API
+  pública de OpenRouter sin la clave del cliente, con caché de 5 min por modelo y validación del slug antes de armar
+  la URL. Modelo inválido, de red caído o inexistente → 422 (`Invalid`); la UI deja escribir el tag a mano.
 - Al guardar un agente (`app/services/agents.py`): cada `llm.stages.N.connection` es del cliente y está vigente;
   `external.connection` además es `openai_compatible`, y el plan incluye la función (429
   `external_agent_not_in_plan`). Los parámetros de `generation` se validan contra el catálogo.
@@ -77,6 +94,10 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
    - `anthropic` (URL fija): `AnthropicClient` (`app/llm/anthropic_client.py`) sobre la Messages API: `system` aparte,
      la conversación empieza siempre con el usuario, herramientas como `tool_use`/`tool_result`, salida JSON por
      `output_config.format`, streaming con `messages.stream`.
+   - En una etapa `openrouter` con `provider`, ese objeto viaja en **cada pedido de la etapa** (turno, extracción y
+     `structured`): el resolver lo pasa a `LLMClient`, que lo manda por `extra_body` (el SDK lo fusiona al body). Las
+     demás conexiones no lo mandan: el resolver solo lo pasa si `kind == "openrouter"`, y la cache del cliente incluye
+     el `provider` para que dos etapas con distinto enrutado no compartan cliente.
 3. El texto va al TTS a medida que llega; las herramientas (de plataforma y del cliente) van por function calling
    nativo (ver [HERRAMIENTAS.md](HERRAMIENTAS.md)). La extracción de datos usa la etapa del turno que la lanza.
 4. **Respaldo** (`fallback_local`): si el proveedor falla, ese turno lo contesta el propio y la traza lo marca
@@ -165,6 +186,14 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
   `PlanGate` `external_agent`): el switch agrega o quita `external`; se elige la conexión `openai_compatible`, modelo,
   prompt opcional, mensaje de error, espera, errores seguidos y qué hacer después. Con `external` se ocultan Modelo de
   lenguaje, Prompt y las variables y los datos del análisis.
+- **Proveedores de OpenRouter por etapa** (solo en la sección "Modelo de lenguaje", nunca en el modal de conexión):
+  con una etapa `kind=openrouter`, el selector "Proveedores de OpenRouter" (`TagsInput`, hasta 10 tags) autocompleta
+  del catálogo del modelo de esa etapa (`GET /llm/openrouter-providers`) y admite texto libre si el catálogo falla o
+  no hay modelo; los chips guardan en `provider.only`. Debajo, los switches "Permitir otros proveedores"
+  (`allow_fallbacks`) y "Solo proveedores que soportan todo lo que pedimos" (`require_parameters`), deshabilitados sin
+  tags. Un tag del catálogo sin `structured_outputs` o sin `tools` se marca en rojo; uno que no aparece (texto libre o
+  modelo cambiado), con un aviso suave — al cambiar el modelo los tags se mantienen. Cambiar la conexión a una no
+  OpenRouter o a local limpia los tags.
 - La API devuelve `AgentOut.own_agent` para saber si un agente usa su propio agente.
 
 ## Reglas y trampas
@@ -172,6 +201,15 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
 - **Requisitos de un proveedor BYOK:** `tools` (function calling nativo; `end_call` va en todo pedido) y salida JSON
   guiada `json_schema` (extracción de datos). Sin `json_schema` la prueba de la conexión falla; no hay modo con el
   esquema en el prompt.
+- **La prueba de una conexión** (`POST /{id}/test`, `mode: llm`) manda un tope de 2048 tokens: un modelo que razona
+  gasta tokens pensando y con un tope chico devolvía vacío (medido: qwen3.6-35b-a3b OK en ~8 s, deepseek-v4.1-flash
+  en 0,6 s). El detalle distingue respuesta vacía (tope agotado razonando), respuesta que no es JSON y 400 del
+  proveedor ("el proveedor no soporta lo que pide la plataforma: \<causa\>"). Prueba la conexión con el modelo
+  indicado (o su por defecto) y el enrutado por defecto de OpenRouter: no ejerce el `provider` de una etapa.
+- **Enrutado de proveedores por etapa** (medido el 25-nov-2026 en el entorno local): `deepseek-v4.1-flash` con
+  `only: ["nebius/fp4"]`, `allow_fallbacks: false` y `require_parameters: true` contestó un turno en 0,98 s; un
+  `only` inexistente devolvió el 404 de OpenRouter ("No allowed providers...") y el turno cayó al modelo propio
+  (respaldo). La prueba de esa conexión dio 1,5 s.
 - `base_url` de `openai_compatible`: https y un host que resuelve solo a IPs públicas, para todos (también el admin);
   se valida al crear, editar y probar. No cubre un DNS que cambia después del alta.
 - La key nunca sale en respuestas, logs ni trazas; aislamiento entre clientes al guardar el agente y de nuevo al
@@ -193,7 +231,9 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
 - Requiere `WA_TOKEN_KEY` en `.env`. Cambios de código: `make calls-active && make up-agent` (`app` con `web/dist` y
   `agent`).
 - `make test`: `tests/test_llm_byok.py`, `test_llm_anthropic.py` (SDK simulado), `test_llm_generation.py`,
-  `test_external_agent.py` (endpoint simulado con `httpx.MockTransport`) y `test_platform_tools.py`.
+  `test_external_agent.py` (endpoint simulado con `httpx.MockTransport`), `test_platform_tools.py`,
+  `test_llm_openrouter_provider.py` y `test_llm_provider_routing.py` (el provider de una etapa, del modelo al
+  pedido) y `test_openrouter_providers.py` (el catálogo de la UI, con `httpx.MockTransport`).
 - `make web-check`: `LlmConnectionsSection.test.tsx`, `LlmSection.test.tsx`, `ExternalSection.test.tsx`, `draft.test.ts`.
 - `make eval-llm` (ver [`../eval/README.md`](../eval/README.md)) para comparar modelos.
 

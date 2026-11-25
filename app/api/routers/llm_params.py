@@ -1,11 +1,12 @@
-"""Catalogo de parametros de generacion del LLM para el editor del agente (app/llm/params.py):
-los de cada proveedor y los del LLM local (su configuracion)."""
+"""Catalogo para el editor del agente: los parametros de generacion por proveedor (app/llm/params.py)
+y los proveedores de OpenRouter que atienden un modelo (app/llm/openrouter.py)."""
 from fastapi import APIRouter
 
 from ...config import settings
+from ...llm.openrouter import provider_catalog
 from ...llm.params import CATALOG, PROVIDER_LABELS, for_provider
 from ..deps import UserPrincipal
-from ..schemas import LlmParamsOut, LlmParamSpec, LlmProviderSpec
+from ..schemas import LlmParamsOut, LlmParamSpec, LlmProviderSpec, OpenRouterProviderOut
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
@@ -34,3 +35,11 @@ def llm_params(p: UserPrincipal):
         local_model=settings.vllm_llm_model,
         local_defaults=_local_defaults(),
         providers=providers)
+
+
+@router.get("/openrouter-providers", response_model=list[OpenRouterProviderOut])
+async def openrouter_providers(model: str, p: UserPrincipal):
+    """Los proveedores de OpenRouter que atienden un modelo: los tags que van en `provider.only` de una
+    etapa. Se pide a la URL publica de endpoints sin la clave del cliente, con cache de 5 min por modelo;
+    modelo invalido, de red caido o inexistente -> 422 (la UI deja escribir el tag a mano)."""
+    return await provider_catalog(model)

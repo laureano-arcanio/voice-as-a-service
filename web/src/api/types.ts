@@ -60,6 +60,7 @@ export type LlmConnectionKind = LlmConnectionIn['kind'];
 export type LlmParamSpec = S['LlmParamSpec'];
 export type LlmProviderSpec = S['LlmProviderSpec'];
 export type LlmParams = S['LlmParamsOut'];
+export type OpenRouterProvider = S['OpenRouterProviderOut'];
 export type CallIn = S['CallIn'];
 export type CallStarted = S['CallStartedOut'];
 export type CallSummary = S['CallSummary'];

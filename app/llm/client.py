@@ -89,13 +89,15 @@ class LLMClient:
     def __init__(self, base_url: str, api_key: str, model: str, thinking: bool = settings.llm_thinking,
                  thinking_budget: int = settings.llm_thinking_budget, *, profile: str = "vllm",
                  default_headers: dict | None = None, timeout: float = 30, label: str | None = None,
-                 generation: Generation | None = None, max_tokens: int | None = None):
+                 generation: Generation | None = None, max_tokens: int | None = None,
+                 provider: dict | None = None):
         self._base_url, self._api_key = base_url, api_key
         self._default_headers, self._timeout = default_headers, timeout
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout,
                                   default_headers=default_headers, max_retries=0 if profile != "vllm" else 2)
         self.model = model
         self.profile = profile
+        self.provider = provider
         self.label = label or ("local" if profile == "vllm" else f"{profile}:{model}")
         self.thinking = thinking
         self.thinking_budget = thinking_budget
@@ -111,7 +113,12 @@ class LLMClient:
         top_k, min_p y el razonamiento van en extra_body (chat_template_kwargs.enable_thinking)."""
         gen = self.generation
         if self.profile != "vllm":
-            return {k: gen[k] for k in ("temperature", "top_p", "reasoning_effort") if k in gen}
+            opts = {k: gen[k] for k in ("temperature", "top_p", "reasoning_effort") if k in gen}
+            # Enrutado a proveedores de OpenRouter (app/llm/openrouter.py): viaja en extra_body, que el SDK
+            # fusiona al body, sin pisar los parametros de sampling.
+            if self.provider is not None:
+                opts["extra_body"] = {"provider": self.provider}
+            return opts
         sampling = {**local_sampling(), **{k: gen[k] for k in ("temperature", "top_p", "top_k", "min_p") if k in gen}}
         extra = {k: sampling.pop(k) for k in ("top_k", "min_p") if k in sampling}
         thinking = bool(gen.get("enable_thinking", self.thinking if thinking is None else thinking))
@@ -134,7 +141,8 @@ class LLMClient:
             thinking=self.thinking if thinking is None else thinking,
             thinking_budget=self.thinking_budget if thinking_budget is None else thinking_budget,
             profile=self.profile, default_headers=self._default_headers,
-            timeout=self._timeout, label=self.label, generation=generation, max_tokens=max_tokens)
+            timeout=self._timeout, label=self.label, generation=generation, max_tokens=max_tokens,
+            provider=self.provider)
 
     def _affinity(self, state: ConversationState) -> dict:
         """Header con el id de la conversacion para el balanceador del servidor propio (deploy/llm-lb/haproxy.cfg):

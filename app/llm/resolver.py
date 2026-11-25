@@ -24,6 +24,7 @@ from ..whatsapp import crypto
 from . import params as llm_params
 from .anthropic_client import AnthropicClient
 from .client import LLMClient
+from .openrouter import provider_body
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +227,13 @@ class LLMResolver:
                 defaults: dict) -> LLMClient | AnthropicClient:
         if not data.api_key:
             raise crypto.TokenKeyMissing("No se puede descifrar la API key de la conexion (WA_TOKEN_KEY)")
-        cache_key = (data.id, data.stamp, stage.model, tuple(sorted(generation.items())), defaults["max_tokens"])
+        # El enrutado a proveedores solo vale en OpenRouter (el guardado ya lo rechaza en otro kind);
+        # openai_compatible y anthropic no lo mandan.
+        provider = provider_body(stage.provider) if data.kind == "openrouter" else None
+        provider_key = None if provider is None else (tuple(provider["only"]), provider["allow_fallbacks"],
+                                                      provider["require_parameters"])
+        cache_key = (data.id, data.stamp, stage.model, tuple(sorted(generation.items())), defaults["max_tokens"],
+                     provider_key)
         with self._lock:
             client = self._clients.get(cache_key)
             if client is None:
@@ -242,6 +249,7 @@ class LLMResolver:
                     # Un externo solo usa los parametros de generation (los LLM_* son del propio).
                     client = LLMClient(data.base_url, data.api_key, stage.model or "",
                                        profile=data.kind, default_headers=headers,
-                                       timeout=EXTERNAL_TIMEOUT, generation=gen, max_tokens=defaults["max_tokens"])
+                                       timeout=EXTERNAL_TIMEOUT, generation=gen, max_tokens=defaults["max_tokens"],
+                                       provider=provider)
                 self._clients[cache_key] = client
         return client

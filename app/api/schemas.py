@@ -1236,6 +1236,16 @@ class LlmParamsOut(BaseModel):
     providers: list[LlmProviderSpec]
 
 
+class OpenRouterProviderOut(BaseModel):
+    """Un proveedor que atiende un modelo de OpenRouter (GET /llm/openrouter-providers): `tag` es lo
+    que va en `llm.stages[].provider.only` de la definicion (docs/features/LLM_CONEXIONES.md)."""
+    tag: str
+    provider_name: str
+    quantization: str | None = None
+    supports_json_schema: bool = Field(description="El endpoint declara structured_outputs (json_schema)")
+    supports_tools: bool = Field(description="El endpoint declara tools")
+
+
 class ApiKeyOut(ORM):
     id: str
     client_id: str

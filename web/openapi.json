@@ -9003,6 +9003,58 @@
     ]
    }
   },
+  "/api/v1/llm/openrouter-providers": {
+   "get": {
+    "tags": [
+     "llm"
+    ],
+    "summary": "Openrouter Providers",
+    "description": "Los proveedores de OpenRouter que atienden un modelo: los tags que van en `provider.only` de una\netapa. Se pide a la URL publica de endpoints sin la clave del cliente, con cache de 5 min por modelo;\nmodelo invalido, de red caido o inexistente -> 422 (la UI deja escribir el tag a mano).",
+    "operationId": "openrouter_providers_api_v1_llm_openrouter_providers_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "model",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Model"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/OpenRouterProviderOut"
+         },
+         "title": "Response Openrouter Providers Api V1 Llm Openrouter Providers Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/agents/{agent_id}/call-link": {
    "get": {
     "tags": [
@@ -25575,6 +25627,48 @@
      "trial"
     ],
     "title": "OnboardingOut"
+   },
+   "OpenRouterProviderOut": {
+    "properties": {
+     "tag": {
+      "type": "string",
+      "title": "Tag"
+     },
+     "provider_name": {
+      "type": "string",
+      "title": "Provider Name"
+     },
+     "quantization": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quantization"
+     },
+     "supports_json_schema": {
+      "type": "boolean",
+      "title": "Supports Json Schema",
+      "description": "El endpoint declara structured_outputs (json_schema)"
+     },
+     "supports_tools": {
+      "type": "boolean",
+      "title": "Supports Tools",
+      "description": "El endpoint declara tools"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tag",
+     "provider_name",
+     "supports_json_schema",
+     "supports_tools"
+    ],
+    "title": "OpenRouterProviderOut",
+    "description": "Un proveedor que atiende un modelo de OpenRouter (GET /llm/openrouter-providers): `tag` es lo\nque va en `llm.stages[].provider.only` de la definicion (docs/features/LLM_CONEXIONES.md)."
    },
    "PasswordChangeIn": {
     "properties": {

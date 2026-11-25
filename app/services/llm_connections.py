@@ -158,27 +158,33 @@ def _model(row: LlmConnection, model: str | None) -> str:
 
 async def _probe(row: LlmConnection, model: str) -> tuple[bool, str, str]:
     """(ok, detalle, json_mode). La plataforma exige salida JSON guiada (json_schema): un proveedor o modelo que
-    no la soporta no sirve para la extraccion de datos."""
+    no la soporta no sirve para la extraccion de datos. Tope 2048: un razonador gasta tokens pensando y con un
+    tope chico agota la respuesta sin llegar al content."""
     client = _client(row, model)
     started = time.perf_counter()
     try:
         raw, _ = await client.structured(
             [{"role": "user", "content": "Devolvé un objeto JSON con la clave ok en true."}],
-            _TEST_SCHEMA, "test", max_tokens=32)
-        if json.loads(raw).get("ok") is True:
-            return True, f"json_schema · {round((time.perf_counter() - started) * 1000)} ms", "json_schema"
-        last = "la respuesta no cumplió el esquema"
+            _TEST_SCHEMA, "test", max_tokens=2048)
     except _AUTH:
         return False, "clave inválida o sin permiso", row.json_mode
-    except _NOT_FOUND:
-        return False, f"modelo {model!r} inexistente o URL incorrecta", row.json_mode
+    except _NOT_FOUND as e:
+        return False, f"modelo {model!r} inexistente o URL incorrecta: {str(e)[:160]}", row.json_mode
     except _RATE:
         return False, "límite de uso del proveedor (429)", row.json_mode
     except _NETWORK as e:
         return False, f"sin conexión con el proveedor: {type(e).__name__}", row.json_mode
-    except _BAD_REQUEST as e:          # JSONDecodeError es un ValueError: esta en _BAD_REQUEST
-        last = str(e)[:160]
-    return False, f"no soporta salida JSON guiada (json_schema): {last}", row.json_mode
+    except _BAD_REQUEST as e:          # 400 del proveedor; el parseo de raw va afuera (ValueError esta aca)
+        return False, f"el proveedor no soporta lo que pide la plataforma: {str(e)[:160]}", row.json_mode
+    if not raw:
+        return False, "respuesta vacía: el modelo agotó el tope razonando (sin content)", row.json_mode
+    try:
+        data = json.loads(raw)
+    except ValueError:                 # JSONDecodeError: la respuesta vino, pero no es JSON
+        return False, "la respuesta no fue JSON", row.json_mode
+    if isinstance(data, dict) and data.get("ok") is True:
+        return True, f"json_schema · {round((time.perf_counter() - started) * 1000)} ms", "json_schema"
+    return False, "la respuesta no cumplió el esquema", row.json_mode
 
 
 async def _probe_external(row: LlmConnection, model: str) -> tuple[bool, str, str]:

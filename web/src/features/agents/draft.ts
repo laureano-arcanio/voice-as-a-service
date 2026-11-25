@@ -371,6 +371,25 @@ function fromWorkflowsDraft(w: WorkflowsDraft): Record<string, unknown> | undefi
   };
 }
 
+/** Enrutado a proveedores de OpenRouter de una etapa (app/llm/openrouter.py): solo con una
+ * conexion kind=openrouter. */
+export interface OpenRouterProviderDraft {
+  /** Tags de proveedores; [] = sin enrutado (no va a la definicion). */
+  only: string[];
+  /** Dejar que OpenRouter elija otros proveedores si los fijados fallan. */
+  allowFallbacks: boolean;
+  /** Solo proveedores con todo lo que pide el pedido (json_schema, tools). */
+  requireParameters: boolean;
+}
+
+/** Defaults de OpenRouterProvider (app/conversation/models.py). */
+export const PROVIDER_DEFAULTS: Omit<OpenRouterProviderDraft, 'only'> = {
+  allowFallbacks: true,
+  requireParameters: true,
+};
+
+export const blankProvider = (): OpenRouterProviderDraft => ({ only: [], ...PROVIDER_DEFAULTS });
+
 export interface LlmStageDraft {
   key: string;
   /** Desde que turno del usuario (1 = su primer mensaje) responde este LLM. */
@@ -380,6 +399,8 @@ export interface LlmStageDraft {
   model: string;
   /** Parametros de generacion de esta etapa (pisan los del agente). */
   generation: ParamDraft[];
+  /** Proveedores de OpenRouter que atienden esta etapa; sin tags no viaja. */
+  provider: OpenRouterProviderDraft;
 }
 
 export interface LlmDraft {
@@ -395,6 +416,7 @@ export const blankStage = (fromTurn: number): LlmStageDraft => ({
   connection: null,
   model: '',
   generation: [],
+  provider: blankProvider(),
 });
 
 export const blankParam = (name: string, value: string | number | boolean): ParamDraft => ({
@@ -420,9 +442,24 @@ function fromParams(rows: ParamDraft[]): Record<string, unknown> {
   return { params };
 }
 
-/** Sin etapas externas ni parametros por etapa, y con el respaldo, no hay plan que guardar. */
+/** Sin etapas externas ni parametros por etapa, y con el respaldo, no hay plan que guardar.
+ * Los tags de provider cuentan: si se descartaran aca, el guardado perderia lo escrito sin aviso. */
 function isLocalOnly(llm: LlmDraft): boolean {
-  return llm.stages.every((st) => st.connection === null && st.generation.length === 0) && llm.fallbackLocal;
+  return (
+    llm.stages.every(
+      (st) => st.connection === null && st.generation.length === 0 && st.provider.only.length === 0,
+    ) && llm.fallbackLocal
+  );
+}
+
+/** Definicion cruda {only, allow_fallbacks, require_parameters} -> filas del formulario. */
+function toProviderDraft(raw: unknown): OpenRouterProviderDraft {
+  const p = obj(raw);
+  return {
+    only: Array.isArray(p.only) ? p.only.map(str) : [],
+    allowFallbacks: p.allow_fallbacks !== false,
+    requireParameters: p.require_parameters !== false,
+  };
 }
 
 function toLlmDraft(raw: unknown): LlmDraft | null {
@@ -444,6 +481,7 @@ function toLlmDraft(raw: unknown): LlmDraft | null {
             return [blankParam('temperature', st.temperature)];
           return rows;
         })(),
+        provider: toProviderDraft(st.provider),
       };
     }),
   };
@@ -455,8 +493,19 @@ function fromLlmDraft(llm: LlmDraft): Record<string, unknown> {
       from_turn: st.fromTurn,
       ...(st.connection ? { connection: st.connection, model: st.model.trim() } : {}),
       ...(st.generation.length ? { generation: fromParams(st.generation) } : {}),
+      ...(st.provider.only.length ? { provider: providerBody(st.provider) } : {}),
     })),
     fallback_local: llm.fallbackLocal,
+  };
+}
+
+/** Filas del formulario -> {only, allow_fallbacks, require_parameters}; los tags tal cual: el
+ * servidor los normaliza (strip, minusculas, dedupe) y rechaza los invalidos. */
+function providerBody(p: OpenRouterProviderDraft): Record<string, unknown> {
+  return {
+    only: p.only,
+    allow_fallbacks: p.allowFallbacks,
+    require_parameters: p.requireParameters,
   };
 }
 
@@ -841,6 +890,10 @@ const PATH_WORDS: Record<string, string> = {
   model: 'modelo',
   temperature: 'temperatura',
   fallback_local: 'respaldo',
+  provider: 'proveedores de OpenRouter',
+  only: 'proveedores elegidos',
+  allow_fallbacks: 'permitir otros proveedores',
+  require_parameters: 'solo proveedores que soportan lo pedido',
   generation: 'Parámetros',
   params: '',
   handoff: 'Derivación a personas',
