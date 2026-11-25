@@ -154,8 +154,9 @@ contacto probadas sin enviar nada, reseñas de Google Maps y otras, redes y publ
 empresa, competencia), reglas y la estructura del documento `comercial/demos/<slug>.md`. Los ejemplos a imitar son
 [`isaiasgoldman.md`](../../comercial/demos/isaiasgoldman.md) y [`baicenter.md`](../../comercial/demos/baicenter.md).
 
-- Navegador (Claude in Chrome) solo cuando `curl` y WebFetch no alcanzan (Google Maps, sitios con 403/406, redes):
-  cargá sus herramientas con una sola ToolSearch, abrí una pestaña nueva, no envíes formularios ni dispares diálogos,
+- Navegador (Claude in Chrome en Claude Code; el MCP `chrome-devtools` en OpenCode) solo cuando `curl` y la lectura web
+  no alcanzan (Google Maps, sitios con 403/406, redes): en Claude Code, cargá sus herramientas con una sola ToolSearch; abrí una
+  pestaña nueva, no envíes formularios ni dispares diálogos,
   y cerrala al terminar. Sin sesión iniciada en redes salvo que el usuario lo pida.
 - Copias crudas en `scratch/prospectos/<slug>/raw/`. Reseñas citadas sin el nombre del autor.
 - Si es un trabajo largo, priorizá: sitio y contacto, reseñas, persona, competencia; después redes y videos.

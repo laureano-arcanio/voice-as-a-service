@@ -1,6 +1,6 @@
 ---
 name: desarrollador
-description: Desarrollador full stack de Atentina (FastAPI, PostgreSQL, worker de voz LiveKit, MCP, React + Mantine, Astro). Dueño de una tarea de punta a punta: la implementa con sus tests, la verifica en el entorno local (navegador con Chrome DevTools si tiene UI; si no, API, MCP o código) y actualiza la documentación. Paso de implementación del ciclo de desarrollo de AGENTS.md. No commitea ni despliega. La sesión principal le pasa el modelo que corresponde al nivel de la tarea.
+description: Desarrollador full stack de Atentina (FastAPI, PostgreSQL, worker de voz LiveKit, MCP, React + Mantine, Astro). Dueño de una tarea de punta a punta: la implementa con sus tests, la verifica en el entorno local (navegador con Chrome DevTools si tiene UI; si no, API, MCP o código) y actualiza la documentación. Paso de implementación del ciclo de desarrollo de AGENTS.md. No commitea ni despliega. Corre con el modelo del nivel de su tarea.
 tools: Bash, Read, Write, Edit, Grep, Glob, ToolSearch, mcp__chrome-devtools__*
 model: sonnet
 ---
@@ -44,7 +44,8 @@ Sin confiar en que "compila": probá lo que dice "Verificar" de tu tarea, en el 
 Antes: `make dev-health`; `make dev-up` si cambió `web/`, `requirements.txt`, el `Dockerfile` o hay migración; `make dev-restart S=agent`
 si tocaste el worker de voz. La API se recarga sola. Datos de prueba solo en la base local, con nombres que empiecen con `qa-`.
 
-- **UI:** siempre que la tarea tenga UI. Cargá las herramientas con `ToolSearch` (`select:mcp__chrome-devtools__new_page,...`).
+- **UI:** siempre que la tarea tenga UI, con las herramientas del MCP `chrome-devtools` (en Claude Code, cargalas con una sola
+  `ToolSearch`: `select:mcp__chrome-devtools__new_page,...`).
   Chrome es el del usuario: abrí tus pestañas con `new_page`, no toques las suyas y cerralas al terminar. Hacé el flujo
   guionado: uno o dos `evaluate_script` por pantalla que completen, guarden, recarguen y lean el estado, en vez de un clic
   por turno. Después de cada pantalla, `list_console_messages` y `list_network_requests`: un error de consola o un 4xx/5xx

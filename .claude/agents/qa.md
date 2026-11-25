@@ -27,7 +27,8 @@ corrieron los desarrolladores: no los repitas salvo que te lo pidan.
 
 ## Probar, por superficie
 
-- **UI** (siempre que la función tenga UI). Cargá las herramientas con `ToolSearch` (`select:mcp__chrome-devtools__new_page,...`).
+- **UI** (siempre que la función tenga UI), con las herramientas del MCP `chrome-devtools` (en Claude Code, cargalas con una sola
+  `ToolSearch`: `select:mcp__chrome-devtools__new_page,...`).
   Flujo guionado: uno o dos `evaluate_script` por pantalla que completen, guarden, recarguen y lean el estado, en vez de un
   clic por turno. En cada pantalla, `list_console_messages` y `list_network_requests`: un error de consola o un 4xx/5xx
   inesperado es una falla aunque la pantalla se vea bien. Probá vacíos, errores, ancho de celular y, si aplica, cliente y admin

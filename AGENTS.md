@@ -44,27 +44,27 @@ Todo cambio de código o de configuración versionada (`app/`, `web/`, `landing/
 `asterisk/`, compose, `Makefile`) sigue este ciclo. La **sesión principal orquesta**: lanza los agentes, les pasa la ruta del plan y las
 correcciones; no implementa por su cuenta. No es una cadena de revisores: cada desarrollador es dueño de su tarea de punta a punta.
 
-1. [`technical-leader`](.claude/agents/technical-leader.md) (`opus`): analiza, clasifica, ataca su propio diseño contra el código ("Qué
+1. [`technical-leader`](.claude/agents/technical-leader.md) (modelo alto): analiza, clasifica, ataca su propio diseño contra el código ("Qué
    rompería") y escribe el plan en `scratch/planes/<slug>.md`, en tareas. Devuelve un resumen de 30 líneas; el plan queda en el archivo.
    Si trae decisiones para el usuario, se le preguntan antes de seguir.
-2. [`desarrollador`](.claude/agents/desarrollador.md): una instancia por tarea, con el `model` del nivel de esa tarea, y en paralelo lo que
+2. [`desarrollador`](.claude/agents/desarrollador.md): una instancia por tarea, con el modelo del nivel de esa tarea, y en paralelo lo que
    el plan marca como paralelo. Cada uno implementa, escribe los tests, **verifica en el entorno local** (navegador con Chrome DevTools si
    hay UI; si no, API, MCP o código) y **actualiza la documentación** de su tarea. Recibe su tarea y las secciones "Diseño" y "Qué
-   rompería", no el plan entero. Una corrección posterior (otra tarea la rompió, el usuario encontró algo, QA falló) va por `SendMessage` al
+   rompería", no el plan entero. Una corrección posterior (otra tarea la rompió, el usuario encontró algo, QA falló) vuelve al
    mismo agente, que ya tiene el contexto; no se lanza uno nuevo. Si la falla es del diseño, vuelve al `technical-leader`, que edita la
    sección afectada del plan.
-3. [`qa`](.claude/agents/qa.md) (`sonnet`), **opcional**: verificación independiente de la función completa, solo si el usuario la pide o
+3. [`qa`](.claude/agents/qa.md) (modelo medio), **opcional**: verificación independiente de la función completa, solo si el usuario la pide o
    antes de desplegar un nivel 3. Recibe los criterios del plan, no el plan. Cada falla dice de qué tarea es.
 
 Commit y deploy siguen siendo pedidos del usuario. Una tarea verificada es un punto de commit, con su documentación.
 
 **Carril directo:** hasta 5 archivos, sin migración ni cambio de contrato (API, MCP, definición del agente). La sesión principal no lanza
-al `technical-leader`: escribe el pedido con archivos, qué reutilizar y "listo cuando", y lanza un `desarrollador` (`sonnet`; `opus` si toca
+al `technical-leader`: escribe el pedido con archivos, qué reutilizar y "listo cuando", y lanza un `desarrollador` (medio; alto si toca
 voz, seguridad o plata). Si al implementar aparece una decisión de diseño, el desarrollador para y el pedido entra al ciclo completo.
 El usuario también puede saltear el análisis para un pedido más grande ("sin plan", "directo a desarrollo"); no vale para el siguiente.
 
 **Fuera del ciclo:** preguntas e investigación; cambios que son solo docs o que no tocan el producto (`comercial/`, `marketing/`, `.claude/`,
-este archivo); y el trabajo de los agentes `deploy`, `server2`, `ventas`, `videos`, `documentos` y `tts-finetune`; tests de capacidad y evals.
+`opencode.json`, este archivo); y el trabajo de los agentes `deploy`, `server2`, `ventas`, `videos`, `documentos` y `tts-finetune`; tests de capacidad y evals.
 
 ### Clasificación por impacto
 
@@ -84,12 +84,35 @@ plan es el de su tarea más alta.
 
 | Nivel | Modelo del desarrollador | Qué verifica el desarrollador | Antes de desplegar |
 |---|---|---|---|
-| 1 | `haiku` si es mecánica y está especificada; si no, `sonnet` | Lo pedido y los tests | Nada más |
-| 2 | `sonnet` | Los criterios de la tarea y lo cercano que pudo romperse | Nada más |
-| 3 | `opus` | Además, intentar romperlo: otro cliente, otro tier, concurrencia | `qa` independiente de la función completa |
+| 1 | Chico si es mecánica y está especificada; si no, medio | Lo pedido y los tests | Nada más |
+| 2 | Medio | Los criterios de la tarea y lo cercano que pudo romperse | Nada más |
+| 3 | Alto | Además, intentar romperlo: otro cliente, otro tier, concurrencia | `qa` independiente de la función completa |
 
-El modelo se pasa en el parámetro `model` de cada lanzamiento. El `technical-leader` siempre corre en `opus`, porque clasifica antes de que se
-conozca el nivel. El modelo es por tarea, no por plan: una línea de configuración dentro de un plan de nivel 3 sigue siendo nivel 1.
+El `technical-leader` siempre corre en el alto, porque clasifica antes de que se conozca el nivel. El modelo es por tarea, no por
+plan: una línea de configuración dentro de un plan de nivel 3 sigue siendo nivel 1.
+
+### Claude Code y OpenCode
+
+Los agentes son los mismos en los dos harnesses y su texto vive en `.claude/agents/<nombre>.md`. Claude Code lo lee con su cabecera
+(`tools`, `model`, `hooks`); OpenCode, desde [`opencode.json`](opencode.json), que carga el mismo texto con `{file:...}` y fija el modelo y
+los permisos de cada agente; las skills de `.claude/skills/` las toma por `skills.paths`. Al cambiar las herramientas o el modelo de un
+agente, se cambian los dos lugares.
+
+| Modelo | Claude Code | OpenCode (plan Go) |
+|---|---|---|
+| Alto | `opus` | `opencode-go/deepseek-v4-pro` |
+| Medio | `sonnet` | `opencode-go/glm-5.3` |
+| Chico | `haiku` | `opencode-go/glm-5.3-flash` |
+
+En OpenCode, `ventas` y los resúmenes internos (`small_model`) van con `opencode-go/deepseek-v4.1-flash`, y los agentes que en Claude
+Code heredan el modelo de la sesión (`deploy`, `server2`, `documentos`, `videos`, `tts-finetune`), con el medio.
+
+| Paso | Claude Code | OpenCode |
+|---|---|---|
+| Desarrollador del nivel N | `desarrollador`, con `model` en el lanzamiento | `desarrollador-n1`, `-n2` o `-n3`: el modelo es fijo por agente |
+| Corrección al mismo agente | `SendMessage` | `task` con el `task_id` que devolvió |
+| Solo lectura del `technical-leader` | Hook `.claude/hooks/solo-lectura.py` | Permisos `edit` y `bash` de `opencode.json` |
+| Herramientas de cada agente | `tools` de la cabecera | `permission` de `opencode.json`; el MCP `atentina` (producción) está negado a todos los subagentes |
 
 ### Reglas que mantienen el ciclo barato
 
@@ -97,7 +120,7 @@ Medido el 5-nov-2026 sobre las primeras 36 corridas del ciclo: la implementació
 
 - **Plan corto y por tareas:** hasta 150 líneas más 40 por tarea; se edita por secciones, nunca se regenera. Lo que no entra es más de un plan.
 - **Cada agente recibe lo que necesita**, no el plan entero: la tarea y dos secciones al desarrollador; los criterios al `qa`.
-- **Un agente por tarea, de principio a fin:** las correcciones vuelven por `SendMessage`; un agente nuevo relee todo desde cero.
+- **Un agente por tarea, de principio a fin:** las correcciones vuelven al mismo agente; un agente nuevo relee todo desde cero.
 - **Tests una vez por tarea**, los corre el desarrollador; `qa` no los repite.
 - **Tests:** los afectados mientras se implementa (`make test-afectados`); la suite completa (`make test`, ~1 min),
   una vez por tarea al cerrarla.
