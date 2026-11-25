@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blankStage,
   errorTarget,
   EXTERNAL_DEFAULTS,
   fromDraft,
@@ -468,5 +469,75 @@ describe('turn_attention (si la persona no responde)', () => {
       'Si la persona no responde › cerrar la llamada a los',
     );
     expect(pathLabel(d, 'turn_attention.on_end_area_id')).toBe('Si la persona no responde › área al cerrar');
+  });
+});
+
+describe('llm: proveedores de OpenRouter por etapa', () => {
+  const llm = {
+    stages: [
+      {
+        from_turn: 1,
+        connection: 'c1',
+        model: 'deepseek/deepseek-v4.1-flash-1017',
+        provider: { only: ['nebius/fp4', 'baseten'], allow_fallbacks: false, require_parameters: true },
+      },
+      // Sin tags: el servidor lo normaliza a null, así que no viaja de vuelta.
+      { from_turn: 4, connection: 'c1', model: 'vendor/model', provider: { only: [] } },
+    ],
+    fallback_local: false,
+  };
+
+  it('ida y vuelta: se lee con defaults y se escribe tal cual (solo con tags)', () => {
+    const d = toDraft({ ...def, llm });
+    expect(d.llm?.stages[0]!.provider).toEqual({
+      only: ['nebius/fp4', 'baseten'],
+      allowFallbacks: false,
+      requireParameters: true,
+    });
+    expect(d.llm?.stages[1]!.provider).toEqual({ only: [], allowFallbacks: true, requireParameters: true });
+    const out = fromDraft(d) as { llm: { stages: Record<string, unknown>[] } };
+    expect(out.llm.stages[0]).toMatchObject({ provider: llm.stages[0]!.provider });
+    // Sin tags no viaja: el servidor lo normaliza a null.
+    expect(out.llm.stages[1]).not.toHaveProperty('provider');
+    const round = {
+      ...def,
+      llm: { ...llm, stages: [llm.stages[0]!, { from_turn: 4, connection: 'c1', model: 'vendor/model' }] },
+    };
+    expect(stableJson(fromDraft(d))).toBe(stableJson(round));
+  });
+
+  it('una definición vieja sin provider se lee con los defaults y no lo escribe', () => {
+    const old = {
+      stages: [{ from_turn: 1 }, { from_turn: 4, connection: 'c1', model: 'vendor/model' }],
+      fallback_local: true,
+    };
+    const d = toDraft({ ...def, llm: old });
+    expect(d.llm?.stages.every((st) => st.provider.only.length === 0)).toBe(true);
+    const out = fromDraft(d) as { llm?: { stages: Record<string, unknown>[] } };
+    expect(out.llm?.stages.every((st) => !('provider' in st))).toBe(true);
+    expect(stableJson(fromDraft(d))).toBe(stableJson({ ...def, llm: old }));
+  });
+
+  it('una etapa local con tags de provider viaja: descartarlos perdería lo escrito', () => {
+    const d = toDraft({ ...def, llm: { stages: [{ from_turn: 1 }], fallback_local: true } });
+    expect(fromDraft(d)).not.toHaveProperty('llm');
+    d.llm!.stages[0]!.provider.only = ['baseten'];
+    const out = fromDraft(d) as { llm: { stages: Record<string, unknown>[] } };
+    expect(out.llm.stages[0]).toMatchObject({ provider: { only: ['baseten'] } });
+  });
+
+  it('blankStage trae el provider vacío con los defaults', () => {
+    expect(blankStage(1).provider).toEqual({ only: [], allowFallbacks: true, requireParameters: true });
+  });
+
+  it('los errores de provider llevan a Modelo de lenguaje y se nombran como en el formulario', () => {
+    const d = toDraft(def);
+    expect(errorTarget(d, 'llm.stages.1.provider')).toEqual({ section: 'modelo' });
+    expect(pathLabel(d, 'llm.stages.1.provider')).toBe(
+      'Modelo de lenguaje › etapa 2 › proveedores de OpenRouter',
+    );
+    expect(pathLabel(d, 'llm.stages.1.provider.only')).toBe(
+      'Modelo de lenguaje › etapa 2 › proveedores de OpenRouter › proveedores elegidos',
+    );
   });
 });

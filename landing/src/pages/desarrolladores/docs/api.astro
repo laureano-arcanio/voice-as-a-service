@@ -118,7 +118,8 @@ const agentDefinition = `{
 const byokStages = `"llm": {
   "stages": [
     {"from_turn": 1},
-    {"from_turn": 4, "connection": "<id de la conexión>", "model": "<modelo del proveedor>"}
+    {"from_turn": 4, "connection": "<id de la conexión OpenRouter>", "model": "<modelo del proveedor>",
+     "provider": {"only": ["nebius/fp4"], "allow_fallbacks": false, "require_parameters": true}}
   ],
   "fallback_local": true
 }`;
@@ -686,6 +687,7 @@ const campaignEndpoints = [
       </ol>
       <CodeBlock label="JSON" code={byokStages} />
       <ul>
+        <li><strong>Proveedores de OpenRouter:</strong> una etapa con conexión OpenRouter puede fijar quiénes la atienden con <code>provider.only</code> (tags de OpenRouter, como <code>nebius/fp4</code>; hasta 10), si OpenRouter puede elegir otros cuando fallan (<code>allow_fallbacks</code>) y si exige proveedores con todo lo que pide el agente (<code>require_parameters</code>). Solo en conexiones OpenRouter.</li>
         <li><strong>Respaldo:</strong> con <code>fallback_local</code>, si tu proveedor falla o tarda más de 20 segundos, ese turno lo contesta nuestro modelo y la conversación sigue. Sin respaldo, el turno falla.</li>
         <li><strong>Costos:</strong> los tokens los pagás a tu proveedor. Los minutos del plan se cuentan igual.</li>
         <li><strong>Latencia:</strong> se suma lo que tarda tu proveedor en empezar a responder. En el detalle de cada conversación se ve qué proveedor y modelo contestó cada turno.</li>

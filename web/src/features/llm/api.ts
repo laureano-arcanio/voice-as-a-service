@@ -8,6 +8,7 @@ export const llmKeys = {
   models: (clientId: string, connectionId: string) =>
     ['llm-connections', clientId, connectionId, 'models'] as const,
   params: ['llm-params'] as const,
+  openrouterProviders: (model: string) => ['llm-openrouter-providers', model] as const,
 };
 
 /** Catalogo de parametros de generacion por proveedor y defaults del LLM local (app/llm/params.py). */
@@ -16,6 +17,20 @@ export function useLlmParams() {
     queryKey: llmKeys.params,
     queryFn: () => unwrap(api.GET('/api/v1/llm/params', {})),
     staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
+
+/** Proveedores de OpenRouter que atienden un modelo (app/llm/openrouter.py): los tags que van en
+ * `provider.only` de una etapa, con su soporte de json_schema y tools. Sin modelo no se pide; si
+ * falla (red, modelo inexistente) la UI deja escribir el tag a mano. */
+export function useOpenRouterProviders(model: string) {
+  return useQuery({
+    queryKey: llmKeys.openrouterProviders(model),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/llm/openrouter-providers', { params: { query: { model } } })),
+    enabled: !!model,
+    staleTime: 5 * 60_000,
     retry: false,
   });
 }

@@ -9,6 +9,7 @@ import {
   Select,
   Stack,
   Switch,
+  TagsInput,
   Text,
   Tooltip,
 } from '@mantine/core';
@@ -18,9 +19,15 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { LlmConnection, LlmParamSpec, LlmProviderSpec } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
-import { useLlmConnections, useLlmModels, useLlmParams } from '@/features/llm/api';
+import {
+  useLlmConnections,
+  useLlmModels,
+  useLlmParams,
+  useOpenRouterProviders,
+} from '@/features/llm/api';
 import { connectionLabel, KIND_LABEL, LOCAL_LABEL } from '@/features/llm/labels';
 import {
+  blankProvider,
   blankStage,
   type Draft,
   type LlmDraft,
@@ -82,6 +89,10 @@ function StageRow({
   const known = connections.find((c) => c.id === stage.connection);
   const models = useLlmModels(clientId, known ? known.id : null);
   const kind = stageProvider(stage, connections);
+  // Catalogo de proveedores del modelo de esta etapa; sin modelo o sin conexion openrouter no se pide.
+  const openrouter = external && kind === 'openrouter';
+  const providerQuery = useOpenRouterProviders(openrouter ? stage.model.trim() : '');
+  const catalog = providerQuery.data;
 
   const options = [
     { value: LOCAL, label: LOCAL_LABEL },
@@ -93,9 +104,15 @@ function StageRow({
   ];
 
   const pick = (value: string | null) => {
-    if (!value || value === LOCAL) return onChange({ connection: null, model: '' });
+    if (!value || value === LOCAL)
+      return onChange({ connection: null, model: '', provider: blankProvider() });
     const c = connections.find((x) => x.id === value);
-    onChange({ connection: value, model: stage.model || c?.default_model || '' });
+    onChange({
+      connection: value,
+      model: stage.model || c?.default_model || '',
+      // El enrutado por proveedores es solo de OpenRouter: al cambiar de conexion no se arrastra.
+      ...(c?.kind !== 'openrouter' ? { provider: blankProvider() } : {}),
+    });
   };
 
   return (
@@ -148,6 +165,77 @@ function StageRow({
           <Text size="xs" c="dimmed">
             No se pudo leer la lista de modelos del proveedor: escribí el nombre a mano.
           </Text>
+        )}
+        {openrouter && (
+          <Stack gap={4}>
+            <TagsInput
+              label="Proveedores de OpenRouter"
+              description="Qué proveedores pueden atender esta etapa. Sin tags, elige OpenRouter."
+              placeholder="p. ej. nebius/fp4"
+              data={catalog?.map((p) => p.tag) ?? []}
+              value={stage.provider.only}
+              onChange={(only) => onChange({ provider: { ...stage.provider, only } })}
+              maxTags={10}
+              clearable
+            />
+            <Group gap="lg" wrap="wrap">
+              <Switch
+                label="Permitir otros proveedores"
+                checked={stage.provider.allowFallbacks}
+                onChange={(e) =>
+                  onChange({ provider: { ...stage.provider, allowFallbacks: e.currentTarget.checked } })
+                }
+                disabled={!stage.provider.only.length}
+              />
+              <Switch
+                label="Solo proveedores que soportan todo lo que pedimos"
+                checked={stage.provider.requireParameters}
+                onChange={(e) =>
+                  onChange({
+                    provider: { ...stage.provider, requireParameters: e.currentTarget.checked },
+                  })
+                }
+                disabled={!stage.provider.only.length}
+              />
+            </Group>
+            {!stage.provider.only.length && (
+              <Text size="xs" c="dimmed">
+                Se aplican cuando fijás al menos un proveedor.
+              </Text>
+            )}
+            {providerQuery.isError && (
+              <Text size="xs" c="dimmed">
+                No se pudo leer el catálogo de proveedores de OpenRouter: escribí el tag a mano.
+              </Text>
+            )}
+            {catalog?.length === 0 && stage.provider.only.length > 0 && (
+              <Text size="xs" c="dimmed">
+                Este modelo no listó proveedores: los tags no se pudieron verificar.
+              </Text>
+            )}
+            {/* Soporte por tag segun el catalogo: rojo si le falta lo que pide la plataforma;
+                suave si no aparece (texto libre o modelo cambiado, no bloquea el guardado). */}
+            {catalog &&
+              catalog.length > 0 &&
+              stage.provider.only.map((tag) => {
+                const row = catalog.find((p) => p.tag === tag);
+                if (!row)
+                  return (
+                    <Text key={tag} size="xs" c="dimmed">
+                      {tag}: no apareció en el catálogo de este modelo; no se pudo verificar.
+                    </Text>
+                  );
+                const missing = [
+                  ...(!row.supports_json_schema ? ['salida JSON guiada (json_schema)'] : []),
+                  ...(!row.supports_tools ? ['herramientas (tools)'] : []),
+                ];
+                return missing.length ? (
+                  <Text key={tag} size="xs" c="red">
+                    {tag} ({row.provider_name}) no soporta {missing.join(' ni ')}.
+                  </Text>
+                ) : null;
+              })}
+          </Stack>
         )}
         <GenerationEditor
           rows={stage.generation}

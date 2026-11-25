@@ -59,7 +59,8 @@ def _check_tools(s: Session, client_id: str, normalized: dict, agent_id: str | N
 
 
 def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
-    """workflow.llm: cada conexion es del cliente del agente y esta vigente (la de otro cliente no sirve)."""
+    """workflow.llm: cada conexion es del cliente del agente y esta vigente (la de otro cliente no
+    sirve); con provider, ademas OpenRouter (los demas proveedores no tienen ese enrutado)."""
     errors = []
     for i, stage in enumerate((normalized.get("llm") or {}).get("stages") or []):
         if not (connection_id := stage.get("connection")):
@@ -68,6 +69,9 @@ def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
         if row is None or row.client_id != client_id or row.revoked_at is not None:
             errors.append({"path": f"llm.stages.{i}.connection",
                            "message": "La conexion no existe, esta dada de baja o es de otro cliente"})
+        elif stage.get("provider") and row.kind != "openrouter":
+            errors.append({"path": f"llm.stages.{i}.provider",
+                           "message": "El enrutado de proveedores es solo para conexiones OpenRouter"})
     if errors:
         raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
 
