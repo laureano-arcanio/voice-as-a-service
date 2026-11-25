@@ -126,6 +126,8 @@ class MeOut(BaseModel):
     legal_pending: list[LegalVersionOut] = []
     # Un admin que entró como este cliente (header X-Atentina-Client): id, email y name son los del admin.
     support: bool = False
+    # Rol dentro del cliente: admin o user. Null en un admin de la plataforma.
+    client_role: Literal["admin", "user"] | None = None
 
 
 class LegalAcceptIn(BaseModel):
@@ -330,14 +332,6 @@ class ClientOut(ORM):
     paying: bool = Field(default=False, description="Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)")
 
 
-class CallEmailsIn(BaseModel):
-    """Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su
-    definicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente."""
-    enabled: bool
-    recipients: list[EmailStr] = Field(default_factory=list, max_length=10,
-                                       description="Destinos; vacio = los usuarios activos del cliente")
-
-
 class ApiContentSettingsIn(BaseModel):
     """Guardar el contenido de la API de inferencia y de las pruebas de voz (app/services/api_content.py)."""
     enabled: bool
@@ -350,11 +344,6 @@ class ApiContentSettingsOut(BaseModel):
     retention_days: int | None
     stored_bytes: int = Field(description="Lo que ocupa el contenido guardado del cliente")
     stored_requests: int = Field(description="Pedidos con contenido guardado")
-
-
-class CallEmailsOut(CallEmailsIn):
-    default_recipients: list[str] = Field(description="Usuarios activos del cliente (los destinos si recipients va vacio)")
-    agents: list[str] = Field(description="Agentes del cliente (no archivados) con el resumen prendido")
 
 
 # ---------- ajustes de limites por cliente ----------
@@ -973,12 +962,15 @@ class UserIn(BaseModel):
     password: str = Field(min_length=10, max_length=256)
     role: Literal["admin", "client"]
     client_id: str | None = None
+    client_role: Literal["admin", "user"] | None = Field(
+        default=None, description="Dentro del cliente; en un usuario client, sin indicarlo, admin")
 
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     password: str | None = Field(default=None, min_length=10, max_length=256)
     active: bool | None = None
+    client_role: Literal["admin", "user"] | None = None
 
 
 class UserOut(ORM):
@@ -986,6 +978,7 @@ class UserOut(ORM):
     email: str
     name: str
     role: str
+    client_role: str | None = None
     client_id: str | None
     client_name: str | None = None
     phone: str | None = Field(default=None, description="Celular del registro (E.164)")
@@ -2573,17 +2566,27 @@ class ApiRequestPage(BaseModel):
 # ---------- equipo, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md) ----------
 
 class TeamMemberIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=120)
     phone: str | None = Field(default=None, max_length=32, description="Para transferir llamadas (Argentina)")
-    user_id: str | None = Field(default=None, description="Usuario del panel (softphone web)")
+    email: EmailStr | None = Field(default=None, description=(
+        "Si viene, da acceso al panel: crea su usuario y le manda la invitación (solo con sesión del panel)"))
+    role: Literal["admin", "user"] | None = Field(
+        default=None, description="Rol dentro del cliente al dar acceso; sin indicarlo, user")
     active: bool = True
     whatsapp_notify: bool = Field(default=False, description="Recibe por WhatsApp, a su teléfono, los avisos de sus áreas")
 
 
 class TeamMemberPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=120)
     phone: str | None = Field(default=None, max_length=32)
-    user_id: str | None = None
+    email: EmailStr | None = Field(default=None, description=(
+        "Da acceso a una persona que no lo tiene (solo con sesión del panel). Si ya tiene usuario, 422 "
+        "email_readonly: lo cambia el usuario en Perfil con un código"))
+    role: Literal["admin", "user"] | None = None
+    panel_access: bool | None = Field(default=None, description="false desactiva el usuario y cierra sus sesiones; "
+                                                                "true lo reactiva")
     active: bool | None = None
     whatsapp_notify: bool | None = None
 
@@ -2594,9 +2597,17 @@ class TeamMemberOut(ORM):
     name: str
     phone: str | None
     user_id: str | None
+    email: str | None = None
+    role: Literal["admin", "user"] | None = None
+    panel_access: bool = False
+    last_login_at: UTCDateTime | None = None
     active: bool
     whatsapp_notify: bool
     created_at: UTCDateTime
+
+
+class TeamMemberCreatedOut(TeamMemberOut):
+    invite: InviteOut | None = None
 
 
 class HandoffSchedule(BaseModel):
@@ -3196,7 +3207,6 @@ class ReportTechnicalOut(BaseModel):
     tools: list[ReportToolOut]
     turns_avg: float | None = Field(description="Mensajes del cliente por conversación")
     errors: list[ReportReasonOut] = Field(description="Llamadas fallidas por motivo")
-    failed_summary_emails: int
     tokens: ReportTokensOut
 
 

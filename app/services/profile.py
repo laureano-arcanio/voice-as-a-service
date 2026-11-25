@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..mail import messages, notify
 from ..models import User
+from . import handoff
 from .errors import Conflict, Invalid, Upstream
 from .ratelimit import Limit, RateLimiter
 from .security import (
@@ -39,7 +40,8 @@ class CodeSent:
 
 
 def update_name(s: Session, user: User, name: str) -> User:
-    user.name = name.strip()
+    # El nombre es uno (el de la persona): vacío no lo pisa, ni en el usuario ni en el equipo.
+    handoff.sync_name(s, user, name)
     s.commit()
     return user
 

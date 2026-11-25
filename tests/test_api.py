@@ -51,9 +51,11 @@ def make_agent(admin, client, template="sales_discovery", **extra):
     return r.json()
 
 
-def client_user(api, admin, client, email="ana@acme.com"):
-    r = admin.post(f"{V1}/users", json={"email": email, "password": "cliente-password-1", "role": "client",
-                                         "client_id": client["id"]})
+def client_user(api, admin, client, email="ana@acme.com", client_role=None):
+    body = {"email": email, "password": "cliente-password-1", "role": "client", "client_id": client["id"]}
+    if client_role:
+        body["client_role"] = client_role
+    r = admin.post(f"{V1}/users", json=body)
     assert r.status_code == 201, r.text
     return api.login(email, "cliente-password-1")
 
@@ -80,8 +82,11 @@ def test_requires_auth(api):
 def test_deactivated_user_loses_access(api, admin):
     c = make_client(admin)
     user = client_user(api, admin, c)
+    # Otro Admin: el cliente no puede quedar sin uno (services/team_access.py).
+    admin.post(f"{V1}/users", json={"email": "otro-admin@acme.com", "password": "cliente-password-1",
+                                     "role": "client", "client_id": c["id"]}).raise_for_status()
     uid = user.get(f"{V1}/auth/me").json()["id"]
-    admin.patch(f"{V1}/users/{uid}", json={"active": False})
+    admin.patch(f"{V1}/users/{uid}", json={"active": False}).raise_for_status()
     assert user.get(f"{V1}/auth/me").status_code == 401
 
 

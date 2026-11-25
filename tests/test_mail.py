@@ -200,6 +200,9 @@ def test_assigning_number_mails_every_active_user_of_the_client(api, admin, outb
                                              "client_id": client["id"]})
         if not active:
             admin.patch(f"{V1}/users/{r.json()['id']}", json={"active": False})
+    # Un Usuario del cliente no recibe los avisos de la cuenta; solo los Admin activos.
+    admin.post(f"{V1}/users", json={"email": "operador@acme.com", "password": "cliente-password-1",
+                                     "role": "client", "client_id": client["id"], "client_role": "user"})
     outbox.clear()
     n = admin.post(f"{V1}/phone-numbers", json={"e164": "+5491155550001", "label": "Ventas"}).json()
     assert outbox == []                                 # cargado, sin asignar: sin mail

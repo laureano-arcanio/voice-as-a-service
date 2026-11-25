@@ -17,8 +17,6 @@ export type ClientUpdate = S['ClientUpdate'];
 export type Branding = S['BrandingPublicOut'];
 export type BrandingAdmin = S['BrandingOut'];
 export type BrandingIn = S['BrandingIn'];
-export type CallEmails = S['CallEmailsOut'];
-export type CallEmailsIn = S['CallEmailsIn'];
 export type ClientLimits = S['ClientLimitsOut'];
 export type LimitAdjustment = S['LimitAdjustmentOut'];
 export type LimitAdjustmentIn = S['LimitAdjustmentIn'];
@@ -131,6 +129,7 @@ export type TaxCondition = FiscalIn['tax_condition'];
 
 // Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md).
 export type TeamMember = S['TeamMemberOut'];
+export type TeamMemberCreated = S['TeamMemberCreatedOut'];
 export type TeamMemberIn = S['TeamMemberIn'];
 export type TeamMemberPatch = S['TeamMemberPatch'];
 export type HandoffArea = S['HandoffAreaOut'];

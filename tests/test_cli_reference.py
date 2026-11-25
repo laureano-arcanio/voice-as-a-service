@@ -28,7 +28,7 @@ def old(sessions, monkeypatch):
         seed(s)
         agent = agent_of(s)
         edited = {**agent.definition, "prompt": "Prompt viejo.", "first_message": "Hola viejo.",
-                  "record_audio": True, "call_summary_email": True,
+                  "record_audio": True,
                   "agent": {**agent.definition["agent"], "voice": "belen"}}
         edited.pop("variables", None)
         agent_service.update_definition(s, agent, edited, None)
@@ -65,7 +65,7 @@ def test_apply_replaces_the_content_and_keeps_the_rest(old):
         assert [f["name"] for f in d["analysis"]["fields"]] == [f["name"] for f in ref["analysis"]["fields"]]
         assert [v["name"] for v in d["variables"]] == [v["name"] for v in ref["variables"]]
         # Lo que el cliente edito, intacto.
-        assert d["agent"]["voice"] == "belen" and d["record_audio"] is True and d["call_summary_email"] is True
+        assert d["agent"]["voice"] == "belen" and d["record_audio"] is True
 
 
 def test_second_run_does_nothing(old, capsys):

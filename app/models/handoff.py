@@ -22,6 +22,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     false,
+    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -32,6 +33,10 @@ from ._common import IdMixin, TimestampMixin
 
 class TeamMember(IdMixin, TimestampMixin, Base):
     __tablename__ = "team_members"
+    # Un usuario de cliente tiene exactamente una persona (docs/features/EQUIPO_TELEFONIA.md).
+    __table_args__ = (Index("uq_team_members_user_id", "user_id", unique=True,
+                            sqlite_where=text("user_id IS NOT NULL"),
+                            postgresql_where=text("user_id IS NOT NULL")),)
     client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)      # E.164 argentino (services/phones.py)

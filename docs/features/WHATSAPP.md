@@ -40,10 +40,10 @@ de una cuenta sin token propio (alta manual, WABA de Atentina) son solo de admin
 | Ruta | Qué hace |
 |---|---|
 | `GET /config` | Si Embedded Signup está disponible y por qué no (`enabled`, `reason`), `app_id`, `config_id`, y si ofrece coexistencia (`coexistence`) |
-| `GET/POST /accounts`, `PATCH /accounts/{id}` | Lista; alta manual (admin); cambiar agente, nombre o quién atiende (`attendance`: `agent` u `owner`) |
+| `GET/POST /accounts`, `PATCH /accounts/{id}` | Lista para todos; alta manual y cambios (agente, nombre, quién atiende) solo Admin del cliente (la API key cuenta como Admin); un Usuario da 403 `client_admin_required` |
 | `POST /accounts/{id}/deactivate` | Desactiva el número (deja de atender) |
 | `POST /accounts/own-app` | Alta con la app de Meta del cliente: devuelve URL de webhook y verify token |
-| `POST /signup` | Alta por Embedded Signup (solo sesión de usuario, tope `WA_SIGNUP_PER_HOUR` por cliente) |
+| `POST /signup` | Alta por Embedded Signup, solo Admin del cliente (tope `WA_SIGNUP_PER_HOUR` por cliente) |
 | `POST /accounts/{id}/register` | Reintenta suscripción y registro (PIN opcional) sin repetir el popup |
 | `POST /accounts/{id}/refresh` | Relee de Meta nombre, calidad y límite |
 | `GET/POST /accounts/{id}/templates`, `PUT/DELETE /accounts/{id}/templates/{template_id}` | Plantillas en vivo contra Meta (sin tabla); alta, edición y borrado con tope `WA_TEMPLATES_PER_HOUR`. Borrar una que usa una campaña viva o un área de la cuenta: 409 `template_in_use` con los usos; `force=true` borra igual |

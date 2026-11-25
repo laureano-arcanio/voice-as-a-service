@@ -30,7 +30,6 @@ from ..conversation.models import Message, TurnAttention, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
 from ..db import get_sessionmaker, utcnow
 from ..llm.prompt import render_conversation
-from ..mail import call_summary
 from ..models import CallMode, CallRow, CallStatus, PhoneNumber
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
@@ -682,8 +681,6 @@ async def entrypoint(ctx: JobContext):
             call_service.update_call(
                 s, conversation_id, status=CallStatus.finalizada, ended_reason=(call.ended_reason or reason or "")[:128],
                 ended_at=end.ended_at(), duration_seconds=end.seconds(started_at), latency=latency.summary())
-            # Resumen por email al cliente, si el agente lo tiene prendido: lo manda el loop de `app`.
-            call_summary.mark_pending(s, call, workflow, connected=started_at is not None)
             # Intento de una campaña de voz: atendio si la llamada llego a conectarse.
             if started_at:
                 campaign_calls.close_attempt(s, conversation_id, "answered")

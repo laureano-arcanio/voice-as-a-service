@@ -262,7 +262,7 @@ Si falla o vence, la conversación sigue sin datos: la tarea no se cancela (qued
 tardío se ignora. Si la persona corta durante la espera, la llamada termina sin apertura, sin pasar a `en_curso` y sin
 armar el post-call.
 
-**Post-call.** Durable, como el resumen por email (`app/mail/call_summary.py`): el worker o WhatsApp marcan en
+**Post-call.** Durable: el worker o WhatsApp marcan en
 `conversations.post_call_*` y un loop de `app` (`post_call_loop`, cada `WORKFLOW_TICK_SECONDS`, 10) lo ejecuta, porque el
 worker puede morir con la llamada. Corre **una sola vez por conversación**.
 

@@ -14,7 +14,7 @@ No confundir con verificar los pagos que reciben los clientes (otra cuenta y otr
 | Free | Los límites del tier en la base. El tier del registro es el primero público con precio 0 (por `sort`) |
 | Precio | `tiers.price_ars` es el precio final (monotributo, factura C, sin IVA discriminado). Nulo = no se vende por el panel; 0 = gratis |
 | Factura (ARCA) | Manual: la app guarda los datos fiscales y cada pago, con marca de facturado (vista Cobros) |
-| Transferencia | Mensual, por adelantado. El comprobante llega por mail; el tier se activa cuando el admin registra el pago |
+| Transferencia | Mensual, por adelantado. El comprobante llega por mail a los Admin activos del cliente; el tier se activa cuando el admin registra el pago |
 | Tarjeta en el registro | Con un plan pago y MP, el pago es el paso 2 del formulario de la landing, sin otras opciones. La cuenta se crea solo si MP aprueba la tarjeta |
 | Vencido sin pagar | `BILLING_GRACE_DAYS` (7) de gracia con el tier pago y avisos; después, Free |
 | Números que sobran | Suspendidos `BILLING_NUMBER_HOLD_DAYS` (30): asignados, sin atender; después vuelven al inventario |
@@ -89,12 +89,12 @@ Un admin en "ver como cliente" no toca el plan ni los cobros: 403 `support_read_
 
 1. En `/plan` el cliente completa los datos de factura si faltan y elige el plan
    (`subscribe {method: "transfer"}`): sin plan pago, `subscription` en `pending` (sigue en Free); con uno activo,
-   `pending_tier_id`. Mail al cliente con `BANK_TRANSFER_INFO` y el monto; aviso al admin (`BILLING_NOTIFY_TO` o
+   `pending_tier_id`. Mail a los Admin activos del cliente con `BANK_TRANSFER_INFO` y el monto; aviso al admin (`BILLING_NOTIFY_TO` o
    `SUPPORT_EMAIL`) con link a la ficha.
 2. El admin, en la ficha del cliente (tarjeta "Plan pago"): **Registrar pago** (tier, monto, fecha, nota) → `active`,
    cambia `tier_id`, `current_period_end` un mes después del vencimiento vigente (o de hoy) y reactiva los números
    suspendidos que entran. **Rechazar pedido** o **Pasar al gratuito**: Free ya.
-3. Renovación: `BILLING_REMINDER_DAYS` (5) antes del vencimiento sale un mail con los datos (uno por período).
+3. Renovación: `BILLING_REMINDER_DAYS` (5) antes del vencimiento sale un mail a los Admin activos con los datos (uno por período).
 4. Vista **Cobros** (`/admin/billing`): planes pagos, pedidos abiertos y pagos con los datos para facturar y "Marcar
    facturado".
 

@@ -44,10 +44,19 @@ class Principal:
     # Un admin que entró como este cliente desde el panel (header X-Atentina-Client): ve y hace lo del
     # cliente, salvo su cuenta y sus cobros (docs/ARQUITECTURA.md). `id` sigue siendo el del admin.
     support: bool = False
+    # Rol del usuario dentro de su cliente (`users.client_role`): admin o user. Nulo cuenta como Usuario.
+    # Las API keys, los principales internos (demo, link, campaña) y el admin de la plataforma actúan como Admin.
+    client_role: str | None = None
 
     @property
     def is_admin(self) -> bool:
         return self.role == Role.admin
+
+    @property
+    def client_admin(self) -> bool:
+        """Puede lo que solo puede un Admin del cliente (docs/features/EQUIPO_TELEFONIA.md)."""
+        return (self.is_admin or self.support or self.kind == "api_key"
+                or (self.client_role or "user") == "admin")
 
     def can_access(self, client_id: str | None) -> bool:
         return self.is_admin or (client_id is not None and client_id == self.client_id)

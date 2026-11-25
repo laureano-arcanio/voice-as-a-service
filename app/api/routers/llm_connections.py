@@ -4,7 +4,7 @@ el MCP) o un admin (las de cualquier cliente). La API key se guarda cifrada y nu
 from fastapi import APIRouter
 
 from ...services import llm_connections as svc
-from ..deps import DB, CurrentPrincipal
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal
 from ..schemas import (
     LlmConnectionIn,
     LlmConnectionOut,
@@ -28,7 +28,7 @@ def list_connections(client_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("", response_model=LlmConnectionOut, status_code=201)
-def create_connection(client_id: str, body: LlmConnectionIn, p: CurrentPrincipal, db: DB):
+def create_connection(client_id: str, body: LlmConnectionIn, p: ClientAdminPrincipal, db: DB):
     """Guarda la conexion. Probarla (`POST .../{id}/test`) detecta si el proveedor soporta salida JSON
     estricta y deja el resultado en la ficha."""
     client = get_client(db, p, client_id)
@@ -40,7 +40,8 @@ def create_connection(client_id: str, body: LlmConnectionIn, p: CurrentPrincipal
 
 
 @router.patch("/{connection_id}", response_model=LlmConnectionOut)
-def update_connection(client_id: str, connection_id: str, body: LlmConnectionPatch, p: CurrentPrincipal, db: DB):
+def update_connection(client_id: str, connection_id: str, body: LlmConnectionPatch, p: ClientAdminPrincipal,
+                     db: DB):
     client = get_client(db, p, client_id)
     row = svc.update(db, svc.get(db, client.id, connection_id), name=body.name, base_url=body.base_url,
                      api_key=body.api_key, default_model=body.default_model)
@@ -64,7 +65,7 @@ def connection_models(client_id: str, connection_id: str, p: CurrentPrincipal, d
 
 
 @router.delete("/{connection_id}", status_code=204)
-def revoke_connection(client_id: str, connection_id: str, p: CurrentPrincipal, db: DB):
+def revoke_connection(client_id: str, connection_id: str, p: ClientAdminPrincipal, db: DB):
     """Los agentes que la usan siguen con el servidor propio (si tienen fallback_local)."""
     client = get_client(db, p, client_id)
     svc.revoke(db, svc.get(db, client.id, connection_id))

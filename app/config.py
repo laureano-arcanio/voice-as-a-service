@@ -222,10 +222,6 @@ class Settings(BaseSettings):
     support_email: str = "hola@atentina.com.ar"
     # Vigencia del link para crear la clave (de un solo uso).
     password_setup_hours: int = 72
-    # Resumen por email de cada llamada (app/mail/call_summary.py): cada cuanto mira los pendientes
-    # y cuanto de la transcripcion va en el mail (el resto, en el dashboard).
-    call_summary_tick_seconds: float = 15
-    call_summary_transcript_chars: int = 8000
 
     # --- Registro autoservicio y cobro de planes (docs/features/COBROS.md) ---
     # Registro desde la landing (POST /api/v1/demo/signup, con Turnstile). Va al tier publico con precio 0.
@@ -293,6 +289,8 @@ class Settings(BaseSettings):
     wa_token_key: str = ""
     wa_signup_per_hour: int = 10      # por cliente
     wa_templates_per_hour: int = 20   # plantillas creadas, por cliente
+    # Altas e invitaciones al equipo del cliente (app/api/routers/handoff.py): mails a cualquier dirección.
+    team_invites_per_hour: int = 20
     wa_sdk_locale: str = "es_LA"
     # Fase 1: tras estas horas sin mensajes del cliente, un mensaje nuevo abre otra conversacion.
     wa_session_hours: int = 24

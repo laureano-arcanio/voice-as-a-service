@@ -298,7 +298,6 @@ export interface TechnicalReport {
   }[];
   turns_avg: number | null;
   errors: { reason: string; count: number }[];
-  failed_summary_emails: number;
   tokens: { input: number; output: number; by_day: { date: string; input: number; output: number }[] };
 }
 

@@ -32,7 +32,7 @@ from ..db import utcnow
 from ..mail import messages, notify
 from ..mail.sender import Mail
 from ..models import Client, ConversationRow, Role, Tier, User
-from . import branding, legal
+from . import branding, handoff, legal
 from .agents import slugify
 from .demo import DemoUnavailable, verify_turnstile
 from .phones import normalize_phone
@@ -148,13 +148,14 @@ def create_account(s: Session, data: SignupData) -> str:
     s.add(client)
     s.flush()
     user = User(email=email, name=data.name.strip(), password_hash=hash_password(data.password), role=Role.client,
-                client_id=client.id, phone=phone)
+                client_id=client.id, client_role="admin", phone=phone)
     s.add(user)
     try:
         s.flush()
     except IntegrityError:
         s.rollback()   # el mismo email en paralelo
         raise _taken() from None
+    handoff.ensure_member(s, user)
     accepted_at = legal.record(s, user, client, accepted, legal_docs.checkbox_text(data.terms_version,
                                                                                   data.privacy_version),
                                "signup", data.ip, data.user_agent)

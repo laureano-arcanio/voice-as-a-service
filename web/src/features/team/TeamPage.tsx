@@ -21,6 +21,8 @@ import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { usePlanFeatures } from '@/features/billing/features';
+import { useIsClientAdmin } from '@/features/auth/useIsClientAdmin';
+import { formatDateTime } from '@/lib/format';
 import type { TeamPresence } from '@/features/phone/types';
 import { type AreaRow, useAreas, useDeleteArea, useDeleteMember, useMemberPresence, useTeam } from './api';
 import { AreaModal } from './AreaModal';
@@ -52,6 +54,7 @@ function PresenceDot({ presence }: { presence: TeamPresence | undefined }) {
 export function TeamPage() {
   const team = useTeam();
   const areas = useAreas();
+  const isClientAdmin = useIsClientAdmin();
   const deleteMember = useDeleteMember();
   const deleteArea = useDeleteArea();
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -66,9 +69,11 @@ export function TeamPage() {
     const inAreas = (areas.data ?? []).filter((a) => a.member_ids.includes(m.id)).map((a) => a.name);
     const ok = await confirmAction({
       title: `¿Borrar a ${m.name}?`,
-      message: inAreas.length
-        ? `Sale ${inAreas.length === 1 ? 'del área' : 'de las áreas'} ${inAreas.join(', ')} y no recibe más derivaciones. El historial se conserva.`
-        : 'No recibe más derivaciones. El historial se conserva.',
+      message: m.user_id
+        ? `Sale del equipo y se borra su acceso al panel: no puede volver a ingresar. El historial de llamadas se conserva.${inAreas.length ? ` También sale de ${inAreas.length === 1 ? 'el área' : 'las áreas'} ${inAreas.join(', ')}.` : ''}`
+        : inAreas.length
+          ? `Sale ${inAreas.length === 1 ? 'del área' : 'de las áreas'} ${inAreas.join(', ')} y no recibe más derivaciones. El historial se conserva.`
+          : 'No recibe más derivaciones. El historial se conserva.',
       confirmLabel: 'Borrar',
       danger: true,
     });
@@ -111,14 +116,14 @@ export function TeamPage() {
           <Card>
             <Group justify="space-between" mb="sm" gap="sm">
               <Title order={4}>Personas</Title>
-              {addButton('Agregar persona', () => setDialog({ kind: 'member', member: null }))}
+              {isClientAdmin && addButton('Agregar persona', () => setDialog({ kind: 'member', member: null }))}
             </Group>
             <QueryState query={team}>
               {(rows) =>
                 rows.length === 0 ? (
                   <EmptyState>
                     Todavía no hay personas en el equipo. Agregá a quienes atienden las derivaciones, con su
-                    teléfono para pasarles llamadas o su usuario del panel para que atiendan desde ahí.
+                    teléfono para pasarles llamadas o con acceso al panel para que atiendan desde ahí.
                   </EmptyState>
                 ) : (
                   <Table.ScrollContainer minWidth={700}>
@@ -126,8 +131,11 @@ export function TeamPage() {
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th>Nombre</Table.Th>
+                          <Table.Th>Email</Table.Th>
+                          <Table.Th>Rol</Table.Th>
                           <Table.Th>Teléfono</Table.Th>
                           <Table.Th>Estado</Table.Th>
+                          <Table.Th>Acceso al panel</Table.Th>
                           {directCalls && <Table.Th>En el panel</Table.Th>}
                           <Table.Th />
                         </Table.Tr>
@@ -136,6 +144,16 @@ export function TeamPage() {
                         {rows.map((m) => (
                           <Table.Tr key={m.id}>
                             <Table.Td fw={600}>{m.name}</Table.Td>
+                            <Table.Td>{m.email ?? <Dash />}</Table.Td>
+                            <Table.Td>
+                              {m.user_id ? (
+                                <Badge color={m.role === 'admin' ? 'blue' : 'gray'}>
+                                  {m.role === 'admin' ? 'Admin' : 'Usuario'}
+                                </Badge>
+                              ) : (
+                                <Dash />
+                              )}
+                            </Table.Td>
                             <Table.Td className="mono" style={{ whiteSpace: 'nowrap' }}>
                               {m.phone ?? <Dash />}
                             </Table.Td>
@@ -147,11 +165,23 @@ export function TeamPage() {
                                 {m.whatsapp_notify && <Badge color="blue">Recibe WhatsApp</Badge>}
                               </Group>
                             </Table.Td>
+                            <Table.Td>
+                              {m.user_id && m.panel_access ? (
+                                m.last_login_at ? (
+                                  <Text size="sm">{formatDateTime(m.last_login_at)}</Text>
+                                ) : (
+                                  <Badge color="yellow">Nunca entró</Badge>
+                                )
+                              ) : (
+                                <Badge color="gray">Sin acceso</Badge>
+                              )}
+                            </Table.Td>
                             {directCalls && (
                               <Table.Td>
                                 <PresenceDot presence={m.user_id ? byUser.get(m.user_id) : undefined} />
                               </Table.Td>
                             )}
+                            {isClientAdmin && (
                             <Table.Td>
                               <Group gap={4} justify="flex-end" wrap="nowrap">
                                 <Tooltip label="Editar" withArrow>
@@ -176,6 +206,7 @@ export function TeamPage() {
                                 </Tooltip>
                               </Group>
                             </Table.Td>
+                            )}
                           </Table.Tr>
                         ))}
                       </Table.Tbody>
@@ -189,7 +220,7 @@ export function TeamPage() {
           <Card>
             <Group justify="space-between" mb="sm" gap="sm">
               <Title order={4}>Áreas</Title>
-              {addButton('Crear área', () => setDialog({ kind: 'area', area: null }), true)}
+              {isClientAdmin && addButton('Crear área', () => setDialog({ kind: 'area', area: null }), true)}
             </Group>
             <Text size="sm" c="dimmed" mb="sm">
               El agente elige el área por lo que atiende y llama a sus personas en orden, dentro de su
@@ -255,6 +286,7 @@ export function TeamPage() {
                                 <Badge color={status.color}>{status.label}</Badge>
                               </Table.Td>
                               <Table.Td>
+                                {isClientAdmin && (
                                 <Group gap={4} justify="flex-end" wrap="nowrap">
                                   <Tooltip label="Editar" withArrow>
                                     <ActionIcon
@@ -277,6 +309,7 @@ export function TeamPage() {
                                     </ActionIcon>
                                   </Tooltip>
                                 </Group>
+                                )}
                               </Table.Td>
                             </Table.Tr>
                           );
@@ -291,14 +324,14 @@ export function TeamPage() {
         </Stack>
       </PlanGate>
 
-      {dialog?.kind === 'member' && (
+      {isClientAdmin && dialog?.kind === 'member' && (
         <MemberModal
           key={dialog.member?.id ?? 'new'}
           member={dialog.member}
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog?.kind === 'area' && (
+      {isClientAdmin && dialog?.kind === 'area' && (
         <AreaModal
           key={dialog.area?.id ?? 'new'}
           area={dialog.area}

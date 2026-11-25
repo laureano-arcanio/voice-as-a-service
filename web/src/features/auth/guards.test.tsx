@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ADMIN_NAV, CLIENT_NAV, isGroup, navFor, navItemsFor } from '@/components/nav';
 import { ADMIN, CLIENT_USER, renderWithProviders } from '@/test/render';
-import { RequireAdminArea, RequireAuth, RequireClientArea } from './guards';
+import { RequireAdminArea, RequireAuth, RequireClientAdmin, RequireClientArea } from './guards';
 
 const areaRoutes = (guard: 'client' | 'admin') => {
   const Guard = guard === 'client' ? RequireClientArea : RequireAdminArea;
@@ -19,6 +19,35 @@ const areaRoutes = (guard: 'client' | 'admin') => {
     },
   ];
 };
+
+describe('RequireClientAdmin', () => {
+  const routes = [
+    { path: '/inicio', element: <p>inicio</p> },
+    {
+      path: '/admin-only',
+      element: (
+        <RequireClientAdmin>
+          <p>solo admin</p>
+        </RequireClientAdmin>
+      ),
+    },
+  ];
+
+  it('un Usuario vuelve a Inicio', async () => {
+    const { router } = renderWithProviders(<></>, {
+      me: { ...CLIENT_USER, client_role: 'user' },
+      path: '/admin-only',
+      routes,
+    });
+    expect(await screen.findByText('inicio')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/inicio');
+  });
+
+  it('un Admin del cliente entra', () => {
+    renderWithProviders(<></>, { me: CLIENT_USER, path: '/admin-only', routes });
+    expect(screen.getByText('solo admin')).toBeInTheDocument();
+  });
+});
 
 describe('RequireClientArea', () => {
   it('un admin sin cliente activo va a /admin', async () => {
@@ -106,6 +135,13 @@ describe('navegación por área', () => {
   it('navFor devuelve el menú del área', () => {
     expect(navFor('admin')).toBe(ADMIN_NAV);
     expect(navFor('client')).toBe(CLIENT_NAV);
+  });
+
+  it('un Usuario no ve en el menú lo que es solo de Admin', () => {
+    const labels = navItemsFor('client', false).map((i) => i.label);
+    for (const hidden of ['Plan', 'API keys', 'Modelos', 'Secretos', 'WhatsApp', 'Números'])
+      expect(labels).not.toContain(hidden);
+    expect(labels).toEqual(expect.arrayContaining(['Inicio', 'Tu equipo', 'Uso de la API', 'Campañas']));
   });
 
   it('agrupa el menú del cliente', () => {

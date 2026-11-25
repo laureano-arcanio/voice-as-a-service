@@ -19,7 +19,7 @@ from ...services import line_spool
 from ...services import phone_numbers as service
 from ...services.livekit import sync_trunk_numbers
 from ...services.errors import Conflict, NotFound
-from ..deps import DB, AdminPrincipal, CurrentPrincipal, scoped_client_id
+from ..deps import DB, AdminPrincipal, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     AssignIn,
     PhoneNumberBulkIn,
@@ -122,7 +122,7 @@ def release_number(number_id: str, p: AdminPrincipal, db: DB):
 
 
 @router.patch("/{number_id}", response_model=PhoneNumberOut)
-def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, db: DB):
+def update_number(number_id: str, body: PhoneNumberUpdate, p: ClientAdminPrincipal, db: DB):
     """Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
     o el equipo (`team`: `member_ids` en orden, `strategy`, `ring_first`, `ring_seconds`, `schedule`, `team_connect_on_answer`,
     `team_hold_music`, `record_full_call` (graba la llamada completa, con el equipo o el agente), los reintentos `team_retry_seconds`, `team_retry_interval_seconds` y

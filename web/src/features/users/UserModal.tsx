@@ -42,6 +42,7 @@ export function UserModal({
       name: user?.name ?? '',
       role: (user?.role ?? (clientId ? 'client' : 'admin')) as Role,
       client_id: user?.client_id ?? clientId ?? '',
+      client_role: (user?.client_role ?? 'admin') as 'admin' | 'user',
       password: '',
       active: user?.active ?? true,
     },
@@ -73,6 +74,7 @@ export function UserModal({
             name: v.name.trim(),
             active: isSelf ? undefined : v.active,
             password: v.password || undefined,
+            client_role: user.role === 'client' ? v.client_role : undefined,
           },
         },
         opts,
@@ -85,6 +87,7 @@ export function UserModal({
           password: v.password,
           role: v.role,
           client_id: v.role === 'client' ? v.client_id : null,
+          client_role: v.role === 'client' ? v.client_role : null,
         },
         opts,
       );
@@ -124,6 +127,23 @@ export function UserModal({
               searchable
               {...form.getInputProps('client_id')}
             />
+          )}
+          {(clientId || user?.role === 'client' || (!user && form.values.role === 'client')) && (
+            <Stack gap={4}>
+              <Text size="sm" fw={500}>
+                Rol en el cliente
+              </Text>
+              <SegmentedControl
+                data={[
+                  { value: 'admin', label: 'Admin' },
+                  { value: 'user', label: 'Usuario' },
+                ]}
+                {...form.getInputProps('client_role')}
+              />
+              <Text size="xs" c="dimmed">
+                Admin maneja el panel, los accesos y los cobros. Usuario atiende y usa las funciones.
+              </Text>
+            </Stack>
           )}
           <PasswordInput
             label={user ? 'Clave nueva' : 'Clave'}

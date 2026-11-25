@@ -188,6 +188,9 @@ def test_password_change_and_deactivation_close_sessions(api, admin):
     c = make_client(admin)
     user = client_user(api, admin, c)
     uid = user.get(f"{V1}/auth/me").json()["id"]
+    # Otro Admin para que el cliente no quede sin uno al desactivarlo.
+    admin.post(f"{V1}/users", json={"email": "otro-admin@acme.com", "password": "otra-clave-larga-1",
+                                     "role": "client", "client_id": c["id"]})
     assert admin.patch(f"{V1}/users/{uid}", json={"password": "otra-clave-larga-1"}).status_code == 200
     assert user.get(f"{V1}/auth/me").status_code == 401
     user = api.login("ana@acme.com", "otra-clave-larga-1")

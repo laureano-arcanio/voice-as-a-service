@@ -41,7 +41,7 @@ de `services/features.TIER_HAS` que corresponda. Catálogo generado: [`MCP_HERRA
 | `inference` | 3 (`transcribe_audio`, `synthesize_speech`, `get_inference_usage`) | no |
 | `admin` | 29 (`admin_*`, `get_report_technical`, `get_report_platform`) | solo token "Toda la plataforma" |
 
-Sin parámetro: 125 herramientas (~18k tokens de contexto); `core`: 67. Resources: `atentina://agents/schema`
+Sin parámetro: 123 herramientas (~18k tokens de contexto); `core`: 65. Resources: `atentina://agents/schema`
 (JSON Schema de la definición: `prompt`, `first_message`, `variables` y `analysis` con listas de `name`) y tres guías
 (`agentes`, `campanas`, `derivaciones`); prompts: `crear_agente`, `revisar_llamadas`, `lanzar_campana`
 (`app/mcp/guides.py`).
@@ -81,7 +81,7 @@ Sin parámetro: 125 herramientas (~18k tokens de contexto); `core`: 67. Resource
   agentes del usuario.
 - Consentimiento: muestra la app (identificada o registro sin verificar), a dónde vuelve y qué va a poder hacer. Un
   admin elige un cliente (el token actúa con rol de cliente) o **"Toda la plataforma"**: `oauth_grants.client_id`
-  null, ve `admin` y todas las de cliente (151 por defecto); estas piden `client_id` en cada llamada y van con
+  null, ve `admin` y todas las de cliente (155 por defecto); estas piden `client_id` en cada llamada y van con
   `x-atentina-mcp-client` (solo vale con el secreto interno). Vale mientras el usuario siga siendo admin.
 - UI: tarjeta "Agentes de IA (MCP)" en Desarrolladores (`web/src/features/oauth/McpAccess.tsx`): URL, comando de
   Claude Code, "Agentes conectados" con "Desconectar" y "Uso por herramienta".
@@ -90,6 +90,11 @@ Sin parámetro: 125 herramientas (~18k tokens de contexto); `core`: 67. Resource
 
 - Una herramienta que el plan no incluye se lista igual (con el plan que la trae en la descripción) y responde
   `feature_not_in_plan`: el agente puede explicar qué falta.
+- **Rol del token:** un token OAuth de un Usuario del cliente no ve ni llama las herramientas `admin_only` (agentes y
+  sus definiciones, secretos, conexiones de LLM, herramientas, campañas, contactos en lote y bajas, equipo y áreas,
+  números y su ruteo, cuenta de WhatsApp); la API da 403 `client_admin_required` igual. Una API key del cliente
+  cuenta como Admin. Dar acceso, rol o invitación a una persona y borrar a una con usuario son solo del panel: la API
+  responde 403 `panel_user_required`.
 - Las de admin dejan afuera, a propósito, borrar clientes, planes y llamadas en masa, crear usuarios y cambiar claves
   (la clave pasaría por el LLM).
 - Transcripciones, contactos y mensajes los escriben terceros: se devuelven como datos (`structuredContent`); lo que
@@ -106,7 +111,8 @@ Sin parámetro: 125 herramientas (~18k tokens de contexto); `core`: 67. Resource
 
 Login, perfil, clave y condiciones; cobros y plan (el MCP no cobra; `feature_not_in_plan` trae `upgrade_url` a `/plan`); crear o borrar API
 keys y permisos OAuth; atender, rechazar y entrar a llamadas directas y la presencia (WebRTC); la imagen del link para
-llamar; el alta y la gestión de la cuenta de WhatsApp (tokens de Meta, Embedded Signup); editar `direct_calls` de un
+llamar; el alta y la gestión de la cuenta de WhatsApp (tokens de Meta, Embedded Signup); dar acceso, rol o invitación
+a una persona del equipo y borrar a una con usuario; editar `direct_calls` de un
 tier.
 
 ## Desplegar y probar

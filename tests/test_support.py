@@ -95,14 +95,6 @@ def test_account_and_billing_are_read_only_in_support(api, admin):  # noqa: F811
     assert admin.get(f"{V1}/auth/me").json()["name"] != "Otro"
 
 
-def test_call_emails_still_editable_in_support(api, admin):  # noqa: F811
-    a, _ = two_clients(admin)
-    r = admin.put(f"{V1}/clients/{a['id']}/call-emails", json={"enabled": False, "recipients": ["ana@acme.com"]},
-                  headers=as_client(a))
-    assert r.status_code == 200, r.text
-    assert r.json()["enabled"] is False and r.json()["recipients"] == ["ana@acme.com"]
-
-
 # ---------- en soporte no es admin ----------
 
 def test_support_is_not_admin(api, admin):  # noqa: F811

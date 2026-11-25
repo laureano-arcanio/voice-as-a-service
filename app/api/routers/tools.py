@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from ...config import settings
 from ...services import tools as svc
 from ...tools import schema as tool_schema
-from ..deps import DB, CurrentPrincipal, Limit, rate_limit
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, Limit, rate_limit
 from ..schemas import (
     AgentSecretIn,
     AgentSecretOut,
@@ -65,7 +65,7 @@ def list_tools(client_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/clients/{client_id}/tools", response_model=ToolOut, status_code=201)
-def create_tool(client_id: str, body: ToolIn, p: CurrentPrincipal, db: DB):
+def create_tool(client_id: str, body: ToolIn, p: ClientAdminPrincipal, db: DB):
     client = get_client(db, p, client_id)
     row = svc.create_tool(db, client.id, body.slug, body.type, body.definition,
                           p.id if p.kind == "user" else None)
@@ -80,7 +80,7 @@ def get_tool(client_id: str, slug: str, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/clients/{client_id}/tools/{slug}", response_model=ToolOut)
-def update_tool(client_id: str, slug: str, body: ToolUpdate, p: CurrentPrincipal, db: DB):
+def update_tool(client_id: str, slug: str, body: ToolUpdate, p: ClientAdminPrincipal, db: DB):
     """Reemplaza la definicion; si cambio, sube `revision`. Rige desde ya para todos los agentes que la usan."""
     client = get_client(db, p, client_id)
     row = svc.update_tool(db, svc.get_tool(db, client.id, slug), body.type, body.definition,
@@ -97,7 +97,7 @@ def tool_versions(client_id: str, slug: str, p: CurrentPrincipal, db: DB):
 
 
 @router.delete("/clients/{client_id}/tools/{slug}", status_code=204)
-def delete_tool(client_id: str, slug: str, p: CurrentPrincipal, db: DB):
+def delete_tool(client_id: str, slug: str, p: ClientAdminPrincipal, db: DB):
     """409 (tool_in_use) si un agente vigente la usa."""
     client = get_client(db, p, client_id)
     svc.delete_tool(db, svc.get_tool(db, client.id, slug))
@@ -119,7 +119,7 @@ async def test_tool(client_id: str, slug: str, body: ToolTestIn, p: CurrentPrinc
 
 
 @router.post("/clients/{client_id}/tools/test", response_model=ToolTestOut, dependencies=[_test_limit])
-async def test_draft(client_id: str, body: ToolDraftTestIn, p: CurrentPrincipal, db: DB):
+async def test_draft(client_id: str, body: ToolDraftTestIn, p: ClientAdminPrincipal, db: DB):
     """Lo mismo con una definicion sin guardar (el boton Probar del editor)."""
     client = get_client(db, p, client_id)
     svc.check_plan(db, client.id, body.type)
@@ -143,7 +143,7 @@ def list_client_secrets(client_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/clients/{client_id}/secrets", response_model=ClientSecretOut, status_code=201)
-def create_client_secret(client_id: str, body: AgentSecretIn, p: CurrentPrincipal, db: DB):
+def create_client_secret(client_id: str, body: AgentSecretIn, p: ClientAdminPrincipal, db: DB):
     client = get_client(db, p, client_id)
     svc.check_plan(db, client.id, "http")
     svc.create_client_secret(db, client.id, body.name, body.value, body.description,
@@ -153,7 +153,7 @@ def create_client_secret(client_id: str, body: AgentSecretIn, p: CurrentPrincipa
 
 
 @router.patch("/clients/{client_id}/secrets/{name}", response_model=ClientSecretOut)
-def update_client_secret(client_id: str, name: str, body: AgentSecretPatch, p: CurrentPrincipal, db: DB):
+def update_client_secret(client_id: str, name: str, body: AgentSecretPatch, p: ClientAdminPrincipal, db: DB):
     """Reemplaza el valor o la descripcion. Rige en todos los agentes que no tienen su propio valor."""
     client = get_client(db, p, client_id)
     svc.update_secret(db, svc.get_client_secret(db, client.id, name), body.value, body.description)
@@ -162,7 +162,7 @@ def update_client_secret(client_id: str, name: str, body: AgentSecretPatch, p: C
 
 
 @router.delete("/clients/{client_id}/secrets/{name}", status_code=204)
-def delete_client_secret(client_id: str, name: str, p: CurrentPrincipal, db: DB):
+def delete_client_secret(client_id: str, name: str, p: ClientAdminPrincipal, db: DB):
     """409 (secret_in_use) si lo usa una credencial o una herramienta de un agente sin su propio valor."""
     client = get_client(db, p, client_id)
     svc.delete_client_secret(db, client.id, svc.get_client_secret(db, client.id, name))
@@ -186,7 +186,7 @@ def list_credentials(client_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/clients/{client_id}/credentials", response_model=CredentialOut, status_code=201)
-def create_credential(client_id: str, body: CredentialIn, p: CurrentPrincipal, db: DB):
+def create_credential(client_id: str, body: CredentialIn, p: ClientAdminPrincipal, db: DB):
     """Con `value`, el valor se guarda en el secreto del cliente `auth.secret`."""
     client = get_client(db, p, client_id)
     row = svc.create_credential(db, client.id, body.slug, body.name, body.description, body.auth, body.value,
@@ -202,7 +202,7 @@ def get_credential(client_id: str, slug: str, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/clients/{client_id}/credentials/{slug}", response_model=CredentialOut)
-def update_credential(client_id: str, slug: str, body: CredentialUpdate, p: CurrentPrincipal, db: DB):
+def update_credential(client_id: str, slug: str, body: CredentialUpdate, p: ClientAdminPrincipal, db: DB):
     """Rige desde ya en todas las herramientas que la usan."""
     client = get_client(db, p, client_id)
     row = svc.update_credential(db, svc.get_credential(db, client.id, slug), body.name, body.description,
@@ -212,7 +212,7 @@ def update_credential(client_id: str, slug: str, body: CredentialUpdate, p: Curr
 
 
 @router.delete("/clients/{client_id}/credentials/{slug}", status_code=204)
-def delete_credential(client_id: str, slug: str, p: CurrentPrincipal, db: DB):
+def delete_credential(client_id: str, slug: str, p: ClientAdminPrincipal, db: DB):
     """409 (credential_in_use) si una herramienta la usa. El secreto con el valor queda."""
     client = get_client(db, p, client_id)
     svc.delete_credential(db, svc.get_credential(db, client.id, slug))
@@ -229,7 +229,7 @@ def list_secrets(agent_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/agents/{agent_id}/secrets", response_model=AgentSecretOut, status_code=201)
-def create_secret(agent_id: str, body: AgentSecretIn, p: CurrentPrincipal, db: DB):
+def create_secret(agent_id: str, body: AgentSecretIn, p: ClientAdminPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
     svc.create_secret(db, agent, body.name, body.value, body.description, p.id if p.kind == "user" else None)
     db.commit()
@@ -237,7 +237,7 @@ def create_secret(agent_id: str, body: AgentSecretIn, p: CurrentPrincipal, db: D
 
 
 @router.patch("/agents/{agent_id}/secrets/{name}", response_model=AgentSecretOut)
-def update_secret(agent_id: str, name: str, body: AgentSecretPatch, p: CurrentPrincipal, db: DB):
+def update_secret(agent_id: str, name: str, body: AgentSecretPatch, p: ClientAdminPrincipal, db: DB):
     """Reemplaza el valor o la descripcion. No crea version del agente."""
     agent = get_agent(db, p, agent_id)
     svc.update_secret(db, svc.get_secret(db, agent, name), body.value, body.description)
@@ -246,7 +246,7 @@ def update_secret(agent_id: str, name: str, body: AgentSecretPatch, p: CurrentPr
 
 
 @router.post("/agents/{agent_id}/secrets/{name}/promote", response_model=SecretPromoteOut)
-def promote_secret(agent_id: str, name: str, p: CurrentPrincipal, db: DB):
+def promote_secret(agent_id: str, name: str, p: ClientAdminPrincipal, db: DB):
     """Pasa el secreto al cliente (para todos los agentes) y borra el propio de este agente y de los otros que
     tienen el mismo valor. 409 (secret_name_taken) si el cliente ya tiene uno con otro valor."""
     agent = get_agent(db, p, agent_id)
@@ -256,7 +256,7 @@ def promote_secret(agent_id: str, name: str, p: CurrentPrincipal, db: DB):
 
 
 @router.delete("/agents/{agent_id}/secrets/{name}", status_code=204)
-def delete_secret(agent_id: str, name: str, p: CurrentPrincipal, db: DB):
+def delete_secret(agent_id: str, name: str, p: ClientAdminPrincipal, db: DB):
     """Sin el propio, el agente usa el del cliente. 409 (secret_in_use) si una herramienta del agente lo usa y el
     cliente no lo tiene."""
     agent = get_agent(db, p, agent_id)

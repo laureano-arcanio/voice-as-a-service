@@ -27,6 +27,7 @@ from ...whatsapp import handoffs, own_app, signup, store
 from ...whatsapp.service import WhatsAppService, get_service
 from ..deps import (
     DB,
+    ClientAdminPrincipal,
     CurrentPrincipal,
     UserPrincipal,
     rate_limit,
@@ -140,7 +141,7 @@ def list_accounts(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 
 @router.post("/accounts", response_model=WaAccountOut, status_code=201)
-def create_account(body: WaAccountIn, p: CurrentPrincipal, db: DB):
+def create_account(body: WaAccountIn, p: ClientAdminPrincipal, db: DB):
     """Alta manual (un numero de nuestra WABA): admin, o un admin que entró como el cliente (va a ese cliente).
     409 si el phone_number_id ya esta, 404 si el agente no es del cliente. El token se guarda cifrado (503 sin
     WA_TOKEN_KEY)."""
@@ -155,7 +156,7 @@ def create_account(body: WaAccountIn, p: CurrentPrincipal, db: DB):
 
 
 @router.patch("/accounts/{account_id}", response_model=WaAccountOut)
-def update_account(account_id: str, body: WaAccountPatch, p: CurrentPrincipal, db: DB):
+def update_account(account_id: str, body: WaAccountPatch, p: ClientAdminPrincipal, db: DB):
     """access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:
     solo agent_id, name, attendance y active."""
     a = _get(db, account_id, p)
@@ -170,7 +171,7 @@ def update_account(account_id: str, body: WaAccountPatch, p: CurrentPrincipal, d
 
 
 @router.post("/accounts/{account_id}/deactivate", response_model=WaAccountOut)
-def deactivate_account(account_id: str, p: CurrentPrincipal, db: DB):
+def deactivate_account(account_id: str, p: ClientAdminPrincipal, db: DB):
     """Deja de responder los mensajes que lleguen a ese numero (quedan ignored)."""
     a = _get(db, account_id, p)
     store.update_account(db, a, active=False)
@@ -179,7 +180,7 @@ def deactivate_account(account_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/accounts/{account_id}/routes", response_model=list[WaRouteOut])
-def set_account_routes(account_id: str, body: list[WaRouteIn], p: CurrentPrincipal, db: DB):
+def set_account_routes(account_id: str, body: list[WaRouteIn], p: ClientAdminPrincipal, db: DB):
     """Reemplaza el ruteo por contacto de la cuenta: los contactos de cada regla los atiende
     ese agente, en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto.
     409 si un contacto esta en dos reglas; 422 con agente ajeno, archivado o regla vacia."""
@@ -191,7 +192,7 @@ def set_account_routes(account_id: str, body: list[WaRouteIn], p: CurrentPrincip
 
 @router.post("/accounts/own-app", response_model=WaAccountOut, status_code=201,
              dependencies=[Depends(signup_limit)])
-async def connect_own_app(body: WaOwnAppIn, p: UserPrincipal, db: DB):
+async def connect_own_app(body: WaOwnAppIn, p: ClientAdminPrincipal, db: DB):
     """Conecta un número con la app de Meta propia del cliente (docs/ARQUITECTURA.md): valida
     con Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify
     token para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).
@@ -206,7 +207,7 @@ async def connect_own_app(body: WaOwnAppIn, p: UserPrincipal, db: DB):
 
 
 @router.post("/signup", response_model=WaAccountOut, status_code=201, dependencies=[Depends(signup_limit)])
-async def signup_account(body: WaSignupIn, p: UserPrincipal, db: DB):
+async def signup_account(body: WaSignupIn, p: ClientAdminPrincipal, db: DB):
     """Embedded Signup: cambia el codigo por el token del cliente, suscribe la app a su
     WABA, registra el numero y guarda la cuenta. 201 tambien si quedo `pending` (fallo
     la suscripcion o el registro: ver status_reason y reintentar con /register).
@@ -222,7 +223,7 @@ async def signup_account(body: WaSignupIn, p: UserPrincipal, db: DB):
 
 @router.post("/accounts/{account_id}/register", response_model=WaAccountOut,
              dependencies=[Depends(register_limit)])
-async def register_account(account_id: str, body: WaRegisterIn, p: CurrentPrincipal, db: DB):
+async def register_account(account_id: str, body: WaRegisterIn, p: ClientAdminPrincipal, db: DB):
     """Reintenta la suscripcion y el registro (cuenta pending). PIN: el pedido, el
     guardado o uno nuevo."""
     a = _get_managed(db, account_id, p)
@@ -231,7 +232,7 @@ async def register_account(account_id: str, body: WaRegisterIn, p: CurrentPrinci
 
 
 @router.post("/accounts/{account_id}/refresh", response_model=WaAccountOut)
-async def refresh_account(account_id: str, p: CurrentPrincipal, db: DB):
+async def refresh_account(account_id: str, p: ClientAdminPrincipal, db: DB):
     """Relee el numero visible y la calidad en Meta. Un token rechazado la desconecta."""
     a = _get_managed(db, account_id, p)
     await signup.refresh(db, a)

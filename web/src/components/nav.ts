@@ -39,6 +39,8 @@ export interface NavItem {
   icon: ComponentType<{ size?: number; stroke?: number }>;
   /** La función del plan que necesita: sin ella, la navegación la marca con un candado. */
   feature?: PlanFeatureKey | PlanFeatureKey[];
+  /** Solo un Admin del cliente (docs/features/EQUIPO_TELEFONIA.md): un Usuario no la ve. */
+  adminOnly?: boolean;
 }
 
 /** Grupo desplegable del menú: se abre con un click y arranca abierto si contiene la pantalla actual. */
@@ -67,8 +69,8 @@ export const CLIENT_NAV: NavEntry[] = [
       { to: '/agents', label: 'Mis agentes', icon: IconList },
       // Lo que un agente usa va junto a los agentes (como Vapi y ElevenLabs), no en un grupo aparte.
       { to: '/tools', label: 'Herramientas', icon: IconTool, feature: 'custom_tools' },
-      { to: '/secrets', label: 'Secretos', icon: IconLockPassword, feature: 'custom_tools' },
-      { to: '/models', label: 'Modelos', icon: IconCpu },
+      { to: '/secrets', label: 'Secretos', icon: IconLockPassword, feature: 'custom_tools', adminOnly: true },
+      { to: '/models', label: 'Modelos', icon: IconCpu, adminOnly: true },
       { to: '/voices', label: 'Voces', icon: IconMicrophone },
     ],
   },
@@ -76,7 +78,7 @@ export const CLIENT_NAV: NavEntry[] = [
     label: 'Canales',
     icon: IconBroadcast,
     items: [
-      { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, feature: 'whatsapp' },
+      { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, feature: 'whatsapp', adminOnly: true },
       { to: '/outbound', label: 'Llamadas del agente', icon: IconPhoneOutgoing, feature: 'outbound_calls' },
       { to: '/telefono', label: 'Teléfono del equipo', icon: IconPhoneCall, feature: 'direct_calls' },
       {
@@ -93,7 +95,7 @@ export const CLIENT_NAV: NavEntry[] = [
     label: 'Developers',
     icon: IconCode,
     items: [
-      { to: '/developers', label: 'API keys', icon: IconKey },
+      { to: '/developers', label: 'API keys', icon: IconKey, adminOnly: true },
       { to: '/inference-requests', label: 'Uso de la API', icon: IconApi },
     ],
   },
@@ -101,8 +103,8 @@ export const CLIENT_NAV: NavEntry[] = [
     label: 'Cuenta',
     icon: IconUser,
     items: [
-      { to: '/account', label: 'Números', icon: IconPhone },
-      { to: '/plan', label: 'Plan', icon: IconCreditCard },
+      { to: '/account', label: 'Números', icon: IconPhone, adminOnly: true },
+      { to: '/plan', label: 'Plan', icon: IconCreditCard, adminOnly: true },
     ],
   },
 ];
@@ -123,12 +125,24 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/system', label: 'Sistema', icon: IconServer },
 ];
 
-/** El menú del área: la del cliente o la administración. */
-export function navFor(role: Role): NavEntry[] {
-  return role === 'admin' ? ADMIN_NAV : CLIENT_NAV;
+/** El menú del área: la del cliente o la administración. Un Usuario del cliente no ve lo que es solo de Admin:
+ * los ítems `adminOnly` y los grupos que se quedan sin ninguno. */
+export function navFor(role: Role, clientAdmin = true): NavEntry[] {
+  const entries = role === 'admin' ? ADMIN_NAV : CLIENT_NAV;
+  if (clientAdmin) return entries;
+  const out: NavEntry[] = [];
+  for (const e of entries) {
+    if (isGroup(e)) {
+      const items = e.items.filter((i) => !i.adminOnly);
+      if (items.length) out.push({ ...e, items });
+    } else if (!e.adminOnly) {
+      out.push(e);
+    }
+  }
+  return out;
 }
 
 /** Las pantallas del área, sin grupos. */
-export function navItemsFor(role: Role): NavItem[] {
-  return navFor(role).flatMap((e) => (isGroup(e) ? e.items : [e]));
+export function navItemsFor(role: Role, clientAdmin = true): NavItem[] {
+  return navFor(role, clientAdmin).flatMap((e) => (isGroup(e) ? e.items : [e]));
 }

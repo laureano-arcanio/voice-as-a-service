@@ -12,7 +12,7 @@ from .test_migration_0005 import _run
 
 OURS = ("user_id", "answered_by", "opted_out_confirmed", "answer_mode", "ring_first", "ring_seconds", "schedule",
         "team_fallback", "phone_number_members", "user_presence", "call_rings", "direct_calls",
-        "direct_recording_notice")
+        "direct_recording_notice", "uq_team_members_user_id")
 
 
 def _ours(d) -> bool:
@@ -36,6 +36,8 @@ def test_0039_upgrade_downgrade_upgrade(tmp_path):
         tiers = dict(conn.execute(sa.text("SELECT name, direct_calls FROM tiers")).all())
         number = conn.execute(sa.text("SELECT answer_mode, ring_first, ring_seconds, team_fallback, "
                                       "team_fallback_message FROM phone_numbers")).one()
+    # De la 0064 (una persona por usuario y su rol).
+    diff = [d for d in diff if "uq_team_members_user_id" not in repr(d) and "client_role" not in repr(d)]
     assert [d for d in diff if _ours(d)] == []
     assert tiers == {"Free": False, "Mostrador": True, "Interno": True}
     assert tuple(number) == ("agent", "phone", 20, "voicemail", "")

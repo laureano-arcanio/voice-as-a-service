@@ -26,7 +26,7 @@ def test_0023_upgrade_downgrade_upgrade(tmp_path):
     diff = [d for d in diff if not any(c in repr(d) for c in ("'whatsapp'", "wa_reply_minutes", "uq_team_members_client_whatsapp"))]
     # La 0048 agrega el aviso por WhatsApp y el ruteo entre areas (no_answer_member_id, la 0052).
     later = ("whatsapp_notify", "after_hours_area_id", "no_answer_area_id", "no_answer_member_id", "'delivery'", "fk_handoff_areas",
-             "handoff_area_id", "fk_wa_threads_handoff", "connect_on_answer")
+             "handoff_area_id", "fk_wa_threads_handoff", "connect_on_answer", "client_role", "uq_team_members_user_id")
     diff = [d for d in diff if not any(c in repr(d) for c in later)]
     # La 0050, la 0051, la 0053, la 0054 y la 0055 agregan columnas a phone_numbers (last_member_id y team_fallback_member_id ->
     # team_members, opciones del equipo).

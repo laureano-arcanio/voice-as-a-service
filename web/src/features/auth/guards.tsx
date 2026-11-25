@@ -50,6 +50,13 @@ export function RequireClientArea({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Páginas de Admin del cliente (plan, API keys, modelos, secretos, WhatsApp, Mi cuenta): un Usuario va a Inicio. */
+export function RequireClientAdmin({ children }: { children: ReactNode }) {
+  const { data } = useMe();
+  if (data?.role === 'client' && data.client_role !== 'admin') return <Navigate to="/inicio" replace />;
+  return <>{children}</>;
+}
+
 /** Administración: solo admins. Un admin dentro de un cliente (me.role === 'client') también va al panel del
  * cliente: se sale con "Volver a administración" (salir acá cortaría la entrada, que cambia `me` antes de navegar). */
 export function RequireAdminArea({ children }: { children: ReactNode }) {
