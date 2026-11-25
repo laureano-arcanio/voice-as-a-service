@@ -11,7 +11,7 @@
     "technical-leader": {
       "description": "Technical leader de Atentina. Analiza un pedido de desarrollo (función, bug, refactor, cambio de infraestructura versionada), lo clasifica en nivel 1, 2 o 3 según su impacto, ataca su propio diseño contra el código real y escribe el plan en scratch/planes/, dividido en tareas que los desarrolladores implementan, verifican y documentan de punta a punta. Primer paso del ciclo de desarrollo de AGENTS.md. No modifica nada fuera de scratch/planes/.",
       "mode": "subagent",
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/technical-leader.md}",
       "permission": {
         "task": {
@@ -161,7 +161,7 @@
     "desarrollador-n1": {
       "description": "Tareas de nivel 1 del plan (modelo chico). Desarrollador full stack de Atentina (FastAPI, PostgreSQL, worker de voz LiveKit, MCP, React + Mantine, Astro). Dueño de una tarea de punta a punta: la implementa con sus tests, la verifica en el entorno local (navegador con Chrome DevTools si tiene UI; si no, API, MCP o código) y actualiza la documentación. Paso de implementación del ciclo de desarrollo de AGENTS.md. No commitea ni despliega. Corre con el modelo del nivel de su tarea.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3-flash",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/desarrollador.md}",
       "permission": {
         "task": {
@@ -176,7 +176,7 @@
     "desarrollador-n2": {
       "description": "Tareas de nivel 2 del plan (modelo medio). Desarrollador full stack de Atentina (FastAPI, PostgreSQL, worker de voz LiveKit, MCP, React + Mantine, Astro). Dueño de una tarea de punta a punta: la implementa con sus tests, la verifica en el entorno local (navegador con Chrome DevTools si tiene UI; si no, API, MCP o código) y actualiza la documentación. Paso de implementación del ciclo de desarrollo de AGENTS.md. No commitea ni despliega. Corre con el modelo del nivel de su tarea.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/desarrollador.md}",
       "permission": {
         "task": {
@@ -191,7 +191,7 @@
     "desarrollador-n3": {
       "description": "Tareas de nivel 3 del plan (modelo alto). Desarrollador full stack de Atentina (FastAPI, PostgreSQL, worker de voz LiveKit, MCP, React + Mantine, Astro). Dueño de una tarea de punta a punta: la implementa con sus tests, la verifica en el entorno local (navegador con Chrome DevTools si tiene UI; si no, API, MCP o código) y actualiza la documentación. Paso de implementación del ciclo de desarrollo de AGENTS.md. No commitea ni despliega. Corre con el modelo del nivel de su tarea.",
       "mode": "subagent",
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/desarrollador.md}",
       "permission": {
         "task": {
@@ -206,7 +206,7 @@
     "qa": {
       "description": "QA independiente de Atentina, opcional. Verifica en el entorno local una función completa, de punta a punta como un usuario real, en el navegador con Chrome DevTools si tiene UI y, si no, por la API, el MCP o el código. Devuelve PASA o FALLA con los detalles técnicos para corregir. Se lanza solo cuando el usuario lo pide o antes de desplegar un nivel 3; la verificación de cada tarea la hace su desarrollador. No modifica código y no prueba en producción.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/glm-5.3-flash",
       "prompt": "{file:./.claude/agents/qa.md}",
       "permission": {
         "task": {
@@ -225,7 +225,7 @@
     "deploy": {
       "description": "Despliega a producción (server2, 192.168.1.98) lo que ya está en origin/main, con los comandos de make existentes. Es lo único que hace. Usar cuando el usuario pide desplegar, hacer un deploy o pasar algo a producción, o preguntar qué falta desplegar. No programa, no commitea, no cambia de rama y no opera otra cosa en server2 (para eso, el agente server2).",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/deploy.md}",
       "permission": {
         "task": {
@@ -241,7 +241,7 @@
     "server2": {
       "description": "Opera server2, el server principal de producción (192.168.1.98, Ubuntu Server) por SSH con clave y sudo sin contraseña, como usuario atentina-ops. Usar cuando el usuario pide instalar, configurar, revisar o diagnosticar algo en server2, prepararlo según docs/MIGRACION_SERVER.md, o ejecutar comandos ahí. No corre nada en .99 (este host, desarrollo).",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/server2.md}",
       "permission": {
         "task": {
@@ -257,7 +257,7 @@
     "documentos": {
       "description": "Creador de documentos profesionales de Atentina (propuestas comerciales y de integración, overviews, one-pagers, fichas de producto, casos, presentaciones para reuniones) en HTML con la plantilla de la marca, impresos a PDF con Chrome, con diagramas SVG e imágenes, en una carpeta por proyecto con versiones y notas. Usar cuando el usuario pide un PDF, una propuesta, un documento para un prospecto o cliente, un resumen comercial, una ficha, una pieza gráfica o una imagen con la marca, o cambiar uno existente. Sigue marketing/DOCUMENTOS.md.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/documentos.md}",
       "permission": {
         "task": {
@@ -270,7 +270,7 @@
     "videos": {
       "description": "Editor y creador visual de Atentina. Hace videos animados (Remotion) con personajes, diagramas animados y locución de nuestro propio TTS, con la marca, el tono y las voces del proyecto, en una carpeta por proyecto con versiones y notas. También genera imágenes fijas (fotos, ilustraciones, caricaturas, personajes y fondos) con la API de imágenes local, para usarlas como assets de las escenas. Usar cuando el usuario pide un video, una animación, un explicativo o un demo animado (para empresas, integradores, un prospecto, redes o la landing), cambiar un video existente (texto, voz, escenas, duración), una versión vertical o más corta, elegir voces para un video, o crear imágenes e ilustraciones para un video. Sigue marketing/VIDEOS.md.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/videos.md}",
       "permission": {
         "task": {
@@ -285,7 +285,7 @@
     "tts-finetune": {
       "description": "Entrena, evalúa y sirve voces propias de Qwen3-TTS (1.7B o 0.6B) con fine-tuning sobre OpenSLR 61 u otro corpus, una voz o varias en un mismo checkpoint. Usar cuando el usuario pide entrenar o reentrenar una voz de TTS, agregar voces al checkpoint servido, comparar checkpoints de TTS, o cambiar el checkpoint fine-tuneado que sirve vllm-tts. Sigue docs/TTS_FINETUNE.md.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.3",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "prompt": "{file:./.claude/agents/tts-finetune.md}",
       "permission": {
         "task": {
