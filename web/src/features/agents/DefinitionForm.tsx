@@ -32,7 +32,6 @@ import {
   FIELD_TYPES,
   type FieldDraft,
   FIRST_MESSAGE_DELAY_MS,
-  hasPhoneField,
   type FieldType,
   MAX_FIRST_MESSAGE,
   MAX_PROMPT,
@@ -43,7 +42,6 @@ import {
   sectionId,
   TURN_ATTENTION_DEFAULTS,
   type TurnAttentionDraft,
-  withPhoneField,
 } from './draft';
 import { ExternalSection } from './ExternalSection';
 import { HandoffEditor } from './HandoffSection';
@@ -592,37 +590,6 @@ export function DefinitionForm({
                 onChange={(e) => set({ recordingNotice: e.currentTarget.checked })}
               />
             )}
-            <Switch
-              label="Resumen por email después de cada llamada"
-              description={
-                <>
-                  Al cortar, Atentina le manda al cliente el resumen, los datos y la conversación. El
-                  cliente lo apaga o elige a quién le llega en Mi cuenta.
-                  {draft.callSummaryEmail && (
-                    <Text
-                      component="span"
-                      display="block"
-                      size="xs"
-                      mt={4}
-                      c={external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
-                    >
-                      {external
-                        ? 'Con tu propio agente no se piden datos: en las llamadas por el link el email va sin teléfono.'
-                        : hasPhoneField(draft)
-                          ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
-                          : 'Falta un dato de tipo Teléfono en el análisis: en las llamadas por el link el email va a ir sin teléfono.'}
-                    </Text>
-                  )}
-                </>
-              }
-              checked={draft.callSummaryEmail}
-              onChange={(e) => {
-                const on = e.currentTarget.checked;
-                update((d) =>
-                  on ? withPhoneField({ ...d, callSummaryEmail: true }) : { ...d, callSummaryEmail: false },
-                );
-              }}
-            />
             <NumberInput
               label="Ventana de contexto en WhatsApp (minutos)"
               description="Minutos sin mensaje del contacto para dar la conversación por terminada: la siguiente arranca de cero, sin el historial anterior. Vacío = el default del servidor (1440 min = 24 hs)."

@@ -133,9 +133,7 @@ class Client(IdMixin, TimestampMixin, Base):
     legal_name: Mapped[str] = mapped_column(String(128), default="", server_default="")
     tax_id: Mapped[str] = mapped_column(String(13), default="", server_default="")
     tax_condition: Mapped[str] = mapped_column(String(16), default="", server_default="")
-    # Resumen por email despues de cada llamada (app/mail/call_summary.py): lo prende cada agente
-    # (Workflow.call_summary_email) y el cliente lo apaga para todos desde Mi cuenta.
-    # call_emails_to: destinos; vacio = los usuarios activos del cliente.
+    # Sin uso desde que se quitó el resumen por email por llamada: quedan para poder volver atrás.
     call_emails: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     call_emails_to: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
     # Aviso "Esta llamada está siendo grabada" en las llamadas directas (siempre se graban).
@@ -284,6 +282,9 @@ class User(IdMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(128), default="")
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16))
+    # Dentro de un cliente: admin (maneja el panel y sus accesos) o user (atiende y usa las funciones). Nulo
+    # cuenta como Usuario; solo los usuarios `client` lo tienen.
+    client_role: Mapped[str | None] = mapped_column(String(8), nullable=True)
     client_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=True, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -157,7 +157,7 @@ async def start_call(s: Session, engine: ConversationEngine, agent_slug: str, vo
     limiter.check(key, [Limit(settings.demo_ip_calls_per_hour, HOUR), Limit(settings.demo_ip_calls_per_day, DAY)],
                   "Llegaste al límite de llamadas de prueba. Probá más tarde.")
     agent_id, client_id, group = await asyncio.to_thread(_demo_agent, s, agent_slug)
-    principal = Principal("demo", settings.demo_client, Role.client, client_id)
+    principal = Principal("demo", settings.demo_client, Role.client, client_id, client_role="admin")
     started = await calls.start_call(s, engine, principal, calls.CallRequest(
         agent_id=agent_id, voice=voice, max_duration_seconds=settings.demo_call_max_seconds,
         join_timeout_seconds=settings.demo_join_timeout_seconds, group_agent_ids=group,

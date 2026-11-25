@@ -6,7 +6,7 @@ from ...models import ApiKey
 from ...services import api_usage
 from ...services.errors import NotFound
 from ...services.security import generate_api_key
-from ..deps import DB, UserPrincipal
+from ..deps import DB, ClientAdminSessionPrincipal
 from ..schemas import ApiKeyCreated, ApiKeyIn, ApiKeyOut
 from .clients import get_client
 
@@ -14,13 +14,13 @@ router = APIRouter(prefix="/clients/{client_id}/api-keys", tags=["api-keys"])
 
 
 @router.get("", response_model=list[ApiKeyOut])
-def list_keys(client_id: str, p: UserPrincipal, db: DB):
+def list_keys(client_id: str, p: ClientAdminSessionPrincipal, db: DB):
     client = get_client(db, p, client_id)
     return list(db.scalars(select(ApiKey).where(ApiKey.client_id == client.id).order_by(ApiKey.created_at.desc())))
 
 
 @router.post("", response_model=ApiKeyCreated, status_code=201)
-def create_key(client_id: str, body: ApiKeyIn, p: UserPrincipal, db: DB):
+def create_key(client_id: str, body: ApiKeyIn, p: ClientAdminSessionPrincipal, db: DB):
     """La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta. `scopes` define
     para que sirve: `calls` (API de llamadas) o `llm`, `stt`, `tts` (API de inferencia)."""
     client = get_client(db, p, client_id)
@@ -33,7 +33,7 @@ def create_key(client_id: str, body: ApiKeyIn, p: UserPrincipal, db: DB):
 
 
 @router.delete("/{key_id}", status_code=204)
-def revoke_key(client_id: str, key_id: str, p: UserPrincipal, db: DB):
+def revoke_key(client_id: str, key_id: str, p: ClientAdminSessionPrincipal, db: DB):
     client = get_client(db, p, client_id)
     row = db.get(ApiKey, key_id)
     if row is None or row.client_id != client.id:

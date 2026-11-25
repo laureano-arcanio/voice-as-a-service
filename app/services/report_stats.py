@@ -918,7 +918,6 @@ def technical(s: Session, flt: ReportFilter) -> dict:
     errors = [{"reason": r, "count": n} for r, n in s.execute(
         _calls(flt, reason, func.count()).where(CallRow.status == "fallida").group_by(reason)
         .order_by(func.count().desc()))]
-    failed_mails = s.scalar(_calls(flt, func.count()).where(CallRow.summary_email == "failed"))
 
     hour = _hour(s, ConversationRow.created_at)
     tokens_day = {d: {"date": d, "input": 0, "output": 0} for d in flt.days()}
@@ -929,7 +928,7 @@ def technical(s: Session, flt: ReportFilter) -> dict:
         tokens_day[local.date()]["output"] += _n(o)
     return {
         "latency_daily": latency_daily, "by_provider": by_provider, "tools": tools,
-        "turns_avg": _avg(_n(user_msgs), _n(convs), 1), "errors": errors, "failed_summary_emails": _n(failed_mails),
+        "turns_avg": _avg(_n(user_msgs), _n(convs), 1), "errors": errors,
         "tokens": {"input": sum(d["input"] for d in tokens_day.values()),
                    "output": sum(d["output"] for d in tokens_day.values()), "by_day": list(tokens_day.values())},
     }

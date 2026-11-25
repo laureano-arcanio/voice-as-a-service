@@ -220,7 +220,8 @@ class Dialer:
             req = call_service.CallRequest(
                 agent_id=c.agent_id, phone=r.contact.phone, from_number_id=c.from_number_id, voice=c.voice,
                 campaign_contact_id=r.id, vars=r.vars)
-            principal = Principal(kind="campaign", id=c.id, role=Role.client, client_id=c.client_id)
+            principal = Principal(kind="campaign", id=c.id, role=Role.client, client_id=c.client_id,
+                                  client_role="admin")
             try:
                 await self._start_call(s, self._engine(), principal, req)
                 return True

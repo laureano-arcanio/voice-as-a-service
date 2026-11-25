@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ...mail import notify
 from ...models import Client, Role, User
+from ...services import handoff, team_access
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import hash_password
 from ..deps import DB, AdminPrincipal
@@ -43,15 +44,23 @@ def create_user(body: UserIn, p: AdminPrincipal, db: DB):
         if not body.client_id:
             raise Invalid("Un usuario de cliente necesita client_id")
         get_client(db, p, body.client_id)
-    elif body.client_id:
-        raise Invalid("Un admin no pertenece a un cliente")
+        client_role = body.client_role or team_access.ADMIN
+    else:
+        if body.client_id:
+            raise Invalid("Un admin no pertenece a un cliente")
+        if body.client_role:
+            raise Invalid("Un admin de la plataforma no tiene rol de cliente")
+        client_role = None
     user = User(email=body.email.lower(), name=body.name, password_hash=hash_password(body.password),
-                role=body.role, client_id=body.client_id)
+                role=body.role, client_id=body.client_id, client_role=client_role)
     db.add(user)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError:
+        db.rollback()
         raise Conflict(f"Ya existe un usuario {body.email}") from None
+    handoff.ensure_member(db, user)
+    db.commit()
     return _out(user, _client_name(db, user))
 
 
@@ -73,12 +82,19 @@ def update_user(user_id: str, body: UserUpdate, p: AdminPrincipal, db: DB):
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     if user.id == p.id and data.get("active") is False:
         raise Invalid("No podés desactivar tu propio usuario")
+    if data.get("client_role") and user.role != Role.client:
+        raise Invalid("Un admin de la plataforma no tiene rol de cliente")
+    if user.role == Role.client:
+        team_access.check_keeps_admin(db, user, client_role=data.get("client_role", user.client_role),
+                                      active=data.get("active", user.active))
     # Cambio de clave o desactivacion: cierra las sesiones abiertas (token con sv viejo).
     if password := data.pop("password", None):
         user.password_hash = hash_password(password)
         user.session_version += 1
     if data.get("active") is False and user.active:
         user.session_version += 1
+    if (name := data.pop("name", None)) is not None:
+        handoff.sync_name(db, user, name)
     for k, v in data.items():
         setattr(user, k, v)
     db.commit()
@@ -90,5 +106,8 @@ def delete_user(user_id: str, p: AdminPrincipal, db: DB):
     user = _get(db, user_id)
     if user.id == p.id:
         raise Invalid("No podés borrar tu propio usuario")
+    if user.role == Role.client:
+        team_access.check_keeps_admin(db, user, client_role=None, active=False)
+        handoff.delete_member_of_user(db, user)
     db.delete(user)
     db.commit()

@@ -30,6 +30,16 @@ DID = "+541152630861"
 
 
 def member(user, cid=None, **body):
+    """Crea una persona, o busca y edita la del usuario (`user_id`): cada usuario de cliente ya tiene una."""
+    user_id = body.pop("user_id", None)
+    if user_id:
+        rows = user.get(f"{V1}/team", params={"client_id": cid} if cid else None).json()
+        person = next(m for m in rows if m["user_id"] == user_id)
+        if not body:
+            return person
+        r = user.patch(f"{V1}/team/{person['id']}", json=body)
+        assert r.status_code == 200, r.text
+        return r.json()
     r = user.post(f"{V1}/team", params={"client_id": cid} if cid else None, json={"name": "Juan", **body})
     assert r.status_code == 201, r.text
     return r.json()
@@ -57,14 +67,14 @@ def test_team_normalizes_and_validates(api, admin):
 
 
 def test_team_is_per_client_and_capped_by_tier(api, admin):
-    acme = make_client(admin, max_team_members=1)
+    acme = make_client(admin, max_team_members=2)     # 2 = su dueña (usuario) y una persona más
     other = make_client(admin, slug="otro")
     theirs = member(admin, other["id"], phone="3511111111")
     user = client_user(api, admin, acme)
     member(user, phone="3516775617")
     r = user.post(f"{V1}/team", json={"name": "Otra", "phone": "3512222222"})
     assert r.status_code == 429 and r.json()["code"] == "team_members_limit"
-    assert [m["phone"] for m in user.get(f"{V1}/team").json()] == ["+5493516775617"]
+    assert [m["phone"] for m in user.get(f"{V1}/team").json() if m["phone"]] == ["+5493516775617"]
     assert user.patch(f"{V1}/team/{theirs['id']}", json={"name": "x"}).status_code == 404
     assert user.get(f"{V1}/team", params={"client_id": other["id"]}).status_code == 403
 

@@ -3,7 +3,13 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { ProbarRedirect } from '@/features/agents/ProbarRedirect';
 import { AppLayout } from '@/components/AppLayout';
 import { NotFound, RouteError } from '@/components/NotFound';
-import { FullPageLoader, RequireAdminArea, RequireAuth, RequireClientArea } from '@/features/auth/guards';
+import {
+  FullPageLoader,
+  RequireAdminArea,
+  RequireAuth,
+  RequireClientAdmin,
+  RequireClientArea,
+} from '@/features/auth/guards';
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { SetPasswordPage } from '@/features/auth/SetPasswordPage';
@@ -13,6 +19,16 @@ import { OAuthConsentPage } from '@/features/oauth/OAuthConsentPage';
 /** Pagina cargada a demanda (code splitting por ruta). */
 function page(load: () => Promise<ComponentType>): Pick<RouteObject, 'lazy'> {
   return { lazy: async () => ({ Component: await load() }) };
+}
+
+/** Pagina solo de un Admin del cliente (docs/features/EQUIPO_TELEFONIA.md). */
+function adminPage(load: () => Promise<ComponentType>): Pick<RouteObject, 'lazy'> {
+  return {
+    lazy: async () => {
+      const Component = await load();
+      return { Component: () => <RequireClientAdmin>{<Component />}</RequireClientAdmin> };
+    },
+  };
 }
 
 export const routes: RouteObject[] = [
@@ -142,10 +158,10 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'models',
-        ...page(async () => (await import('@/features/llm/ModelsPage')).ModelsPage),
+        ...adminPage(async () => (await import('@/features/llm/ModelsPage')).ModelsPage),
       },
       { path: 'tools', ...page(async () => (await import('@/features/tools/ToolsPage')).ToolsPage) },
-      { path: 'secrets', ...page(async () => (await import('@/features/tools/SecretsPage')).SecretsPage) },
+      { path: 'secrets', ...adminPage(async () => (await import('@/features/tools/SecretsPage')).SecretsPage) },
       {
         path: 'tools/new',
         ...page(async () => (await import('@/features/tools/ToolEditorPage')).ToolEditorPage),
@@ -156,7 +172,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'developers',
-        ...page(async () => (await import('@/features/developers/DevelopersPage')).DevelopersPage),
+        ...adminPage(async () => (await import('@/features/developers/DevelopersPage')).DevelopersPage),
       },
       {
         path: 'inference-requests',
@@ -164,13 +180,13 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'account',
-        ...page(async () => (await import('@/features/clients/AccountPage')).AccountPage),
+        ...adminPage(async () => (await import('@/features/clients/AccountPage')).AccountPage),
       },
       { path: 'profile', ...page(async () => (await import('@/features/auth/ProfilePage')).ProfilePage) },
-      { path: 'plan', ...page(async () => (await import('@/features/billing/PlanPage')).PlanPage) },
+      { path: 'plan', ...adminPage(async () => (await import('@/features/billing/PlanPage')).PlanPage) },
       {
         path: 'plan/pagar',
-        ...page(async () => (await import('@/features/billing/CheckoutPage')).CheckoutPage),
+        ...adminPage(async () => (await import('@/features/billing/CheckoutPage')).CheckoutPage),
       },
       {
         path: 'contacts',
@@ -199,7 +215,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'whatsapp',
-        ...page(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage),
+        ...adminPage(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage),
       },
       { path: '*', element: <NotFound /> },
     ],

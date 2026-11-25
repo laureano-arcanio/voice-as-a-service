@@ -396,3 +396,14 @@ def test_registered_transfer_notifies_admin_and_marks_client_paying(rosa, admin)
     [mail] = [m for m in rosa.outbox if m.to == "cobros@atentina.com.ar"]
     assert mail.subject.startswith("Cliente pagó:") and "Transferencia" in mail.text
     assert admin.get(f"{V1}/clients/{rosa.rosa_id}").json()["paying"] is True
+
+
+def test_billing_mails_go_only_to_the_admins(rosa, admin):  # noqa: F811
+    """Los avisos de cobro son de la cuenta: un Usuario activo no los recibe."""
+    r = admin.post(f"{V1}/users", json={"email": "operador@example.com", "password": "cliente-password-1",
+                                         "role": "client", "client_id": rosa.rosa_id, "client_role": "user"})
+    assert r.status_code == 201, r.text
+    rosa.outbox.clear()
+    _activate_paid(rosa, admin)
+    assert sorted({m.to for m in rosa.outbox}) == ["cobros@atentina.com.ar", "rosa@example.com"]
+    assert all(m.to != "operador@example.com" for m in rosa.outbox)

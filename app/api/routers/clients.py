@@ -1,6 +1,6 @@
 import math
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -22,15 +22,13 @@ from ...models import (
     WaAccount,
     WaThread,
 )
-from ...services import api_content, api_usage, branding, limits, phone_numbers, quota
+from ...services import api_content, api_usage, branding, handoff, limits, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
-from ..deps import DB, AdminPrincipal, CurrentPrincipal, SessionPrincipal
+from ..deps import DB, AdminPrincipal, CurrentPrincipal, SessionPrincipal, require_client_admin
 from ..schemas import (
     ApiContentSettingsIn,
     ApiContentSettingsOut,
-    CallEmailsIn,
-    CallEmailsOut,
     CallsUsageOut,
     ClientCreatedOut,
     ClientIn,
@@ -99,8 +97,15 @@ def create_client(body: ClientIn, _: AdminPrincipal, db: DB):
     owner = None
     if body.owner_email:
         owner = User(email=body.owner_email.lower(), name=body.owner_name.strip(),
-                     password_hash=unusable_password_hash(), role=Role.client, client_id=client.id)
+                     password_hash=unusable_password_hash(), role=Role.client, client_id=client.id,
+                     client_role="admin")
         db.add(owner)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            raise Conflict(f"Ya existe un usuario {body.owner_email}", "user_exists") from None
+        handoff.ensure_member(db, owner)
     try:
         db.commit()
     except IntegrityError:
@@ -157,34 +162,6 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
     api_content.drop_client(client_id)
 
 
-# ---------- resumen por email de cada llamada ----------
-
-def _call_emails_out(db, client: Client) -> CallEmailsOut:
-    agents = db.execute(select(Agent.name, Agent.definition).where(
-        Agent.client_id == client.id, Agent.archived_at.is_(None)).order_by(Agent.name)).all()
-    users = list(db.scalars(select(User.email).where(User.client_id == client.id, User.role == Role.client,
-                                                     User.active.is_(True)).order_by(User.email)))
-    return CallEmailsOut(enabled=client.call_emails, recipients=client.call_emails_to, default_recipients=users,
-                         agents=[name for name, d in agents if d.get("call_summary_email")])
-
-
-@router.get("/{client_id}/call-emails", response_model=CallEmailsOut)
-def read_call_emails(client_id: str, p: CurrentPrincipal, db: DB):
-    """Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que
-    agentes lo mandan."""
-    return _call_emails_out(db, get_client(db, p, client_id))
-
-
-@router.put("/{client_id}/call-emails", response_model=CallEmailsOut)
-def update_call_emails(client_id: str, body: CallEmailsIn, p: CurrentPrincipal, db: DB):
-    """El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos."""
-    client = get_client(db, p, client_id)
-    client.call_emails = body.enabled
-    client.call_emails_to = list(dict.fromkeys(str(e).lower() for e in body.recipients))
-    db.commit()
-    return _call_emails_out(db, client)
-
-
 # ---------- contenido de la API de inferencia (services/api_content.py) ----------
 
 def _api_content_out(db, client: Client) -> ApiContentSettingsOut:
@@ -200,7 +177,8 @@ def read_api_content(client_id: str, p: CurrentPrincipal, db: DB):
     return _api_content_out(db, get_client(db, p, client_id))
 
 
-@router.put("/{client_id}/api-content", response_model=ApiContentSettingsOut)
+@router.put("/{client_id}/api-content", response_model=ApiContentSettingsOut,
+            dependencies=[Depends(require_client_admin)])
 def update_api_content(client_id: str, body: ApiContentSettingsIn, p: SessionPrincipal, db: DB):
     """Solo con sesion del panel (ni API key ni OAuth). Apagarlo no borra lo guardado: vence con su plazo."""
     client = get_client(db, p, client_id)

@@ -29,15 +29,15 @@ def invite(user: User, client: Client, next_path: str | None = None) -> SendResu
 
 
 def number_assigned_mails(db: Session, number: PhoneNumber) -> list[Mail]:
-    """Un mail por usuario activo del cliente dueño del numero (cada uno con su link al dashboard).
-    Se arma antes de responder; el envio va aparte (`deliver`), sin la sesion de la base."""
+    """Un mail por Admin activo del cliente dueño del numero (cada uno con su link al dashboard). Un Usuario
+    no recibe avisos de la cuenta. Se arma antes de responder; el envio va aparte (`deliver`), sin la sesion."""
     if number.client_id is None:
         return []
     client = db.get(Client, number.client_id)
     agent = db.get(Agent, number.agent_id) if number.agent_id else None
     used = phone_numbers.numbers_count(db, client.id)
     users = db.scalars(select(User).where(User.client_id == client.id, User.role == Role.client,
-                                          User.active.is_(True)).order_by(User.email))
+                                          User.client_role == "admin", User.active.is_(True)).order_by(User.email))
     return [messages.number_assigned(email=u.email, name=u.name, client_name=client.name, number=number.e164,
                                      label=number.label, agent_name=agent.name if agent else None,
                                      numbers_used=used,

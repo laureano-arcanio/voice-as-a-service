@@ -393,7 +393,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
       ],
       turns_avg: 6,
       errors: [{ reason: 'timeout', count: 1 }],
-      failed_summary_emails: 0,
       tokens: { input: 1000, output: 200, by_day: [{ date: '2026-10-27', input: 1000, output: 200 }] },
     },
     'buscar_turno',

@@ -6,7 +6,10 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles, y cada uno trabaja en su área ([`ARQUITECTURA.md`](ARQUITECTURA.md#soporte-del-admin)):
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Su panel (`/`) tiene este menú (los grupos se
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Dentro del cliente hay dos roles
+  ([`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md#roles-y-acceso-al-panel)): **Admin** maneja el panel, los
+  accesos y los cobros; **Usuario** atiende y usa las funciones, y no ve en el menú Plan, API keys, Modelos,
+  Secretos, WhatsApp ni Números (esas URL lo llevan a Inicio). Su panel (`/`) tiene este menú (los grupos se
   despliegan con un click; arranca abierto el de la pantalla actual):
   - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
   - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos y Voces.
@@ -383,11 +386,15 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 
 - **Usuarios** (en el menú, o en la pestaña Usuarios de la ficha del cliente) > **Nuevo usuario**:
   - email, nombre, clave (10 caracteres o más) y rol;
-  - rol **cliente**: hay que elegir el cliente;
+  - rol **cliente**: hay que elegir el cliente y, en **Rol en el cliente**, si es **Admin** o **Usuario** (Admin
+    por defecto);
   - rol **admin**: no pertenece a ninguno.
 
-  La tabla muestra también el celular del registro, y si está verificado. Desde ahí se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
-  corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
+  La tabla muestra el celular del registro (y si está verificado), el rol en el cliente y el último ingreso. Desde
+  ahí se editan el nombre, la clave, el rol y el estado activo, y se borra: borrar un usuario de cliente borra
+  también su persona del equipo (sale de sus áreas). Desactivar corta su sesión en el acto. Nadie puede
+  desactivarse ni borrarse a sí mismo, y el último Admin activo del cliente no se desactiva, baja de rol ni se
+  borra (409 `last_admin`).
 - **API keys** (pestaña **API keys** de la ficha del cliente, o **Developers > API keys** en el menú del cliente) > **Nueva API key**
   (en la ficha del admin, el consumo de la API está en **Consumo y datos**):
   - Se elige el **acceso**: *Llamadas y agentes* (`calls`) y/o los motores de la API de inferencia: *LLM*, *Transcripción (STT)*
@@ -641,7 +648,7 @@ otro cliente.
    partida (asistente básico, una plantilla por rubro o en blanco). Te lleva a la pestaña **Conversación**.
 2. **Conversación**, **Análisis**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
    definición (agente, prompt, primer mensaje y variables; análisis con resumen y datos;
-   herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
+   herramientas, secretos y derivación; voz y grabación; modelo). Se valida mientras editás y
    **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
 4. **Probar:** **Hablar** (llamada de prueba) o conversación por texto, con un número de quien llama simulado y
@@ -841,11 +848,18 @@ Las personas del cliente a las que el agente les pasa una llamada o un chat, agr
 agente se elige en su definición, **Derivación a personas**.
 
 1. **Personas:** nombre, teléfono (para transferirle llamadas; solo Argentina), **Recibe WhatsApp** (le avisamos por
-   WhatsApp, a ese mismo teléfono, de los pedidos de sus áreas; sin teléfono no se puede prender) y **Usuario del
-   panel** (para que atienda llamadas desde el panel con Disponible; cada usuario es de una sola persona). Hace falta
-   teléfono o usuario: puede ser solo el usuario del panel. El tier limita cuántas. Con llamadas directas, la tabla suma **En el panel**: Disponible
-   (verde), En una llamada (amarillo), No disponible (gris) o raya si no tiene usuario. Las personas de un
-   número del equipo se eligen en Números, **Quién atiende**.
+   WhatsApp, a ese mismo teléfono, de los pedidos de sus áreas; sin teléfono no se puede prender) y **Acceso al
+   panel** (con email y **Rol en el panel**: Usuario o Admin). Con acceso se crea su usuario y le llega la
+   invitación para elegir la clave; la tabla muestra email, rol y si **Nunca entró**, el último ingreso o **Sin
+   acceso**. Hace falta teléfono o acceso al panel. El tier limita cuántas personas (el dueño incluido). Con
+   llamadas directas, la tabla suma **En el panel**: Disponible (verde), En una llamada (amarillo), No disponible
+   (gris) o raya si no tiene usuario. Las personas de un número del equipo se eligen en Números, **Quién atiende**.
+   - **Editar:** el email de quien ya tiene acceso es de solo lectura (lo cambia en Perfil con un código); se
+     cambian el rol y **Acceso al panel** (apagado cierra su sesión y conserva la persona) y, si nunca entró, se
+     **Reenvía la invitación**. No podés quitarte tu propio acceso. **Borrar** a quien tiene usuario borra también
+     su acceso.
+   - **Solo un Admin del cliente** agrega, edita, borra personas y áreas; un Usuario ve el equipo, las áreas y quién
+     está Disponible, y marca su propia disponibilidad.
 2. **Áreas:** nombre y qué atiende (lo lee el agente para elegir el área), personas en el orden en que se las
    llama (**En orden** o **Rotativa**), timbre por persona (20 s por defecto: el buzón de Claro atiende a los
    ~33 s), horario por día con días cerrados (o **Atiende siempre**), qué hace el agente si la persona corta
@@ -1035,6 +1049,6 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | "Falta aceptar las condiciones nuevas" (`terms_pending`) | Las llamadas directas exigen la versión vigente de las condiciones y la política de privacidad, y el cliente todavía no la aceptó. Un usuario del cliente (no el admin en soporte) las acepta en el aviso **Condiciones del servicio** al entrar al panel. Mientras tanto no se llama, no se atiende y no se puede poner un número en el equipo; las entrantes de un número del equipo van a su agente. |
 | "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos del plan. |
 | "No tenés un número para llamar" | El cliente no tiene números asignados: los asigna el admin (Números). |
-| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Usuario del panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su teléfono** primero, suena en el teléfono y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
+| No suena el timbre de una entrante en el panel | **Disponible** apagado, o el panel (pestaña) cerrado: solo suena con el panel abierto y Disponible prendido (se apaga solo sin señal de la pestaña por un minuto). Tu usuario tiene que estar en Tu equipo (**Acceso al panel**) y la persona, en el número (**Quién atiende**, **Suena primero**). Con **En su teléfono** primero, suena en el teléfono y recién después en el panel. Si el navegador no deja sonar, queda el aviso en la barra de abajo: hacé un clic en la página una vez. Estando en otra llamada no suena. |
 | Una entrante del equipo cae al agente, al mensaje o se corta | Nadie atendió o es fuera de horario (`team_no_answer`, `after_hours`): se aplica **Si nadie atiende o es fuera de horario** del número. También si el número está en el equipo pero sin personas activas con celular o usuario del panel. |
 | Se escucha el eco de la propia voz en una llamada del equipo | Usá auriculares. |

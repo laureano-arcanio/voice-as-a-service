@@ -23,8 +23,6 @@ export interface WorkflowView {
   external: boolean;
   agent: { name: string; language: string; voice: string | null };
   recordAudio: boolean;
-  /** Llamadas: resumen por email al cliente al terminar. */
-  callSummaryEmail: boolean;
   /** WhatsApp: ventana de contexto temporal (minutos sin mensaje del contacto para abrir otra
    * conversacion). null = el default global del servidor (1440 min = 24 hs). */
   waSessionMinutes: number | null;
@@ -75,7 +73,6 @@ export function readWorkflow(d: Definition): WorkflowView {
       voice: agent.voice ? str(agent.voice) : null,
     },
     recordAudio: d.record_audio === true,
-    callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     llm: (Array.isArray(obj(d.llm).stages) ? (obj(d.llm).stages as unknown[]) : []).map((raw) => {
       const st = obj(raw);

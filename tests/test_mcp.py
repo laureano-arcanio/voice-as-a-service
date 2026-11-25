@@ -135,7 +135,7 @@ def test_list_is_all_by_default_and_toolsets_pick(api, admin, full):
 
 def test_read_tools_work_with_the_key(api, full):
     c, agent, mcp = full
-    for name in ("whoami", "get_plan_features", "get_usage", "get_call_emails", "list_agents",
+    for name in ("whoami", "get_plan_features", "get_usage", "list_agents",
                  "get_agent_schema", "list_agent_templates", "list_voices", "list_calls", "get_report_summary",
                  "list_phone_numbers", "list_blocked_numbers", "list_whatsapp_accounts",
                  "list_contacts", "list_optouts", "get_campaign_plan", "list_campaigns",
@@ -281,7 +281,6 @@ def test_outbound_call_and_routing(api, full):
     assert len(ok(mcp.call("list_blocked_numbers"))["items"]) == 1
     ok(mcp.call("unblock_number", phone="+5491155559999"))
     assert ok(mcp.call("list_blocked_numbers"))["items"] == []
-    ok(Mcp(api, mcp.key, "account").call("update_call_emails", enabled=False))
 
 
 def test_direct_calls_tools(api, admin, full, monkeypatch):
@@ -331,7 +330,8 @@ def test_direct_calls_tools(api, admin, full, monkeypatch):
     assert ok(every.call("get_direct_call_settings")) == {"recording_notice": True}
 
     # El número lo atiende el equipo: personas en orden, dónde suena primero y el respaldo.
-    member = ok(every.call("create_team_member", name="Ana", user_id=user_id))
+    person = next(m for m in ok(every.call("list_team"))["items"] if m["user_id"] == user_id)
+    member = ok(every.call("update_team_member", member_id=person["id"], name="Ana"))
     number = ok(every.call("list_phone_numbers"))["items"][0]
     routed = ok(every.call("route_phone_number", number_id=number["id"], answer_mode="team", member_ids=[member["id"]],
                            ring_first="panel", ring_seconds=15, team_fallback="agent", agent_id=agent["id"]))

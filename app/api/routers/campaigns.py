@@ -31,7 +31,7 @@ from ...services import campaigns as common
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import Principal
 from ...whatsapp import campaigns as wa
-from ..deps import DB, CurrentPrincipal, scoped_client_id
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     CampaignContactIn,
     CampaignContactOut,
@@ -217,7 +217,7 @@ def list_campaigns(p: CurrentPrincipal, db: DB, client_id: str | None = None,
 
 
 @router.post("", response_model=CampaignCreated, status_code=201)
-async def create_campaign(body: CampaignIn, p: CurrentPrincipal, db: DB):
+async def create_campaign(body: CampaignIn, p: ClientAdminPrincipal, db: DB):
     """Crea la campaña en borrador, con sus contactos si vienen. Valida el plan. Con `start` la inicia
     en el mismo pedido (si algo falla, no queda nada). Lo que no entra vuelve en `skipped`."""
     created_by = p.id if p.kind == "user" else None
@@ -284,7 +284,7 @@ def get_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.patch("/{campaign_id}", response_model=CampaignOut)
-async def update_campaign(campaign_id: str, body: CampaignPatch, p: CurrentPrincipal, db: DB):
+async def update_campaign(campaign_id: str, body: CampaignPatch, p: ClientAdminPrincipal, db: DB):
     c, _ = _get_editable(db, campaign_id, p)
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None or k in NULLABLE}
     for key in ("starts_at", "ends_at"):
@@ -306,7 +306,7 @@ async def update_campaign(campaign_id: str, body: CampaignPatch, p: CurrentPrinc
 
 
 @router.delete("/{campaign_id}", status_code=204)
-def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def delete_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     """Solo en borrador (409 si ya empezo: se cancela)."""
     c, _ = _get_editable(db, campaign_id, p)
     common.delete(db, c)
@@ -314,7 +314,7 @@ def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/{campaign_id}/contacts", response_model=CampaignContactsAdded)
-def add_contacts(campaign_id: str, body: CampaignContactsIn, p: CurrentPrincipal, db: DB):
+def add_contacts(campaign_id: str, body: CampaignContactsIn, p: ClientAdminPrincipal, db: DB):
     """Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`) o nuevos
     (`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan."""
     c, _ = _get_editable(db, campaign_id, p)
@@ -387,7 +387,8 @@ async def _start(db, campaign_id: str, p: Principal, expected: str, conflict: st
 
 
 @router.post("/{campaign_id}/start", response_model=CampaignOut)
-async def start_campaign(campaign_id: str, p: CurrentPrincipal, db: DB, body: CampaignStartIn | None = None):
+async def start_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB,
+                        body: CampaignStartIn | None = None):
     """Inicia una campaña en borrador: valida el plan, el agente, el numero o la plantilla, y los
     contactos. Con `starts_at` futuro queda `scheduled` y arranca sola. Una campaña comercial pide
     `no_call_registry_checked` (Registro No Llame)."""
@@ -395,13 +396,14 @@ async def start_campaign(campaign_id: str, p: CurrentPrincipal, db: DB, body: Ca
 
 
 @router.post("/{campaign_id}/resume", response_model=CampaignOut)
-async def resume_campaign(campaign_id: str, p: CurrentPrincipal, db: DB, body: CampaignStartIn | None = None):
+async def resume_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB,
+                         body: CampaignStartIn | None = None):
     """Retoma una campaña pausada (a mano o por un problema), con las mismas validaciones."""
     return await _start(db, campaign_id, p, "paused", "Solo se retoma una campaña pausada", body)
 
 
 @router.post("/{campaign_id}/pause", response_model=CampaignOut)
-def pause_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def pause_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     c = _get(db, campaign_id, p)
     common.pause(db, c)
     db.commit()
@@ -409,7 +411,7 @@ def pause_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.post("/{campaign_id}/cancel", response_model=CampaignOut)
-def cancel_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
+def cancel_campaign(campaign_id: str, p: ClientAdminPrincipal, db: DB):
     """Termina la campaña: los pendientes no se mandan ni se llaman. Las respuestas siguen llegando al agente."""
     c = _get(db, campaign_id, p)
     common.cancel(db, c)

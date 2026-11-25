@@ -261,67 +261,103 @@ describe('equipo: pantalla', () => {
   });
 });
 
+describe('equipo: un Usuario no edita', () => {
+  it('no ve los botones de agregar, editar ni borrar', async () => {
+    mockApi();
+    renderWithProviders(<TeamPage />, { me: { ...CLIENT_USER, client_role: 'user' } });
+    expect(await screen.findByRole('columnheader', { name: 'Acceso al panel' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Agregar persona/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar a Ana Pérez' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Borrar a Ana Pérez' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Crear área/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('equipo: personas', () => {
-  it('pide teléfono o usuario del panel y crea', async () => {
+  it('pide teléfono o acceso al panel y crea', async () => {
     const calls = mockApi({ 'POST /api/v1/team': () => jsonResponse(ANA, 201) });
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: /Agregar persona/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
     await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ana Pérez');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
-    expect(await within(dialog).findByText('Cargá un teléfono o un usuario del panel')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Cargá un teléfono o dale acceso al panel')).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText('Teléfono'), '351 555-1234');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
     await waitFor(() => expect(sent(calls, 'POST', '/api/v1/team')).toBeDefined());
     expect(sent(calls, 'POST', '/api/v1/team')).toEqual({
       name: 'Ana Pérez',
       phone: '351 555-1234',
-      user_id: null,
       active: true,
       whatsapp_notify: false,
     });
   });
 
-  it('acepta una persona con solo el usuario del panel y ofrece los usuarios libres', async () => {
+  it('da acceso al panel con email y rol', async () => {
     const calls = mockApi({
-      'GET /api/v1/team/presence': () => jsonResponse(PRESENCE),
-      'POST /api/v1/team': () => jsonResponse({ ...ANA, user_id: 'u-2' }, 201),
+      'POST /api/v1/team': () =>
+        jsonResponse(
+          { ...ANA, email: 'sara@acme.com', user_id: 'u-2', role: 'user', panel_access: true },
+          201,
+        ),
     });
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: /Agregar persona/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
-    await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Marcos');
-    const user = within(dialog).getByRole('textbox', { name: /Usuario del panel/ });
-    await userEvent.click(user);
-    // Ana ya es una persona del equipo: solo queda el usuario libre.
-    expect(screen.queryByRole('option', { name: 'Ana Pérez', hidden: true })).not.toBeInTheDocument();
-    await userEvent.click(await screen.findByRole('option', { name: 'Marcos', hidden: true }));
+    await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Sara');
+    await userEvent.click(within(dialog).getByRole('switch', { name: /Acceso al panel/ }));
+    await userEvent.type(within(dialog).getByLabelText('Email'), 'sara@acme.com');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
     await waitFor(() => expect(sent(calls, 'POST', '/api/v1/team')).toBeDefined());
-    expect(sent(calls, 'POST', '/api/v1/team')).toEqual({
-      name: 'Marcos',
+    expect(sent(calls, 'POST', '/api/v1/team')).toMatchObject({
+      name: 'Sara',
       phone: null,
-      user_id: 'u-2',
-      active: true,
-      whatsapp_notify: false,
+      email: 'sara@acme.com',
+      role: 'user',
     });
   });
 
-  it('al editar, el usuario de la persona sigue elegido y se conserva', async () => {
+  it('al editar un usuario, el email es de solo lectura y se cambian el rol y el acceso', async () => {
+    const person = { ...ANA, user_id: 'u-1', email: 'ana@acme.com', role: 'admin' as const, panel_access: true };
     const calls = mockApi({
-      'GET /api/v1/team': () => jsonResponse([{ ...ANA, user_id: 'u-1' }, LUIS]),
-      'GET /api/v1/team/presence': () => jsonResponse(PRESENCE),
-      'PATCH /api/v1/team/m1': () => jsonResponse(ANA),
+      'GET /api/v1/team': () => jsonResponse([person]),
+      'PATCH /api/v1/team/m1': () => jsonResponse({ ...person, role: 'user', panel_access: false }),
     });
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: 'Editar a Ana Pérez' }));
     const dialog = await screen.findByRole('dialog', { name: 'Editar a Ana Pérez' });
-    await waitFor(() =>
-      expect(within(dialog).getByRole('textbox', { name: /Usuario del panel/ })).toHaveValue('Ana Pérez'),
-    );
+    expect(within(dialog).getByLabelText('Email')).toHaveValue('ana@acme.com');
+    expect(within(dialog).getByLabelText('Email')).toBeDisabled();
+    await userEvent.click(within(dialog).getByText('Usuario'));
+    await userEvent.click(within(dialog).getByRole('switch', { name: /Acceso al panel/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toBeDefined());
-    expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toMatchObject({ user_id: 'u-1' });
+    expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toMatchObject({ role: 'user', panel_access: false });
+  });
+
+  it('reenvía la invitación de quien nunca entró', async () => {
+    const person = { ...ANA, user_id: 'u-1', email: 'ana@acme.com', role: 'admin' as const, panel_access: true };
+    const calls = mockApi({
+      'GET /api/v1/team': () => jsonResponse([person]),
+      'POST /api/v1/team/m1/invite': () =>
+        jsonResponse({ email: 'ana@acme.com', status: 'disabled', error: null }),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar a Ana Pérez' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar a Ana Pérez' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reenviar invitación' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/team/m1/invite')).toBe(true),
+    );
+  });
+
+  it('no deja quitarse el acceso a uno mismo', async () => {
+    const person = { ...ANA, user_id: 'u-client', email: 'ana@acme.com', role: 'admin' as const, panel_access: true };
+    mockApi({ 'GET /api/v1/team': () => jsonResponse([person]) });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar a Ana Pérez' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar a Ana Pérez' });
+    expect(within(dialog).getByRole('switch', { name: /Acceso al panel/ })).toBeDisabled();
   });
 
   it('borra con confirmación y avisa de qué áreas sale', async () => {

@@ -67,7 +67,6 @@ from .campaigns.callbacks import callback_loop
 from .campaigns.loop import campaign_loop
 from .config import settings
 from .conversation.workflows import post_call_loop
-from .mail.call_summary import call_summary_loop
 from .mcp import server as mcp_server
 from .services.demo import allowed_origins
 from .services.line_recordings import line_recordings_loop
@@ -90,11 +89,9 @@ async def lifespan(app: FastAPI):
     webhooks = asyncio.create_task(callback_loop())
     # Vencimientos de los planes pagos y registros sin activar (app/billing/loop.py).
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
-    # Resumen por email de cada llamada, para el cliente (app/mail/call_summary.py).
-    call_summaries = asyncio.create_task(call_summary_loop())
     # Texto a voz y transcripcion, de a un trabajo por motor (app/services/studio.py).
     studio_jobs = asyncio.create_task(studio_loop())
-    # Post-call de los agentes: durable, como el resumen por email (app/conversation/workflows.py).
+    # Post-call de los agentes (app/conversation/workflows.py).
     post_calls = asyncio.create_task(post_call_loop())
     # Rotacion por WhatsApp de texto: tramos vencidos y entregas por retomar (app/whatsapp/handoffs.py).
     wa_handoffs = asyncio.create_task(handoff_loop())
@@ -107,7 +104,6 @@ async def lifespan(app: FastAPI):
     sending.cancel()
     webhooks.cancel()
     billing_sweep.cancel()
-    call_summaries.cancel()
     studio_jobs.cancel()
     post_calls.cancel()
     wa_handoffs.cancel()

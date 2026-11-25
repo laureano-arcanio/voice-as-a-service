@@ -1036,110 +1036,6 @@
     }
    }
   },
-  "/api/v1/clients/{client_id}/call-emails": {
-   "get": {
-    "tags": [
-     "clients"
-    ],
-    "summary": "Read Call Emails",
-    "description": "Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que\nagentes lo mandan.",
-    "operationId": "read_call_emails_api_v1_clients__client_id__call_emails_get",
-    "security": [
-     {
-      "HTTPBearer": []
-     }
-    ],
-    "parameters": [
-     {
-      "name": "client_id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string",
-       "title": "Client Id"
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/CallEmailsOut"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   },
-   "put": {
-    "tags": [
-     "clients"
-    ],
-    "summary": "Update Call Emails",
-    "description": "El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos.",
-    "operationId": "update_call_emails_api_v1_clients__client_id__call_emails_put",
-    "security": [
-     {
-      "HTTPBearer": []
-     }
-    ],
-    "parameters": [
-     {
-      "name": "client_id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string",
-       "title": "Client Id"
-      }
-     }
-    ],
-    "requestBody": {
-     "required": true,
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/CallEmailsIn"
-       }
-      }
-     }
-    },
-    "responses": {
-     "200": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/CallEmailsOut"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
   "/api/v1/clients/{client_id}/api-content": {
    "get": {
     "tags": [
@@ -10169,7 +10065,7 @@
      "handoff"
     ],
     "summary": "Create Member",
-    "description": "Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas y, con\n`whatsapp_notify`, para avisarle por WhatsApp. Cuenta para el tope del plan (`max_team_members`).",
+    "description": "Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas y, con\n`whatsapp_notify`, para avisarle por WhatsApp. Cuenta para el tope del plan (`max_team_members`).\nCon `email` le da acceso al panel (rol `user` por defecto) y le manda la invitación.",
     "operationId": "create_member_api_v1_team_post",
     "security": [
      {
@@ -10210,7 +10106,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/TeamMemberOut"
+         "$ref": "#/components/schemas/TeamMemberCreatedOut"
         }
        }
       }
@@ -10267,7 +10163,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/TeamMemberOut"
+         "$ref": "#/components/schemas/TeamMemberCreatedOut"
         }
        }
       }
@@ -10289,6 +10185,7 @@
      "handoff"
     ],
     "summary": "Delete Member",
+    "description": "Saca a la persona. Si tiene usuario, borra también su acceso (las llamadas viejas quedan sin usuario);\npara conservarlo, quitale el acceso con `panel_access: false`.",
     "operationId": "delete_member_api_v1_team__member_id__delete",
     "security": [
      {
@@ -10309,6 +10206,54 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/team/{member_id}/invite": {
+   "post": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Invite Member",
+    "description": "Reenvía la invitación para crear la clave (usuario activo del panel).",
+    "operationId": "invite_member_api_v1_team__member_id__invite_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "member_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Member Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -17805,71 +17750,6 @@
     ],
     "title": "CallDetail"
    },
-   "CallEmailsIn": {
-    "properties": {
-     "enabled": {
-      "type": "boolean",
-      "title": "Enabled"
-     },
-     "recipients": {
-      "items": {
-       "type": "string",
-       "format": "email"
-      },
-      "type": "array",
-      "maxItems": 10,
-      "title": "Recipients",
-      "description": "Destinos; vacio = los usuarios activos del cliente"
-     }
-    },
-    "type": "object",
-    "required": [
-     "enabled"
-    ],
-    "title": "CallEmailsIn",
-    "description": "Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su\ndefinicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente."
-   },
-   "CallEmailsOut": {
-    "properties": {
-     "enabled": {
-      "type": "boolean",
-      "title": "Enabled"
-     },
-     "recipients": {
-      "items": {
-       "type": "string",
-       "format": "email"
-      },
-      "type": "array",
-      "maxItems": 10,
-      "title": "Recipients",
-      "description": "Destinos; vacio = los usuarios activos del cliente"
-     },
-     "default_recipients": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "title": "Default Recipients",
-      "description": "Usuarios activos del cliente (los destinos si recipients va vacio)"
-     },
-     "agents": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "title": "Agents",
-      "description": "Agentes del cliente (no archivados) con el resumen prendido"
-     }
-    },
-    "type": "object",
-    "required": [
-     "enabled",
-     "default_recipients",
-     "agents"
-    ],
-    "title": "CallEmailsOut"
-   },
    "CallHangupOut": {
     "properties": {
      "status": {
@@ -24990,6 +24870,21 @@
       "type": "boolean",
       "title": "Support",
       "default": false
+     },
+     "client_role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Role"
      }
     },
     "type": "object",
@@ -29326,10 +29221,6 @@
       "title": "Errors",
       "description": "Llamadas fallidas por motivo"
      },
-     "failed_summary_emails": {
-      "type": "integer",
-      "title": "Failed Summary Emails"
-     },
      "tokens": {
       "$ref": "#/components/schemas/ReportTokensOut"
      }
@@ -29341,7 +29232,6 @@
      "tools",
      "turns_avg",
      "errors",
-     "failed_summary_emails",
      "tokens"
     ],
     "title": "ReportTechnicalOut"
@@ -31949,6 +31839,122 @@
     ],
     "title": "SystemVariableOut"
    },
+   "TeamMemberCreatedOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role"
+     },
+     "panel_access": {
+      "type": "boolean",
+      "title": "Panel Access",
+      "default": false
+     },
+     "last_login_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Login At"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "whatsapp_notify": {
+      "type": "boolean",
+      "title": "Whatsapp Notify"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "invite": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InviteOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "name",
+     "phone",
+     "user_id",
+     "active",
+     "whatsapp_notify",
+     "created_at"
+    ],
+    "title": "TeamMemberCreatedOut"
+   },
    "TeamMemberIn": {
     "properties": {
      "name": {
@@ -31970,17 +31976,34 @@
       "title": "Phone",
       "description": "Para transferir llamadas (Argentina)"
      },
-     "user_id": {
+     "email": {
       "anyOf": [
        {
-        "type": "string"
+        "type": "string",
+        "format": "email"
        },
        {
         "type": "null"
        }
       ],
-      "title": "User Id",
-      "description": "Usuario del panel (softphone web)"
+      "title": "Email",
+      "description": "Si viene, da acceso al panel: crea su usuario y le manda la invitación (solo con sesión del panel)"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role",
+      "description": "Rol dentro del cliente al dar acceso; sin indicarlo, user"
      },
      "active": {
       "type": "boolean",
@@ -31994,6 +32017,7 @@
       "default": false
      }
     },
+    "additionalProperties": false,
     "type": "object",
     "required": [
      "name"
@@ -32035,6 +32059,49 @@
        }
       ],
       "title": "User Id"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role"
+     },
+     "panel_access": {
+      "type": "boolean",
+      "title": "Panel Access",
+      "default": false
+     },
+     "last_login_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Login At"
      },
      "active": {
       "type": "boolean",
@@ -32090,16 +32157,45 @@
       ],
       "title": "Phone"
      },
-     "user_id": {
+     "email": {
       "anyOf": [
        {
-        "type": "string"
+        "type": "string",
+        "format": "email"
        },
        {
         "type": "null"
        }
       ],
-      "title": "User Id"
+      "title": "Email",
+      "description": "Da acceso a una persona que no lo tiene (solo con sesión del panel). Si ya tiene usuario, 422 email_readonly: lo cambia el usuario en Perfil con un código"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role"
+     },
+     "panel_access": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Panel Access",
+      "description": "false desactiva el usuario y cierra sus sesiones; true lo reactiva"
      },
      "active": {
       "anyOf": [
@@ -32124,6 +32220,7 @@
       "title": "Whatsapp Notify"
      }
     },
+    "additionalProperties": false,
     "type": "object",
     "title": "TeamMemberPatch"
    },
@@ -34128,6 +34225,22 @@
        }
       ],
       "title": "Client Id"
+     },
+     "client_role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Role",
+      "description": "Dentro del cliente; en un usuario client, sin indicarlo, admin"
      }
     },
     "type": "object",
@@ -34155,6 +34268,17 @@
      "role": {
       "type": "string",
       "title": "Role"
+     },
+     "client_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Role"
      },
      "client_id": {
       "anyOf": [
@@ -34275,6 +34399,21 @@
        }
       ],
       "title": "Active"
+     },
+     "client_role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "admin",
+         "user"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Role"
      }
     },
     "type": "object",

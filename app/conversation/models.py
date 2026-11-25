@@ -247,9 +247,6 @@ class Workflow(BaseModel):
     record_audio: bool = False
     # Con record_audio, el agente dice "Esta llamada está siendo grabada." antes de la apertura.
     recording_notice: bool = False
-    # Llamadas: al terminar, Atentina le manda al cliente un email con el resumen (datos, resultado y
-    # transcripcion; app/mail/call_summary.py). El cliente lo puede apagar para todos (clients.call_emails).
-    call_summary_email: bool = False
     # WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y que
     # la siguiente arranque en limpio, sin el historial previo (ventana de contexto temporal).
     # None: el default global del servidor (WA_SESSION_HOURS, 1440 min = 24 hs).

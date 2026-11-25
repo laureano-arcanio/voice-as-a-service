@@ -3,7 +3,6 @@
   "version": 1,
   "record_audio": false,
   "recording_notice": false,
-  "call_summary_email": false,
   "first_message_audio": true,
   "first_message_delay_ms": 200,
   "generation": {

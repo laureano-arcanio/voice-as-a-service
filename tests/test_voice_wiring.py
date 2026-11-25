@@ -1043,3 +1043,19 @@ def test_transfer_that_ends_the_call_does_not_rearm(api, admin, client, monkeypa
 
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
     assert h.call(inbound_id(api)).ended_reason != "no_response"
+
+
+def test_a_saved_definition_with_call_summary_email_still_validates(workflow):
+    """Se quitó el resumen por email: la definición guardada valida y el campo extra se ignora."""
+    from app.conversation.models import Workflow
+
+    w = Workflow.model_validate({**workflow.model_dump(), "call_summary_email": True})
+    assert not hasattr(w, "call_summary_email")
+
+
+def test_the_call_does_not_leave_a_summary_email_pending(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
+    always_agent(admin, client, mock_api_url)
+    h = Harness(api, monkeypatch)
+    asyncio.run(h.run({}, attributes=inbound_attributes()))
+    with api.sessions() as s:
+        assert s.get(CallRow, inbound_id(api)).summary_email is None

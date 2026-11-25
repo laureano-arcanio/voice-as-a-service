@@ -155,8 +155,6 @@ export interface Draft {
   recordAudio: boolean;
   /** Con recordAudio, el agente avisa que la llamada se graba antes de la apertura. */
   recordingNotice: boolean;
-  /** Llamadas: al terminar, Atentina le manda al cliente el resumen por email (el cliente lo apaga en Mi cuenta). */
-  callSummaryEmail: boolean;
   /** WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y abrir
    * otra en limpio (ventana de contexto temporal). null = el default global del servidor
    * (WA_SESSION_HOURS, 1440 min = 24 hs). */
@@ -507,7 +505,6 @@ export function toDraft(d: Definition): Draft {
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
     recordingNotice: d.recording_notice === true,
-    callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     prompt: str(d.prompt),
     firstMessage: str(d.first_message),
@@ -575,7 +572,6 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     ...(draft.recordAudio ? { record_audio: true } : {}),
     ...(draft.recordAudio && draft.recordingNotice ? { recording_notice: true } : {}),
-    ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
     ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
     // Con el agente del cliente no hay LLM nuestro: ni etapas ni parametros.
     ...(!external && draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
@@ -770,7 +766,6 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (
     head === 'record_audio' ||
     head === 'recording_notice' ||
-    head === 'call_summary_email' ||
     head === 'wa_session_minutes'
   )
     return { section: 'voz' };
@@ -806,7 +801,6 @@ const PATH_WORDS: Record<string, string> = {
   voice: 'voz',
   record_audio: 'grabar audio',
   recording_notice: 'avisar que se graba',
-  call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
   prompt: 'Prompt',
   first_message: 'Primer mensaje',

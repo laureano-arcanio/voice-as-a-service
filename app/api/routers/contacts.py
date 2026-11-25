@@ -15,9 +15,9 @@ from sqlalchemy.exc import IntegrityError
 
 from ...models import Campaign, CampaignContact, Client, Contact
 from ...services import contacts, phones
-from ...services.errors import Conflict, Invalid, NotFound, QuotaExceeded
+from ...services.errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded
 from ...services.security import Principal
-from ..deps import DB, CurrentPrincipal, scoped_client_id
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     ContactCampaignOut,
     ContactImportIn,
@@ -100,6 +100,9 @@ def upsert_contacts(body: ContactIn | list[ContactIn], p: CurrentPrincipal, db: 
     rows = [body] if single else body
     if not rows or len(rows) > MAX_BATCH:
         raise Invalid(f"La lista va de 1 a {MAX_BATCH} contactos")
+    if len(rows) > 1 and not p.client_admin:
+        raise Forbidden("Para cargar varios contactos a la vez tiene que ser un Admin del cliente",
+                        "client_admin_required")
     result = contacts.upsert(db, cid, [contacts.ContactRow(**r.model_dump()) for r in rows], source="api")
     if single and result.invalid:
         db.rollback()
@@ -114,7 +117,7 @@ def upsert_contacts(body: ContactIn | list[ContactIn], p: CurrentPrincipal, db: 
 
 
 @router.post("/import", response_model=ContactsUpsertOut)
-def import_contacts(body: ContactImportIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
+def import_contacts(body: ContactImportIn, p: ClientAdminPrincipal, db: DB, client_id: str | None = None):
     """Carga un CSV (upsert por telefono). Devuelve creados, actualizados e invalidos con su fila y
     el motivo."""
     cid = _client_id(db, p, client_id)
@@ -124,7 +127,7 @@ def import_contacts(body: ContactImportIn, p: CurrentPrincipal, db: DB, client_i
 
 
 @router.post("/archive", response_model=ContactsArchiveOut)
-def archive_contacts(body: ContactsArchiveIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
+def archive_contacts(body: ContactsArchiveIn, p: ClientAdminPrincipal, db: DB, client_id: str | None = None):
     """Archiva en lote, por ids. Sus intentos pendientes en campañas abiertas
     pasan a salteados."""
     cid = _client_id(db, p, client_id)
@@ -146,7 +149,7 @@ def list_optouts(p: CurrentPrincipal, db: DB, client_id: str | None = None, chan
 
 
 @router.post("/optouts", response_model=ContactOptoutOut, status_code=201)
-def add_optout(body: ContactOptoutIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
+def add_optout(body: ContactOptoutIn, p: ClientAdminPrincipal, db: DB, client_id: str | None = None):
     """Pone un telefono en la lista de no contactar de un canal (o de todos). Ninguna campaña de
     ese canal le escribe ni lo llama."""
     cid = _client_id(db, p, client_id)
@@ -156,7 +159,7 @@ def add_optout(body: ContactOptoutIn, p: CurrentPrincipal, db: DB, client_id: st
 
 
 @router.delete("/optouts/{phone}", status_code=204)
-def remove_optout(phone: str, p: CurrentPrincipal, db: DB, client_id: str | None = None,
+def remove_optout(phone: str, p: ClientAdminPrincipal, db: DB, client_id: str | None = None,
                   channel: Annotated[OptoutChannel | None, Query(description="Sin canal, de todos")] = None):
     """Saca un telefono de la lista de bajas, del canal indicado o de todos."""
     cid = _client_id(db, p, client_id)

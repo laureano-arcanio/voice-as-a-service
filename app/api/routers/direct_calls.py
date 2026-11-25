@@ -12,7 +12,7 @@ from fastapi import APIRouter
 
 from ...services import direct_calls as service
 from ...services.errors import Invalid
-from ..deps import DB, CurrentPrincipal, scoped_client_id
+from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     DirectCallIn,
     DirectCallOut,
@@ -93,7 +93,7 @@ def get_settings(client_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/clients/{client_id}/direct-call-settings", response_model=DirectCallSettings)
-def update_settings(client_id: str, body: DirectCallSettings, p: CurrentPrincipal, db: DB):
+def update_settings(client_id: str, body: DirectCallSettings, p: ClientAdminPrincipal, db: DB):
     """Aviso "Esta llamada está siendo grabada" al empezar las llamadas directas (siempre se graban; avisar y
     tener el consentimiento es responsabilidad del cliente)."""
     return service.update_settings(db, get_client(db, p, client_id), body.recording_notice)

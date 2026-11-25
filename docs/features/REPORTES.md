@@ -46,7 +46,7 @@ el `loadtest` nunca entra).
 | `GET /reports/transfers` | `advanced_reports` | KPIs (pedidas, atendidas, no atendidas, sin nadie, tiempo de respuesta, minutos), por día, área y persona; WhatsApp (asignadas, primera respuesta, reasignadas) |
 | `GET /reports/split` | `advanced_reports` | `has_data` (hay alguna llamada con brazo en la historia, no solo en el período); `groups` por experimento, porcentaje y brazo: llamadas, llamantes distintos, `reasons` (sorteo, tope, agente o equipo no disponible), `statuses`, `ended`, duración p25/p50/p75/p90, cortes antes de 15 s, derivaciones pedidas y atendidas, rellamadas en 24 h; `both_arms`: llamantes con llamadas en los dos brazos del mismo experimento y porcentaje, con `arms` y `rest` |
 | `GET /reports/campaigns` | `advanced_reports` | por campaña (contactos, intentos, alcanzados, completos, bajas, minutos), motivos de no contacto, mejores horarios |
-| `GET /reports/technical` | admin | latencia p50/p95 por día y etapa (STT, EOU, LLM, TTS), por proveedor del LLM, herramientas (errores, p50/p95), errores, mails de resumen fallidos, tokens |
+| `GET /reports/technical` | admin | latencia p50/p95 por día y etapa (STT, EOU, LLM, TTS), por proveedor del LLM, herramientas (errores, p50/p95), errores, tokens |
 | `GET /reports/platform` | admin, sin `client_id` | tabla por cliente, alertas (`near_quota` ≥ 80 % de los minutos del plan, o de los entrantes en el modo separado; `inactive` 14 días sin conversaciones), negocio (planes, altas, MRR, pagos, morosos, Free → pago), operación (pico de simultáneas, fallas, rechazos) |
 
 Sin el plan: 403 `advanced_reports_not_in_plan` (el admin no tiene el corte). El consumo del plan no está acá:

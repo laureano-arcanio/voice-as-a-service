@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
 import { phoneKeys } from '@/features/phone/api';
-import type { HandoffAreaIn, HandoffAreaPatch, TeamMemberIn, TeamMemberPatch } from '@/api/types';
+import type {
+  HandoffAreaIn,
+  HandoffAreaPatch,
+  TeamMemberCreated,
+  TeamMemberIn,
+  TeamMemberPatch,
+} from '@/api/types';
 
 // Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md). Un admin pasa
 // client_id; sin el, ve los de todos los clientes.
@@ -71,11 +77,19 @@ function useInvalidate() {
 export function useSaveMember(clientId?: string) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ id, body }: { id?: string; body: TeamMemberIn & TeamMemberPatch }) =>
+    mutationFn: ({ id, body }: { id?: string; body: TeamMemberIn & TeamMemberPatch }): Promise<TeamMemberCreated> =>
       id
         ? unwrap(api.PATCH('/api/v1/team/{member_id}', { params: { path: { member_id: id } }, body }))
         : unwrap(api.POST('/api/v1/team', { params: { query: { client_id: clientId } }, body })),
     onSuccess: invalidate,
+  });
+}
+
+/** Reenvía la invitación para crear la clave (persona con acceso que todavía no entró). */
+export function useInviteMember() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      unwrap(api.POST('/api/v1/team/{member_id}/invite', { params: { path: { member_id: id } } })),
   });
 }
 

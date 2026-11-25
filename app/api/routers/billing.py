@@ -9,7 +9,7 @@ from ...db import utcnow
 from ...mail import messages, notify
 from ...models import BillingPayment, Client, PhoneNumber, Subscription, Tier, User
 from ...services.errors import Invalid, NotFound
-from ..deps import DB, AdminPrincipal, UserPrincipal, require_not_support
+from ..deps import DB, AdminPrincipal, ClientAdminUserPrincipal, require_not_support
 from ..schemas import (
     BankRow,
     BillingOut,
@@ -80,13 +80,13 @@ def _billing(db, client: Client) -> BillingOut:
 # ---------- pantalla Plan (cliente; un admin tambien la ve) ----------
 
 @router.get("/clients/{client_id}/billing", response_model=BillingOut)
-def read_billing(client_id: str, p: UserPrincipal, db: DB):
+def read_billing(client_id: str, p: ClientAdminUserPrincipal, db: DB):
     """Plan actual, suscripcion, planes que se pueden contratar, datos fiscales y pagos."""
     return _billing(db, get_client(db, p, client_id))
 
 
 @router.post("/clients/{client_id}/billing/subscribe", response_model=BillingOut)
-def subscribe(client_id: str, body: SubscribeIn, p: UserPrincipal, db: DB):
+def subscribe(client_id: str, body: SubscribeIn, p: ClientAdminUserPrincipal, db: DB):
     """Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al
     usuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al
     registrar el proximo pago. Con Mercado Pago (`card_token_id`): debito automatico, cobra el primer mes
@@ -112,7 +112,7 @@ def subscribe(client_id: str, body: SubscribeIn, p: UserPrincipal, db: DB):
 
 
 @router.post("/clients/{client_id}/billing/cancel", response_model=BillingOut)
-def cancel(client_id: str, p: UserPrincipal, db: DB):
+def cancel(client_id: str, p: ClientAdminUserPrincipal, db: DB):
     """Da de baja el plan pago: sigue hasta el fin del periodo pagado y despues pasa al gratuito."""
     require_not_support(p)
     client = get_client(db, p, client_id)
@@ -122,7 +122,7 @@ def cancel(client_id: str, p: UserPrincipal, db: DB):
 
 
 @router.put("/clients/{client_id}/billing/fiscal", response_model=BillingOut)
-def update_fiscal(client_id: str, body: FiscalIn, p: UserPrincipal, db: DB):
+def update_fiscal(client_id: str, body: FiscalIn, p: ClientAdminUserPrincipal, db: DB):
     """Datos para la factura."""
     require_not_support(p)
     client = get_client(db, p, client_id)

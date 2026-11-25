@@ -133,8 +133,10 @@ def _admin_client_url(client: Client) -> str:
 
 
 def _users(s: Session, client_id: str) -> list[User]:
+    """Los Admin activos del cliente: los avisos de cobro son de la cuenta."""
     return list(s.scalars(select(User).where(User.client_id == client_id, User.role == Role.client,
-                                             User.active.is_(True)).order_by(User.email)))
+                                              User.client_role == "admin", User.active.is_(True))
+                          .order_by(User.email)))
 
 
 # ---------- pedidos del cliente ----------

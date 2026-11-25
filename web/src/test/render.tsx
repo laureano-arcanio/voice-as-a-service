@@ -25,6 +25,8 @@ export const CLIENT_USER: Me = {
   role: 'client',
   client_id: 'c-1',
   client_name: 'Acme',
+  client_role: 'admin',
+  support: false,
 };
 
 /** Renderiza con Mantine, React Query (con `me` precargado si se pasa) y un router en memoria. */

@@ -10,7 +10,7 @@ Las de escritura toman los campos del cuerpo del modelo Pydantic de la ruta (`bo
 `components` del OpenAPI): el `inputSchema` sale de ahí, así no se desfasa de la API.
 """
 import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 # Grupos para `/mcp?toolsets=...`. `core` es el default.
 TOOLSETS = {
@@ -60,6 +60,7 @@ class Tool:
     session: bool = False                 # la ruta exige un usuario (OAuth): con API key, `needs_oauth`
     api_key_only: bool = False            # la ruta solo acepta API keys (inferencia): con OAuth, `needs_api_key`
     upload: str | None = None             # multipart: este argumento (base64) va como el archivo `file`
+    admin_only: bool = False              # solo la ve y la llama un Admin del cliente (ni un Usuario)
 
     @property
     def client_scoped(self) -> bool:
@@ -185,9 +186,6 @@ _READ: tuple[Tool, ...] = (
          "para \"¿alcanza el plan?\".",
          path="/clients/{client_id}/usage",
          params={"month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")}),
-    Tool("get_call_emails", "account", "Resumen por email",
-         "Si el resumen por email de cada llamada está prendido para el cliente y a qué direcciones llega.",
-         path="/clients/{client_id}/call-emails"),
     Tool("get_direct_call_settings", "account", "Aviso de grabación de las llamadas directas",
          "Si las llamadas directas (las que hace o atiende una persona del equipo) avisan \"Esta llamada está "
          "siendo grabada\" al empezar. Se graban siempre.", path="/clients/{client_id}/direct-call-settings",
@@ -425,10 +423,6 @@ _WRITE: tuple[Tool, ...] = (
     Tool("list_api_keys", "account", "API keys",
          "Las API keys del cliente (nombre, prefijo, alcances, último uso); nunca la clave.",
          path="/clients/{client_id}/api-keys", session=True),
-    Tool("update_call_emails", "account", "Configurar el resumen por email",
-         "Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a "
-         "quién le llega (vacío: a los usuarios activos).", method="PUT", path="/clients/{client_id}/call-emails",
-         body="CallEmailsIn"),
     Tool("update_direct_call_settings", "account", "Configurar el aviso de grabación de las directas",
          "Prende o apaga el aviso \"Esta llamada está siendo grabada\" al empezar las llamadas directas. Las "
          "directas se graban siempre: avisar y tener el consentimiento es responsabilidad del cliente.",
@@ -770,10 +764,13 @@ _WRITE: tuple[Tool, ...] = (
     # ---------- team ----------
     Tool("create_team_member", "team", "Sumar una persona al equipo",
          "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para "
-         "avisarle por WhatsApp.", method="POST", path="/team", body="TeamMemberIn", features=("team",)),
-    Tool("update_team_member", "team", "Editar una persona del equipo", "Cambia los datos de una persona.",
+         "avisarle por WhatsApp. El acceso al panel, el rol y la invitación se dan solo desde el panel, no por "
+         "acá: la persona queda sin usuario.", method="POST", path="/team", body="TeamMemberIn",
+         features=("team",), admin_only=True),
+    Tool("update_team_member", "team", "Editar una persona del equipo",
+         "Cambia los datos de una persona. El acceso al panel, el rol y la invitación se dan solo desde el panel.",
          method="PATCH", path="/team/{member_id}", params={"member_id": _s("ID de la persona.")},
-         required=("member_id",), body="TeamMemberPatch", features=("team",)),
+         required=("member_id",), body="TeamMemberPatch", features=("team",), admin_only=True),
     Tool("delete_team_member", "team", "Sacar una persona del equipo", "Saca una persona del equipo.",
          method="DELETE", path="/team/{member_id}", params={"member_id": _s("ID de la persona.")},
          required=("member_id",), features=("team",), destructive=True),
@@ -939,19 +936,46 @@ _ADMIN: tuple[Tool, ...] = (
          body="PaymentIn", destructive=True),
 )
 
-# Por grupo, en el orden de TOOLSETS (y dentro de cada uno, lectura primero).
-TOOLS = tuple(sorted(_READ + _WRITE + _INFERENCE + _ADMIN, key=lambda t: list(TOOLSETS).index(t.toolset)))
+# Herramientas que solo un Admin del cliente ve y puede llamar (docs/features/EQUIPO_TELEFONIA.md): dar y quitar
+# accesos, agentes, números, campañas, herramientas y secretos. La API da 403 igual.
+ADMIN_ONLY = frozenset({
+    # agentes, herramientas, conexiones de LLM y secretos
+    "create_agent", "update_agent", "update_agent_definition", "delete_agent",
+    "create_llm_connection", "update_llm_connection", "delete_llm_connection",
+    "create_tool", "update_tool", "delete_tool", "test_tool_draft",
+    "set_agent_secret", "update_agent_secret", "promote_agent_secret", "delete_agent_secret",
+    "set_client_secret", "update_client_secret", "delete_client_secret",
+    "create_credential", "update_credential", "delete_credential",
+    # números (ruteo), aviso de grabación y resumen por email
+    "route_phone_number", "update_direct_call_settings",
+    # contactos en lote y bajas
+    "import_contacts", "archive_contacts", "add_optout", "remove_optout",
+    # campañas de voz y de WhatsApp
+    "create_campaign", "update_campaign", "delete_campaign", "add_campaign_contacts",
+    "start_campaign", "pause_campaign", "resume_campaign", "cancel_campaign",
+    # equipo y áreas
+    "create_team_member", "update_team_member", "delete_team_member",
+    "create_handoff_area", "update_handoff_area", "delete_handoff_area",
+    # cuenta de WhatsApp
+    "update_whatsapp_account", "set_whatsapp_routes",
+})
 
+# Por grupo, en el orden de TOOLSETS (y dentro de cada uno, lectura primero).
+TOOLS = tuple(sorted((replace(t, admin_only=True) if t.name in ADMIN_ONLY else t
+                      for t in _READ + _WRITE + _INFERENCE + _ADMIN),
+                     key=lambda t: list(TOOLSETS).index(t.toolset)))
 BY_NAME = {t.name: t for t in TOOLS}
 
 
-def select(toolsets: str | None, admin: bool = False) -> list[Tool]:
+def select(toolsets: str | None, admin: bool = False, client_admin: bool = True) -> list[Tool]:
     """Las herramientas de los grupos pedidos (`a,b`; vacío = DEFAULT; `all` = las de cliente; `core` = CORE).
     Un grupo que no existe se ignora. Un admin de toda la plataforma ve además `admin`; en las de cliente
-    elige el cliente en cada llamada (`client_id`)."""
+    elige el cliente en cada llamada (`client_id`). Un Usuario del cliente no ve las `admin_only`."""
     wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or set(DEFAULT)
     if "all" in wanted:
         wanted = set(CLIENT_SETS)
     if "core" in wanted:
         wanted |= set(CORE)
-    return [t for t in TOOLS if (t.toolset in wanted and t.toolset != "admin") or (admin and t.toolset == "admin")]
+    return [t for t in TOOLS
+            if ((t.toolset in wanted and t.toolset != "admin") or (admin and t.toolset == "admin"))
+            and (client_admin or not t.admin_only)]

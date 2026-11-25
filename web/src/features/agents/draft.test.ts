@@ -98,15 +98,6 @@ describe('toDraft / fromDraft', () => {
     expect(fromDraft(toDraft(def))).toMatchObject({ record_audio: true });
   });
 
-  it('call_summary_email: false no va (como record_audio); true si', () => {
-    expect(toDraft(def).callSummaryEmail).toBe(false);
-    expect(fromDraft(toDraft(def))).not.toHaveProperty('call_summary_email');
-    const d = toDraft({ ...def, call_summary_email: true });
-    expect(d.callSummaryEmail).toBe(true);
-    expect(fromDraft(d)).toMatchObject({ call_summary_email: true });
-    expect(errorTarget(d, 'call_summary_email')).toEqual({ section: 'voz' });
-  });
-
   it('un tipo de dato que la UI no conoce se conserva (no pasa a string)', () => {
     const d = {
       ...def,

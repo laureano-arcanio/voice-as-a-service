@@ -222,16 +222,6 @@
    "api_key": false
   },
   {
-   "name": "get_call_emails",
-   "toolset": "account",
-   "title": "Resumen por email",
-   "description": "Si el resumen por email de cada llamada está prendido para el cliente y a qué direcciones llega.",
-   "kind": "lectura",
-   "features": [],
-   "oauth": false,
-   "api_key": false
-  },
-  {
    "name": "get_direct_call_settings",
    "toolset": "account",
    "title": "Aviso de grabación de las llamadas directas",
@@ -261,16 +251,6 @@
    "kind": "lectura",
    "features": [],
    "oauth": true,
-   "api_key": false
-  },
-  {
-   "name": "update_call_emails",
-   "toolset": "account",
-   "title": "Configurar el resumen por email",
-   "description": "Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a quién le llega (vacío: a los usuarios activos).",
-   "kind": "escritura",
-   "features": [],
-   "oauth": false,
    "api_key": false
   },
   {
@@ -1515,7 +1495,7 @@
    "name": "create_team_member",
    "toolset": "team",
    "title": "Sumar una persona al equipo",
-   "description": "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp.",
+   "description": "Suma una persona al equipo: el teléfono sirve para transferirle llamadas y, con `whatsapp_notify`, para avisarle por WhatsApp. El acceso al panel, el rol y la invitación se dan solo desde el panel, no por acá: la persona queda sin usuario.",
    "kind": "escritura",
    "features": [
     "team"
@@ -1527,7 +1507,7 @@
    "name": "update_team_member",
    "toolset": "team",
    "title": "Editar una persona del equipo",
-   "description": "Cambia los datos de una persona.",
+   "description": "Cambia los datos de una persona. El acceso al panel, el rol y la invitación se dan solo desde el panel.",
    "kind": "escritura",
    "features": [
     "team"

@@ -114,10 +114,12 @@ def get_principal(request: Request, db: DB,
             if acting:   # una herramienta de cliente: actúa como usuario del cliente que eligió en la llamada
                 if db.get(Client, acting) is None:
                     raise NotFound("No existe ese cliente", "client_not_found")
-                return Principal("user", access.user.id, Role.client, acting, oauth=True)
+                role = "admin" if access.user.role == Role.admin else access.user.client_role
+                return Principal("user", access.user.id, Role.client, acting, oauth=True, client_role=role)
             return Principal("user", access.user.id, Role.admin, None, oauth=True)
         # Actúa como usuario del cliente del permiso, aunque sea un admin (que lo eligió al autorizar).
-        return Principal("user", access.user.id, Role.client, access.grant.client_id, oauth=True)
+        role = "admin" if access.user.role == Role.admin else access.user.client_role
+        return Principal("user", access.user.id, Role.client, access.grant.client_id, oauth=True, client_role=role)
     payload = decode_session_token(token)
     user = db.get(User, payload["sub"]) if payload else None
     if user is None or not user.active or payload.get("sv", 0) != user.session_version:
@@ -127,8 +129,8 @@ def get_principal(request: Request, db: DB,
         # Solo la sesión de un admin: una API key o un token OAuth no entran a otro cliente así.
         if db.get(Client, acting) is None:
             raise NotFound("No existe ese cliente", "client_not_found")
-        return Principal("user", user.id, Role.client, acting, support=True)
-    return Principal("user", user.id, Role(user.role), user.client_id)
+        return Principal("user", user.id, Role.client, acting, support=True, client_role="admin")
+    return Principal("user", user.id, Role(user.role), user.client_id, client_role=user.client_role)
 
 
 CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
@@ -160,10 +162,36 @@ def require_not_support(p: CurrentPrincipal) -> Principal:
     return p
 
 
+def require_client_admin(p: CurrentPrincipal) -> Principal:
+    """Solo Admin del cliente (docs/features/EQUIPO_TELEFONIA.md). La API key de un cliente y el admin de la
+    plataforma (también en soporte) cuentan como Admin."""
+    if not p.client_admin:
+        raise Forbidden("Esta acción la puede hacer un Admin del cliente", "client_admin_required")
+    return p
+
+
+def require_client_admin_session(p: CurrentPrincipal) -> Principal:
+    """Admin del cliente con la sesión del panel: ni API key ni token OAuth (API keys)."""
+    require_session(p)
+    require_client_admin(p)
+    return p
+
+
+def require_client_admin_user(p: CurrentPrincipal) -> Principal:
+    """Admin del cliente por un usuario (sesión del panel u OAuth del MCP), no por una API key: cobros."""
+    if p.kind != "user":
+        raise Forbidden("Requiere iniciar sesión en el panel", "panel_user_required")
+    require_client_admin(p)
+    return p
+
+
 AdminPrincipal = Annotated[Principal, Depends(require_admin)]
 UserPrincipal = Annotated[Principal, Depends(require_user)]
 SessionPrincipal = Annotated[Principal, Depends(require_session)]
 NotSupportPrincipal = Annotated[Principal, Depends(require_not_support)]
+ClientAdminPrincipal = Annotated[Principal, Depends(require_client_admin)]
+ClientAdminSessionPrincipal = Annotated[Principal, Depends(require_client_admin_session)]
+ClientAdminUserPrincipal = Annotated[Principal, Depends(require_client_admin_user)]
 
 
 def scoped_client_id(p: Principal, client_id: str | None) -> str | None:

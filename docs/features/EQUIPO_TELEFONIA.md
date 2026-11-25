@@ -11,14 +11,15 @@ desde el 28-oct-2026). La derivación está probada con llamadas reales en produ
 directas y la entrante al equipo, todavía no. El reparto agente/equipo de la entrante está desplegado en producción
 desde el 18-nov-2026 (verificado en dev el 17-nov-2026); todavía no está configurado en ningún número. Plan:
 `tiers.max_team_members` (`TIER_HAS["team"]`; Free 0,
-Mostrador 1, Sucursal 5, Interno sin tope) y `tiers.direct_calls` (`TIER_HAS["direct_calls"]`; todos menos Free; la
-saliente necesita además `outbound_calls`).
+Mostrador 1, Sucursal 5, Interno sin tope; cuenta a todas las personas, el dueño incluido) y `tiers.direct_calls`
+(`TIER_HAS["direct_calls"]`; todos menos Free; la saliente necesita además `outbound_calls`).
 
 ## Modelo de datos
 
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
-| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o usuario | 0023, 0042, 0048 |
+| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional; **único**: una persona por usuario, índice parcial), `active`, `whatsapp_notify` (le llegan por WhatsApp, a su `phone`, los avisos y la rotación). Necesita teléfono o acceso al panel | 0023, 0042, 0048, 0064 |
+| `users.client_role` | Rol dentro del cliente: `admin` o `user`; nulo cuenta como Usuario. Todo usuario `client` tiene una persona en `team_members` (0064 vincula por nombre o crea la persona) | 0064 |
 | `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `connect_on_answer` (bool, default `false`: los miembros conectan apenas atienden, para una centralita o IVR), `messages` (JSON, pisa los default); a qué área pasa fuera de horario (`after_hours_area_id`) o si nadie acepta (`no_answer_area_id`, del mismo cliente y no ella misma) o a qué persona se llama (`no_answer_member_id`, del cliente, con teléfono y fuera del área; excluyente con `no_answer_area_id`); `delivery` (`call` o `whatsapp`: solo aviso) y `whatsapp` (`account_id`, `template`, `call_template`, `accept_template`, `wait_seconds`) | 0023, 0048, 0052, 0063 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
@@ -56,7 +57,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 
 | Ruta | Qué hace | MCP |
 |---|---|---|
-| `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo, con `whatsapp_notify` | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` |
+| `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo, con `whatsapp_notify`. `POST` con `email` (y `role`, default `user`) crea la persona y su usuario y manda la invitación: responde `invite`. `PATCH` con `email` da acceso a una persona sin usuario; `panel_access: false/true` desactiva/reactiva (sube `session_version`); `role` cambia el rol; `email` de una persona con usuario: 422 `email_readonly` (lo cambia en Perfil con un código). `DELETE` de una persona con usuario borra también su acceso. Solo desde el panel (sesión): email, rol, acceso, invitación y borrar con usuario | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` (escritura solo Admin) |
 | `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en `null` quitan la ruta, la persona o las plantillas. «Si nadie atiende» es un área o una persona: los dos juntos, una persona de otro cliente o sin teléfono, o que además esté en `member_ids`, dan 422 con `errors[{path: "no_answer_member_id", message}]`; borrar a la persona la limpia. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
 | `GET /handoff-areas/defaults` | Mensajes por defecto, sus variables, y qué mensajes salen antes de aceptar (`pre_accept_messages`) con las únicas variables que admiten (`pre_accept_variables`: `area`, `persona`, `horario`) | `get_handoff_area_defaults` |
 | `GET /hold-music` | Temas de espera (`default` y los `.ogg`) | `list_hold_music` |
@@ -71,6 +72,27 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | `GET /calls` | Filtros `mode`, `user_id`, `answered_by`, `phone`, `contact_id`; `CallOut` con `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id`; el detalle trae `call.team` (`answered`, `person`, `fallback`) | `list_calls`, `get_call` |
 | `POST /calls/{id}/hangup` | Cortar (también las directas) | `hangup_call` |
 | `GET /reports/transfers` | Panel de derivaciones (Reportes > Transferencias, `advanced_reports`); `/reports/calls` separa agente, directa y equipo, por usuario | `get_report_*` ([REPORTES.md](REPORTES.md)) |
+
+### Roles y acceso al panel
+
+- **Una persona = una fila de `team_members`; su acceso = su usuario `client`.** La persona guarda el teléfono para
+  derivar y el nombre; el usuario, el email y la clave. Invariante: todo usuario de cliente tiene exactamente una
+  persona (0064).
+- **Admin y Usuario.** Admin escribe lo de la cuenta: agentes y herramientas, números y su ruteo, conexiones de LLM,
+  secretos y credenciales, WhatsApp, campañas, importar/archivar contactos en lote y bajas, equipo y áreas, plan, cobros
+  y API keys. Usuario ve todo, atiende y usa las funciones (reportes, consumo, Estudio, contactos de a uno, llamadas,
+  validar agentes y probar herramientas guardadas). La API key de un cliente y el admin de la plataforma (también en
+  soporte) cuentan como Admin; el token OAuth de un Usuario no ve ni llama las herramientas `admin_only` del MCP. Las
+  API keys y los cobros necesitan usuario (sesión del panel u OAuth), no una API key.
+- **Nunca sin Admin:** no se baja de rol, desactiva ni borra al último Admin activo (`services/team_access.py`, con el
+  lock del cliente: 409 `last_admin`), desde `/team` ni desde `/users`. Nadie se quita el acceso ni se borra a sí
+  mismo; bajarse de rol sí, si queda otro Admin.
+- **Altas e invitaciones** mandan mail a cualquier dirección: tope por cliente `TEAM_INVITES_PER_HOUR` (20/hora) → 429
+  `too_many_invites`. El email es único global: 409 `email_taken`. El tope de personas se cuenta con el lock del
+  cliente.
+- **Usuario desactivado:** no suena en la entrante al equipo (el timbre y atender exigen usuario activo) ni puede
+  entrar (cookie y OAuth se cierran por `session_version`); su persona y su historial quedan. Las API keys son del
+  cliente y siguen.
 
 Errores de las directas (`app/services/direct_calls.py`, `limits.py`, `legal_gate.py`, `phone_numbers.py`):
 
@@ -393,7 +415,7 @@ llamada con regla de `wa_routes`, aunque su agente esté archivado, nunca se sor
 
 Código: `app/voice/dtmf.py` (`Keys` agrupa, `KeyLog` guarda, `AgentKeys` las lleva al agente). Las teclas de quien llama quedan en la conversación
 en su lugar, como un mensaje `role=user` con texto `Marcó 123` y `Message.dtmf="123"`; exportes, MCP (`get_call`),
-el resumen de la derivación y el correo leen el texto sin cambios.
+el resumen de la derivación lee el texto sin cambios.
 
 - **Dónde:** entrante al equipo en todas sus fases (música, timbre, hablando en el panel o el celular, buzón:
   `RoomLine.on_dtmf`, solo para la identidad de quien llama), derivación del agente (el worker fija `on_dtmf` al
@@ -631,3 +653,6 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   en otras operadoras (Personal, Movistar) sin medir. Anura no respondió qué códigos `*` interpreta.
 - **Canales de WhatsApp:** las llamadas de WhatsApp cuentan como `entrante` en `busy_channels` aunque no usan un
   canal de Anura: se cuentan de más.
+- **Columnas sin uso:** `clients.call_emails`, `clients.call_emails_to`, `call_logs.summary_email` y
+  `call_logs.summary_email_attempts` quedaron al quitar el resumen por email (0064); se borran cuando ya no haga
+  falta volver atrás.
