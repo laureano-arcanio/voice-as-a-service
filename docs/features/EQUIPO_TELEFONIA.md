@@ -563,6 +563,10 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - **Tiempos medidos (spike):** timbre hasta atender 6-13,6 s; whisper hasta el 1 6-10,7 s más 3 s de escucha: el
   cliente espera ~18 s desde "te paso". La persona entra a la room al empezar a sonar (8-11 s antes de atender):
   hay que aislarla al publicarse su pista, no al atender (`update_subscriptions` se aplica en 2-3 ms).
+- **Corte del cliente con la derivación en curso:** `on_participant_left` borra la room para que la persona no quede
+  sola y después llama a `ctx.shutdown`. En livekit-agents 1.8 `ctx.delete_room()` ya devuelve un `Task`: envolverlo en
+  `asyncio.create_task` tira `TypeError`, no corre el shutdown y la llamada queda `en_curso`. El cierre que sigue
+  tiene su propio tope ([ARQUITECTURA](../ARQUITECTURA.md), "Al cortar").
 - **`AudioSource`:** cancelar una tarea en medio de `capture_frame` deja la fuente en `InvalidState` y el audio
   siguiente no sale. La música se corta con una bandera entre frames y `clear_queue()`.
 - **Grabación:** la derivación graba el tramo humano solo con `record_audio` del agente (aviso opcional

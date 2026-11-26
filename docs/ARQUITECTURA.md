@@ -490,7 +490,11 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Al cortar:** `finalize` espera la extracción y guarda duración, fin, latencia y los datos de reportes. La duración y
   el fin son los del primer corte (cuelga el cliente, corta el agente, se cierra la room: `direct.CallEnd`), no los de
   `finalize`; en el tope y sin minutos, al terminar el aviso de cierre (la línea sigue abierta y Anura cobra ese
-  tiempo); sin corte (se cayó el worker), los del cierre. Las directas, igual.
+  tiempo); sin corte (se cayó el worker), los del cierre. Las directas, igual. `finalize` corre en el proceso de la
+  llamada, que el SDK de LiveKit mata al vencer `shutdown_process_timeout` (10 s por defecto); si muere antes de
+  escribir, la llamada queda `en_curso` para siempre. El worker lo fija en `SHUTDOWN_PROCESS_TIMEOUT` (38 s), derivado
+  del peor caso de `finalize`: avisos (8 s) más las dos esperas de `engine.finish` (10 s cada una) más margen. Al
+  alargar una espera de `finalize`, sumarla ahí (`app/voice/worker.py`).
 
 ### Otros flujos (detalle en su doc)
 

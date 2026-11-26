@@ -1,5 +1,8 @@
 """El motor: prompt armado de la definicion, conversacion multiturno en texto, sin
 estado por turno y una sola extraccion al final."""
+import asyncio
+import time
+
 from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
@@ -63,6 +66,28 @@ async def test_finish_after_completed_does_not_extract_again(store):
     await turn_and_extract(engine, state.conversation_id, "Yoga.")
     await engine.finish(state.conversation_id)
     assert llm.extract_calls == [3]
+
+
+async def test_finish_waits_at_most_twice_the_timeout(store):
+    """El peor caso de finish es la extraccion en curso trabada y despues la final, cada una hasta timeout: de eso
+    sale el shutdown_process_timeout del worker (app/voice/worker.py)."""
+    llm = FakeLLM(AgentTurn(assistant_message="¿Por qué zona?"), extractions=[{"activity": "yoga"}])
+    engine = ConversationEngine(llm, store)
+    state, _ = engine.start_conversation("berlin_signup")
+    cid = state.conversation_id
+    await turn_and_extract(engine, cid, "Yoga.")
+    stuck = asyncio.Event()
+
+    async def hang(*args, **kwargs):
+        await stuck.wait()
+
+    engine._run_extraction = hang
+    engine._launch_extraction(cid, 1)
+    started = time.monotonic()
+    await engine.finish(cid, timeout=0.05)
+    assert 0.08 <= time.monotonic() - started < 0.3     # las dos esperas, y ninguna mas
+    for task in engine.extractions.get(cid, []):
+        task.cancel()
 
 
 # ---------- telefono (dato tipo phone): sin numero de la llamada, hay que pedirlo ----------

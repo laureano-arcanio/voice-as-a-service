@@ -467,6 +467,50 @@ def test_customer_hangs_up_with_operator_connected_runs_post_call(api, agent, mo
     assert json.loads(got[0]["body"]) == {"conversation_id": conversation_id, "from": CALLER}
 
 
+def test_customer_hangs_up_during_a_transfer_deletes_the_room_and_ends(api, agent, monkeypatch):
+    """Corta el cliente con la derivacion en curso: se borra la room y el cierre sigue. ctx.delete_room ya devuelve un
+    Task (livekit-agents 1.8): envuelto en create_task tiraba TypeError, no corria ctx.shutdown y quedaba en_curso."""
+    h = Harness(api, monkeypatch, script=OPERATORS)
+    base = worker.transfer.RoomLine
+
+    class HangUpLine(base):
+        async def connect(self, identity):
+            await super().connect(identity)
+            h.ctx.room.leave(CUSTOMER)      # sale de la room con la persona conectada
+            self.events.put_nowait(("left", CUSTOMER))
+
+    monkeypatch.setattr(worker.transfer, "RoomLine", HangUpLine)
+
+    async def during(h):
+        await h.session.agent.on_handoff("Ventas", False)
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert h.ctx.reason == "customer_hangup" and "delete_room" in h.order
+    call = h.call(inbound_id(api))
+    assert call.status == CallStatus.finalizada and call.ended_reason == "customer_hangup"
+
+
+def test_shutdown_process_timeout_covers_the_worst_finalize(api, agent, monkeypatch):
+    """El SDK mata el proceso al vencer shutdown_process_timeout: tiene que entrar la espera de los avisos y las dos de
+    engine.finish (la extraccion en curso y la final) con el timeout que le pasa finalize."""
+    real_finish = api.engine.finish
+    seen: dict = {}
+
+    async def finish(conversation_id, timeout=10):
+        seen["timeout"] = timeout
+        return await real_finish(conversation_id, timeout)
+
+    monkeypatch.setattr(api.engine, "finish", finish)
+    h = Harness(api, monkeypatch)
+
+    async def during(h):
+        h.ctx.room.leave(CUSTOMER)
+
+    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    worst = worker.NOTICE_WAIT_SECONDS + 2 * seen["timeout"]
+    assert worker.worker_options().shutdown_process_timeout > worst
+
+
 # --- Avisos por WhatsApp y variables en la llamada -------------------------------------------------
 
 class FakeGraph:
@@ -577,9 +621,9 @@ def test_customer_gone_during_a_slow_summary_finalize_waits_and_sends_once(api, 
         await asyncio.sleep(0.2)
         return "Pide un turno"
 
-    async def finish(conversation_id):
+    async def finish(conversation_id, timeout=10):
         finished.append(len(consultas.sent))
-        return await real_finish(conversation_id)
+        return await real_finish(conversation_id, timeout)
 
     monkeypatch.setattr(worker.transfer, "summarize", slow)
     monkeypatch.setattr(api.engine, "finish", finish)
@@ -646,9 +690,9 @@ def test_slow_finalize_does_not_add_seconds(api, admin, client, monkeypatch):  #
     clock = Clock(monkeypatch, worker, direct)
     real_finish = api.engine.finish
 
-    async def slow_finish(conversation_id):
+    async def slow_finish(conversation_id, timeout=10):
         clock.skip(90)
-        return await real_finish(conversation_id)
+        return await real_finish(conversation_id, timeout)
 
     monkeypatch.setattr(api.engine, "finish", slow_finish)
     cut = {}

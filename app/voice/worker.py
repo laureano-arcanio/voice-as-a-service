@@ -76,6 +76,14 @@ RECORDING_PREROLL_SECONDS = 0.3
 RECORDING_NOTICE = direct.RECORDING_NOTICE
 # Al cerrar, cuanto se espera a los avisos por WhatsApp en curso: el resumen (4 s) mas el envio a Meta.
 NOTICE_WAIT_SECONDS = 8.0
+# Cada espera de engine.finish al cerrar: la extraccion en curso y despues la final.
+FINISH_TIMEOUT_SECONDS = 10.0
+# Lo demas de finalize (linea, escrituras en la base) y la limpieza del SDK despues de los callbacks.
+SHUTDOWN_MARGIN_SECONDS = 10.0
+# Tope del SDK para que el proceso de la llamada termine (shutdown_process_timeout; 10 s por defecto en 1.8): al
+# vencer lo mata y, si finalize no llego a escribir, la llamada queda en_curso para siempre (server2, 26-nov-2026:
+# 2 de ~33 cierres en 8 h). Cubre el peor caso de finalize.
+SHUTDOWN_PROCESS_TIMEOUT = NOTICE_WAIT_SECONDS + 2 * FINISH_TIMEOUT_SECONDS + SHUTDOWN_MARGIN_SECONDS
 
 
 class _MonoResampler:
@@ -669,7 +677,7 @@ async def entrypoint(ctx: JobContext):
         # de ahi); en el motor clasico, si corto el cliente, es la unica.
         try:
             await wait_notices()
-            await engine.finish(conversation_id)
+            await engine.finish(conversation_id, timeout=FINISH_TIMEOUT_SECONDS)
         finally:
             # Antes de leer la llamada: una fallida o sin fila no pierde la marca, y el post-call ve lo extraido.
             workflows.mark_ended(sessions, conversation_id)
@@ -950,9 +958,11 @@ async def entrypoint(ctx: JobContext):
             return   # el agente ya esta cortando: la room se cierra y esta salida no es del cliente
         end.mark()
         ending["reason"] = "customer_hangup"
-        if current["transfer"] is not None:
-            asyncio.create_task(ctx.delete_room())   # que no quede la persona sola en la room
-        ctx.shutdown(reason="customer_hangup")
+        try:
+            if current["transfer"] is not None:
+                ctx.delete_room()   # que no quede la persona sola en la room; en 1.8 ya devuelve el Task
+        finally:
+            ctx.shutdown(reason="customer_hangup")
 
     ctx.room.on("participant_disconnected", on_participant_left)
     # Cortada desde la API (call_service.hang_up borra la room sin la salida del cliente) o se cerro la room.
@@ -1070,11 +1080,17 @@ async def entrypoint(ctx: JobContext):
         opening_say.add_done_callback(lambda _: attention.arm())
     await opening_say
 
-if __name__ == "__main__":
-    cli.run_app(WorkerOptions(
+
+def worker_options() -> WorkerOptions:
+    return WorkerOptions(
         entrypoint_fnc=entrypoint,
         agent_name=settings.livekit_agent_name,
         ws_url=settings.livekit_url,
         api_key=settings.livekit_api_key,
         api_secret=settings.livekit_api_secret,
-    ))
+        shutdown_process_timeout=SHUTDOWN_PROCESS_TIMEOUT,
+    )
+
+
+if __name__ == "__main__":
+    cli.run_app(worker_options())

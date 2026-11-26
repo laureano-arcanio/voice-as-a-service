@@ -137,9 +137,11 @@ class FakeCtx:
     def shutdown(self, reason: str = ""):
         self.reason = self.reason or reason
 
-    async def delete_room(self):
+    def delete_room(self) -> asyncio.Task:
+        """Como JobContext.delete_room en livekit-agents 1.8: ya devuelve el Task (no una corrutina)."""
         self.log.append("delete_room")
         self.room.connected = False
+        return asyncio.create_task(asyncio.sleep(0))
 
 
 class Harness:
