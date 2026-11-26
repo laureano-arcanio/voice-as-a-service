@@ -40,7 +40,7 @@ OLD_NAMESPACES = {"contact", "vars"}
 FORBIDDEN_HEADERS = {"host", "content-length", "transfer-encoding", "connection", "user-agent",
                      "idempotency-key", "x-atentina-signature", "x-atentina-conversation-id", "x-atentina-tool"}
 SCALARS = ("string", "integer", "number", "boolean")
-MAX_CODE_CHARS = 20_000
+MAX_CODE_CHARS = 50_000
 MAX_SECRET_CHARS = 10_000
 
 

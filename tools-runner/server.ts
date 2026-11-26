@@ -5,7 +5,7 @@
 const TOKEN = Deno.env.get("TOOLS_RUNNER_TOKEN") ?? "";
 const CONCURRENCY = Number(Deno.env.get("TOOLS_RUNNER_CONCURRENCY") ?? "8");
 const PROXY = Deno.env.get("TOOLS_EGRESS_PROXY") ?? "";
-const MAX_CODE = 20_000;
+const MAX_CODE = 50_000;
 const MAX_TIMEOUT = 30_000;
 const MAX_OUTPUT = 2_000_000;
 const HOST_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+(:\d{1,5})?$/;

@@ -138,7 +138,7 @@ hay configuración para habilitarlo).
 }
 ```
 
-- Módulo ES (JavaScript o TypeScript, hasta 20.000 caracteres) con `export default async function`. Recibe `args`
+- Módulo ES (JavaScript o TypeScript, hasta 50.000 caracteres) con `export default async function`. Recibe `args`
   (validados contra `parameters`), `secrets` (solo los declarados en `secrets`), `call` (`id`, `channel`, `mode`,
   `direction`, `from`, `to`, `phone`, `summary`, `agent`) y `vars` (todas las variables, ocultas incluidas). La plantilla sale de
   `GET /tools/code-template`.
