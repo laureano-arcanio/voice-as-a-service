@@ -20,6 +20,7 @@ import {
   IconDeviceFloppy,
   IconFileCode,
   IconFileText,
+  IconFlask,
   IconHistory,
   IconInfoCircle,
   IconLink,
@@ -42,6 +43,9 @@ import { QueryState } from '@/components/QueryState';
 import { focusOffset } from '@/lib/editor';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { usePromptPreview, useSaveDefinition, validateDefinition } from './api';
+import { CompareModal } from '@/features/agent-tests/CompareModal';
+import { TestsTab } from '@/features/agent-tests/TestsTab';
+import { caseResults, useCreateRun, useTestCases, useTestRun, worsening } from '@/features/agent-tests/api';
 import { AgentTestPanel } from './AgentTestPanel';
 import { CallLinkTab } from './CallLinkTab';
 import { findPathOffset, parseDefinition, toJsonText } from './definition';
@@ -63,8 +67,8 @@ import { VersionsTab } from './VersionsTab';
 import { WorkflowSummary } from './WorkflowSummary';
 
 /** Las pestañas del agente. Las de edicion (PARTS y json) comparten un borrador y una barra de guardado. */
-type Tab = 'resumen' | Part | 'json' | 'versiones' | 'probar' | 'link';
-const TABS: Tab[] = ['resumen', ...PARTS, 'json', 'versiones', 'probar', 'link'];
+type Tab = 'resumen' | Part | 'json' | 'versiones' | 'pruebas' | 'probar' | 'link';
+const TABS: Tab[] = ['resumen', ...PARTS, 'json', 'versiones', 'pruebas', 'probar', 'link'];
 const TAB_META: Record<Tab, { label: string; icon: ComponentType<{ size?: number }> }> = {
   resumen: { label: 'Resumen', icon: IconInfoCircle },
   conversacion: { label: 'Conversación', icon: IconMessage },
@@ -74,6 +78,7 @@ const TAB_META: Record<Tab, { label: string; icon: ComponentType<{ size?: number
   modelo: { label: 'Modelo', icon: IconCpu },
   json: { label: 'JSON', icon: IconFileCode },
   versiones: { label: 'Versiones', icon: IconHistory },
+  pruebas: { label: 'Pruebas', icon: IconFlask },
   probar: { label: 'Probar', icon: IconPlayerPlay },
   link: { label: 'Link para llamar', icon: IconLink },
 };
@@ -209,6 +214,14 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
   const [promptOpen, prompt] = useDisclosure(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const save = useSaveDefinition(agent.id);
+  // Pruebas del agente: el aviso al guardar y la comparacion de los cambios sin guardar (T6).
+  const cases = useTestCases(agent.id);
+  const hasCases = (cases.data?.length ?? 0) > 0;
+  const createRun = useCreateRun(agent.id);
+  const [compareRunId, setCompareRunId] = useState<string | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareKey, setCompareKey] = useState<string | null>(null);
+  const compareRun = useTestRun(agent.id, compareRunId);
 
   // La definicion en edicion: la del formulario o la del JSON (null si no parsea).
   const parsedJson = mode === 'json' ? parseDefinition(jsonText) : null;
@@ -216,6 +229,8 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
     mode === 'form' ? fromDraft(draft) : parsedJson?.ok ? parsedJson.value : null;
   const currentKey = current ? canonical(current) : `json:${jsonText}`;
   const dirty = currentKey !== base;
+  const compared = compareRun.data?.status === 'done' && compareKey === currentKey;
+  const compareResults = caseResults(compareRun.data);
 
   // Llego una version nueva (guardado, restauracion u otra sesion): si no hay cambios, se muestra.
   if (baseline !== base) {
@@ -289,8 +304,53 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
     );
   };
 
-  const doSave = () => {
+  const runTests = () => {
+    if (!current) return notifyError(new Error('Corregí el JSON antes de correr.'), 'No se puede correr');
+    createRun.mutate(
+      { repetitions: 5, definition: current },
+      {
+        onSuccess: (run) => {
+          setCompareRunId(run.id);
+          setCompareOpen(true);
+          setCompareKey(currentKey);
+        },
+        onError: (e) => notifyError(e, 'No se pudo correr'),
+      },
+    );
+  };
+
+  const doSave = async () => {
     if (!current) return notifyError(new Error('Corregí el JSON antes de guardar.'), 'No se puede guardar');
+    if (hasCases && !compared) {
+      const ok = await confirmAction({
+        title: 'No se corrieron las pruebas de este cambio',
+        message: 'Podés guardar igual o correr las pruebas antes de publicar. Nunca impide guardar.',
+        confirmLabel: 'Guardar igual',
+        cancelLabel: 'Correr pruebas',
+      });
+      if (!ok) {
+        runTests();
+        return;
+      }
+    } else if (hasCases && compared && worsening(compareResults).length > 0) {
+      const names = worsening(compareResults).map((c) => c.name);
+      const ok = await confirmAction({
+        title: 'Hay casos que empeoran',
+        message: (
+          <Stack gap={4}>
+            <Text size="sm">Con este cambio, estos casos rinden menos que la versión publicada:</Text>
+            <Text size="sm" fw={600}>
+              {names.join(', ')}
+            </Text>
+            <Anchor href={`/agents/${agent.id}?tab=pruebas`} size="sm">
+              Ver las pruebas
+            </Anchor>
+          </Stack>
+        ),
+        confirmLabel: 'Guardar igual',
+      });
+      if (!ok) return;
+    }
     const prevVersion = agent.version;
     save.mutate(current, {
       onSuccess: (saved) => {
@@ -372,10 +432,22 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
                 <Button variant="default" size="xs" onClick={() => void discard()} disabled={!dirty}>
                   Descartar
                 </Button>
+                {hasCases && (
+                  <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<IconFlask size={16} />}
+                    onClick={runTests}
+                    loading={createRun.isPending}
+                    disabled={!current}
+                  >
+                    Correr pruebas
+                  </Button>
+                )}
                 <Button
                   size="xs"
                   leftSection={<IconDeviceFloppy size={16} />}
-                  onClick={doSave}
+                  onClick={() => void doSave()}
                   loading={save.isPending}
                   disabled={!dirty}
                 >
@@ -443,12 +515,21 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
       <Tabs.Panel value="versiones">
         <VersionsTab agent={agent} />
       </Tabs.Panel>
+      <Tabs.Panel value="pruebas">
+        <TestsTab agent={agent} />
+      </Tabs.Panel>
       <Tabs.Panel value="probar">
         <AgentTestPanel agent={agent} />
       </Tabs.Panel>
       <Tabs.Panel value="link">
         <CallLinkTab agent={agent} />
       </Tabs.Panel>
+      <CompareModal
+        agentId={agent.id}
+        runId={compareRunId}
+        opened={compareOpen}
+        onClose={() => setCompareOpen(false)}
+      />
     </Tabs>
   );
 }

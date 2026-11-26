@@ -3566,3 +3566,101 @@ class PhoneVerifyIn(BaseModel):
 
 class CallMeIn(BaseModel):
     agent_id: str
+
+
+# ---------- casos de prueba de un agente (docs/features/CASOS_DE_PRUEBA.md) ----------
+
+class TestCasePreviewIn(BaseModel):
+    """Una conversacion y el indice del mensaje del usuario que cierra el caso."""
+    conversation_id: str
+    message_index: int = Field(ge=0)
+
+
+class TestCaseCreateIn(TestCasePreviewIn):
+    """Lo generado se puede pisar (`messages`, `user_message`, `tool_results`): la UI manda el caso tal como lo ve."""
+    name: str = Field(min_length=1, max_length=200)
+    checks: list[dict] = Field(default_factory=list)
+    known_failure: bool = False
+    messages: list[dict] | None = None
+    user_message: str | None = None
+    tool_results: list[dict] | None = None
+
+
+class TestCaseUpdateIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    checks: list[dict] | None = None
+    known_failure: bool | None = None
+    messages: list[dict] | None = None
+    user_message: str | None = None
+    tool_results: list[dict] | None = None
+
+
+class TestCaseRunSummary(BaseModel):
+    run_id: str
+    created_at: UTCDateTime
+    variants: list[dict] = Field(default_factory=list, description="Por variante: {key, passed, total}")
+
+
+class TestCaseOut(BaseModel):
+    id: str
+    client_id: str
+    agent_id: str
+    name: str
+    source_conversation_id: str | None
+    source_message_index: int | None
+    source_agent_version: int | None
+    channel: str
+    known_failure: bool
+    checks: list[dict]
+    tool_results: list[dict]
+    snapshot: dict | None = None
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+    last_run: TestCaseRunSummary | None = None
+
+
+class TestCaseSummaryOut(BaseModel):
+    id: str
+    agent_id: str
+    name: str
+    channel: str
+    known_failure: bool
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+    last_run: TestCaseRunSummary | None = None
+
+
+class TestCasePreviewOut(BaseModel):
+    snapshot: dict
+    reply: dict = Field(description="Lo que respondio el agente: text, tool_calls, handoff, tool_results")
+    checks: list[dict] = Field(description="Chequeos sugeridos")
+
+
+class TestCaseDetailOut(TestCaseOut):
+    history: list[TestCaseRunSummary] = Field(default_factory=list, description="Corridas que incluyeron el caso")
+
+
+class TestRunCreateIn(BaseModel):
+    repetitions: int = Field(default=5, ge=1, le=10)
+    definition: dict | None = Field(default=None, description="Los cambios sin guardar (borrador)")
+    case_ids: list[str] | None = None
+    draft_case: TestCaseCreateIn | None = None
+
+
+class TestRunOut(BaseModel):
+    id: str
+    client_id: str
+    agent_id: str
+    status: Literal["queued", "running", "done", "failed"]
+    repetitions: int
+    variants: list[dict]
+    cases: list[dict]
+    results: list[dict] | None
+    done: int
+    total: int
+    input_tokens: int
+    output_tokens: int
+    error: str | None
+    created_at: UTCDateTime
+    started_at: UTCDateTime | None
+    finished_at: UTCDateTime | None

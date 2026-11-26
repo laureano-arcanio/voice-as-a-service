@@ -204,6 +204,9 @@ class Settings(BaseSettings):
     # --- Estudio: texto a voz y transcripcion para todos los planes (docs/features/ESTUDIO.md) ---
     rate_studio_per_hour: int = 60
     studio_tick_seconds: float = 2
+    # Casos de prueba de un agente: turnos al LLM a la vez y cada cuanto mira la cola (app/agent_tests/runs.py).
+    agent_tests_concurrency: int = 2
+    agent_tests_tick_seconds: float = 2
     # Unos 20 minutos de audio, el cupo de Free.
     studio_tts_max_chars: int = 20_000
     # Por debajo del tope de subida de Cloudflare (100 MB segun el plan).

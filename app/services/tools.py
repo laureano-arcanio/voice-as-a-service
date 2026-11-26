@@ -625,6 +625,29 @@ def agent_tool_specs(s: Session, client_id: str | None, definition: dict | Workf
     return out
 
 
+def load_agent_tools(s: Session, client_id: str | None, definition: dict | Workflow) \
+        -> tuple[list[ToolSpec], list[str]]:
+    """Como `agent_tool_specs`, pero devolviendo por que no se cargo cada herramienta: para las corridas de casos
+    de prueba, que tienen que mostrar el error en vez de saltearla en silencio."""
+    grants = _grants(definition)
+    if not grants or client_id is None:
+        return [], []
+    rows = {r.slug: r for r in s.scalars(select(ClientTool).where(
+        ClientTool.client_id == client_id, ClientTool.slug.in_([g.tool for g in grants])))}
+    creds = credentials_map(s, client_id)
+    specs, errors = [], []
+    for g in grants:
+        row = rows.get(g.tool)
+        if row is None:
+            errors.append(f"la herramienta {g.tool!r} no existe en el cliente")
+            continue
+        try:
+            specs.append(spec_of(row, creds))
+        except (ValidationError, ValueError) as e:
+            errors.append(f"la herramienta {g.tool!r} tiene una definicion invalida: {e}")
+    return specs, errors
+
+
 def _workflow_errors(key: str, row: ClientTool, spec: ToolSpec, visible: set[str]) -> list[str]:
     """Una herramienta de workflow la corre la plataforma: nada lo completa el modelo y el modelo no la ve. El
     post-call se reintenta con la misma clave: solo http que no sea GET lleva Idempotency-Key (tools/runtime.py)."""

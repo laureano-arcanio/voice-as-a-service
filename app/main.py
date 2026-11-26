@@ -25,6 +25,7 @@ from .api.http import (
     SecurityHeadersMiddleware,
 )
 from .api.routers import (
+    agent_tests,
     agents,
     api_keys,
     api_requests,
@@ -71,6 +72,7 @@ from .mcp import server as mcp_server
 from .services.demo import allowed_origins
 from .services.line_recordings import line_recordings_loop
 from .services.line_spool import line_spool_loop
+from .agent_tests.runs import agent_tests_loop
 from .services.studio import studio_loop
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.service import handoff_loop, sweep_loop
@@ -91,6 +93,8 @@ async def lifespan(app: FastAPI):
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
     # Texto a voz y transcripcion, de a un trabajo por motor (app/services/studio.py).
     studio_jobs = asyncio.create_task(studio_loop())
+    # Casos de prueba de los agentes: una corrida a la vez (app/agent_tests/runs.py).
+    agent_tests = asyncio.create_task(agent_tests_loop())
     # Post-call de los agentes (app/conversation/workflows.py).
     post_calls = asyncio.create_task(post_call_loop())
     # Rotacion por WhatsApp de texto: tramos vencidos y entregas por retomar (app/whatsapp/handoffs.py).
@@ -105,6 +109,7 @@ async def lifespan(app: FastAPI):
     webhooks.cancel()
     billing_sweep.cancel()
     studio_jobs.cancel()
+    agent_tests.cancel()
     post_calls.cancel()
     wa_handoffs.cancel()
     line_spool.cancel()
@@ -133,7 +138,7 @@ def create_app() -> FastAPI:
     app.add_middleware(HttpsRedirectMiddleware)
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, studio,
+    for module in (auth, tiers, clients, phone_numbers, agents, agent_tests, users, api_keys, calls, conversations, voices, studio,
                    whatsapp, wa_campaigns, campaigns, contacts, inference, demo, billing, llm_connections,
                    llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests,
                    legal_versions, tools, branding, reports, direct_calls, system, onboarding, variables):

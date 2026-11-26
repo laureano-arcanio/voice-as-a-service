@@ -2431,6 +2431,500 @@
     }
    }
   },
+  "/api/v1/agents/{agent_id}/test-cases/preview": {
+   "post": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Preview Case",
+    "description": "Lo que se guardaria (la copia, sin trazas ni grabaciones), la respuesta original y los chequeos sugeridos.",
+    "operationId": "preview_case_api_v1_agents__agent_id__test_cases_preview_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestCasePreviewIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestCasePreviewOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/test-cases": {
+   "post": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Create Case",
+    "operationId": "create_case_api_v1_agents__agent_id__test_cases_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestCaseCreateIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestCaseDetailOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "List Cases",
+    "operationId": "list_cases_api_v1_agents__agent_id__test_cases_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TestCaseSummaryOut"
+         },
+         "title": "Response List Cases Api V1 Agents  Agent Id  Test Cases Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/test-cases/{case_id}": {
+   "get": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Read Case",
+    "operationId": "read_case_api_v1_agents__agent_id__test_cases__case_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "case_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Case Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestCaseDetailOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Update Case",
+    "operationId": "update_case_api_v1_agents__agent_id__test_cases__case_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "case_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Case Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestCaseUpdateIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestCaseDetailOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Delete Case",
+    "operationId": "delete_case_api_v1_agents__agent_id__test_cases__case_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "case_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Case Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/test-runs": {
+   "post": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Create Run",
+    "description": "Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:\ntodos los del agente; `draft_case`: un caso que no se guarda (\"Probar ahora\").",
+    "operationId": "create_run_api_v1_agents__agent_id__test_runs_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestRunCreateIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "List Runs",
+    "operationId": "list_runs_api_v1_agents__agent_id__test_runs_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TestRunOut"
+         },
+         "title": "Response List Runs Api V1 Agents  Agent Id  Test Runs Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/test-runs/{run_id}": {
+   "get": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Read Run",
+    "operationId": "read_run_api_v1_agents__agent_id__test_runs__run_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Run Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/users": {
    "get": {
     "tags": [
@@ -32541,6 +33035,628 @@
      "objective"
     ],
     "title": "TemplateOut"
+   },
+   "TestCaseCreateIn": {
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "title": "Conversation Id"
+     },
+     "message_index": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Message Index"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "checks": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Checks"
+     },
+     "known_failure": {
+      "type": "boolean",
+      "title": "Known Failure",
+      "default": false
+     },
+     "messages": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messages"
+     },
+     "user_message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Message"
+     },
+     "tool_results": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool Results"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversation_id",
+     "message_index",
+     "name"
+    ],
+    "title": "TestCaseCreateIn",
+    "description": "Lo generado se puede pisar (`messages`, `user_message`, `tool_results`): la UI manda el caso tal como lo ve."
+   },
+   "TestCaseDetailOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "source_conversation_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Conversation Id"
+     },
+     "source_message_index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Message Index"
+     },
+     "source_agent_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Agent Version"
+     },
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "known_failure": {
+      "type": "boolean",
+      "title": "Known Failure"
+     },
+     "checks": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Checks"
+     },
+     "tool_results": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Tool Results"
+     },
+     "snapshot": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Snapshot"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "last_run": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TestCaseRunSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/TestCaseRunSummary"
+      },
+      "type": "array",
+      "title": "History",
+      "description": "Corridas que incluyeron el caso"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "agent_id",
+     "name",
+     "source_conversation_id",
+     "source_message_index",
+     "source_agent_version",
+     "channel",
+     "known_failure",
+     "checks",
+     "tool_results",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "TestCaseDetailOut"
+   },
+   "TestCasePreviewIn": {
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "title": "Conversation Id"
+     },
+     "message_index": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Message Index"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversation_id",
+     "message_index"
+    ],
+    "title": "TestCasePreviewIn",
+    "description": "Una conversacion y el indice del mensaje del usuario que cierra el caso."
+   },
+   "TestCasePreviewOut": {
+    "properties": {
+     "snapshot": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Snapshot"
+     },
+     "reply": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Reply",
+      "description": "Lo que respondio el agente: text, tool_calls, handoff, tool_results"
+     },
+     "checks": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Checks",
+      "description": "Chequeos sugeridos"
+     }
+    },
+    "type": "object",
+    "required": [
+     "snapshot",
+     "reply",
+     "checks"
+    ],
+    "title": "TestCasePreviewOut"
+   },
+   "TestCaseRunSummary": {
+    "properties": {
+     "run_id": {
+      "type": "string",
+      "title": "Run Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "variants": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Variants",
+      "description": "Por variante: {key, passed, total}"
+     }
+    },
+    "type": "object",
+    "required": [
+     "run_id",
+     "created_at"
+    ],
+    "title": "TestCaseRunSummary"
+   },
+   "TestCaseSummaryOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "known_failure": {
+      "type": "boolean",
+      "title": "Known Failure"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "last_run": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TestCaseRunSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "agent_id",
+     "name",
+     "channel",
+     "known_failure",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "TestCaseSummaryOut"
+   },
+   "TestCaseUpdateIn": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "checks": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Checks"
+     },
+     "known_failure": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Known Failure"
+     },
+     "messages": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messages"
+     },
+     "user_message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Message"
+     },
+     "tool_results": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool Results"
+     }
+    },
+    "type": "object",
+    "title": "TestCaseUpdateIn"
+   },
+   "TestRunCreateIn": {
+    "properties": {
+     "repetitions": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 1.0,
+      "title": "Repetitions",
+      "default": 5
+     },
+     "definition": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Definition",
+      "description": "Los cambios sin guardar (borrador)"
+     },
+     "case_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Ids"
+     },
+     "draft_case": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TestCaseCreateIn"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "title": "TestRunCreateIn"
+   },
+   "TestRunOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "done",
+       "failed"
+      ],
+      "title": "Status"
+     },
+     "repetitions": {
+      "type": "integer",
+      "title": "Repetitions"
+     },
+     "variants": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Variants"
+     },
+     "cases": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Cases"
+     },
+     "results": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Results"
+     },
+     "done": {
+      "type": "integer",
+      "title": "Done"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "input_tokens": {
+      "type": "integer",
+      "title": "Input Tokens"
+     },
+     "output_tokens": {
+      "type": "integer",
+      "title": "Output Tokens"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "agent_id",
+     "status",
+     "repetitions",
+     "variants",
+     "cases",
+     "results",
+     "done",
+     "total",
+     "input_tokens",
+     "output_tokens",
+     "error",
+     "created_at",
+     "started_at",
+     "finished_at"
+    ],
+    "title": "TestRunOut"
    },
    "TierBrief": {
     "properties": {

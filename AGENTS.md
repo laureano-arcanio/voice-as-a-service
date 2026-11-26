@@ -33,7 +33,8 @@ directas), [`ATENCION_TURNO`](docs/features/ATENCION_TURNO.md) (la persona no re
 balanceo del LLM), [`COBROS`](docs/features/COBROS.md), [`LEGAL`](docs/features/LEGAL.md),
 [`LANDING`](docs/features/LANDING.md), [`ESTUDIO`](docs/features/ESTUDIO.md) (texto a voz y transcripción), [`PRIMERA_VEZ`](docs/features/PRIMERA_VEZ.md) (asistente de primera vez,
 Inicio y llamada de prueba al celular), [`CRM`](docs/features/CRM.md), [`CRM_API`](docs/features/CRM_API.md) y
-[`REGISTROS`](docs/features/REGISTROS.md) (app de fichas, `apps/registros/`).
+[`REGISTROS`](docs/features/REGISTROS.md) (app de fichas, `apps/registros/`) y
+[`CASOS_DE_PRUEBA`](docs/features/CASOS_DE_PRUEBA.md) (conversaciones grabadas con chequeos por agente).
 
 Cada doc dice su estado y sus pendientes; este archivo no repite estados. Al cambiar una función, se actualiza su
 doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.

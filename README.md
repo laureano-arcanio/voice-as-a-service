@@ -97,7 +97,7 @@ Tests: `make test` (LLM falso, sin servicios reales; en paralelo con pytest-xdis
    saliente por nombre.
 3. `VLLM_API_KEY` (clave real siempre) y `PUBLIC_HOST`.
 4. Telefonía (`ANURA_*`, `LIVEKIT_SIP_*`), demo, WhatsApp (`WA_*`; la derivación al equipo suma `WA_HANDOFF_*`,
-   `WA_TEAM_*`, `WORKFLOW_TICK_SECONDS` y `POST_CALL_WAIT_SECONDS`, opcionales), Registros (`REGISTROS_*` y
+   `WA_TEAM_*`, `WORKFLOW_TICK_SECONDS`, `POST_CALL_WAIT_SECONDS` y `AGENT_TESTS_CONCURRENCY`, opcionales), Registros (`REGISTROS_*` y
    `BACKUP_EXTRA_DBS`, opcionales), túnel, correo (Resend), Mercado Pago, backup y monitoreo: tabla completa (de dónde sale cada una y cuál no se puede regenerar, como `WA_TOKEN_KEY`) en
    [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), 3.2.
 

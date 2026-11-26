@@ -1,4 +1,4 @@
-import { Badge, Group, Text } from '@mantine/core';
+import { Badge, Button, Group, Text } from '@mantine/core';
 import { IconDialpad, IconHeadset, IconMicrophone } from '@tabler/icons-react';
 import { Fragment, useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/QueryState';
@@ -258,6 +258,7 @@ export function ChatView({
   userLabel = 'Interesado',
   maxHeight,
   conversationId,
+  onCreateCase,
 }: {
   messages: ChatMessage[];
   showLlm?: boolean;
@@ -268,6 +269,8 @@ export function ChatView({
   maxHeight?: number;
   /** Para el reproductor de cada mensaje grabado (agent.record_audio). */
   conversationId?: string;
+  /** Con la accion "Crear caso de prueba" en cada respuesta del agente (indice del mensaje del usuario). */
+  onCreateCase?: (userIndex: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const count = messages.length;
@@ -333,6 +336,22 @@ export function ChatView({
                   />
                 )}
                 {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
+                {onCreateCase &&
+                  m.role === 'assistant' &&
+                  !person &&
+                  !owner &&
+                  i > 0 &&
+                  messages[i - 1]?.role === 'user' &&
+                  !messages[i - 1]?.handoff_leg && (
+                    <Button
+                      variant="subtle"
+                      size="compact-xs"
+                      mt={4}
+                      onClick={() => onCreateCase(i - 1)}
+                    >
+                      Crear caso de prueba
+                    </Button>
+                  )}
               </div>
             )}
           </Fragment>

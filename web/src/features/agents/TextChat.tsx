@@ -20,6 +20,7 @@ import type { Agent, ChatMessage, ConversationState } from '@/api/types';
 import { useSendTurn, useStartConversation } from '@/features/calls/api';
 import { Dash } from '@/components/Badges';
 import { ChatView } from '@/features/calls/ChatView';
+import { CreateCaseModal } from '@/features/agent-tests/CreateCaseModal';
 import { formatValue } from '@/lib/format';
 import { WORKFLOW_STATUS } from '@/lib/labels';
 
@@ -44,6 +45,7 @@ export function TextChat({
   const [session, setSession] = useState<Session | null>(null);
   const [text, setText] = useState('');
   const [pending, setPending] = useState<string | null>(null);
+  const [caseTurn, setCaseTurn] = useState<number | null>(null);
 
   const begin = () =>
     start.mutate(
@@ -108,6 +110,7 @@ export function TextChat({
                 userLabel="Vos"
                 maxHeight={420}
                 showLlm={false}
+                onCreateCase={agent.own_agent || !session ? undefined : (userIndex) => setCaseTurn(userIndex)}
               />
               {turn.isError && (
                 <Alert color="red" title="El agente no respondió">
@@ -176,6 +179,16 @@ export function TextChat({
             </Stack>
           </Grid.Col>
         </Grid>
+      )}
+      {session && caseTurn != null && !agent.own_agent && (
+        <CreateCaseModal
+          agentId={agent.id}
+          clientId={agent.client_id}
+          conversationId={session.id}
+          messageIndex={caseTurn}
+          opened
+          onClose={() => setCaseTurn(null)}
+        />
       )}
     </Card>
   );

@@ -202,6 +202,15 @@ _READ: tuple[Tool, ...] = (
     Tool("list_agent_versions", "agents", "Versiones de un agente",
          "Las versiones de la definición de un agente (cada cambio es una versión nueva).",
          path="/agents/{agent_id}/versions", params={"agent_id": _s("ID del agente.")}, required=("agent_id",)),
+    Tool("list_agent_test_cases", "agents", "Casos de prueba de un agente",
+         "Los casos de prueba guardados del agente, con el resultado de la última corrida (pasa X/N por "
+         "variante). Los casos son copias de conversaciones y no ejecutan herramientas reales.",
+         path="/agents/{agent_id}/test-cases", params=_AGENT_ID, required=("agent_id",), admin_only=True),
+    Tool("get_agent_test_run", "agents", "Corrida de pruebas",
+         "El progreso y las respuestas de una corrida de pruebas. Informa; no bloquea nada.",
+         path="/agents/{agent_id}/test-runs/{run_id}",
+         params={**_AGENT_ID, "run_id": _s("ID de la corrida de pruebas.")},
+         required=("agent_id", "run_id"), admin_only=True),
     Tool("get_agent_version", "agents", "Versión de un agente",
          "La definición de un agente en una versión anterior.", path="/agents/{agent_id}/versions/{version}",
          params={"agent_id": _s("ID del agente."), "version": _i("Número de versión.", minimum=1)},
@@ -460,6 +469,17 @@ _WRITE: tuple[Tool, ...] = (
          "respuesta del agente y los datos que tomó.", method="POST",
          path="/conversations/{conversation_id}/turns", params=_CONVERSATION, required=("conversation_id",),
          body="TurnIn", read_only=True),
+    Tool("create_agent_test_case", "agents", "Crear un caso de prueba",
+         "Crea un caso desde una conversación real y el índice del mensaje del usuario (preview antes con "
+         "POST /agents/{id}/test-cases/preview). Guarda una copia: si se borra la llamada, el caso queda. No "
+         "ejecuta ninguna herramienta real.", method="POST", path="/agents/{agent_id}/test-cases",
+         params=_AGENT, required=("agent_id",), body="TestCaseCreateIn", admin_only=True),
+    Tool("run_agent_tests", "agents", "Correr las pruebas de un agente",
+         "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice "
+         "pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` "
+         "prueba los cambios sin guardar contra la versión publicada.", method="POST",
+         path="/agents/{agent_id}/test-runs", params=_AGENT, required=("agent_id",), body="TestRunCreateIn",
+         read_only=True, admin_only=True),
     Tool("list_llm_params", "agents", "Parámetros del LLM",
          "Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con "
          "los defaults del modelo propio, para `generation` en la definición del agente.", path="/llm/params",

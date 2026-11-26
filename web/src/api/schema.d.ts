@@ -828,6 +828,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/test-cases/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Case
+         * @description Lo que se guardaria (la copia, sin trazas ni grabaciones), la respuesta original y los chequeos sugeridos.
+         */
+        post: operations["preview_case_api_v1_agents__agent_id__test_cases_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/test-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Cases */
+        get: operations["list_cases_api_v1_agents__agent_id__test_cases_get"];
+        put?: never;
+        /** Create Case */
+        post: operations["create_case_api_v1_agents__agent_id__test_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/test-cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Case */
+        get: operations["read_case_api_v1_agents__agent_id__test_cases__case_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Case */
+        delete: operations["delete_case_api_v1_agents__agent_id__test_cases__case_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Case */
+        patch: operations["update_case_api_v1_agents__agent_id__test_cases__case_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/test-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_api_v1_agents__agent_id__test_runs_get"];
+        put?: never;
+        /**
+         * Create Run
+         * @description Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:
+         *     todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora").
+         */
+        post: operations["create_run_api_v1_agents__agent_id__test_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/test-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Run */
+        get: operations["read_run_api_v1_agents__agent_id__test_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -10679,6 +10775,244 @@ export interface components {
             /** Objective */
             objective: string;
         };
+        /**
+         * TestCaseCreateIn
+         * @description Lo generado se puede pisar (`messages`, `user_message`, `tool_results`): la UI manda el caso tal como lo ve.
+         */
+        TestCaseCreateIn: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Message Index */
+            message_index: number;
+            /** Name */
+            name: string;
+            /** Checks */
+            checks?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Known Failure
+             * @default false
+             */
+            known_failure?: boolean;
+            /** Messages */
+            messages?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** User Message */
+            user_message?: string | null;
+            /** Tool Results */
+            tool_results?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** TestCaseDetailOut */
+        TestCaseDetailOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Agent Id */
+            agent_id: string;
+            /** Name */
+            name: string;
+            /** Source Conversation Id */
+            source_conversation_id: string | null;
+            /** Source Message Index */
+            source_message_index: number | null;
+            /** Source Agent Version */
+            source_agent_version: number | null;
+            /** Channel */
+            channel: string;
+            /** Known Failure */
+            known_failure: boolean;
+            /** Checks */
+            checks: {
+                [key: string]: unknown;
+            }[];
+            /** Tool Results */
+            tool_results: {
+                [key: string]: unknown;
+            }[];
+            /** Snapshot */
+            snapshot?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            last_run?: components["schemas"]["TestCaseRunSummary"] | null;
+            /**
+             * History
+             * @description Corridas que incluyeron el caso
+             */
+            history?: components["schemas"]["TestCaseRunSummary"][];
+        };
+        /**
+         * TestCasePreviewIn
+         * @description Una conversacion y el indice del mensaje del usuario que cierra el caso.
+         */
+        TestCasePreviewIn: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Message Index */
+            message_index: number;
+        };
+        /** TestCasePreviewOut */
+        TestCasePreviewOut: {
+            /** Snapshot */
+            snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Reply
+             * @description Lo que respondio el agente: text, tool_calls, handoff, tool_results
+             */
+            reply: {
+                [key: string]: unknown;
+            };
+            /**
+             * Checks
+             * @description Chequeos sugeridos
+             */
+            checks: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** TestCaseRunSummary */
+        TestCaseRunSummary: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Variants
+             * @description Por variante: {key, passed, total}
+             */
+            variants?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** TestCaseSummaryOut */
+        TestCaseSummaryOut: {
+            /** Id */
+            id: string;
+            /** Agent Id */
+            agent_id: string;
+            /** Name */
+            name: string;
+            /** Channel */
+            channel: string;
+            /** Known Failure */
+            known_failure: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            last_run?: components["schemas"]["TestCaseRunSummary"] | null;
+        };
+        /** TestCaseUpdateIn */
+        TestCaseUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Checks */
+            checks?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Known Failure */
+            known_failure?: boolean | null;
+            /** Messages */
+            messages?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** User Message */
+            user_message?: string | null;
+            /** Tool Results */
+            tool_results?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /** TestRunCreateIn */
+        TestRunCreateIn: {
+            /**
+             * Repetitions
+             * @default 5
+             */
+            repetitions?: number;
+            /**
+             * Definition
+             * @description Los cambios sin guardar (borrador)
+             */
+            definition?: {
+                [key: string]: unknown;
+            } | null;
+            /** Case Ids */
+            case_ids?: string[] | null;
+            draft_case?: components["schemas"]["TestCaseCreateIn"] | null;
+        };
+        /** TestRunOut */
+        TestRunOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "failed";
+            /** Repetitions */
+            repetitions: number;
+            /** Variants */
+            variants: {
+                [key: string]: unknown;
+            }[];
+            /** Cases */
+            cases: {
+                [key: string]: unknown;
+            }[];
+            /** Results */
+            results: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+        };
         /** TierBrief */
         TierBrief: {
             /** Id */
@@ -13926,6 +14260,303 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentVersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_case_api_v1_agents__agent_id__test_cases_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestCasePreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCasePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cases_api_v1_agents__agent_id__test_cases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseSummaryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_case_api_v1_agents__agent_id__test_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestCaseCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_case_api_v1_agents__agent_id__test_cases__case_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_case_api_v1_agents__agent_id__test_cases__case_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_case_api_v1_agents__agent_id__test_cases__case_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestCaseUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_api_v1_agents__agent_id__test_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestRunOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_run_api_v1_agents__agent_id__test_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestRunCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_run_api_v1_agents__agent_id__test_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestRunOut"];
                 };
             };
             /** @description Validation Error */

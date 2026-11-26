@@ -1,5 +1,6 @@
 """Modelos ORM. Importar este paquete registra todas las tablas en Base.metadata
 (Alembic y create_schema lo necesitan)."""
+from .agent_tests import AgentTestCase, AgentTestRun
 from .agents import Agent, AgentVersion
 from .billing import BillingPayment, Subscription
 from .call_links import CallLink
@@ -42,6 +43,8 @@ from .whatsapp import (
 __all__ = [
     "ACTIVE_CALL_STATUSES",
     "Agent",
+    "AgentTestCase",
+    "AgentTestRun",
     "AgentSecret",
     "AgentVersion",
     "ApiKey",

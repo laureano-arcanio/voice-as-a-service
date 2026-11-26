@@ -603,6 +603,12 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
   prendido, cada mensaje trae el reproductor de su WAV. En una llamada derivada, el tramo con la persona del
   equipo empieza con el separador "Llamada con <persona>", y lo que dijo ella va del lado del agente, en una
   burbuja blanca con borde y su nombre ("Ana Pérez (equipo)").
+- **Crear caso de prueba:** cada respuesta del agente que tiene un mensaje del usuario justo antes ofrece
+  **Crear caso de prueba**. Abre la conversación hasta ese turno, lo que respondió el agente y el resultado de la
+  herramienta; los chequeos sugeridos vienen tildados, se puede seleccionar texto de la respuesta para sumar
+  **No tiene que decir esto**, **Probar ahora (5×)** la corre sin guardar y **Guardar** la deja en la pestaña
+  Pruebas del agente ([`features/CASOS_DE_PRUEBA.md`](features/CASOS_DE_PRUEBA.md)). No aparece en la apertura ni
+  en lo que dijo una persona del equipo.
 - **Teclas marcadas:** en llamadas del agente, del equipo y en derivaciones, las teclas que marca quien llama (y, en una saliente
   directa, las del teclado del panel) van en su lugar como un renglón chico centrado: "Quien llamó marcó 123",
   "Ana Pérez marcó 2". Dígitos seguidos (menos de 3 s entre uno y otro) quedan en el mismo renglón.
@@ -668,10 +674,17 @@ otro cliente.
    **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
 4. **Probar:** **Hablar** (llamada de prueba) o conversación por texto, con un número de quien llama simulado y
-   valores de prueba si hace falta, antes de ponerlo a atender. También con **Probar** en la lista.
-5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
+   valores de prueba si hace falta, antes de ponerlo a atender. También con **Probar** en la lista. Desde una
+   respuesta del chat, **Crear caso de prueba**.
+5. **Pruebas:** los casos guardados y su **pasa X/N**; **Correr todos 5×** o **10×**; el detalle con la conversación,
+   los chequeos editables, el resultado grabado de la herramienta, el historial, las respuestas, **Correr este
+   caso**, **Falla conocida** y **Borrar**. Los casos se crean desde una llamada o desde Probar (no hay «nuevo caso»).
+   En la barra de edición, **Correr pruebas** compara los cambios sin guardar con la publicada: la tabla dice
+   publicada X/N y cambios Y/N, en rojo lo que empeora. Al guardar, si no se corrieron las pruebas o si algún caso
+   empeora, avisa y deja guardar igual.
+6. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
-6. Para que atienda: elegilo en **Números** o en **WhatsApp**.
+7. Para que atienda: elegilo en **Números** o en **WhatsApp**.
 
 La pestaña **JSON**, el slug y **Ver prompt** los ve todo cliente, como el admin. Por API el cliente hace lo
 mismo con su API key (`POST /api/v1/agents` sin `client_id`); `engine` ya no existe en la definición
@@ -756,7 +769,8 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 - Para que un agente la use: en el agente, **Herramientas** (la pestaña del agente), elegirla; si le falta
   un secreto, la herramienta dice **Falta X** y se carga ahí (**Cargar valor**: para todos los agentes o
   solo este). Sin sus secretos el agente no se guarda. Cambiar una herramienta rige en todos los agentes
-  que la usan; no se puede borrar mientras un agente la use.
+  que la usan; no se puede borrar mientras un agente la use. Al guardar una revisión nueva de una herramienta
+  usada, un aviso enlaza a **Correr las pruebas** de cada agente que la usa.
 
 ### Secretos
 

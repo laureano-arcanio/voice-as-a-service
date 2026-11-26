@@ -19,6 +19,7 @@ from ..db import utcnow
 from ..models import (
     ACTIVE_CALL_STATUSES,
     Agent,
+    AgentTestCase,
     CallMode,
     CallRing,
     CallRow,
@@ -576,6 +577,9 @@ def delete_conversations(s: Session, ids: list[str]) -> int:
     # ondelete=CASCADE de PostgreSQL no se ve desde el ORM (no hay relationships).
     s.execute(update(CampaignContact).where(CampaignContact.conversation_id.in_(found))
               .values(conversation_id=None))
+    # Los casos de prueba conservan su copia de la conversacion: el origen queda en null.
+    s.execute(update(AgentTestCase).where(AgentTestCase.source_conversation_id.in_(found))
+              .values(source_conversation_id=None))
     s.execute(delete(WaMessage).where(WaMessage.conversation_id.in_(found)))
     s.execute(delete(WaThread).where(WaThread.conversation_id.in_(found)))
     s.execute(delete(CallRing).where(CallRing.conversation_id.in_(found)))

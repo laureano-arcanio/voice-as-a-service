@@ -271,6 +271,19 @@ function ToolEditor({
           </Group>
         </Card>
 
+        {saved && update.isSuccess && saved.used_by.length > 0 && (
+          <Alert color="blue" title="Cambió una herramienta que usan agentes">
+            <Group gap="xs" wrap="wrap">
+              <Text size="sm">Corré las pruebas de los agentes que la usan:</Text>
+              {saved.used_by.map((a) => (
+                <Anchor key={a.id} component={Link} to={`/agents/${a.id}?tab=pruebas`} size="sm">
+                  {a.name}
+                </Anchor>
+              ))}
+            </Group>
+          </Alert>
+        )}
+
         {errors.length > 0 && (
           <Alert color="red" icon={<IconAlertCircle size={18} />} title="No se guardó">
             <List size="sm" spacing={4}>

@@ -596,3 +596,39 @@ def test_report_tools_respect_the_plan(api, admin):
         out = mcp.call(name, **PERIOD)
         assert out["isError"] and out["structuredContent"]["code"] == "feature_not_in_plan", (name, out)
         assert out["structuredContent"]["feature"] == "advanced_reports"
+
+
+def test_agent_test_cases_by_mcp(api, admin, full):
+    """Casos de prueba por MCP: crear, listar, correr y leer la corrida; con mcp_read, sin escribir."""
+    from app.models import ConversationRow
+
+    c, agent, mcp = full
+    with api.sessions() as s:
+        s.add(ConversationRow(id="cv-caso", client_id=c["id"], agent_id=agent["id"], agent_version=1,
+                              channel="voice", status="completed", fields={}, messages=[
+                                  {"role": "assistant", "text": "Hola, soy Sofía."},
+                                  {"role": "user", "text": "¿Qué horario tienen?"},
+                                  {"role": "assistant", "text": "De 9 a 18."}],
+                              progress={"call": {"mode": "api"}}))
+        s.commit()
+    created = ok(mcp.call("create_agent_test_case", agent_id=agent["id"], conversation_id="cv-caso",
+                          message_index=1, name="Horario", checks=[{"type": "dice", "text": "9 a 18"}]))
+    assert created["name"] == "Horario" and created["checks"][0]["type"] == "dice"
+    listed = ok(mcp.call("list_agent_test_cases", agent_id=agent["id"]))["items"]
+    assert [x["id"] for x in listed] == [created["id"]]
+    run = ok(mcp.call("run_agent_tests", agent_id=agent["id"], repetitions=2, case_ids=[created["id"]]))
+    assert run["status"] == "queued" and run["total"] == 2
+    got = ok(mcp.call("get_agent_test_run", agent_id=agent["id"], run_id=run["id"]))
+    assert got["id"] == run["id"] and got["cases"][0]["name"] == "Horario"
+
+    # mcp_read: las de lectura (incluida correr, que no llama ni manda nada) y no la de crear.
+    read = Mcp(api, new_key(admin, c, scopes=["mcp_read"]), "agents")
+    tools = read.tools()
+    assert {"list_agent_test_cases", "get_agent_test_run", "run_agent_tests"} <= set(tools)
+    assert "create_agent_test_case" not in tools
+    r = read.http.post(read.url, headers={"Authorization": f"Bearer {read.key}"},
+                       json={"jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                             "params": {"name": "create_agent_test_case", "arguments": {
+                                 "agent_id": agent["id"], "conversation_id": "cv-caso",
+                                 "message_index": 1, "name": "x"}}})
+    assert "error" in r.json()

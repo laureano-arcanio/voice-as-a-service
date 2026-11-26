@@ -53,6 +53,8 @@ import {
   useCloseWhatsApp,
   useHangUp,
 } from './api';
+import { CreateCaseModal } from '@/features/agent-tests/CreateCaseModal';
+import { useAgent } from '@/features/agents/api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { ReanalyzeButton } from './ReanalyzeButton';
@@ -370,6 +372,9 @@ function personLabels(c: CallDetail): { agentLabel?: string; userLabel?: string 
 
 function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
   const [showLlm, setShowLlm] = useState(false);
+  const [caseTurn, setCaseTurn] = useState<number | null>(null);
+  const agent = useAgent(c.agent_id ?? undefined);
+  const ownAgent = !!(agent.data?.definition as { external?: unknown } | undefined)?.external;
   // "Salida del LLM" es vocabulario interno: el cliente lo ve como detalle tecnico.
   const llmTitle = useIsAdmin() ? 'Salida del LLM' : 'Detalle técnico';
   return (
@@ -393,7 +398,18 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
         llmTitle={llmTitle}
         conversationId={c.id}
         {...personLabels(c)}
+        onCreateCase={c.agent_id && !ownAgent ? (userIndex) => setCaseTurn(userIndex) : undefined}
       />
+      {c.agent_id && caseTurn != null && (
+        <CreateCaseModal
+          agentId={c.agent_id}
+          clientId={c.client_id}
+          conversationId={c.id}
+          messageIndex={caseTurn}
+          opened
+          onClose={() => setCaseTurn(null)}
+        />
+      )}
     </Card>
   );
 }

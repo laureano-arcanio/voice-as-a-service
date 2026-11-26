@@ -296,6 +296,26 @@
    "api_key": false
   },
   {
+   "name": "list_agent_test_cases",
+   "toolset": "agents",
+   "title": "Casos de prueba de un agente",
+   "description": "Los casos de prueba guardados del agente, con el resultado de la última corrida (pasa X/N por variante). Los casos son copias de conversaciones y no ejecutan herramientas reales.",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_agent_test_run",
+   "toolset": "agents",
+   "title": "Corrida de pruebas",
+   "description": "El progreso y las respuestas de una corrida de pruebas. Informa; no bloquea nada.",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "get_agent_version",
    "toolset": "agents",
    "title": "Versión de un agente",
@@ -504,6 +524,26 @@
    "toolset": "agents",
    "title": "Hablarle al agente de prueba",
    "description": "Manda un mensaje como si fuera el cliente final en una conversación de prueba y devuelve la respuesta del agente y los datos que tomó.",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "create_agent_test_case",
+   "toolset": "agents",
+   "title": "Crear un caso de prueba",
+   "description": "Crea un caso desde una conversación real y el índice del mensaje del usuario (preview antes con POST /agents/{id}/test-cases/preview). Guarda una copia: si se borra la llamada, el caso queda. No ejecuta ninguna herramienta real.",
+   "kind": "escritura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "run_agent_tests",
+   "toolset": "agents",
+   "title": "Correr las pruebas de un agente",
+   "description": "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` prueba los cambios sin guardar contra la versión publicada.",
    "kind": "lectura",
    "features": [],
    "oauth": false,
