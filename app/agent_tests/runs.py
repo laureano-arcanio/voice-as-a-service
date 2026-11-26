@@ -5,13 +5,16 @@ import asyncio
 import contextlib
 import logging
 
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
+from ..conversation.models import Workflow
 from ..db import get_sessionmaker, utcnow
-from ..models import Agent, AgentTestCase, AgentTestRun
+from ..llm.params import PROVIDER_LABELS
+from ..models import Agent, AgentTestCase, AgentTestRun, LlmConnection
 from . import runner
 from ..services import errors
 
@@ -20,7 +23,11 @@ logger = logging.getLogger(__name__)
 QUEUED, RUNNING, DONE, FAILED, CANCELLED = "queued", "running", "done", "failed", "cancelled"
 ACTIVE = (QUEUED, RUNNING)
 MAX_RUNS = 30
+MAX_MODELS = 3
+MAX_MODEL_TURNS = 300      # con `models`: los turnos de la corrida (casos x variantes x repeticiones)
 RESTART_ERROR = "se reinició la app"
+LOCAL_LABEL = "LLM de Atentina"
+NO_FALLBACK_LABEL = "Publicada (sin respaldo)"
 
 
 def _same(left: dict, right: dict) -> bool:
@@ -36,12 +43,54 @@ class RunInProgress(errors.Conflict):
         self.run_id = run_id
 
 
+def _invalid_models(message: str, error: ValidationError | None = None) -> errors.Invalid:
+    details = [{"path": ".".join(str(p) for p in e.get("loc") or []), "message": str(e.get("msg"))}
+               for e in (error.errors() if error is not None else [])]
+    return errors.Invalid(message, "invalid_models", details)
+
+
+def _model_variant(s: Session, agent: Agent, index: int, spec: dict) -> dict:
+    """Una variante de "correr la publicada con otro modelo": una sola etapa para todos los turnos y sin respaldo
+    local. La conexion es del agente y esta vigente (404, sin distinguir la de otro cliente); `connection_id` null
+    es el LLM de Atentina. Los proveedores solo valen en una conexion OpenRouter."""
+    connection_id = spec.get("connection_id")
+    model = (spec.get("model") or "").strip()
+    providers = [str(p) for p in spec.get("providers") or []]
+    stage: dict = {"from_turn": 1}
+    label = LOCAL_LABEL
+    if connection_id:
+        row = s.get(LlmConnection, connection_id)
+        if row is None or row.client_id != agent.client_id or row.revoked_at is not None:
+            raise errors.NotFound("Conexión inexistente")
+        if providers and row.kind != "openrouter":
+            raise _invalid_models("Los proveedores de OpenRouter solo valen en una conexión OpenRouter")
+        stage.update({"connection": connection_id, "model": model})
+        if providers:
+            stage["provider"] = {"only": providers}
+        label = f"{PROVIDER_LABELS.get(row.kind, row.kind)} · {model}"
+    elif model or providers:
+        raise _invalid_models("El LLM de Atentina no lleva modelo ni proveedores")
+    definition = {**agent.definition, "llm": {"stages": [stage], "fallback_local": False}}
+    try:
+        Workflow.model_validate(definition)
+    except ValidationError as e:
+        raise _invalid_models("La definición de la variante no es válida", e) from None
+    return {"key": f"m{index}", "version": agent.version, "label": label, "definition": definition}
+
+
 def create(s: Session, agent: Agent, repetitions: int, definition: dict | None, case_ids: list[str] | None,
-           draft: dict | None, user_id: str | None) -> AgentTestRun:
-    """Arma la corrida: las variantes (publicada y, si la definicion cambia, los cambios sin guardar) y la copia
-    de nombre y chequeos de cada caso. `draft`: un caso sin guardar ("Probar ahora")."""
+           draft: dict | None, user_id: str | None, models: list[dict] | None = None,
+           published_fallback: bool = True) -> AgentTestRun:
+    """Arma la corrida: las variantes (publicada y, si la definicion cambia, los cambios sin guardar; con `models`,
+    una por modelo, sin respaldo) y la copia de nombre y chequeos de cada caso. `draft`: un caso sin guardar
+    ("Probar ahora")."""
     if not 1 <= repetitions <= 10:
         raise errors.Invalid("repeticiones: de 1 a 10", "invalid_repetitions")
+    models = models or None
+    if models is not None and definition is not None:
+        raise errors.Invalid("Con modelos no se mandan cambios sin guardar", "models_with_definition")
+    if models is not None and len(models) > MAX_MODELS:
+        raise _invalid_models(f"Hasta {MAX_MODELS} modelos por corrida")
     if case_ids is None:
         rows = list(s.scalars(select(AgentTestCase).where(AgentTestCase.agent_id == agent.id)
                               .order_by(AgentTestCase.created_at.desc())))
@@ -62,13 +111,31 @@ def create(s: Session, agent: Agent, repetitions: int, definition: dict | None, 
     variants = [{"key": "publicada", "version": agent.version}]
     if definition is not None and not _same(definition, agent.definition):
         variants.append({"key": "borrador", "version": agent.version + 1, "definition": definition})
+    if models is not None:
+        seen = set()
+        for i, spec in enumerate(models, start=1):
+            duplicate = (spec.get("connection_id"), (spec.get("model") or "").strip(),
+                         tuple(sorted(str(p) for p in spec.get("providers") or [])))
+            if duplicate in seen:
+                raise errors.Invalid("Hay modelos repetidos en la corrida", "duplicate_models")
+            seen.add(duplicate)
+            variants.append(_model_variant(s, agent, i, spec))
+    if not published_fallback and (agent.definition.get("llm") or {}).get("stages"):
+        variants[0] = {"key": "publicada", "version": agent.version, "label": NO_FALLBACK_LABEL,
+                       "definition": {**agent.definition,
+                                      "llm": {**agent.definition["llm"], "fallback_local": False}}}
+    total = len(cases) * len(variants) * repetitions
+    if models is not None and total > MAX_MODEL_TURNS:
+        raise errors.Invalid(
+            f"Con otros modelos, hasta {MAX_MODEL_TURNS} turnos por corrida: bajá las repeticiones o los modelos",
+            "too_many_turns")
     active = s.scalar(select(AgentTestRun).where(AgentTestRun.agent_id == agent.id,
                                                  AgentTestRun.status.in_(ACTIVE)))
     if active is not None:
         raise RunInProgress(active.id)
     run = AgentTestRun(client_id=agent.client_id, agent_id=agent.id, status=QUEUED, repetitions=repetitions,
                        variants=variants, cases=cases, results=None, done=0,
-                       total=len(cases) * len(variants) * repetitions, input_tokens=0, output_tokens=0,
+                       total=total, input_tokens=0, output_tokens=0,
                        tool_revisions=None, created_by=user_id)
     s.add(run)
     try:
@@ -142,11 +209,19 @@ def requeue_interrupted(sessions: sessionmaker[Session]) -> int:
         return len(rows)
 
 
+def _variant_summary(v: dict) -> dict:
+    out = {"key": v.get("key"), "passed": v.get("passed", 0), "total": v.get("total", 0),
+           "fallbacks": v.get("fallbacks", 0)}
+    if v.get("label"):
+        out["label"] = v["label"]
+    return out
+
+
 def summarize(results: list | None) -> list[dict]:
-    """`[{case_id, variants: [{key, passed, total}]}]`: el `pasa X/N` de cada variante, sin las respuestas."""
+    """`[{case_id, variants: [{key, passed, total, fallbacks, label?}]}]`: el `pasa X/N`, los respaldos y el
+    nombre de la variante, sin las respuestas."""
     return [{"case_id": item.get("case_id"),
-             "variants": [{"key": v.get("key"), "passed": v.get("passed", 0), "total": v.get("total", 0)}
-                          for v in item.get("variants") or []]}
+             "variants": [_variant_summary(v) for v in item.get("variants") or []]}
             for item in results or []]
 
 

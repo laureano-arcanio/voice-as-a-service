@@ -750,7 +750,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `billing.py` | `/clients/{id}/billing/*` (subscribe, cancel, fiscal, payments, suspend), `/billing/subscriptions`, `/billing/payments` | [`COBROS.md`](features/COBROS.md) |
 | `branding.py` | `/clients/{id}/branding*`, `/public/branding/{slug}*` | "Marca blanca" |
 | `agents.py` | `/agents` (CRUD, `schema`, `validate`, `prompt`, `definition`, `versions`), `/agent-templates` | "Definición de un agente" |
-| `agent_tests.py` | `/agents/{id}/test-cases*` (preview, crear, lista, detalle, editar, borrar) y `/agents/{id}/test-runs*` (crear, progreso con `limit`/`include_results`, resultados, cancelar) | [`features/CASOS_DE_PRUEBA.md`](features/CASOS_DE_PRUEBA.md) |
+| `agent_tests.py` | `/agents/{id}/test-cases*` (preview, crear, lista, detalle, editar, borrar) y `/agents/{id}/test-runs*` (crear — con `models` corre la publicada con otros modelos sin guardar, `published_fallback` —, progreso con `limit`/`include_results`, resultados, cancelar) | [`features/CASOS_DE_PRUEBA.md`](features/CASOS_DE_PRUEBA.md) |
 | `conversations.py` | `/conversations` (texto, turnos) | "Motor conversacional" |
 | `calls.py` | `/calls` (crear, lista, detalle, `join`, `hangup`, `recordings/{n}`, `recording` (completa), `analyze` (re-correr el análisis, admin del cliente, con la versión de la conversación o la última), borrar y `bulk-delete` solo admin) | "Flujos" |
 | `voices.py`, `llm_params.py` | `/voices`, `/tts/preview`, `/llm/params` | |

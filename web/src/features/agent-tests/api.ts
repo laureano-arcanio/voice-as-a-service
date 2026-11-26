@@ -34,6 +34,14 @@ export type Preview = {
   checks: Check[];
 };
 
+/** Quién contestó la repetición: el externo de la etapa o el respaldo local (TurnLLM.info, app/llm/resolver.py). */
+export type TurnLLM = {
+  provider?: string | null;
+  model?: string | null;
+  fallback_from?: string | null;
+  fallback_reason?: string | null;
+};
+
 export type Repetition = {
   text: string;
   tool_calls: { name: string; arguments?: unknown }[];
@@ -44,7 +52,7 @@ export type Repetition = {
   ms: number;
   input_tokens: number;
   output_tokens: number;
-  llm: Record<string, unknown>;
+  llm: TurnLLM;
   tools: { name: string; arguments?: unknown; result: string; recorded: boolean }[];
   passed: boolean;
 };
@@ -55,7 +63,20 @@ export type VariantResult = {
   passed: number;
   total: number;
   errors: number;
+  /** Repeticiones que contestó el respaldo local; en una corrida vieja no viene y se cuentan. */
+  fallbacks?: number;
+  /** {motivo: repeticiones}, p. ej. {"BadRequestError 400": 3}. */
+  fallback_reasons?: Record<string, number>;
+  /** Nombre de la variante cuando corrió con otro modelo; `publicada` y `borrador` no lo traen. */
+  label?: string | null;
   repetitions: Repetition[];
+};
+
+/** Lo que hace falta para contar respaldos, con o sin el campo `fallbacks` (corridas viejas). */
+export type FallbackInput = {
+  fallbacks?: unknown;
+  fallback_reasons?: unknown;
+  repetitions?: unknown;
 };
 
 export type CaseResult = {
@@ -79,8 +100,8 @@ export const CHECK_TYPES = [
 export const checkLabel = (type: string) =>
   CHECK_TYPES.find(([value]) => value === type)?.[1] ?? type;
 
-export const variantLabel = (key: string) =>
-  key === 'publicada' ? 'Publicada' : key === 'borrador' ? 'Cambios sin guardar' : key;
+export const variantLabel = (key: string, label?: string | null) =>
+  label || (key === 'publicada' ? 'Publicada' : key === 'borrador' ? 'Cambios sin guardar' : key);
 
 export const testKeys = {
   cases: (agentId: string) => ['agent-tests', 'cases', agentId] as const,
@@ -293,8 +314,59 @@ export const snapshotMessages = (preview: Preview | TestCaseDetail | undefined) 
 export const variantPass = (variant: Record<string, unknown>) =>
   `pasa ${Number(variant.passed ?? 0)}/${Number(variant.total ?? 0)}`;
 
+/** Las repeticiones que contestó el respaldo local: `fallbacks` o, en una corrida vieja, contadas. */
+export const fallbackCount = (variant?: FallbackInput | null): number => {
+  if (!variant) return 0;
+  if (typeof variant.fallbacks === 'number') return variant.fallbacks;
+  const repetitions = Array.isArray(variant.repetitions)
+    ? (variant.repetitions as { llm?: TurnLLM | null }[])
+    : [];
+  return repetitions.filter((r) => r.llm?.provider === 'local' && !!r.llm?.fallback_from).length;
+};
+
+/** El motivo más frecuente de los respaldos, o null si no hubo. */
+export const fallbackReason = (variant?: FallbackInput | null): string | null => {
+  if (!variant) return null;
+  const raw = variant.fallback_reasons;
+  const entries: [string, number][] =
+    raw && typeof raw === 'object'
+      ? Object.entries(raw as Record<string, unknown>)
+          .map(([reason, count]) => [reason, Number(count)] as [string, number])
+          .filter(([, count]) => count > 0)
+      : [];
+  if (entries.length) return entries.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
+  const counts: Record<string, number> = {};
+  for (const rep of Array.isArray(variant.repetitions)
+    ? (variant.repetitions as { llm?: TurnLLM | null }[])
+    : []) {
+    if (rep.llm?.provider !== 'local' || !rep.llm?.fallback_from) continue;
+    const reason = rep.llm.fallback_reason || 'sin motivo';
+    counts[reason] = (counts[reason] ?? 0) + 1;
+  }
+  const reps = Object.entries(counts);
+  return reps.length ? reps.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0] : null;
+};
+
+/** "openrouter · modelo", "Respaldo local (modelo) en lugar de X: motivo" o el modelo propio. */
+export const llmLabel = (llm?: TurnLLM | null): string => {
+  if (!llm) return '';
+  if (llm.fallback_from) {
+    const local = llm.model ? ` (${llm.model})` : '';
+    const reason = llm.fallback_reason ? `: ${llm.fallback_reason}` : '';
+    return `Respaldo local${local} en lugar de ${llm.fallback_from}${reason}`;
+  }
+  return llm.provider && llm.model ? `${llm.provider} · ${llm.model}` : (llm.model ?? '');
+};
+
 export const summaryText = (summary?: { variants?: Record<string, unknown>[] } | null) =>
-  (summary?.variants ?? []).map((v) => `${variantLabel(String(v.key ?? ''))}: ${variantPass(v)}`).join(' · ');
+  (summary?.variants ?? [])
+    .map((v) => {
+      const fallbacks = fallbackCount(v);
+      const suffix = fallbacks > 0 ? ` · ${fallbacks} respaldo` : '';
+      const label = typeof v.label === 'string' ? v.label : undefined;
+      return `${variantLabel(String(v.key ?? ''), label)}: ${variantPass(v)}${suffix}`;
+    })
+    .join(' · ');
 
 /** Los chequeos como texto para el detalle. */
 export const describeCheck = (check: Check): string => {

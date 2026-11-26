@@ -7,7 +7,8 @@ resolver devuelve, por turno, un objeto con los cuatro metodos de LLMClient:
 - sin plan, o etapa local: el LLMClient propio, tal cual;
 - etapa externa: `TurnLLM`, que ante un error del proveedor contesta con el propio
   (fallback_local) salvo que ya haya empezado a hablar (en voz, repetir la frase sonaria doble).
-  Despues de BREAKER_FAILS errores seguidos de una conexion, la saltea BREAKER_SECONDS.
+  Despues de BREAKER_FAILS errores del servicio seguidos de una conexion, modelo y proveedores
+  fijados (breaker_key), los saltea BREAKER_SECONDS; los errores del pedido no cuentan.
 """
 import asyncio
 import logging
@@ -51,7 +52,24 @@ class ConnectionData:
     stamp: float            # updated_at: invalida el cliente cacheado al editar la conexion
 
 
+def breaker_key(connection_id: str, stage: LlmStage) -> str:
+    """La llave del circuito: quien atiende (conexion, modelo y proveedores fijados en la etapa)."""
+    tags = ",".join(sorted(stage.provider.only)) if stage.provider else ""
+    return f"{connection_id}|{stage.model or ''}|{tags}"
+
+
+def counts_for_breaker(e: Exception) -> bool:
+    """Si el error cuenta para abrir el circuito: los del servicio, no los del pedido.
+    Un 400/404/409/413/422 es de un agente (modelo invalido, parametros, herramientas, contexto) y es rapido;
+    sin codigo (timeout, conexion, RuntimeError, refusal de Anthropic) o 401/403/408/429/>=500 es del servicio."""
+    status = getattr(e, "status_code", None)
+    return status is None or status in (401, 403, 408, 429) or status >= 500
+
+
 class Breaker:
+    """Corta un (conexion, modelo, proveedores fijados) que falla seguido: la llave es `breaker_key`.
+    Solo cuentan los errores del servicio (`counts_for_breaker`): un 400 de un agente no saltea al resto."""
+
     def __init__(self) -> None:
         self._fails: dict[str, int] = {}
         self._open_until: dict[str, float] = {}
@@ -112,14 +130,16 @@ class TurnLLM:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            self.breaker.failed(self.key)
+            if counts_for_breaker(e):
+                self.breaker.failed(self.key)
             logger.warning("llm %s fallo (%s): %s", self.label, method, e)
             # Si ya hablo o ya ejecuto una herramienta del cliente, el respaldo la repetiria.
             tools = kwargs.get("tools")
             if not self.fallback or spoke or (tools is not None and tools.calls):
                 raise
             self.fell_back = True
-            self.reason = type(e).__name__
+            status = getattr(e, "status_code", None)
+            self.reason = f"{type(e).__name__} {status}" if status is not None else type(e).__name__
             return await fallback(*args, **kwargs)
         self.breaker.ok(self.key)
         return result
@@ -176,7 +196,7 @@ class LLMResolver:
         except crypto.TokenKeyMissing as e:
             return self._unavailable(plan.fallback_local, stage, generation, defaults, e.message)
         return TurnLLM(primary, self._local(generation, defaults), plan.fallback_local, self.breaker,
-                       data.id, data.kind, stage.model or "")
+                       breaker_key(data.id, stage), data.kind, stage.model or "")
 
     def _local(self, generation: dict, defaults: dict) -> LLMClient:
         """El cliente propio con los parametros del agente/etapa, cacheado (el LLMClient hornea sus
@@ -200,8 +220,8 @@ class LLMResolver:
         logger.error("conexion %s no disponible: %s", stage.connection, reason)
         if not fallback:
             raise LlmUnavailable(reason)
-        return TurnLLM(None, self._local(generation, defaults), True, self.breaker, stage.connection or "",
-                       "external", stage.model or "", reason=reason)
+        return TurnLLM(None, self._local(generation, defaults), True, self.breaker,
+                       breaker_key(stage.connection or "", stage), "external", stage.model or "", reason=reason)
 
     def _connection(self, connection_id: str) -> ConnectionData | None:
         now = time.monotonic()

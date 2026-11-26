@@ -1,7 +1,7 @@
 import { Badge, Card, Divider, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconArrowRight, IconCheck, IconX } from '@tabler/icons-react';
 import type { CaseResult, Repetition, VariantResult } from './api';
-import { variantLabel } from './api';
+import { fallbackCount, fallbackReason, llmLabel, variantLabel } from './api';
 
 function Highlight({ text, span }: { text: string; span?: string }) {
   if (!span) return <>{text || <Text span c="dimmed">(sin texto)</Text>}</>;
@@ -24,6 +24,7 @@ function passColor(passed: number, total: number) {
 }
 
 function RepetitionRow({ rep, index }: { rep: Repetition; index: number }) {
+  const llm = llmLabel(rep.llm);
   return (
     <Paper withBorder p="sm" data-testid="repetition">
       <Group gap="xs" mb={4}>
@@ -36,6 +37,11 @@ function RepetitionRow({ rep, index }: { rep: Repetition; index: number }) {
         <Text size="xs" c="dimmed">
           {rep.ms} ms
         </Text>
+        {llm && (
+          <Text size="xs" c={rep.llm.fallback_from ? 'orange.8' : 'dimmed'}>
+            {llm}
+          </Text>
+        )}
       </Group>
       <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
         <Highlight text={rep.text} span={rep.failures.find((f) => f.span)?.span} />
@@ -75,14 +81,21 @@ function RepetitionRow({ rep, index }: { rep: Repetition; index: number }) {
 }
 
 function VariantBlock({ variant }: { variant: VariantResult }) {
+  const fallbacks = fallbackCount(variant);
+  const reason = fallbackReason(variant);
   return (
     <Stack gap="xs">
       <Group gap="xs">
-        <Badge color="gray">{variantLabel(variant.key)}</Badge>
+        <Badge color="gray">{variantLabel(variant.key, variant.label)}</Badge>
         <Badge color={passColor(variant.passed, variant.total)}>
           pasa {variant.passed}/{variant.total}
         </Badge>
         {variant.errors > 0 && <Badge color="red">{variant.errors} con error</Badge>}
+        {fallbacks > 0 && (
+          <Badge color="orange">
+            {`${fallbacks} de ${variant.total} las contestó el respaldo local${reason ? ` (${reason})` : ''}`}
+          </Badge>
+        )}
       </Group>
       {variant.repetitions.map((rep, i) => (
         <RepetitionRow key={i} rep={rep} index={i} />

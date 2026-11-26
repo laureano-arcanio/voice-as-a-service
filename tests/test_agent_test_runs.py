@@ -19,6 +19,7 @@ from app.services import handoff
 from app.services.handoff import DAYS
 
 from .test_api import V1, admin, client_user, make_agent, make_client  # noqa: F401
+from .helpers import FakeLLM
 from .test_llm_byok import new_connection
 from .test_motor_tools import Script, llm_with
 
@@ -208,7 +209,8 @@ async def test_byok_que_falla_no_abre_el_circuito_de_las_llamadas(api, admin, mo
     rep = out["results"][0]["variants"][0]["repetitions"][0]
     assert rep["text"] == "respaldo local"
     assert rep["llm"]["provider"] == "local"
-    assert live.breaker.is_open(conn["id"]) is False
+    # Ninguna llave abierta en el resolver de las llamadas: la corrida usa el suyo.
+    assert live.breaker._open_until == {}
 
 
 async def test_suma_los_tokens(api, admin):
@@ -225,6 +227,173 @@ async def test_suma_los_tokens(api, admin):
 
     out = await run_cases(api, agent_data(c, definition()), case_data(), llm=Tokens())
     assert out["input_tokens"] == 7 and out["output_tokens"] == 5
+
+
+# ---------- correr con otros modelos ----------
+
+class Externo(FakeLLM):
+    """El proveedor externo de una variante con modelo: como FakeLLM, con label y modelo."""
+    label = "openrouter:vendor/model"
+    model = "vendor/model"
+
+
+def models_body(case_id=None, models=None, **extra):
+    body = {"repetitions": 1, **({"case_ids": [case_id]} if case_id else {}), **extra}
+    if models is not None:
+        body["models"] = models
+    return body
+
+
+async def test_dos_modelos_en_la_misma_corrida_dan_tres_variantes(api, admin, monkeypatch):
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    case_id = make_case(api, c, agent)
+    conn = new_connection(admin, c)
+    externo = Externo(AgentTurn(assistant_message="desde el externo"))
+    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage, generation, defaults: externo)
+    r = admin.post(f"{V1}/agents/{agent['id']}/test-runs",
+                   json=models_body(case_id, [{"connection_id": conn["id"], "model": "vendor/a"},
+                                              {"connection_id": None}]))
+    assert r.status_code == 202, r.text
+    run = r.json()
+    assert [v["key"] for v in run["variants"]] == ["publicada", "m1", "m2"]
+    assert run["variants"][1]["label"] == "OpenRouter · vendor/a"
+    assert run["variants"][2]["label"] == "LLM de Atentina"
+    assert all(v["version"] == agent["version"] for v in run["variants"])
+    assert run["total"] == 3
+
+    api.llm.turns = [AgentTurn(assistant_message="desde la publicada"),
+                     AgentTurn(assistant_message="desde el propio")]
+    monkeypatch.setattr("app.runtime.get_conversation_engine", lambda: make_engine(api))
+    assert runs.claim(api.sessions) == run["id"]
+    await runs.process(api.sessions, run["id"])
+
+    got = admin.get(f"{V1}/agents/{agent['id']}/test-runs/{run['id']}").json()
+    variants = {v["key"]: v for v in got["results"][0]["variants"]}
+    assert variants["publicada"]["repetitions"][0]["text"] == "desde la publicada"
+    assert variants["m1"]["repetitions"][0]["text"] == "desde el externo"
+    assert variants["m1"]["repetitions"][0]["llm"]["provider"] == "openrouter"
+    assert variants["m2"]["repetitions"][0]["text"] == "desde el propio"
+    assert "provider" not in variants["m2"]["repetitions"][0]["llm"]
+    assert variants["m1"]["label"] == "OpenRouter · vendor/a" and variants["m2"]["label"] == "LLM de Atentina"
+    # La corrida no guarda nada: la version del agente no cambia, y el resumen de la lista lleva el label.
+    assert admin.get(f"{V1}/agents/{agent['id']}").json()["version"] == agent["version"]
+    listed = admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()
+    assert [v.get("label") for v in listed[0]["last_run"]["variants"]] == [
+        None, "OpenRouter · vendor/a", "LLM de Atentina"]
+
+
+async def test_el_llm_propio_como_variante_corre_el_modelo_local(api, admin, monkeypatch):
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    case_id = make_case(api, c, agent)
+    api.llm.turns = [AgentTurn(assistant_message="desde la publicada"),
+                     AgentTurn(assistant_message="desde el propio")]
+    monkeypatch.setattr("app.runtime.get_conversation_engine", lambda: make_engine(api))
+    run = admin.post(f"{V1}/agents/{agent['id']}/test-runs",
+                     json=models_body(case_id, [{"connection_id": None}])).json()
+    assert run["variants"][1]["key"] == "m1" and run["variants"][1]["label"] == "LLM de Atentina"
+    assert runs.claim(api.sessions) == run["id"]
+    await runs.process(api.sessions, run["id"])
+    got = admin.get(f"{V1}/agents/{agent['id']}/test-runs/{run['id']}").json()
+    m1 = next(v for v in got["results"][0]["variants"] if v["key"] == "m1")
+    assert m1["repetitions"][0]["text"] == "desde el propio"
+    assert m1["repetitions"][0]["llm"].get("provider") is None
+
+
+async def test_un_modelo_que_falla_es_el_error_de_la_repeticion_sin_respaldo(api, admin, monkeypatch):
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    case_id = make_case(api, c, agent)
+    conn = new_connection(admin, c)
+
+    class Failing:
+        label = "openrouter:vendor/a"
+        model = "vendor/a"
+
+        async def converse(self, *args, **kwargs):
+            raise RuntimeError("proveedor caido")
+
+    monkeypatch.setattr(LLMResolver, "_client", lambda *args, **kwargs: Failing())
+    api.llm.turns = [AgentTurn(assistant_message="desde la publicada")]
+    run = admin.post(f"{V1}/agents/{agent['id']}/test-runs",
+                     json=models_body(case_id, [{"connection_id": conn["id"], "model": "vendor/a"}])).json()
+    monkeypatch.setattr("app.runtime.get_conversation_engine", lambda: make_engine(api))
+    assert runs.claim(api.sessions) == run["id"]
+    await runs.process(api.sessions, run["id"])
+
+    got = admin.get(f"{V1}/agents/{agent['id']}/test-runs/{run['id']}").json()
+    m1 = next(v for v in got["results"][0]["variants"] if v["key"] == "m1")
+    assert m1["passed"] == 0 and m1["errors"] == 1 and m1["fallbacks"] == 0
+    assert "RuntimeError: proveedor caido" in m1["repetitions"][0]["error"]
+
+
+def test_la_publicada_puede_correr_sin_respaldo(api, admin):
+    c = make_client(admin)
+    conn = new_connection(admin, c)
+    plan = {"stages": [{"from_turn": 1, "connection": conn["id"], "model": "vendor/model"}],
+            "fallback_local": True}
+    agent = make_agent(admin, c, definition=definition(llm=plan))
+    make_case(api, c, agent)
+    r = admin.post(f"{V1}/agents/{agent['id']}/test-runs", json={"repetitions": 1, "published_fallback": False})
+    assert r.status_code == 202, r.text
+    publicada = r.json()["variants"][0]
+    assert publicada["key"] == "publicada" and publicada["version"] == agent["version"]
+    assert publicada["label"] == "Publicada (sin respaldo)"
+    assert publicada["definition"]["llm"]["fallback_local"] is False
+    assert publicada["definition"]["llm"]["stages"][0]["connection"] == conn["id"]
+
+
+def test_una_conexion_ajena_o_revocada_da_404(api, admin):
+    acme, other = make_client(admin, "acme"), make_client(admin, "otro")
+    agent = make_agent(admin, acme)
+    case_id = make_case(api, acme, agent)
+    url = f"{V1}/agents/{agent['id']}/test-runs"
+    foreign = new_connection(admin, other)
+    body = models_body(case_id, [{"connection_id": foreign["id"], "model": "vendor/model"}])
+    r = admin.post(url, json=body)
+    assert r.status_code == 404 and r.json()["detail"] == "Conexión inexistente"
+    mine = new_connection(admin, acme, name="Mía")
+    assert admin.delete(f"{V1}/clients/{acme['id']}/llm-connections/{mine['id']}").status_code == 204
+    body["models"] = [{"connection_id": mine["id"], "model": "vendor/model"}]
+    assert admin.post(url, json=body).status_code == 404
+
+
+def test_pedidos_de_modelos_invalidos(api, admin):
+    c = make_client(admin)
+    conn = new_connection(admin, c)
+    agent = make_agent(admin, c)
+    case_id = make_case(api, c, agent)
+    url = f"{V1}/agents/{agent['id']}/test-runs"
+    anthropic = admin.post(f"{V1}/clients/{c['id']}/llm-connections",
+                           json={"name": "Claude", "kind": "anthropic", "api_key": "sk-ant-x",
+                                 "default_model": "claude-x"}).json()
+    for spec, code in (
+            ({"connection_id": anthropic["id"], "model": "claude-x", "providers": ["baseten"]}, "invalid_models"),
+            ({"connection_id": conn["id"]}, "invalid_models"),
+            ({"connection_id": None, "model": "vendor/model"}, "invalid_models"),
+            ({"connection_id": None, "providers": ["baseten"]}, "invalid_models")):
+        r = admin.post(url, json=models_body(case_id, [spec]))
+        assert r.status_code == 422 and r.json()["code"] == code, (spec, r.text)
+    dup = {"connection_id": conn["id"], "model": "vendor/model"}
+    r = admin.post(url, json=models_body(case_id, [dup, dict(dup)]))
+    assert r.status_code == 422 and r.json()["code"] == "duplicate_models"
+    r = admin.post(url, json={**models_body(case_id, [dup]), "definition": agent["definition"]})
+    assert r.status_code == 422 and r.json()["code"] == "models_with_definition"
+    four = [{"connection_id": conn["id"], "model": f"vendor/m{i}"} for i in range(4)]
+    assert admin.post(url, json=models_body(case_id, four)).status_code == 422
+
+    # Tope de turnos con modelos: 10 casos x 3 variantes x 10 repeticiones = 300 (entra); 11 casos, 330 (no).
+    for _ in range(9):
+        make_case(api, c, agent)
+    dos = [{"connection_id": conn["id"], "model": "vendor/a"}, {"connection_id": conn["id"], "model": "vendor/b"}]
+    r = admin.post(url, json={"repetitions": 10, "models": dos})
+    assert r.status_code == 202, r.text
+    assert r.json()["total"] == 300      # 10 casos * 3 variantes * 10 repeticiones
+    assert admin.post(f"{url}/{r.json()['id']}/cancel").status_code == 200
+    make_case(api, c, agent)
+    r = admin.post(url, json={"repetitions": 10, "models": dos})
+    assert r.status_code == 422 and r.json()["code"] == "too_many_turns"
 
 
 # ---------- cola ----------
@@ -524,7 +693,8 @@ def test_finish_de_una_cancelada_guarda_lo_parcial_y_el_summary(api, admin):
         got = s.get(AgentTestRun, run_id)
         assert got.status == "cancelled" and got.done == 1 and got.total == 2
         assert got.results == [item] and got.finished_at is not None
-        assert got.summary == [{"case_id": "c1", "variants": [{"key": "publicada", "passed": 1, "total": 1}]}]
+        assert got.summary == [{"case_id": "c1",
+                                "variants": [{"key": "publicada", "passed": 1, "total": 1, "fallbacks": 0}]}]
 
 
 async def test_la_cola_guarda_el_summary_y_el_pasa_x_n(api, admin, monkeypatch):
@@ -539,10 +709,10 @@ async def test_la_cola_guarda_el_summary_y_el_pasa_x_n(api, admin, monkeypatch):
     with api.sessions() as s:
         got = s.get(AgentTestRun, run["id"])
         assert got.status == "done" and got.summary == [
-            {"case_id": case_id, "variants": [{"key": "publicada", "passed": 2, "total": 2}]}]
+            {"case_id": case_id, "variants": [{"key": "publicada", "passed": 2, "total": 2, "fallbacks": 0}]}]
     # La lista sigue dando el mismo «pasa X/N».
     cases = admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()
-    assert cases[0]["last_run"]["variants"] == [{"key": "publicada", "passed": 2, "total": 2}]
+    assert cases[0]["last_run"]["variants"] == [{"key": "publicada", "passed": 2, "total": 2, "fallbacks": 0}]
 
 
 # ---------- lista liviana y resumen ----------
@@ -601,14 +771,14 @@ def test_corrida_vieja_sin_summary_da_el_mismo_pasa_x_n(api, admin):
     run_id = _done_run(api, c, agent["id"], case_id, summary=None)   # anterior a la columna
     lista = admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()
     assert lista[0]["last_run"]["run_id"] == run_id
-    assert lista[0]["last_run"]["variants"] == [{"key": "publicada", "passed": 1, "total": 1}]
+    assert lista[0]["last_run"]["variants"] == [{"key": "publicada", "passed": 1, "total": 1, "fallbacks": 0}]
     detalle = admin.get(f"{V1}/agents/{agent['id']}/test-cases/{case_id}").json()
     assert [x["run_id"] for x in detalle["history"]] == [run_id]
-    assert detalle["history"][0]["variants"] == [{"key": "publicada", "passed": 1, "total": 1}]
+    assert detalle["history"][0]["variants"] == [{"key": "publicada", "passed": 1, "total": 1, "fallbacks": 0}]
     # Y el `pasa X/N` de una corrida con summary coincide con el de `results`.
     segundo = _done_run(api, c, agent["id"], case_id,
                         summary=[{"case_id": case_id, "variants": [{"key": "publicada", "passed": 1, "total": 1}]}])
     assert admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()[0]["last_run"]["variants"] == [
-        {"key": "publicada", "passed": 1, "total": 1}]
+        {"key": "publicada", "passed": 1, "total": 1, "fallbacks": 0}]
     assert [x["run_id"] for x in admin.get(f"{V1}/agents/{agent['id']}/test-cases/{case_id}").json()["history"]] \
         == [segundo, run_id]

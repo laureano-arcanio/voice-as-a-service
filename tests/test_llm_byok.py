@@ -2,6 +2,8 @@
 servidor propio y aislamiento entre clientes."""
 import asyncio
 
+import httpx
+import openai
 import pytest
 from cryptography.fernet import Fernet
 from pydantic import ValidationError
@@ -57,6 +59,38 @@ def new_connection(admin, client, name="Mi OpenRouter", **extra):
 def agent_with_plan(admin, client, plan):
     definition = {**reference_data("sales_discovery"), "llm": plan}
     return admin.post(f"{V1}/agents", json={"client_id": client["id"], "name": "Ventas", "definition": definition})
+
+
+def agent_with_connection(admin, client, conn, model, *, providers=None, name="Ventas", slug=None):
+    """Un agente cuyo turno 1 usa la conexion con ese modelo (y los proveedores fijados, si hay)."""
+    stage = {"from_turn": 1, "connection": conn["id"], "model": model}
+    if providers:
+        stage["provider"] = {"only": providers}
+    body = {"client_id": client["id"], "name": name,
+            "definition": {**reference_data("sales_discovery"),
+                           "llm": {"stages": [stage], "fallback_local": True}}}
+    if slug:
+        body["slug"] = slug
+    r = admin.post(f"{V1}/agents", json=body)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def provider_error(cls, status: int, text="error del proveedor"):
+    """Un error del SDK con su codigo HTTP (openai.APIStatusError y anthropic.APIStatusError)."""
+    request = httpx.Request("POST", "https://x.example/v1/chat/completions")
+    return cls(text, response=httpx.Response(status, request=request), body=None)
+
+
+def count_calls(external):
+    calls = []
+    original = external.converse
+
+    async def counting(*a, **kw):
+        calls.append(1)
+        return await original(*a, **kw)
+    external.converse = counting
+    return calls
 
 
 # --- Definicion -----------------------------------------------------------------------------
@@ -264,6 +298,99 @@ def test_breaker_skips_a_failing_provider(api, admin, monkeypatch):
     # Los errores de turno y de extraccion suman al mismo circuito: abierto, va directo al propio.
     assert 0 < len(calls) < BREAKER_FAILS + 2
     trace = api.engine.store.get(cid).messages[-1].llm[0]
+    assert trace["fallback_reason"] == "circuito abierto"
+
+
+def test_un_error_del_pedido_no_abre_el_circuito(api, admin, monkeypatch):
+    """Un 400 (modelo invalido, parametros) es de un agente y es rapido: el externo recibe todos los turnos."""
+    external = External(error=provider_error(openai.BadRequestError, 400, "modelo invalido"))
+    api.llm.turns = [turn(f"respaldo {i}") for i in range(BREAKER_FAILS + 2)]
+    cid, _ = setup_agent(api, admin, monkeypatch, external, from_turn=1)
+    calls = count_calls(external)
+
+    async def run():
+        for i in range(BREAKER_FAILS + 2):
+            await api.engine.process_turn(cid, f"m{i}")
+    asyncio.run(run())
+    assert len(calls) == BREAKER_FAILS + 2
+    trace = api.engine.store.get(cid).messages[-1].llm[0]
+    assert trace["provider"] == "local" and trace["fallback_reason"] == "BadRequestError 400"
+
+
+@pytest.mark.parametrize("error", [
+    pytest.param(provider_error(openai.InternalServerError, 503), id="503"),
+    pytest.param(provider_error(openai.RateLimitError, 429), id="429"),
+    pytest.param(RuntimeError("sin codigo"), id="sin-codigo"),
+])
+def test_los_errores_del_servicio_abren_el_circuito(api, admin, monkeypatch, error):
+    external = External(error=error)
+    api.llm.turns = [turn(f"local {i}") for i in range(BREAKER_FAILS + 2)]
+    cid, _ = setup_agent(api, admin, monkeypatch, external, from_turn=1)
+    calls = count_calls(external)
+
+    async def run():
+        for i in range(BREAKER_FAILS + 2):
+            await api.engine.process_turn(cid, f"m{i}")
+    asyncio.run(run())
+    assert 0 < len(calls) < BREAKER_FAILS + 2
+    trace = api.engine.store.get(cid).messages[-1].llm[0]
+    assert trace["fallback_reason"] == "circuito abierto"
+
+
+def test_el_circuito_de_un_modelo_no_saltea_a_otro_agente(api, admin, monkeypatch):
+    """Mismo cliente y conexion, otro modelo: es otra llave y sigue yendo al externo."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+    a = agent_with_connection(admin, acme, conn, "vendor/a", slug="agente_a")
+    b = agent_with_connection(admin, acme, conn, "vendor/b", name="Ventas B", slug="agente_b")
+    externals = {"vendor/a": External(error=RuntimeError("caido")),
+                 "vendor/b": External(turn("desde el otro modelo"))}
+    monkeypatch.setattr(LLMResolver, "_client",
+                        lambda self, data, stage, generation, defaults: externals[stage.model])
+    api.llm.turns = [turn(f"respaldo {i}") for i in range(BREAKER_FAILS + 1)]
+    cid_a = api.engine.start_conversation(a["id"], acme["id"])[0].conversation_id
+    cid_b = api.engine.start_conversation(b["id"], acme["id"])[0].conversation_id
+
+    async def run():
+        for i in range(BREAKER_FAILS):
+            await api.engine.process_turn(cid_a, f"m{i}")
+        _, other = await api.engine.process_turn(cid_b, "hola")
+        _, again = await api.engine.process_turn(cid_a, "otra")
+        return other, again
+
+    other, again = asyncio.run(run())
+    assert other.assistant_message == "desde el otro modelo"
+    assert again.assistant_message == f"respaldo {BREAKER_FAILS}"
+    trace = api.engine.store.get(cid_a).messages[-1].llm[0]
+    assert trace["fallback_reason"] == "circuito abierto"
+
+
+def test_el_circuito_de_unos_proveedores_no_saltea_al_mismo_modelo(api, admin, monkeypatch):
+    """Mismo modelo con otro provider.only: es otra llave y sigue yendo al externo."""
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+    a = agent_with_connection(admin, acme, conn, "vendor/model", providers=["nebius/fp4"], slug="agente_a")
+    b = agent_with_connection(admin, acme, conn, "vendor/model", providers=["deepinfra/fp8"], name="Ventas B",
+                              slug="agente_b")
+    externals = {"nebius/fp4": External(error=RuntimeError("caido")),
+                 "deepinfra/fp8": External(turn("desde el otro proveedor"))}
+    monkeypatch.setattr(LLMResolver, "_client",
+                        lambda self, data, stage, generation, defaults: externals[stage.provider.only[0]])
+    api.llm.turns = [turn(f"respaldo {i}") for i in range(BREAKER_FAILS + 1)]
+    cid_a = api.engine.start_conversation(a["id"], acme["id"])[0].conversation_id
+    cid_b = api.engine.start_conversation(b["id"], acme["id"])[0].conversation_id
+
+    async def run():
+        for i in range(BREAKER_FAILS):
+            await api.engine.process_turn(cid_a, f"m{i}")
+        _, other = await api.engine.process_turn(cid_b, "hola")
+        _, again = await api.engine.process_turn(cid_a, "otra")
+        return other, again
+
+    other, again = asyncio.run(run())
+    assert other.assistant_message == "desde el otro proveedor"
+    assert again.assistant_message == f"respaldo {BREAKER_FAILS}"
+    trace = api.engine.store.get(cid_a).messages[-1].llm[0]
     assert trace["fallback_reason"] == "circuito abierto"
 
 

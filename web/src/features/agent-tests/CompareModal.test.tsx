@@ -52,6 +52,85 @@ describe('CompareModal', () => {
     expect(screen.getByText(/empeora/)).toBeInTheDocument();
   });
 
+  it('avisa cuando parte de la comparación la contestó el respaldo local', async () => {
+    const conRespaldo = {
+      ...RUN,
+      results: [
+        {
+          ...RUN.results[0],
+          variants: [
+            {
+              key: 'publicada', version: 1, passed: 5, total: 5, errors: 0,
+              fallbacks: 5, fallback_reasons: { 'BadRequestError 400': 5 }, repetitions: [],
+            },
+            {
+              key: 'borrador', version: 2, passed: 3, total: 5, errors: 0,
+              fallbacks: 2, fallback_reasons: { RuntimeError: 2 }, repetitions: [],
+            },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        if (new URL(req.url).pathname === '/api/v1/agents/ag-1/test-runs/r1') return jsonResponse(conRespaldo);
+        return jsonResponse({ detail: 'no mock' }, 404);
+      }),
+    );
+    renderWithProviders(<CompareModal agentId="ag-1" runId="r1" opened onClose={() => {}} />, {
+      me: CLIENT_USER,
+    });
+    expect(
+      await screen.findByText('Parte de la comparación la contestó el respaldo local, no el modelo configurado.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('pasa 5/5 · 5 respaldo')).toBeInTheDocument();
+    expect(screen.getByText(/pasa 3\/5 · 2 respaldo/)).toBeInTheDocument();
+  });
+
+  it('una corrida con otros modelos muestra una columna por variante y su label', async () => {
+    const conModelos = {
+      ...RUN,
+      variants: [
+        { key: 'publicada', version: 1 },
+        { key: 'm1', version: 1, label: 'OpenRouter · vendor/a' },
+        { key: 'm2', version: 1, label: 'LLM de Atentina' },
+      ],
+      results: [
+        {
+          ...RUN.results[0],
+          variants: [
+            { key: 'publicada', version: 1, passed: 5, total: 5, errors: 0, repetitions: [] },
+            {
+              key: 'm1', version: 1, passed: 3, total: 5, errors: 0, repetitions: [],
+              label: 'OpenRouter · vendor/a',
+            },
+            { key: 'm2', version: 1, passed: 5, total: 5, errors: 0, repetitions: [], label: 'LLM de Atentina' },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        if (new URL(req.url).pathname === '/api/v1/agents/ag-1/test-runs/r1') return jsonResponse(conModelos);
+        return jsonResponse({ detail: 'no mock' }, 404);
+      }),
+    );
+    renderWithProviders(<CompareModal agentId="ag-1" runId="r1" opened onClose={() => {}} />, {
+      me: CLIENT_USER,
+    });
+    expect(await screen.findByText('OpenRouter · vendor/a')).toBeInTheDocument();
+    expect(screen.getByText('LLM de Atentina')).toBeInTheDocument();
+    expect(screen.getAllByText('pasa 5/5')).toHaveLength(2);
+    expect(screen.getByText(/pasa 3\/5/)).toBeInTheDocument();
+    expect(screen.getByText(/empeora/)).toBeInTheDocument();
+    // La corrida no pidió borrador: no aparece el aviso de «los cambios son iguales».
+    expect(screen.queryByText(/Los cambios son iguales/)).not.toBeInTheDocument();
+  });
+
   it('una corrida cancelada a mitad muestra lo que alcanzó a correr', async () => {
     const cancelled = {
       ...RUN,

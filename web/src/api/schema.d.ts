@@ -668,7 +668,8 @@ export interface paths {
         put?: never;
         /**
          * Validate Definition
-         * @description Valida una definicion sin guardarla. id y version los pone la app.
+         * @description Valida una definicion sin guardarla. id y version los pone la app. Con la definicion valida, `warnings`
+         *     lleva los avisos del modelo de lenguaje (no bloquean): solo de conexiones que el principal puede ver.
          */
         post: operations["validate_definition_api_v1_agents_validate_post"];
         delete?: never;
@@ -784,7 +785,7 @@ export interface paths {
         /**
          * Update Definition
          * @description Guarda la definicion como version nueva (si cambio). Las llamadas en curso
-         *     siguen con la version con que empezaron.
+         *     siguen con la version con que empezaron. `warnings`: los avisos del modelo guardado (no bloquean).
          */
         put: operations["update_definition_api_v1_agents__agent_id__definition_put"];
         post?: never;
@@ -902,8 +903,9 @@ export interface paths {
         /**
          * Create Run
          * @description Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:
-         *     todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con una corrida en curso, 409
-         *     con su `run_id`.
+         *     todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con `models`, la publicada corre
+         *     ademas con cada modelo, sin respaldo local; `published_fallback=false` la corre sin respaldo. Con una corrida en
+         *     curso, 409 con su `run_id`.
          */
         post: operations["create_run_api_v1_agents__agent_id__test_runs_post"];
         delete?: never;
@@ -4571,6 +4573,13 @@ export interface components {
             definition: {
                 [key: string]: unknown;
             };
+            /**
+             * Warnings
+             * @description Avisos del modelo de lenguaje de la definición guardada: {path, code, message}
+             */
+            warnings?: {
+                [key: string]: unknown;
+            }[];
         };
         /** AgentOut */
         AgentOut: {
@@ -10991,6 +11000,38 @@ export interface components {
             /** Case Ids */
             case_ids?: string[] | null;
             draft_case?: components["schemas"]["TestCaseCreateIn"] | null;
+            /**
+             * Models
+             * @description Corre la versión publicada con cada modelo, al lado de la publicada y sin respaldo local. No se combina con `definition`
+             */
+            models?: components["schemas"]["TestRunModelIn"][] | null;
+            /**
+             * Published Fallback
+             * @description Con false, la publicada corre sin respaldo local: compara modelos sin la red de seguridad de Atentina
+             * @default true
+             */
+            published_fallback?: boolean;
+        };
+        /**
+         * TestRunModelIn
+         * @description Un modelo para correr la versión publicada (POST /agents/{id}/test-runs, `models`).
+         */
+        TestRunModelIn: {
+            /**
+             * Connection Id
+             * @description Conexión del cliente (GET /clients/{id}/llm-connections); null: el LLM de Atentina
+             */
+            connection_id?: string | null;
+            /**
+             * Model
+             * @description Modelo del proveedor; obligatorio con una conexión y vacío con el LLM de Atentina
+             */
+            model?: string | null;
+            /**
+             * Providers
+             * @description provider.only de OpenRouter para esta variante (solo conexiones OpenRouter)
+             */
+            providers?: string[];
         };
         /** TestRunOut */
         TestRunOut: {
@@ -11811,6 +11852,13 @@ export interface components {
              * @default []
              */
             errors?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Warnings
+             * @description Avisos del modelo de lenguaje: {path, code, message}
+             */
+            warnings?: {
                 [key: string]: unknown;
             }[];
         };

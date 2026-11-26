@@ -112,6 +112,15 @@ def _recorded(case: dict) -> dict[str, list[str]]:
     return out
 
 
+def _history_results(case: dict) -> list[str]:
+    """Los resultados de herramienta que el modelo ya vio en el historial del caso: los `tools` de sus mensajes
+    assistant, en orden. Un dato que el agente consulto antes no se vuelve a consultar en la repeticion."""
+    return [str(tool.get("result") or "")
+            for message in (case.get("snapshot") or {}).get("messages") or []
+            if message.get("role") == "assistant"
+            for tool in message.get("tools") or []]
+
+
 async def _repetition(agent: dict, case: dict, variant: dict, prepared: dict, engine, resolver: LLMResolver,
                       sem: asyncio.Semaphore, stop: asyncio.Event | None = None) -> dict | None:
     """Una repeticion del turno; `None` si el pedido de cancelacion ya estaba prendido al entrar al semaforo."""
@@ -151,7 +160,7 @@ async def _repetition(agent: dict, case: dict, variant: dict, prepared: dict, en
     out["tools"] = used
     out["tool_calls"] = [{"name": u["name"], "arguments": u["arguments"]} for u in used]
     reply = {"text": out["text"], "tool_calls": out["tool_calls"], "handoff": out["handoff"],
-             "tool_results": [u["result"] for u in used]}
+             "tool_results": [*_history_results(case), *[u["result"] for u in used]]}
     out["failures"] = evaluate(case.get("checks") or [], reply)
     if errors:
         out["error"] = "; ".join(errors)
@@ -213,8 +222,13 @@ async def execute(run: dict, agent: dict, cases: dict[str, dict], engine, sessio
                     continue
             passed = sum(1 for r in reps if r["passed"])
             errors_n = sum(1 for r in reps if r["error"])
-            item["variants"].append({"key": variant["key"], "version": variant["version"], "passed": passed,
-                                     "total": len(reps), "errors": errors_n, "repetitions": reps})
+            fallbacks, reasons = _fallbacks(reps)
+            variant_result = {"key": variant["key"], "version": variant["version"], "passed": passed,
+                              "total": len(reps), "errors": errors_n, "fallbacks": fallbacks,
+                              "fallback_reasons": reasons, "repetitions": reps}
+            if variant.get("label"):
+                variant_result["label"] = variant["label"]
+            item["variants"].append(variant_result)
             for rep in reps:
                 input_tokens += rep["input_tokens"]
                 output_tokens += rep["output_tokens"]
@@ -234,3 +248,14 @@ def _error_rep(message: str) -> dict:
     return {"text": "", "tool_calls": [], "handoff": None, "status": None, "failures": [],
             "error": message, "ms": 0, "input_tokens": 0, "output_tokens": 0, "llm": {}, "tools": [],
             "passed": False}
+
+
+def _fallbacks(reps: list[dict]) -> tuple[int, dict[str, int]]:
+    """Las repeticiones que contesto el respaldo local y por que motivo (TurnLLM.info), para la variante."""
+    reasons: dict[str, int] = {}
+    for rep in reps:
+        llm = rep.get("llm") or {}
+        if llm.get("provider") == "local" and llm.get("fallback_from"):
+            reason = llm.get("fallback_reason") or "sin motivo"
+            reasons[reason] = reasons.get(reason, 0) + 1
+    return sum(reasons.values()), reasons

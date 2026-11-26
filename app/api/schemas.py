@@ -905,6 +905,7 @@ class DefinitionIn(BaseModel):
 class ValidationOut(BaseModel):
     valid: bool
     errors: list[dict] = []
+    warnings: list[dict] = Field(default_factory=list, description="Avisos del modelo de lenguaje: {path, code, message}")
 
 
 class PromptIn(BaseModel):
@@ -937,6 +938,8 @@ class AgentOut(ORM):
 
 class AgentDetail(AgentOut):
     definition: dict[str, Any]
+    warnings: list[dict] = Field(default_factory=list,
+                                 description="Avisos del modelo de lenguaje de la definición guardada: {path, code, message}")
 
 
 class AgentVersionOut(ORM):
@@ -3640,11 +3643,32 @@ class TestCaseDetailOut(TestCaseOut):
     history: list[TestCaseRunSummary] = Field(default_factory=list, description="Corridas que incluyeron el caso")
 
 
+class TestRunModelIn(BaseModel):
+    """Un modelo para correr la versión publicada (POST /agents/{id}/test-runs, `models`)."""
+    connection_id: str | None = Field(
+        default=None, description="Conexión del cliente (GET /clients/{id}/llm-connections); null: el LLM de "
+                                  "Atentina")
+    model: str | None = Field(
+        default=None, max_length=200,
+        description="Modelo del proveedor; obligatorio con una conexión y vacío con el LLM de Atentina")
+    providers: list[str] = Field(
+        default_factory=list, max_length=10,
+        description="provider.only de OpenRouter para esta variante (solo conexiones OpenRouter)")
+
+
 class TestRunCreateIn(BaseModel):
     repetitions: int = Field(default=5, ge=1, le=10)
     definition: dict | None = Field(default=None, description="Los cambios sin guardar (borrador)")
     case_ids: list[str] | None = None
     draft_case: TestCaseCreateIn | None = None
+    models: list[TestRunModelIn] | None = Field(
+        default=None, max_length=3,
+        description="Corre la versión publicada con cada modelo, al lado de la publicada y sin respaldo local. "
+                    "No se combina con `definition`")
+    published_fallback: bool = Field(
+        default=True,
+        description="Con false, la publicada corre sin respaldo local: compara modelos sin la red de seguridad "
+                    "de Atentina")
 
 
 class TestRunOut(BaseModel):

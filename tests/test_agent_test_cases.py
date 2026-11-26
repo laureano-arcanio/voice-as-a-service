@@ -288,6 +288,6 @@ def test_historial_con_muchas_corridas_de_otros(api, admin):
         s.commit()
     detalle = admin.get(f"{V1}/agents/{agent['id']}/test-cases/{case['id']}").json()
     assert len(detalle["history"]) == 1
-    assert detalle["history"][0]["variants"] == [{"key": "publicada", "passed": 1, "total": 1}]
+    assert detalle["history"][0]["variants"] == [{"key": "publicada", "passed": 1, "total": 1, "fallbacks": 0}]
     assert admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()[0]["last_run"]["run_id"] == \
         detalle["history"][0]["run_id"]

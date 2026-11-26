@@ -82,6 +82,31 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 - La API de inferencia (`/api/v1/inference`, [`../API_INFERENCIA.md`](../API_INFERENCIA.md)) es solo del servidor
   propio. STT y TTS son siempre propios.
 
+## Avisos al validar y guardar
+
+`app/services/llm_warnings.py`. `POST /agents/validate` (`ValidationOut.warnings`) y `POST /agents` /
+`PUT /agents/{id}/definition` (`AgentDetail.warnings`) devuelven `[{path, code, message}]`; no bloquean nada.
+`GET /agents/{id}` no los calcula. `path` es la etapa: `llm.stages.N.connection` o `llm.stages.N.model`.
+
+| Código | Cuándo |
+|---|---|
+| `connection_test_failed` | la conexión tiene `last_test_ok=false`; el mensaje lleva `last_test_detail` (todos los kinds) |
+| `model_missing` | una etapa OpenRouter sin `model` |
+| `free_model` | el modelo termina en `:free`: el tope por minuto de OpenRouter da 429 con dos turnos a la vez y suele exigir compartir los datos |
+| `model_not_found` | el catálogo público (`provider_catalog`) da 404 |
+| `model_no_endpoints` | el catálogo responde una lista vacía |
+| `invalid_model` | no cumple `MODEL_PATTERN` |
+| — | `openai_compatible` y `anthropic`: solo el aviso de la conexión; no hay catálogo público y consultarlo con la clave del cliente sería pegarle a su endpoint en cada tecla |
+
+Con un sufijo (`x:nitro`) se prueba el slug base antes de decir que no existe. Si el catálogo no responde
+(`catalog_unreachable`), no hay aviso. Los aciertos y los 404 se cachean `CATALOG_TTL` (5 min): la validación
+del editor pega en cada tecla (debounce de 500 ms) y la primera consulta de un modelo nuevo espera hasta
+`CATALOG_TIMEOUT` (5 s). Aislamiento: en validate solo se miran conexiones vigentes con
+`p.can_access(row.client_id)`; al guardar, las del cliente del agente. La de otro cliente no da aviso ni
+detalle. Descartado bloquear el guardado: OpenRouter puede no responder, el catálogo puede no listar un slug
+que sí enruta y el circuito es por conexión + modelo, así que un modelo mal puesto ya no tumba a los demás
+agentes.
+
 ## Flujo: LLM por etapa (BYOK)
 
 `app/llm/resolver.py`, `LLMResolver.for_turn(workflow, turn, client_id)`:
@@ -101,10 +126,14 @@ desde el 15-oct-2026; "Tu propio agente", desde el 26-oct-2026. Plan: las conexi
 3. El texto va al TTS a medida que llega; las herramientas (de plataforma y del cliente) van por function calling
    nativo (ver [HERRAMIENTAS.md](HERRAMIENTAS.md)). La extracción de datos usa la etapa del turno que la lanza.
 4. **Respaldo** (`fallback_local`): si el proveedor falla, ese turno lo contesta el propio y la traza lo marca
-   (`provider: local`, `fallback_from`, `fallback_reason`). No hay respaldo si ya empezó a hablar (sonaría doble) ni
+   (`provider: local`, `fallback_from`, `fallback_reason`). El motivo lleva el código HTTP cuando lo hay
+   («BadRequestError 400»); sin código, el tipo del error. No hay respaldo si ya empezó a hablar (sonaría doble) ni
    si ya ejecutó una herramienta del cliente (la repetiría): el error sube.
-5. **Circuito:** 3 errores seguidos de una conexión (turnos y extracciones) la saltean 30 s. Timeout de 20 s por
-   pedido externo.
+5. **Circuito:** la llave (`breaker_key`) es conexión + modelo + `provider.only` ordenados: 3 errores del servicio
+   seguidos en esa llave (turnos y extracciones) la saltean 30 s. Cuentan los errores del servicio: sin código HTTP
+   (timeout, conexión, `refusal` de Anthropic) o 401, 403, 408, 429 y ≥ 500. No cuentan los del pedido —400, 404,
+   409, 413, 422—: son de un agente (modelo inválido, parámetros, herramientas, contexto largo) y son rápidos, así que
+   saltearlos no ahorra latencia. Timeout de 20 s por pedido externo.
 6. Una conexión revocada, de otro cliente o con la key ilegible no se usa (con respaldo contesta el propio; sin él,
    `LlmUnavailable`). Los cambios llegan a `app` y `agent` en ≤ 30 s (caché de conexiones).
 
@@ -194,6 +223,9 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
   tags. Un tag del catálogo sin `structured_outputs` o sin `tools` se marca en rojo; uno que no aparece (texto libre o
   modelo cambiado), con un aviso suave — al cambiar el modelo los tags se mantienen. Cambiar la conexión a una no
   OpenRouter o a local limpia los tags.
+- **Avisos del modelo** (`LlmWarnings.tsx`): al validar, un `Alert` amarillo con los `warnings` de la API (solo si la
+  validación no está vencida); al guardar, `confirmAction` «Guardar igual» / «Revisar» antes de la confirmación de las
+  pruebas. Cada aviso lleva a su campo (`llm.stages.N.model` → Modelo › etapa N › modelo).
 - La API devuelve `AgentOut.own_agent` para saber si un agente usa su propio agente.
 
 ## Reglas y trampas
@@ -233,7 +265,8 @@ con OpenAI, pasando `end_call`/`transfer_call` tal cual. La documentación públ
 - `make test`: `tests/test_llm_byok.py`, `test_llm_anthropic.py` (SDK simulado), `test_llm_generation.py`,
   `test_external_agent.py` (endpoint simulado con `httpx.MockTransport`), `test_platform_tools.py`,
   `test_llm_openrouter_provider.py` y `test_llm_provider_routing.py` (el provider de una etapa, del modelo al
-  pedido) y `test_openrouter_providers.py` (el catálogo de la UI, con `httpx.MockTransport`).
+  pedido), `test_openrouter_providers.py` (el catálogo de la UI, con `httpx.MockTransport`) y
+  `test_llm_warnings.py` (los avisos al validar y guardar).
 - `make web-check`: `LlmConnectionsSection.test.tsx`, `LlmSection.test.tsx`, `ExternalSection.test.tsx`, `draft.test.ts`.
 - `make eval-llm` (ver [`../eval/README.md`](../eval/README.md)) para comparar modelos.
 

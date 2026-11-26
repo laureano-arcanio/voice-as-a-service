@@ -11,6 +11,7 @@ from app.services import features, livekit
 
 from .test_api import V1, admin, client_user, make_agent, make_client, make_tier  # noqa: F401  (admin: fixture)
 from .test_direct_calls import accept_terms
+from .test_llm_byok import new_connection
 from .test_plan_features import FREE
 from .test_whatsapp_signup import BIZ_TOKEN, WABA, meta, signup_ok  # noqa: F401  (meta: fixture)
 
@@ -596,6 +597,26 @@ def test_report_tools_respect_the_plan(api, admin):
         out = mcp.call(name, **PERIOD)
         assert out["isError"] and out["structuredContent"]["code"] == "feature_not_in_plan", (name, out)
         assert out["structuredContent"]["feature"] == "advanced_reports"
+
+
+def test_run_agent_tests_with_models_by_mcp(api, admin, full):
+    """`run_agent_tests` con `models`: la publicada y una variante por modelo, sin respaldo, con su label."""
+    from app.models import AgentTestCase
+
+    c, agent, mcp = full
+    conn = new_connection(admin, c)
+    with api.sessions() as s:
+        s.add(AgentTestCase(client_id=c["id"], agent_id=agent["id"], name="Caso", channel="voice",
+                            snapshot={"messages": [], "user_message": "x", "progress": {}},
+                            tool_results=[], checks=[]))
+        s.commit()
+    run = ok(mcp.call("run_agent_tests", agent_id=agent["id"], repetitions=1,
+                      models=[{"connection_id": conn["id"], "model": "vendor/a"}, {"connection_id": None}]))
+    assert run["status"] == "queued" and run["total"] == 3
+    assert [v["key"] for v in run["variants"]] == ["publicada", "m1", "m2"]
+    assert run["variants"][1]["label"] == "OpenRouter · vendor/a"
+    assert run["variants"][2]["label"] == "LLM de Atentina"
+    assert all(v["version"] == agent["version"] for v in run["variants"])
 
 
 def test_agent_test_cases_by_mcp(api, admin, full):

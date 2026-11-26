@@ -1,6 +1,8 @@
 """Endpoint del catalogo de proveedores de OpenRouter (GET /api/v1/llm/openrouter-providers,
 docs/features/LLM_CONEXIONES.md): los tags que van en `provider.only` de una etapa. Sin red real:
 httpx.MockTransport intercepta el pedido a openrouter.ai."""
+import asyncio
+
 import httpx
 import pytest
 
@@ -13,10 +15,12 @@ PATH = f"{V1}/llm/openrouter-providers"
 
 @pytest.fixture(autouse=True)
 def cache_limpia():
-    """El catalogo cachea 5 min por modelo en memoria: cada test arranca y termina sin entradas."""
+    """El catalogo cachea 5 min por modelo en memoria (y los 404): cada test arranca y termina sin entradas."""
     openrouter._catalog.clear()
+    openrouter._missing.clear()
     yield
     openrouter._catalog.clear()
+    openrouter._missing.clear()
 
 
 def mock_openrouter(monkeypatch, handler):
@@ -121,3 +125,47 @@ def test_modelo_inexistente_invalid(api, admin, monkeypatch):
     assert r.status_code == 422
     assert r.json() == {"detail": "El modelo 'vendor/model' no existe en OpenRouter",
                         "code": "model_not_found", "errors": []}
+
+
+def test_el_404_tambien_se_cachea(api, admin, monkeypatch):
+    """La validacion del editor pide el catalogo en cada tecla: un modelo inexistente no se vuelve a pedir."""
+    hits = {"n": 0}
+
+    def handler(r):
+        hits["n"] += 1
+        return httpx.Response(404, json={"error": {"message": "no"}})
+
+    mock_openrouter(monkeypatch, handler)
+    for _ in range(2):
+        assert admin.get(PATH, params={"model": "vendor/model"}).json()["code"] == "model_not_found"
+    assert hits["n"] == 1
+    # Otro modelo no usa esa cache negativa.
+    admin.get(PATH, params={"model": "otro/model"})
+    assert hits["n"] == 2
+
+
+def test_model_status_con_sufijo_prueba_el_slug_base(monkeypatch):
+    """Un :free/:nitro da 404 o una lista vacia en endpoints: los proveedores son los del slug base."""
+    seen = []
+
+    def handler(r):
+        seen.append(str(r.url))
+        if str(r.url).endswith(":free/endpoints"):
+            return httpx.Response(200, json=payload())
+        return httpx.Response(200, json=payload(*EPS))
+
+    mock_openrouter(monkeypatch, handler)
+    assert asyncio.run(openrouter.model_status("vendor/model:free")) == "ok"
+    assert seen == ["https://openrouter.ai/api/v1/models/vendor/model:free/endpoints",
+                    "https://openrouter.ai/api/v1/models/vendor/model/endpoints"]
+
+
+def test_model_status_sin_sufijo(monkeypatch):
+    mock_openrouter(monkeypatch, lambda r: httpx.Response(200, json=payload()))
+    assert asyncio.run(openrouter.model_status("vendor/model")) == "no_endpoints"
+
+
+def test_model_status_inexistente_o_invalido(monkeypatch):
+    mock_openrouter(monkeypatch, lambda r: httpx.Response(404, json={"error": {"message": "no"}}))
+    assert asyncio.run(openrouter.model_status("otro/model")) == "not_found"
+    assert asyncio.run(openrouter.model_status("sin-autor")) == "invalid"   # no llega a la red

@@ -51,11 +51,18 @@ def _conversation(db, agent, conversation_id: str) -> ConversationRow:
 
 
 def _variants_summary(run: AgentTestRun, case_id: str) -> list[dict]:
-    """El `pasa X/N` de cada variante para ese caso: del `summary` o, en una corrida vieja, de `results`."""
+    """El `pasa X/N`, los respaldos y el nombre de cada variante para ese caso: del `summary` o, en una corrida
+    vieja, de `results`."""
     items = run.summary if run.summary is not None else (run.results or [])
     result = next((r for r in items if r.get("case_id") == case_id), None)
-    return [{"key": v.get("key"), "passed": v.get("passed", 0), "total": v.get("total", 0)}
-            for v in (result or {}).get("variants", [])]
+    out = []
+    for v in (result or {}).get("variants", []):
+        summary = {"key": v.get("key"), "passed": v.get("passed", 0), "total": v.get("total", 0),
+                   "fallbacks": v.get("fallbacks", 0)}
+        if v.get("label"):
+            summary["label"] = v["label"]
+        out.append(summary)
+    return out
 
 
 def _run_summary(run: AgentTestRun, case_id: str) -> TestCaseRunSummary:
@@ -153,8 +160,9 @@ def _run_out(run: AgentTestRun, full: bool = True) -> TestRunOut:
              dependencies=[_runs_limit])
 def create_run(agent_id: str, body: TestRunCreateIn, p: ClientAdminPrincipal, db: DB):
     """Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:
-    todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con una corrida en curso, 409
-    con su `run_id`."""
+    todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con `models`, la publicada corre
+    ademas con cada modelo, sin respaldo local; `published_fallback=false` la corre sin respaldo. Con una corrida en
+    curso, 409 con su `run_id`."""
     agent = get_agent(db, p, agent_id)
     _check_external(agent)
     definition = None
@@ -167,7 +175,9 @@ def create_run(agent_id: str, body: TestRunCreateIn, p: ClientAdminPrincipal, db
         draft = case_service.draft(row, body.draft_case.message_index, data)
     try:
         run = run_service.create(db, agent, body.repetitions, definition, body.case_ids, draft,
-                                 p.id if p.kind == "user" else None)
+                                 p.id if p.kind == "user" else None,
+                                 models=[m.model_dump() for m in body.models] if body.models is not None else None,
+                                 published_fallback=body.published_fallback)
     except run_service.RunInProgress as e:
         payload = {"detail": e.message, "code": e.code, "errors": []}
         if e.run_id is not None:

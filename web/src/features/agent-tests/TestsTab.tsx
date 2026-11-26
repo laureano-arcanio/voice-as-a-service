@@ -1,6 +1,6 @@
 import { Alert, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { IconFlag, IconFlask } from '@tabler/icons-react';
+import { IconCpu, IconEye, IconFlag, IconFlask } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { AgentDetail } from '@/api/types';
 import { errorMessage } from '@/api/errors';
@@ -19,6 +19,8 @@ import {
   type TestCaseSummary,
 } from './api';
 import { CaseDetail } from './CaseDetail';
+import { CompareModal } from './CompareModal';
+import { ModelRunModal } from './ModelRunModal';
 import { RunResults } from './RunResults';
 import { RunStatus } from './RunStatus';
 
@@ -39,6 +41,8 @@ export function TestsTab({ agent }: { agent: AgentDetail }) {
   const run = useTestRun(agent.id, latest.data?.id ?? null);
   const qc = useQueryClient();
   const [openCase, setOpenCase] = useState<string | null>(null);
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const runAll = (repetitions: number) =>
     createRun.mutate(
@@ -73,6 +77,9 @@ export function TestsTab({ agent }: { agent: AgentDetail }) {
         </div>
         {list.length > 0 && (
           <Group gap="xs">
+            <Button variant="default" leftSection={<IconCpu size={16} />} onClick={() => setModelsOpen(true)}>
+              Probar con otros modelos
+            </Button>
             <Button variant="default" leftSection={<IconFlask size={16} />} onClick={() => runAll(5)} loading={createRun.isPending}>
               Correr todos 5×
             </Button>
@@ -123,9 +130,21 @@ export function TestsTab({ agent }: { agent: AgentDetail }) {
         <Card withBorder>
           <Group justify="space-between" mb="xs">
             <Text fw={600}>Última corrida</Text>
-            <Text size="xs" c="dimmed">
-              {formatDateTime(run.data.created_at)}
-            </Text>
+            <Group gap="xs">
+              <Text size="xs" c="dimmed">
+                {formatDateTime(run.data.created_at)}
+              </Text>
+              {(run.data.variants?.length ?? 0) > 1 && (
+                <Button
+                  size="compact-xs"
+                  variant="default"
+                  leftSection={<IconEye size={14} />}
+                  onClick={() => setCompareOpen(true)}
+                >
+                  Ver comparación
+                </Button>
+              )}
+            </Group>
           </Group>
           <Stack gap="sm">
             <RunStatus agentId={agent.id} run={run.data} />
@@ -135,6 +154,14 @@ export function TestsTab({ agent }: { agent: AgentDetail }) {
           </Stack>
         </Card>
       )}
+
+      <ModelRunModal agent={agent} opened={modelsOpen} onClose={() => setModelsOpen(false)} />
+      <CompareModal
+        agentId={agent.id}
+        runId={run.data?.id ?? null}
+        opened={compareOpen}
+        onClose={() => setCompareOpen(false)}
+      />
 
       <CaseDetail
         agent={agent}

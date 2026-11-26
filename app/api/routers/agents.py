@@ -15,6 +15,7 @@ from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services import call_links
 from ...services.errors import Invalid, NotFound
+from ...services.llm_warnings import llm_warnings
 from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     AgentCreate,
@@ -57,13 +58,14 @@ def definition_schema(_: CurrentPrincipal):
 
 
 @router.post("/agents/validate", response_model=ValidationOut)
-def validate_definition(body: DefinitionIn, _: CurrentPrincipal):
-    """Valida una definicion sin guardarla. id y version los pone la app."""
+def validate_definition(body: DefinitionIn, p: CurrentPrincipal, db: DB):
+    """Valida una definicion sin guardarla. id y version los pone la app. Con la definicion valida, `warnings`
+    lleva los avisos del modelo de lenguaje (no bloquean): solo de conexiones que el principal puede ver."""
     try:
-        service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1)
+        normalized = service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1)
     except Invalid as e:
         return ValidationOut(valid=False, errors=e.details or [{"path": "", "message": e.message}])
-    return ValidationOut(valid=True)
+    return ValidationOut(valid=True, warnings=llm_warnings(db, normalized, p.can_access))
 
 
 @router.post("/agents/prompt", response_model=PromptOut)
@@ -117,7 +119,8 @@ def create_agent(body: AgentCreate, p: ClientAdminPrincipal, db: DB, background:
                                  body.template_id, p.id if p.kind == "user" else None, body.voice)
     db.commit()
     _pregenerate_opening(background, agent)
-    return _out(agent, detail=True)
+    return _out(agent, detail=True).model_copy(
+        update={"warnings": llm_warnings(db, agent.definition, lambda c: c == agent.client_id)})
 
 
 @router.get("/agents/{agent_id}", response_model=AgentDetail)
@@ -141,12 +144,13 @@ def update_agent(agent_id: str, body: AgentUpdate, p: ClientAdminPrincipal, db: 
 def update_definition(agent_id: str, body: DefinitionIn, p: ClientAdminPrincipal, db: DB,
                       background: BackgroundTasks):
     """Guarda la definicion como version nueva (si cambio). Las llamadas en curso
-    siguen con la version con que empezaron."""
+    siguen con la version con que empezaron. `warnings`: los avisos del modelo guardado (no bloquean)."""
     agent = service.update_definition(db, get_agent(db, p, agent_id), body.definition,
                                       p.id if p.kind == "user" else None)
     db.commit()
     _pregenerate_opening(background, agent)
-    return _out(agent, detail=True)
+    return _out(agent, detail=True).model_copy(
+        update={"warnings": llm_warnings(db, agent.definition, lambda c: c == agent.client_id)})
 
 
 def _pregenerate_opening(background: BackgroundTasks, agent: Agent) -> None:

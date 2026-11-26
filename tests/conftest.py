@@ -81,6 +81,18 @@ def _api_content_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "api_content_min_free_gb", 0)
 
 
+@pytest.fixture(autouse=True)
+def _sin_red_de_openrouter(monkeypatch):
+    """Los avisos del modelo (app/services/llm_warnings.py) piden el catalogo publico de OpenRouter al validar y
+    guardar: en tests, siempre 'unknown' (sin aviso). Cada test lo pisa si necesita otro resultado."""
+    from app.services import llm_warnings
+
+    async def unknown(model: str) -> str:
+        return "unknown"
+
+    monkeypatch.setattr(llm_warnings, "model_status", unknown)
+
+
 @pytest.fixture
 def workflow():
     return load_reference("sales_discovery")

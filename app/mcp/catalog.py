@@ -452,10 +452,14 @@ _WRITE: tuple[Tool, ...] = (
          method="PATCH", path="/agents/{agent_id}", params=_AGENT, required=("agent_id",), body="AgentUpdate"),
     Tool("update_agent_definition", "agents", "Editar la definición de un agente",
          "Guarda la definición completa como versión nueva (pedila antes con get_agent, cambiá lo necesario y "
-         "mandala entera). Las llamadas en curso siguen con la versión anterior.", method="PUT",
+         "mandala entera). Las llamadas en curso siguen con la versión anterior. Devuelve la definición guardada "
+         "con `warnings`: avisos del modelo de lenguaje (conexión con la última prueba fallida, modelo inexistente "
+         "o `:free` en OpenRouter); no bloquean.", method="PUT",
          path="/agents/{agent_id}/definition", params=_AGENT, required=("agent_id",), body="DefinitionIn"),
     Tool("validate_agent_definition", "agents", "Validar una definición",
-         "Valida una definición de agente sin guardarla y devuelve los errores por campo.", method="POST",
+         "Valida una definición de agente sin guardarla y devuelve los errores por campo. Con la definición "
+         "válida, `warnings` lleva los avisos del modelo de lenguaje (modelo inexistente o `:free` en OpenRouter, "
+         "conexión con la última prueba fallida); no bloquean el guardado.", method="POST",
          path="/agents/validate", body="DefinitionIn", read_only=True),
     Tool("delete_agent", "agents", "Borrar un agente",
          "Borra un agente. Para dejar de usarlo sin perderlo, mejor archivarlo con update_agent.",
@@ -481,7 +485,10 @@ _WRITE: tuple[Tool, ...] = (
     Tool("run_agent_tests", "agents", "Correr las pruebas de un agente",
          "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice "
          "pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` "
-         "prueba los cambios sin guardar contra la versión publicada. Si ya hay una en curso, el error trae "
+         "prueba los cambios sin guardar contra la versión publicada. Con `models` (hasta 3: `{connection_id, "
+         "model, providers}`, `connection_id: null` es el LLM de Atentina) corre la versión publicada con cada "
+         "modelo, sin respaldo local, al lado de la publicada; `published_fallback: false` corre la publicada sin "
+         "respaldo. Con `models`, hasta 300 turnos. Si ya hay una en curso, el error trae "
          "`run_id` (o cancelala con cancel_agent_test_run).", method="POST",
          path="/agents/{agent_id}/test-runs", params=_AGENT, required=("agent_id",), body="TestRunCreateIn",
          read_only=True, admin_only=True),

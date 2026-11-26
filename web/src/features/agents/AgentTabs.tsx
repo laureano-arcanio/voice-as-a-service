@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Group,
-  List,
   Modal,
   SegmentedControl,
   Stack,
@@ -60,6 +59,8 @@ import { AgentTestPanel } from './AgentTestPanel';
 import { CallLinkTab } from './CallLinkTab';
 import { findPathOffset, parseDefinition, toJsonText } from './definition';
 import { DefinitionForm } from './DefinitionForm';
+import { ErrorList } from './ErrorList';
+import { type LlmWarning, LlmWarnings } from './LlmWarnings';
 import {
   type Draft,
   errorTarget,
@@ -109,30 +110,12 @@ function toFieldErrors(errors: Record<string, unknown>[] | undefined): FieldErro
   return (errors ?? []).map((e) => ({ path: String(e.path ?? ''), message: String(e.message ?? '') }));
 }
 
-function ErrorList({
-  errors,
-  label,
-  onPick,
-}: {
-  errors: FieldError[];
-  label: (path: string) => string;
-  onPick: (path: string) => void;
-}) {
-  return (
-    <List size="sm" spacing={4}>
-      {errors.map((e, i) => (
-        <List.Item key={i}>
-          {e.path ? (
-            <Anchor component="button" type="button" size="sm" onClick={() => onPick(e.path)}>
-              {label(e.path)}
-            </Anchor>
-          ) : null}
-          {e.path ? ': ' : ''}
-          {e.message}
-        </List.Item>
-      ))}
-    </List>
-  );
+function toLlmWarnings(warnings: Record<string, unknown>[] | undefined): LlmWarning[] {
+  return (warnings ?? []).map((w) => ({
+    path: String(w.path ?? ''),
+    code: String(w.code ?? ''),
+    message: String(w.message ?? ''),
+  }));
 }
 
 /** Aviso al salir con cambios sin guardar (navegacion interna y cierre de pestaña). */
@@ -269,6 +252,8 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
   });
   const stale = (current ? JSON.stringify(current) : null) !== debounced || validation.isFetching;
   const errors = validation.data?.valid === false ? toFieldErrors(validation.data.errors) : [];
+  // Avisos del modelo (no bloquean): solo se muestran si son de la definicion que se esta viendo.
+  const warnings = stale ? [] : toLlmWarnings(validation.data?.warnings);
   const saveErrors = save.error instanceof ApiError ? save.error.errors : [];
 
   const update = (fn: (d: Draft) => Draft) => setDraft(fn);
@@ -352,6 +337,18 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
 
   const doSave = async () => {
     if (!current) return notifyError(new Error('Corregí el JSON antes de guardar.'), 'No se puede guardar');
+    if (warnings.length) {
+      const ok = await confirmAction({
+        title: 'Avisos del modelo de lenguaje',
+        message: 'La definición tiene avisos del modelo de lenguaje. Podés guardar igual o revisarlos antes.',
+        confirmLabel: 'Guardar igual',
+        cancelLabel: 'Revisar',
+      });
+      if (!ok) {
+        reveal(warnings[0].path);
+        return;
+      }
+    }
     if (hasCases && !compared) {
       const ok = await confirmAction({
         title: 'No se corrieron las pruebas de este cambio',
@@ -513,6 +510,7 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
               <ErrorList errors={errors} label={label} onPick={reveal} />
             </Alert>
           )}
+          <LlmWarnings warnings={warnings} label={label} onPick={reveal} />
           {saveErrors.length > 0 && (
             <Alert color="red" title="No se guardó">
               <ErrorList errors={saveErrors} label={label} onPick={reveal} />

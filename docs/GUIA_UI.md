@@ -685,6 +685,13 @@ otro cliente.
    En la barra de edición, **Correr pruebas** compara los cambios sin guardar con la publicada: la tabla dice
    publicada X/N y cambios Y/N, en rojo lo que empeora; **Ver comparación** la reabre después de cerrarla. Al guardar,
    si no se corrieron las pruebas o si algún caso empeora, avisa y deja guardar igual.
+   Cada repetición dice qué modelo la contestó y, si fue el respaldo local, por qué (`BadRequestError 400`,
+   `circuito abierto`…); la variante muestra **N de M las contestó el respaldo local** y la lista suma **· N respaldo**.
+   En la comparación, si hubo respaldos, un aviso naranja lo dice.
+   **Probar con otros modelos** abre un modal con hasta 3 filas (una conexión con su modelo, o el LLM de Atentina;
+   avisa de la conexión con la última prueba fallida y del modelo inexistente; repeticiones 5/10; **Publicada sin
+   respaldo**; estimado de turnos con el tope de 300). La última corrida suma **Ver comparación** cuando tiene más de
+   una variante: una columna por variante con su nombre, en rojo lo que empeora contra la publicada.
 6. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 7. Para que atienda: elegilo en **Números** o en **WhatsApp**.
@@ -744,6 +751,13 @@ por agente, desde qué turno lo usa ([`LLM_CONEXIONES.md`](features/LLM_CONEXION
    error, ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
 7. Las conversaciones con una etapa externa **salen de Atentina**: el editor lo avisa. En el detalle
    de una conversación, cada llamada al modelo muestra proveedor y modelo, y cuándo contestó el respaldo.
+
+Con la definición validada, si el modelo de una etapa OpenRouter no existe, no tiene proveedores o
+termina en `:free`, o si una conexión tiene la última prueba fallida, el editor muestra **Avisos del
+modelo de lenguaje** (amarillo, con el campo al que lleva cada uno) y al guardar pregunta **Guardar
+igual / Revisar**; nunca impide guardar. Para conexiones `openai_compatible` y `anthropic` solo se avisa
+de la conexión: no hay catálogo público que consultar sin pegarle a su endpoint en cada tecla
+([`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md)).
 
 ### Herramientas (`/tools`)
 

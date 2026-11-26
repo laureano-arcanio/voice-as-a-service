@@ -1846,7 +1846,7 @@
      "agents"
     ],
     "summary": "Validate Definition",
-    "description": "Valida una definicion sin guardarla. id y version los pone la app.",
+    "description": "Valida una definicion sin guardarla. id y version los pone la app. Con la definicion valida, `warnings`\nlleva los avisos del modelo de lenguaje (no bloquean): solo de conexiones que el principal puede ver.",
     "operationId": "validate_definition_api_v1_agents_validate_post",
     "requestBody": {
      "content": {
@@ -2272,7 +2272,7 @@
      "agents"
     ],
     "summary": "Update Definition",
-    "description": "Guarda la definicion como version nueva (si cambio). Las llamadas en curso\nsiguen con la version con que empezaron.",
+    "description": "Guarda la definicion como version nueva (si cambio). Las llamadas en curso\nsiguen con la version con que empezaron. `warnings`: los avisos del modelo guardado (no bloquean).",
     "operationId": "update_definition_api_v1_agents__agent_id__definition_put",
     "security": [
      {
@@ -2768,7 +2768,7 @@
      "agent-tests"
     ],
     "summary": "Create Run",
-    "description": "Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:\ntodos los del agente; `draft_case`: un caso que no se guarda (\"Probar ahora\"). Con una corrida en curso, 409\ncon su `run_id`.",
+    "description": "Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:\ntodos los del agente; `draft_case`: un caso que no se guarda (\"Probar ahora\"). Con `models`, la publicada corre\nademas con cada modelo, sin respaldo local; `published_fallback=false` la corre sin respaldo. Con una corrida en\ncurso, 409 con su `run_id`.",
     "operationId": "create_run_api_v1_agents__agent_id__test_runs_post",
     "security": [
      {
@@ -16733,6 +16733,15 @@
       "additionalProperties": true,
       "type": "object",
       "title": "Definition"
+     },
+     "warnings": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Warnings",
+      "description": "Avisos del modelo de lenguaje de la definición guardada: {path, code, message}"
      }
     },
     "type": "object",
@@ -33606,10 +33615,73 @@
         "type": "null"
        }
       ]
+     },
+     "models": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TestRunModelIn"
+        },
+        "type": "array",
+        "maxItems": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Models",
+      "description": "Corre la versión publicada con cada modelo, al lado de la publicada y sin respaldo local. No se combina con `definition`"
+     },
+     "published_fallback": {
+      "type": "boolean",
+      "title": "Published Fallback",
+      "description": "Con false, la publicada corre sin respaldo local: compara modelos sin la red de seguridad de Atentina",
+      "default": true
      }
     },
     "type": "object",
     "title": "TestRunCreateIn"
+   },
+   "TestRunModelIn": {
+    "properties": {
+     "connection_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Connection Id",
+      "description": "Conexión del cliente (GET /clients/{id}/llm-connections); null: el LLM de Atentina"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model",
+      "description": "Modelo del proveedor; obligatorio con una conexión y vacío con el LLM de Atentina"
+     },
+     "providers": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Providers",
+      "description": "provider.only de OpenRouter para esta variante (solo conexiones OpenRouter)"
+     }
+    },
+    "type": "object",
+    "title": "TestRunModelIn",
+    "description": "Un modelo para correr la versión publicada (POST /agents/{id}/test-runs, `models`)."
    },
    "TestRunOut": {
     "properties": {
@@ -35876,6 +35948,15 @@
       "type": "array",
       "title": "Errors",
       "default": []
+     },
+     "warnings": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Warnings",
+      "description": "Avisos del modelo de lenguaje: {path, code, message}"
      }
     },
     "type": "object",
