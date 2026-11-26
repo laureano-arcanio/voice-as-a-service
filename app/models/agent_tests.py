@@ -60,6 +60,8 @@ class AgentTestRun(Base):
     # Copia de nombre y chequeos de cada caso corrido (el caso puede cambiar despues).
     cases: Mapped[list] = mapped_column(JSONDoc, default=list)
     results: Mapped[list | None] = mapped_column(JSONDoc, nullable=True)
+    # [{case_id, variants: [{key, passed, total}]}]: el `pasa X/N` sin las respuestas, para la lista y el historial.
+    summary: Mapped[list | None] = mapped_column(JSONDoc, nullable=True)
     done: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     total: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     input_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -71,3 +73,5 @@ class AgentTestRun(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Pedido de cancelación de una corrida en curso: la cola deja de mandar turnos y la termina como `cancelled`.
+    cancel_requested_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { api } from '@/api/client';
+import { ApiError } from '@/api/errors';
 import { unwrap } from '@/api/request';
 import type { components } from '@/api/schema';
 
@@ -85,8 +86,22 @@ export const testKeys = {
   cases: (agentId: string) => ['agent-tests', 'cases', agentId] as const,
   case: (agentId: string, caseId: string) => ['agent-tests', 'case', agentId, caseId] as const,
   runs: (agentId: string) => ['agent-tests', 'runs', agentId] as const,
+  // Bajo `runs`: se invalida junto con la lista al crear, cancelar y terminar una corrida.
+  latest: (agentId: string) => ['agent-tests', 'runs', agentId, 'latest'] as const,
   run: (agentId: string, runId: string) => ['agent-tests', 'run', agentId, runId] as const,
 };
+
+/** En cola o corriendo: la corrida todavía puede avanzar y se mira cada 2 s. */
+export const isActive = (status: string | null | undefined) =>
+  status === 'queued' || status === 'running';
+
+/** Terminada, cancelada o fallada: no cambia más. */
+export const isFinished = (status: string | null | undefined) =>
+  status === 'done' || status === 'failed' || status === 'cancelled';
+
+/** El 409 de "ya hay una corrida en curso" (la respuesta trae el `run_id` de la activa). */
+export const isRunInProgress = (error: unknown) =>
+  error instanceof ApiError && error.code === 'test_run_in_progress';
 
 export function useTestCases(agentId: string, enabled = true) {
   return useQuery({
@@ -196,28 +211,62 @@ export function useTestRun(agentId: string, runId: string | null) {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: testKeys.run(agentId, runId ?? ''),
-    queryFn: () =>
-      unwrap(
+    queryFn: async () => {
+      const params = { path: { agent_id: agentId, run_id: runId! } };
+      // Mientras corre alcanza el progreso; al terminar se pide completa una vez para las respuestas.
+      const run = await unwrap(
         api.GET('/api/v1/agents/{agent_id}/test-runs/{run_id}', {
-          params: { path: { agent_id: agentId, run_id: runId! } },
+          params: { ...params, query: { include_results: false } },
         }),
-      ),
+      );
+      if (isActive(run.status)) return run;
+      return unwrap(api.GET('/api/v1/agents/{agent_id}/test-runs/{run_id}', { params }));
+    },
     enabled: !!agentId && !!runId,
     // Mientras corre se consulta cada 2 s; al terminar, se queda quieta.
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === 'queued' || status === 'running' ? 2000 : false;
-    },
+    refetchInterval: (query) => (isActive(query.state.data?.status) ? 2000 : false),
   });
   const status = query.data?.status;
   // Al terminar, la lista de casos y el detalle muestran el pasa X/N nuevo sin recargar.
   useEffect(() => {
-    if (status !== 'done' && status !== 'failed') return;
+    if (!isFinished(status)) return;
     void qc.invalidateQueries({ queryKey: testKeys.cases(agentId) });
     void qc.invalidateQueries({ queryKey: ['agent-tests', 'case', agentId] });
     void qc.invalidateQueries({ queryKey: testKeys.runs(agentId) });
   }, [status, agentId, qc]);
   return query;
+}
+
+/** La corrida más nueva del agente, liviana (para verla al entrar a la pestaña venga de donde venga). */
+export function useLatestRun(agentId: string, enabled = true) {
+  return useQuery({
+    queryKey: testKeys.latest(agentId),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/agents/{agent_id}/test-runs', {
+          params: { path: { agent_id: agentId }, query: { limit: 1, include_results: false } },
+        }),
+      ).then((runs) => runs[0] ?? null),
+    enabled: !!agentId && enabled,
+    // Es liviana: al volver a la pestaña se mira de nuevo, por si se lanzó desde el editor, la API o el MCP.
+    staleTime: 0,
+  });
+}
+
+export function useCancelRun(agentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) =>
+      unwrap(
+        api.POST('/api/v1/agents/{agent_id}/test-runs/{run_id}/cancel', {
+          params: { path: { agent_id: agentId, run_id: runId } },
+        }),
+      ),
+    onSuccess: (run) => {
+      qc.setQueryData(testKeys.run(agentId, run.id), run);
+      void qc.invalidateQueries({ queryKey: testKeys.runs(agentId) });
+    },
+  });
 }
 
 export function useTestRuns(agentId: string, enabled = true) {

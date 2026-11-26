@@ -267,6 +267,8 @@ def _api_fail(r: httpx.Response) -> dict:
         detail = "; ".join(f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}" for e in detail if isinstance(e, dict))
     message = detail if isinstance(detail, str) and detail else f"La API respondió {r.status_code}"
     extra = {"http_status": r.status_code}
+    if isinstance(body, dict) and body.get("run_id"):   # 409 de una corrida de pruebas ya en curso
+        extra["run_id"] = body["run_id"]
     if code.endswith("_not_in_plan"):
         extra["upgrade_url"] = _upgrade_url()
     return _fail(code, message, **extra)

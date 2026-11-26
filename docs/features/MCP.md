@@ -32,16 +32,16 @@ de `services/features.TIER_HAS` que corresponda. Catálogo generado: [`MCP_HERRA
 | `GET/DELETE /api/v1/oauth/grants[/{id}]` | "Agentes conectados" (exige sesión del panel) |
 | `GET /api/v1/mcp/usage` | uso por herramienta (el cliente, el suyo; el admin, uno o todos) |
 
-**Catálogo** (`app/mcp/catalog.py`): 159 herramientas (87 de lectura, 32 destructivas).
+**Catálogo** (`app/mcp/catalog.py`): 160 herramientas (87 de lectura, 33 destructivas).
 
 | Grupo | Herramientas | Por defecto |
 |---|---|---|
-| `account`, `agents`, `calls` (`core`) | 8 + 50 + 11 | sí |
+| `account`, `agents`, `calls` (`core`) | 8 + 51 + 11 | sí |
 | `reports`, `call_links`, `whatsapp`, `contacts`, `campaigns`, `team` | 7 + 5 + 8 + 11 + 14 + 13 | sí |
 | `inference` | 3 (`transcribe_audio`, `synthesize_speech`, `get_inference_usage`) | no |
 | `admin` | 29 (`admin_*`, `get_report_technical`, `get_report_platform`) | solo token "Toda la plataforma" |
 
-Sin parámetro: 156 herramientas (~18k tokens de contexto); `core`: 69. Resources: `atentina://agents/schema`
+Sin parámetro: 157 herramientas (~18k tokens de contexto); `core`: 70. Resources: `atentina://agents/schema`
 (JSON Schema de la definición: `prompt`, `first_message`, `variables` y `analysis` con listas de `name`) y tres guías
 (`agentes`, `campanas`, `derivaciones`); prompts: `crear_agente`, `revisar_llamadas`, `lanzar_campana`
 (`app/mcp/guides.py`).

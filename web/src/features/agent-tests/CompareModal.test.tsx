@@ -51,4 +51,37 @@ describe('CompareModal', () => {
     expect(screen.getByText(/pasa 3\/5/)).toBeInTheDocument();
     expect(screen.getByText(/empeora/)).toBeInTheDocument();
   });
+
+  it('una corrida cancelada a mitad muestra lo que alcanzó a correr', async () => {
+    const cancelled = {
+      ...RUN,
+      status: 'cancelled',
+      done: 8,
+      cancel_requested_at: '2026-11-20T10:00:20Z',
+      results: [
+        {
+          ...RUN.results[0],
+          variants: [
+            { key: 'publicada', version: 1, passed: 5, total: 5, errors: 0, repetitions: [] },
+            { key: 'borrador', version: 2, passed: 2, total: 3, errors: 0, repetitions: [] },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        if (new URL(req.url).pathname === '/api/v1/agents/ag-1/test-runs/r1') return jsonResponse(cancelled);
+        return jsonResponse({ detail: 'no mock' }, 404);
+      }),
+    );
+    renderWithProviders(<CompareModal agentId="ag-1" runId="r1" opened onClose={() => {}} />, {
+      me: CLIENT_USER,
+    });
+    expect(await screen.findByText('Cancelada')).toBeInTheDocument();
+    expect(screen.getByText('pasa 5/5')).toBeInTheDocument();
+    expect(screen.getByText(/pasa 2\/3/)).toBeInTheDocument();
+    expect(screen.getByText(/empeora/)).toBeInTheDocument();
+  });
 });

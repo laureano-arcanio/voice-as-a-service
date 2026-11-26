@@ -679,9 +679,12 @@ otro cliente.
 5. **Pruebas:** los casos guardados y su **pasa X/N**; **Correr todos 5×** o **10×**; el detalle con la conversación,
    los chequeos editables, el resultado grabado de la herramienta, el historial, las respuestas, **Correr este
    caso**, **Falla conocida** y **Borrar**. Los casos se crean desde una llamada o desde Probar (no hay «nuevo caso»).
+   Abajo, **Última corrida**: la más nueva del agente (también si se lanzó por API o MCP), con su estado, el progreso
+   mientras corre, **Cancelar** y, al terminar o cancelarse, las respuestas de lo que se corrió. Si ya hay una en
+   curso, un aviso lleva a esa corrida en vez de encolar otra.
    En la barra de edición, **Correr pruebas** compara los cambios sin guardar con la publicada: la tabla dice
-   publicada X/N y cambios Y/N, en rojo lo que empeora. Al guardar, si no se corrieron las pruebas o si algún caso
-   empeora, avisa y deja guardar igual.
+   publicada X/N y cambios Y/N, en rojo lo que empeora; **Ver comparación** la reabre después de cerrarla. Al guardar,
+   si no se corrieron las pruebas o si algún caso empeora, avisa y deja guardar igual.
 6. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 7. Para que atienda: elegilo en **Números** o en **WhatsApp**.

@@ -1,11 +1,11 @@
 import {
   Alert,
+  Anchor,
   Badge,
   Button,
   Card,
   Group,
   Modal,
-  Progress,
   Stack,
   Text,
   TextInput,
@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconFlask } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { errorMessage } from '@/api/errors';
 import { ChatView } from '@/features/calls/ChatView';
 import { useAgent } from '@/features/agents/api';
@@ -21,8 +22,12 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { buildCaseBody, addNoDice } from './caseBody';
 import { ChecksEditor } from './ChecksEditor';
 import { RunResults } from './RunResults';
+import { RunStatus } from './RunStatus';
 import {
   caseResults,
+  isActive,
+  isFinished,
+  isRunInProgress,
   useCreateCase,
   useCreateRun,
   usePreviewCase,
@@ -66,6 +71,7 @@ function CaseForm({
   const [checks, setChecks] = useState<Check[]>(() => preview.checks ?? []);
   const [selection, setSelection] = useState('');
   const [runId, setRunId] = useState<string | null>(null);
+  const [inProgress, setInProgress] = useState(false);
   const run = useTestRun(agentId, runId);
 
   const body = () =>
@@ -80,8 +86,15 @@ function CaseForm({
     createRun.mutate(
       { repetitions: DEFAULT_REPETITIONS, draft_case: body() },
       {
-        onSuccess: (r) => setRunId(r.id),
-        onError: (e) => notifyError(e, 'No se pudo correr'),
+        onSuccess: (r) => {
+          setInProgress(false);
+          setRunId(r.id);
+        },
+        onError: (e) => {
+          if (!isRunInProgress(e)) return notifyError(e, 'No se pudo correr');
+          // Sin navegar: el caso sin guardar se perdería. El aviso lleva a la corrida en curso.
+          setInProgress(true);
+        },
       },
     );
 
@@ -151,17 +164,26 @@ function CaseForm({
         <ChecksEditor value={checks} onChange={setChecks} tools={tools} areas={areas} />
       </div>
       <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={200} />
+      {inProgress && (
+        <Alert color="yellow" title="Ya hay una corrida de pruebas en curso">
+          Terminá esa corrida, o cancelala desde{' '}
+          <Anchor component={Link} to={`/agents/${agentId}?tab=pruebas`}>
+            la pestaña Pruebas
+          </Anchor>
+          . El caso que estás armando no se pierde.
+        </Alert>
+      )}
       {runId && run.data && (
         <Card withBorder>
-          <Group justify="space-between" mb="xs">
-            <Text fw={600}>Corrida de prueba ({DEFAULT_REPETITIONS}×)</Text>
-            <Badge color={run.data.status === 'done' ? 'green' : 'blue'}>{run.data.status}</Badge>
-          </Group>
-          {(run.data.status === 'queued' || run.data.status === 'running') && (
-            <Progress value={run.data.total ? (run.data.done / run.data.total) * 100 : 0} />
-          )}
-          {run.data.status === 'failed' && <Alert color="red">{run.data.error}</Alert>}
-          {run.data.status === 'done' && <RunResults results={caseResults(run.data)} />}
+          <Text fw={600} mb="xs">
+            Corrida de prueba ({DEFAULT_REPETITIONS}×)
+          </Text>
+          <Stack gap="sm">
+            <RunStatus agentId={agentId} run={run.data} />
+            {isFinished(run.data.status) && caseResults(run.data).length > 0 && (
+              <RunResults results={caseResults(run.data)} />
+            )}
+          </Stack>
         </Card>
       )}
       <Group justify="flex-end">
@@ -173,7 +195,7 @@ function CaseForm({
           leftSection={<IconFlask size={16} />}
           onClick={tryNow}
           loading={createRun.isPending}
-          disabled={!!runId && run.data?.status !== 'done' && run.data?.status !== 'failed'}
+          disabled={isActive(run.data?.status)}
         >
           Probar ahora ({DEFAULT_REPETITIONS}×)
         </Button>

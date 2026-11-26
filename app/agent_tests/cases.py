@@ -7,7 +7,7 @@ app/agent_tests/runner.py contra la version guardada o contra la definicion sin 
 import json
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from ..conversation.models import Message
 from ..db import utcnow
@@ -252,10 +252,12 @@ def list_for_agent(s: Session, agent) -> list[AgentTestCase]:
 
 
 def last_runs(s: Session, agent_id: str) -> dict[str, AgentTestRun]:
-    """La ultima corrida de cada caso (la que lo incluyo), para el `pasa X/N` de la lista."""
+    """La ultima corrida de cada caso (la que lo incluyo), para el `pasa X/N` de la lista. Solo el resumen."""
     out: dict[str, AgentTestRun] = {}
     runs = s.scalars(select(AgentTestRun).where(AgentTestRun.agent_id == agent_id,
                                                 AgentTestRun.status == "done")
+                     .options(load_only(AgentTestRun.id, AgentTestRun.created_at, AgentTestRun.cases,
+                                        AgentTestRun.summary))
                      .order_by(AgentTestRun.created_at.desc()))
     for run in runs:
         for case in run.cases or []:
@@ -263,10 +265,13 @@ def last_runs(s: Session, agent_id: str) -> dict[str, AgentTestRun]:
     return out
 
 
-def history(s: Session, case_id: str, limit: int = 20) -> list[AgentTestRun]:
-    """Las corridas que incluyeron el caso, de la mas nueva a la mas vieja."""
-    runs = s.scalars(select(AgentTestRun).where(AgentTestRun.status == "done")
-                     .order_by(AgentTestRun.created_at.desc()).limit(200))
+def history(s: Session, agent_id: str, case_id: str, limit: int = 20) -> list[AgentTestRun]:
+    """Las corridas del agente que incluyeron el caso, de la mas nueva a la mas vieja. Solo el resumen."""
+    runs = s.scalars(select(AgentTestRun).where(AgentTestRun.agent_id == agent_id,
+                                                AgentTestRun.status == "done")
+                     .options(load_only(AgentTestRun.id, AgentTestRun.created_at, AgentTestRun.cases,
+                                        AgentTestRun.summary))
+                     .order_by(AgentTestRun.created_at.desc()))
     return [r for r in runs if any(c.get("id") == case_id for c in (r.cases or []))][:limit]
 
 

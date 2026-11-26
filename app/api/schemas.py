@@ -3651,7 +3651,7 @@ class TestRunOut(BaseModel):
     id: str
     client_id: str
     agent_id: str
-    status: Literal["queued", "running", "done", "failed"]
+    status: Literal["queued", "running", "done", "failed", "cancelled"]
     repetitions: int
     variants: list[dict]
     cases: list[dict]
@@ -3664,3 +3664,4 @@ class TestRunOut(BaseModel):
     created_at: UTCDateTime
     started_at: UTCDateTime | None
     finished_at: UTCDateTime | None
+    cancel_requested_at: UTCDateTime | None = None

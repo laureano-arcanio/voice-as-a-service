@@ -620,12 +620,22 @@ def test_agent_test_cases_by_mcp(api, admin, full):
     assert run["status"] == "queued" and run["total"] == 2
     got = ok(mcp.call("get_agent_test_run", agent_id=agent["id"], run_id=run["id"]))
     assert got["id"] == run["id"] and got["cases"][0]["name"] == "Horario"
+    liviana = ok(mcp.call("get_agent_test_run", agent_id=agent["id"], run_id=run["id"], include_results=False))
+    assert liviana["results"] is None and liviana["total"] == 2
 
-    # mcp_read: las de lectura (incluida correr, que no llama ni manda nada) y no la de crear.
+    # Con una corrida en curso, el error trae su id y se puede cancelar.
+    otra = mcp.call("run_agent_tests", agent_id=agent["id"], repetitions=1, case_ids=[created["id"]])
+    assert otra["isError"] and otra["structuredContent"]["code"] == "test_run_in_progress"
+    assert otra["structuredContent"]["run_id"] == run["id"]
+    cancelled = ok(mcp.call("cancel_agent_test_run", agent_id=agent["id"], run_id=run["id"]))
+    assert cancelled["status"] == "cancelled" and cancelled["started_at"] is None
+    assert ok(mcp.call("get_agent_test_run", agent_id=agent["id"], run_id=run["id"]))["status"] == "cancelled"
+
+    # mcp_read: las de lectura (incluida correr, que no llama ni manda nada) y no la de crear ni la de cancelar.
     read = Mcp(api, new_key(admin, c, scopes=["mcp_read"]), "agents")
     tools = read.tools()
     assert {"list_agent_test_cases", "get_agent_test_run", "run_agent_tests"} <= set(tools)
-    assert "create_agent_test_case" not in tools
+    assert "create_agent_test_case" not in tools and "cancel_agent_test_run" not in tools
     r = read.http.post(read.url, headers={"Authorization": f"Bearer {read.key}"},
                        json={"jsonrpc": "2.0", "id": 9, "method": "tools/call",
                              "params": {"name": "create_agent_test_case", "arguments": {

@@ -257,3 +257,37 @@ def test_borrar_la_conversacion_deja_el_origen_en_null(api, admin):
     got = admin.get(f"{V1}/agents/{agent['id']}/test-cases/{case['id']}").json()
     assert got["source_conversation_id"] is None
     assert got["snapshot"]["user_message"] == "¿Hay salidas a Castelli?"
+
+
+def test_historial_con_muchas_corridas_de_otros(api, admin):
+    """201 corridas `done` más nuevas de otro cliente y de otro agente no tapan las del caso."""
+    import datetime
+
+    from app.models import AgentTestRun
+
+    c, agent, cid = setup(api, admin)
+    case = admin.post(f"{V1}/agents/{agent['id']}/test-cases",
+                      json={"conversation_id": cid, "message_index": 1, "name": "Caso"}).json()
+    otro_cliente = make_client(admin, slug="beta")
+    agente_ajeno = make_agent(admin, otro_cliente)
+    otro_agente = make_agent(admin, c, template="demo_booking", slug="turnos", name="Turnos")
+    base = datetime.datetime(2026, 11, 21)
+    with api.sessions() as s:
+        for i in range(201):
+            ajeno = agente_ajeno if i % 2 else otro_agente
+            s.add(AgentTestRun(client_id=ajeno["client_id"], agent_id=ajeno["id"], status="done", repetitions=1,
+                               variants=[], cases=[{"id": case["id"], "name": "Caso"}], done=1, total=1,
+                               created_at=base + datetime.timedelta(minutes=i)))
+        # La del caso, más vieja.
+        s.add(AgentTestRun(client_id=c["id"], agent_id=agent["id"], status="done", repetitions=1,
+                           variants=[{"key": "publicada", "version": 1}],
+                           cases=[{"id": case["id"], "name": "Caso"}],
+                           summary=[{"case_id": case["id"],
+                                     "variants": [{"key": "publicada", "passed": 1, "total": 1}]}],
+                           done=1, total=1, created_at=base - datetime.timedelta(days=1)))
+        s.commit()
+    detalle = admin.get(f"{V1}/agents/{agent['id']}/test-cases/{case['id']}").json()
+    assert len(detalle["history"]) == 1
+    assert detalle["history"][0]["variants"] == [{"key": "publicada", "passed": 1, "total": 1}]
+    assert admin.get(f"{V1}/agents/{agent['id']}/test-cases").json()[0]["last_run"]["run_id"] == \
+        detalle["history"][0]["run_id"]

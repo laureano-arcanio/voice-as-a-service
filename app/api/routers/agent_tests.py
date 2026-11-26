@@ -3,8 +3,10 @@
 Lectura con cualquier principal del cliente; escritura y corridas, solo Admin del cliente. Todo pasa por
 `get_agent` y despues por `agent_id`: un caso o una conversacion de otro cliente o de otro agente da 404.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
+from sqlalchemy.orm import defer
 
 from ...agent_tests import cases as case_service
 from ...agent_tests import runs as run_service
@@ -49,7 +51,9 @@ def _conversation(db, agent, conversation_id: str) -> ConversationRow:
 
 
 def _variants_summary(run: AgentTestRun, case_id: str) -> list[dict]:
-    result = next((r for r in (run.results or []) if r.get("case_id") == case_id), None)
+    """El `pasa X/N` de cada variante para ese caso: del `summary` o, en una corrida vieja, de `results`."""
+    items = run.summary if run.summary is not None else (run.results or [])
+    result = next((r for r in items if r.get("case_id") == case_id), None)
     return [{"key": v.get("key"), "passed": v.get("passed", 0), "total": v.get("total", 0)}
             for v in (result or {}).get("variants", [])]
 
@@ -91,7 +95,7 @@ def create_case(agent_id: str, body: TestCaseCreateIn, p: ClientAdminPrincipal, 
     data = body.model_dump(exclude={"conversation_id", "message_index"})
     case = case_service.create(db, agent, row, body.message_index, data, p.id if p.kind == "user" else None)
     db.commit()
-    detail = case_service.history(db, case.id)
+    detail = case_service.history(db, agent.id, case.id)
     return TestCaseDetailOut(**_out(case, detail[0] if detail else None, detail=True).model_dump(),
                              history=[_run_summary(run, case.id) for run in detail])
 
@@ -107,7 +111,7 @@ def list_cases(agent_id: str, p: CurrentPrincipal, db: DB):
 def read_case(agent_id: str, case_id: str, p: CurrentPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
     case = case_service.get_for_agent(db, agent, case_id)
-    detail = case_service.history(db, case.id)
+    detail = case_service.history(db, agent.id, case.id)
     return TestCaseDetailOut(**_out(case, detail[0] if detail else None, detail=True).model_dump(),
                              history=[_run_summary(run, case.id) for run in detail])
 
@@ -118,7 +122,7 @@ def update_case(agent_id: str, case_id: str, body: TestCaseUpdateIn, p: ClientAd
     case = case_service.get_for_agent(db, agent, case_id)
     case_service.update(db, case, body.model_dump(exclude_unset=True))
     db.commit()
-    detail = case_service.history(db, case.id)
+    detail = case_service.history(db, agent.id, case.id)
     return TestCaseDetailOut(**_out(case, detail[0] if detail else None, detail=True).model_dump(),
                              history=[_run_summary(run, case.id) for run in detail])
 
@@ -132,19 +136,25 @@ def delete_case(agent_id: str, case_id: str, p: ClientAdminPrincipal, db: DB):
 
 # ---------- corridas ----------
 
-def _run_out(run: AgentTestRun) -> TestRunOut:
+def _run_out(run: AgentTestRun, full: bool = True) -> TestRunOut:
+    """Con `full=False`, la lista liviana: sin respuestas ni la definición del borrador (para mirar el progreso)."""
+    variants = run.variants or []
+    if not full:
+        variants = [{k: v for k, v in x.items() if k != "definition"} for x in variants]
     return TestRunOut(id=run.id, client_id=run.client_id, agent_id=run.agent_id, status=run.status,
-                      repetitions=run.repetitions, variants=run.variants or [], cases=run.cases or [],
-                      results=run.results, done=run.done, total=run.total, input_tokens=run.input_tokens,
-                      output_tokens=run.output_tokens, error=run.error, created_at=run.created_at,
-                      started_at=run.started_at, finished_at=run.finished_at)
+                      repetitions=run.repetitions, variants=variants, cases=run.cases or [],
+                      results=run.results if full else None, done=run.done, total=run.total,
+                      input_tokens=run.input_tokens, output_tokens=run.output_tokens, error=run.error,
+                      created_at=run.created_at, started_at=run.started_at, finished_at=run.finished_at,
+                      cancel_requested_at=run.cancel_requested_at)
 
 
 @router.post("/agents/{agent_id}/test-runs", response_model=TestRunOut, status_code=202,
              dependencies=[_runs_limit])
 def create_run(agent_id: str, body: TestRunCreateIn, p: ClientAdminPrincipal, db: DB):
     """Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:
-    todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora")."""
+    todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con una corrida en curso, 409
+    con su `run_id`."""
     agent = get_agent(db, p, agent_id)
     _check_external(agent)
     definition = None
@@ -155,24 +165,49 @@ def create_run(agent_id: str, body: TestRunCreateIn, p: ClientAdminPrincipal, db
         row = _conversation(db, agent, body.draft_case.conversation_id)
         data = body.draft_case.model_dump(exclude={"conversation_id", "message_index"})
         draft = case_service.draft(row, body.draft_case.message_index, data)
-    run = run_service.create(db, agent, body.repetitions, definition, body.case_ids, draft,
-                             p.id if p.kind == "user" else None)
+    try:
+        run = run_service.create(db, agent, body.repetitions, definition, body.case_ids, draft,
+                                 p.id if p.kind == "user" else None)
+    except run_service.RunInProgress as e:
+        payload = {"detail": e.message, "code": e.code, "errors": []}
+        if e.run_id is not None:
+            payload["run_id"] = e.run_id
+        return JSONResponse(status_code=409, content=payload)
     db.commit()
     return _run_out(run)
 
 
 @router.get("/agents/{agent_id}/test-runs", response_model=list[TestRunOut])
-def list_runs(agent_id: str, p: CurrentPrincipal, db: DB):
+def list_runs(agent_id: str, p: CurrentPrincipal, db: DB, limit: int = Query(30, ge=1, le=30),
+              include_results: bool = True):
+    """Las últimas corridas del agente, de la más nueva a la más vieja. `include_results=false`: liviana (sin
+    respuestas ni la definición del borrador)."""
     agent = get_agent(db, p, agent_id)
-    runs = db.scalars(select(AgentTestRun).where(AgentTestRun.agent_id == agent.id)
-                      .order_by(AgentTestRun.created_at.desc())).all()
-    return [_run_out(run) for run in runs]
+    query = select(AgentTestRun).where(AgentTestRun.agent_id == agent.id)
+    if not include_results:
+        query = query.options(defer(AgentTestRun.results))
+    runs = db.scalars(query.order_by(AgentTestRun.created_at.desc()).limit(limit)).all()
+    return [_run_out(run, include_results) for run in runs]
 
 
 @router.get("/agents/{agent_id}/test-runs/{run_id}", response_model=TestRunOut)
-def read_run(agent_id: str, run_id: str, p: CurrentPrincipal, db: DB):
+def read_run(agent_id: str, run_id: str, p: CurrentPrincipal, db: DB, include_results: bool = True):
     agent = get_agent(db, p, agent_id)
     run = db.get(AgentTestRun, run_id)
     if run is None or run.agent_id != agent.id:
         raise NotFound("Corrida inexistente")
+    return _run_out(run, include_results)
+
+
+@router.post("/agents/{agent_id}/test-runs/{run_id}/cancel", response_model=TestRunOut)
+def cancel_run(agent_id: str, run_id: str, p: ClientAdminPrincipal, db: DB):
+    """En cola la cancela en el acto; en curso pide que no mande mas turnos al LLM (los que ya estan terminan) y
+    queda `cancelled` con lo parcial. Una corrida terminada se devuelve sin cambios."""
+    agent = get_agent(db, p, agent_id)
+    run = db.scalar(select(AgentTestRun).where(AgentTestRun.id == run_id, AgentTestRun.agent_id == agent.id)
+                    .with_for_update())
+    if run is None:
+        raise NotFound("Corrida inexistente")
+    run_service.cancel(run)
+    db.commit()
     return _run_out(run)

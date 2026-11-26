@@ -113,7 +113,8 @@ def _recorded(case: dict) -> dict[str, list[str]]:
 
 
 async def _repetition(agent: dict, case: dict, variant: dict, prepared: dict, engine, resolver: LLMResolver,
-                      sem: asyncio.Semaphore) -> dict:
+                      sem: asyncio.Semaphore, stop: asyncio.Event | None = None) -> dict | None:
+    """Una repeticion del turno; `None` si el pedido de cancelacion ya estaba prendido al entrar al semaforo."""
     errors = list(prepared.get("load_errors") or [])
     state = _state(agent, case, variant)
     used: list[dict] = []
@@ -130,6 +131,8 @@ async def _repetition(agent: dict, case: dict, variant: dict, prepared: dict, en
     try:
         llm = resolver.for_turn(prepared["workflow"], turn_no, agent["client_id"])
         async with sem:
+            if stop is not None and stop.is_set():
+                return None
             turn = await asyncio.wait_for(
                 llm.converse(prepared["workflow"], state, case.get("snapshot", {}).get("user_message") or "",
                              on_message=lambda _text: None, tools=tools), timeout=TURN_TIMEOUT)
@@ -156,8 +159,11 @@ async def _repetition(agent: dict, case: dict, variant: dict, prepared: dict, en
     return out
 
 
-async def execute(run: dict, agent: dict, cases: dict[str, dict], engine, sessions, progress=None) -> dict:
-    """Corre todas las variantes de todos los casos. progress: callback async con el parcial."""
+async def execute(run: dict, agent: dict, cases: dict[str, dict], engine, sessions, progress=None,
+                  stop: asyncio.Event | None = None) -> dict:
+    """Corre todas las variantes de todos los casos. progress: callback async con el parcial. `stop`: pedido de
+    cancelacion (lo prende el vigia de la cola); corta antes de cada caso y de cada variante.
+    Devuelve `cancelled` y `done` con lo que alcanzo a correr."""
     variants = run.get("variants") or []
     repetitions = int(run.get("repetitions") or 5)
     sem = asyncio.Semaphore(max(1, settings.agent_tests_concurrency))
@@ -168,6 +174,8 @@ async def execute(run: dict, agent: dict, cases: dict[str, dict], engine, sessio
     tool_revisions: dict[str, int] = {}
     total = max(1, len(run.get("cases") or []) * len(variants) * repetitions)
     for entry in run.get("cases") or []:
+        if stop is not None and stop.is_set():
+            break
         case = cases.get(entry["id"]) or {"missing": True}
         item = {"case_id": entry["id"], "name": entry.get("name") or case.get("name") or "",
                 "known_failure": bool(entry.get("known_failure")), "variants": []}
@@ -192,27 +200,34 @@ async def execute(run: dict, agent: dict, cases: dict[str, dict], engine, sessio
 
         # Las repeticiones de esta unidad corren juntas, con el semaforo del run: como mucho N turnos al LLM.
         for variant, prepared in zip(variants, prepared_all):
+            if stop is not None and stop.is_set():
+                break
             if prepared["workflow"] is None:
                 reps = [_error_rep(prepared["load_errors"][0]) for _ in range(repetitions)]
             else:
                 reps = await asyncio.gather(*[
-                    _repetition(agent, case, variant, prepared, engine, resolver, sem)
+                    _repetition(agent, case, variant, prepared, engine, resolver, sem, stop)
                     for _ in range(repetitions)])
+                reps = [rep for rep in reps if rep is not None]
+                if not reps:   # cancelada antes de mandar el primer turno de esta variante
+                    continue
             passed = sum(1 for r in reps if r["passed"])
             errors_n = sum(1 for r in reps if r["error"])
             item["variants"].append({"key": variant["key"], "version": variant["version"], "passed": passed,
-                                     "total": repetitions, "errors": errors_n, "repetitions": reps})
+                                     "total": len(reps), "errors": errors_n, "repetitions": reps})
             for rep in reps:
                 input_tokens += rep["input_tokens"]
                 output_tokens += rep["output_tokens"]
-            done += repetitions
+            done += len(reps)
             if progress is not None:
                 await progress({"done": min(done, total), "total": total, "results": [*results, item],
                                 "input_tokens": input_tokens, "output_tokens": output_tokens,
                                 "tool_revisions": tool_revisions})
-        results.append(item)
+        if item["variants"]:
+            results.append(item)
     return {"results": results, "input_tokens": input_tokens, "output_tokens": output_tokens,
-            "tool_revisions": tool_revisions, "total": total}
+            "tool_revisions": tool_revisions, "total": total, "done": done,
+            "cancelled": bool(stop is not None and stop.is_set() and done < total)}
 
 
 def _error_rep(message: str) -> dict:

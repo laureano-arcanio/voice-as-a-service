@@ -13,13 +13,19 @@ cambios sin guardar, y dice **pasa X/N**. Informa; nunca bloquea y nunca ejecuta
   «Crear caso de prueba». No aparece en la apertura ni en lo que habló una persona del equipo.
 - **Desde Probar:** el chat de prueba del agente ofrece la misma acción.
 - **Pestaña Pruebas** del agente: lista los casos con su «pasa X/N», corre todos y abre el detalle (chequeos,
-  resultado grabado, historial, respuestas y borrar).
+  resultado grabado, historial, respuestas y borrar). Abajo, **Última corrida**: la más nueva del agente venga de
+  donde venga (la pestaña, el editor, la API o el MCP), con su estado en castellano, el progreso mientras corre y
+  las respuestas al terminar. Con una en curso, **Cancelar** pide confirmación y deja «Cancelando…» hasta que
+  termina; después queda **Cancelada** con lo que alcanzó a correr (no cuenta para el «pasa X/N»).
 - **Editor del agente:** «Correr pruebas» compara los cambios sin guardar contra la publicada. Al guardar avisa si
-  no se corrieron o si algún caso empeora; nunca impide guardar.
+  no se corrieron o si algún caso empeora; nunca impide guardar. **Ver comparación** reabre la última corrida de
+  esos cambios (o la que se acaba de lanzar) sin volver a correr. Si ya hay una corrida en curso, el 409 lleva a
+  Pruebas sin perder lo editado.
 - **Herramientas:** al guardar una revisión nueva de una herramienta usada por agentes, un aviso lleva a las
   pruebas de cada uno.
 - **MCP:** `list_agent_test_cases`, `create_agent_test_case`, `run_agent_tests` (no destructiva: no llama ni manda
-  nada) y `get_agent_test_run`, en el grupo `agents` y solo Admin del cliente ([`MCP.md`](MCP.md)).
+  nada), `get_agent_test_run` y `cancel_agent_test_run`, en el grupo `agents` y solo Admin del cliente
+  ([`MCP.md`](MCP.md)).
 
 Está en todos los planes, sin columna nueva en el tier: los topes son fijos (arriba).
 
@@ -35,9 +41,11 @@ Está en todos los planes, sin columna nueva en el tier: los topes son fijos (ar
 | `known_failure` | Falla conocida: se muestra aparte y no se espera que pase. |
 | `source_conversation_id` | La llamada de origen. Si se borra la llamada queda en null: el caso conserva su copia. |
 
-`agent_test_runs`: `status` (queued/running/done/failed), `repetitions`, `variants` (publicada y, si hay cambios,
-borrador con su definición), copia de nombre y chequeos de cada caso, `results`, `done/total`, tokens, revisiones de
-herramientas, error y fechas. Un índice único parcial deja una sola corrida queued/running por agente.
+`agent_test_runs`: `status` (queued/running/done/failed/cancelled), `repetitions`, `variants` (publicada y, si hay
+cambios, borrador con su definición), copia de nombre y chequeos de cada caso, `results`, `summary` (`pasa X/N` por
+variante, sin las respuestas), `done/total`, tokens, revisiones de herramientas, error, fechas y
+`cancel_requested_at` (el pedido de cancelación de una corrida en curso). Un índice único parcial deja una sola
+corrida queued/running por agente; `cancelled` no es activa.
 
 ## API
 
@@ -52,11 +60,13 @@ cliente (la API key de un cliente y el admin en soporte cuentan).
 | `GET /api/v1/agents/{id}/test-cases` | Lista con `last_run` (pasa X/N y fecha). |
 | `GET/PATCH/DELETE /api/v1/agents/{id}/test-cases/{case_id}` | Detalle con historial, edición y borrado. |
 | `POST /api/v1/agents/{id}/test-runs` | `{repetitions=5, definition?, case_ids?, draft_case?}` → 202. Sin `case_ids`, todos los casos; `draft_case` prueba un caso sin guardar. |
-| `GET /api/v1/agents/{id}/test-runs[/{run_id}]` | Progreso y resultados. |
+| `POST /api/v1/agents/{id}/test-runs/{run_id}/cancel` | 200. En cola la cancela en el acto (`cancelled`, sin `started_at`); en curso deja el pedido en `cancel_requested_at` y la cola no manda más turnos. Una terminada vuelve sin cambios. |
+| `GET /api/v1/agents/{id}/test-runs[/{run_id}]` | Progreso y resultados. `limit` (1–30, default 30) e `include_results` (default `true`): en `false` no trae `results` ni la definición del borrador (`variants`), para mirar el progreso liviano. |
 
-Errores: 404 conversación o caso de otro cliente/agente, 409 `test_run_in_progress`, 422
-`external_agent_not_supported`, `too_many_cases`, `no_test_cases`, `invalid_checks` o `invalid_definition`, 429 por el
-tope de corridas. Un agente `external` no tiene casos: su prompt y sus herramientas son de su endpoint.
+Errores: 404 conversación o caso de otro cliente/agente, 409 `test_run_in_progress` con el `run_id` de la corrida
+activa, 422 `external_agent_not_supported`, `too_many_cases`, `no_test_cases`, `invalid_checks` o
+`invalid_definition`, 429 por el tope de corridas. Un agente `external` no tiene casos: su prompt y sus herramientas
+son de su endpoint.
 
 ## Chequeos
 
@@ -97,8 +107,19 @@ Por caso, variante y repetición, en memoria y sin `process_turn`:
 - Después aplica `_use_last_reply` (la repetición sin texto repite la última respuesta) y corre los chequeos.
 
 La cola corre en la app (`agent_tests_loop`), una corrida a la vez, con hasta `AGENT_TESTS_CONCURRENCY` turnos al LLM
-en paralelo (default 2) y 90 s por turno. Al arrancar, las corridas `running` pasan a `failed` («se reinició la app»):
-no se repiten tokens. No descuenta minutos ni suma tokens a la conversación de origen.
+en paralelo (default 2) y 90 s por turno. Al arrancar, las corridas `running` sin pedido de cancelación pasan a
+`failed` («se reinició la app»): no se repiten tokens. No descuenta minutos ni suma tokens a la conversación de
+origen.
+
+**Cancelar:** una corrida en cola pasa a `cancelled` en el acto y la cola la salta. Una en curso recibe el pedido
+(`cancel_requested_at`) y un vigía de la cola lo mira en cada tick (`AGENT_TESTS_TICK_SECONDS`, 2 s): no se manda
+ningún turno nuevo y los que ya están en el LLM terminan (como mucho `AGENT_TESTS_CONCURRENCY`, hasta 90 s). Queda
+`cancelled` con `done` y los `results` de lo que alcanzó a correr; la variante guarda de `total` las repeticiones
+ejecutadas. Un pedido que llega con todo corrido termina `done`. Si el agente se borra en el medio, la corrida se
+corta igual; si la app se reinicia, una `running` con pedido queda `cancelled`.
+
+Una cancelada no entra en el `pasa X/N` de la lista ni en el historial del caso: esas consultas solo miran las
+`done`.
 
 **Topes:** 30 casos por agente, 10 repeticiones por corrida, 30 corridas por hora por cliente, 200 mensajes y 256 KB
 por caso, 20 resultados de herramienta de hasta 50.000 caracteres. Se guardan las últimas 30 corridas por agente.

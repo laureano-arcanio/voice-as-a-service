@@ -207,9 +207,13 @@ _READ: tuple[Tool, ...] = (
          "variante). Los casos son copias de conversaciones y no ejecutan herramientas reales.",
          path="/agents/{agent_id}/test-cases", params=_AGENT_ID, required=("agent_id",), admin_only=True),
     Tool("get_agent_test_run", "agents", "Corrida de pruebas",
-         "El progreso y las respuestas de una corrida de pruebas. Informa; no bloquea nada.",
+         "El progreso y las respuestas de una corrida de pruebas: `queued`, `running` (con `done/total` y "
+         "`cancel_requested_at` si se pidió cancelarla), `done`, `cancelled` (quedó lo que alcanzó a correr) o "
+         "`failed` (con `error`). Con `include_results` en false, liviana: sin las respuestas. Informa; no bloquea "
+         "nada.",
          path="/agents/{agent_id}/test-runs/{run_id}",
-         params={**_AGENT_ID, "run_id": _s("ID de la corrida de pruebas.")},
+         params={**_AGENT_ID, "run_id": _s("ID de la corrida de pruebas."),
+                 "include_results": {"type": "boolean", "description": "Las respuestas de cada repetición (default true)."}},
          required=("agent_id", "run_id"), admin_only=True),
     Tool("get_agent_version", "agents", "Versión de un agente",
          "La definición de un agente en una versión anterior.", path="/agents/{agent_id}/versions/{version}",
@@ -477,9 +481,16 @@ _WRITE: tuple[Tool, ...] = (
     Tool("run_agent_tests", "agents", "Correr las pruebas de un agente",
          "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice "
          "pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` "
-         "prueba los cambios sin guardar contra la versión publicada.", method="POST",
+         "prueba los cambios sin guardar contra la versión publicada. Si ya hay una en curso, el error trae "
+         "`run_id` (o cancelala con cancel_agent_test_run).", method="POST",
          path="/agents/{agent_id}/test-runs", params=_AGENT, required=("agent_id",), body="TestRunCreateIn",
          read_only=True, admin_only=True),
+    Tool("cancel_agent_test_run", "agents", "Cancelar una corrida de pruebas",
+         "Frena una corrida en cola o en curso: no manda más turnos al LLM; los que ya están en curso terminan "
+         "(hasta 90 s) y queda `cancelled` con lo que alcanzó a correr.", method="POST",
+         path="/agents/{agent_id}/test-runs/{run_id}/cancel",
+         params={**_AGENT_ID, "run_id": _s("ID de la corrida de pruebas.")},
+         required=("agent_id", "run_id"), admin_only=True, destructive=True),
     Tool("list_llm_params", "agents", "Parámetros del LLM",
          "Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con "
          "los defaults del modelo propio, para `generation` en la definición del agente.", path="/llm/params",

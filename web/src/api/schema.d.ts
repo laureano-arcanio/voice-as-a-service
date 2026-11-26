@@ -892,13 +892,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Runs */
+        /**
+         * List Runs
+         * @description Las últimas corridas del agente, de la más nueva a la más vieja. `include_results=false`: liviana (sin
+         *     respuestas ni la definición del borrador).
+         */
         get: operations["list_runs_api_v1_agents__agent_id__test_runs_get"];
         put?: never;
         /**
          * Create Run
          * @description Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:
-         *     todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora").
+         *     todos los del agente; `draft_case`: un caso que no se guarda ("Probar ahora"). Con una corrida en curso, 409
+         *     con su `run_id`.
          */
         post: operations["create_run_api_v1_agents__agent_id__test_runs_post"];
         delete?: never;
@@ -918,6 +923,27 @@ export interface paths {
         get: operations["read_run_api_v1_agents__agent_id__test_runs__run_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/test-runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Run
+         * @description En cola la cancela en el acto; en curso pide que no mande mas turnos al LLM (los que ya estan terminan) y
+         *     queda `cancelled` con lo parcial. Una corrida terminada se devuelve sin cambios.
+         */
+        post: operations["cancel_run_api_v1_agents__agent_id__test_runs__run_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10978,7 +11004,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "queued" | "running" | "done" | "failed";
+            status: "queued" | "running" | "done" | "failed" | "cancelled";
             /** Repetitions */
             repetitions: number;
             /** Variants */
@@ -11012,6 +11038,8 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /** Cancel Requested At */
+            cancel_requested_at?: string | null;
         };
         /** TierBrief */
         TierBrief: {
@@ -14474,7 +14502,10 @@ export interface operations {
     };
     list_runs_api_v1_agents__agent_id__test_runs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                include_results?: boolean;
+            };
             header?: never;
             path: {
                 agent_id: string;
@@ -14539,6 +14570,40 @@ export interface operations {
         };
     };
     read_run_api_v1_agents__agent_id__test_runs__run_id__get: {
+        parameters: {
+            query?: {
+                include_results?: boolean;
+            };
+            header?: never;
+            path: {
+                agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_run_api_v1_agents__agent_id__test_runs__run_id__cancel_post: {
         parameters: {
             query?: never;
             header?: never;

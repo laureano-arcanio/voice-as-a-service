@@ -1,7 +1,8 @@
 import { Alert, Badge, Button, Card, Group, Modal, Stack, Table, Text } from '@mantine/core';
 import { useState } from 'react';
-import { caseResults, useTestRun, type CaseResult, type VariantResult } from './api';
+import { caseResults, isFinished, useTestRun, type CaseResult, type VariantResult } from './api';
 import { RunResults } from './RunResults';
+import { RunStatus } from './RunStatus';
 
 const variant = (item: CaseResult, key: string): VariantResult | undefined =>
   item.variants.find((v) => v.key === key);
@@ -29,17 +30,11 @@ export function CompareModal({
         {run.isError && <Alert color="red">No se pudo leer la corrida.</Alert>}
         {run.data && (
           <>
-            <Group gap="xs">
-              <Badge color={run.data.status === 'done' ? 'green' : 'blue'}>{run.data.status}</Badge>
-              <Text size="xs" c="dimmed">
-                {run.data.done}/{run.data.total} repeticiones
-              </Text>
-            </Group>
-            {run.data.status === 'failed' && <Alert color="red">{run.data.error}</Alert>}
+            <RunStatus agentId={agentId} run={run.data} />
             {run.data.status === 'done' && !hasDraft && (
               <Alert color="gray">Los cambios son iguales a la versión publicada: no hay nada que comparar.</Alert>
             )}
-            {run.data.status === 'done' && hasDraft && (
+            {isFinished(run.data.status) && hasDraft && (
               <Card withBorder>
                 <Table>
                   <Table.Thead>

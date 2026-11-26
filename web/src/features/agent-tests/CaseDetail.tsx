@@ -11,6 +11,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconFlask, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -19,11 +20,14 @@ import { confirmAction } from '@/components/confirm';
 import { JsonEditor } from '@/components/JsonEditor';
 import { ChatView } from '@/features/calls/ChatView';
 import { formatDateTime } from '@/lib/format';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import {
   caseResults,
   describeCheck,
+  isFinished,
+  isRunInProgress,
   summaryText,
+  testKeys,
   useCreateRun,
   useDeleteCase,
   useTestCase,
@@ -35,6 +39,7 @@ import {
 } from './api';
 import { ChecksEditor } from './ChecksEditor';
 import { RunResults } from './RunResults';
+import { RunStatus } from './RunStatus';
 
 function PassSummary({ variants }: { variants?: Record<string, unknown>[] }) {
   if (!variants?.length) return <Text size="xs" c="dimmed">Sin corridas</Text>;
@@ -69,6 +74,7 @@ function CaseBody({
   const update = useUpdateCase(agent.id, caseId);
   const remove = useDeleteCase(agent.id);
   const createRun = useCreateRun(agent.id);
+  const qc = useQueryClient();
   const [runId, setRunId] = useState<string | null>(null);
   const run = useTestRun(agent.id, runId);
   const [checks, setChecks] = useState<Check[]>(() => (data.checks ?? []) as Check[]);
@@ -104,7 +110,16 @@ function CaseBody({
   const runCase = () =>
     createRun.mutate(
       { repetitions: 5, case_ids: [caseId] },
-      { onSuccess: (r) => setRunId(r.id), onError: (e) => notifyError(e, 'No se pudo correr') },
+      {
+        onSuccess: (r) => setRunId(r.id),
+        onError: (e) => {
+          if (!isRunInProgress(e)) return notifyError(e, 'No se pudo correr');
+          // La corrida activa se ve en la pestaña Pruebas: se refresca y se cierra el detalle.
+          void qc.invalidateQueries({ queryKey: testKeys.runs(agent.id) });
+          notifyInfo('Ya hay una corrida en curso: seguí su avance en la pestaña Pruebas.');
+          onClose();
+        },
+      },
     );
 
   const del = async () => {
@@ -217,12 +232,15 @@ function CaseBody({
 
       {runId && run.data && (
         <Card withBorder>
-          <Group justify="space-between" mb="xs">
-            <Text fw={600}>Resultado</Text>
-            <Badge color={run.data.status === 'done' ? 'green' : 'blue'}>{run.data.status}</Badge>
-          </Group>
-          {run.data.status === 'failed' && <Alert color="red">{run.data.error}</Alert>}
-          {run.data.status === 'done' && <RunResults results={caseResults(run.data)} />}
+          <Text fw={600} mb="xs">
+            Resultado
+          </Text>
+          <Stack gap="sm">
+            <RunStatus agentId={agent.id} run={run.data} />
+            {isFinished(run.data.status) && caseResults(run.data).length > 0 && (
+              <RunResults results={caseResults(run.data)} />
+            )}
+          </Stack>
         </Card>
       )}
 

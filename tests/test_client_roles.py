@@ -58,6 +58,8 @@ ROUTES = [
     ("POST", "/campaigns/nope/resume", None, False, True),
     ("POST", "/campaigns/nope/pause", None, False, True),
     ("POST", "/campaigns/nope/cancel", None, False, True),
+    # Corridas de pruebas.
+    ("POST", "/agents/{aid}/test-runs/nope/cancel", None, False, True),
     # Campañas de WhatsApp y sus bajas.
     ("POST", "/whatsapp/campaigns", {"name": "x", "account_id": "a", "template": {}}, False, True),
     ("PATCH", "/whatsapp/campaigns/nope", {"name": "y"}, False, True),

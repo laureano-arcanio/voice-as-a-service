@@ -18,6 +18,7 @@ import {
   IconAlertCircle,
   IconCpu,
   IconDeviceFloppy,
+  IconEye,
   IconFileCode,
   IconFileText,
   IconFlask,
@@ -30,10 +31,10 @@ import {
   IconPlayerPlay,
   IconTool,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import type { ComponentType } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
 import { ApiError, errorMessage, type FieldError } from '@/api/errors';
 import type { AgentDetail, Definition } from '@/api/types';
@@ -41,11 +42,20 @@ import { confirmAction } from '@/components/confirm';
 import { JsonEditor } from '@/components/JsonEditor';
 import { QueryState } from '@/components/QueryState';
 import { focusOffset } from '@/lib/editor';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import { usePromptPreview, useSaveDefinition, validateDefinition } from './api';
 import { CompareModal } from '@/features/agent-tests/CompareModal';
 import { TestsTab } from '@/features/agent-tests/TestsTab';
-import { caseResults, useCreateRun, useTestCases, useTestRun, worsening } from '@/features/agent-tests/api';
+import {
+  caseResults,
+  isRunInProgress,
+  testKeys,
+  useCreateRun,
+  useLatestRun,
+  useTestCases,
+  useTestRun,
+  worsening,
+} from '@/features/agent-tests/api';
 import { AgentTestPanel } from './AgentTestPanel';
 import { CallLinkTab } from './CallLinkTab';
 import { findPathOffset, parseDefinition, toJsonText } from './definition';
@@ -218,10 +228,18 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
   const cases = useTestCases(agent.id);
   const hasCases = (cases.data?.length ?? 0) > 0;
   const createRun = useCreateRun(agent.id);
+  const qc = useQueryClient();
+  const latest = useLatestRun(agent.id);
   const [compareRunId, setCompareRunId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareKey, setCompareKey] = useState<string | null>(null);
   const compareRun = useTestRun(agent.id, compareRunId);
+  // La última corrida de este agente trae la variante de los cambios sin guardar: se puede reabrir la comparación.
+  const latestHasDraft = (latest.data?.variants ?? []).some((v) => v.key === 'borrador');
+  // Volver a Pruebas muestra la última corrida aunque se haya lanzado por API o MCP (las pestañas quedan montadas).
+  useEffect(() => {
+    if (tab === 'pruebas') void latest.refetch();
+  }, [tab, latest.refetch]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // La definicion en edicion: la del formulario o la del JSON (null si no parsea).
   const parsedJson = mode === 'json' ? parseDefinition(jsonText) : null;
@@ -314,9 +332,22 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
           setCompareOpen(true);
           setCompareKey(currentKey);
         },
-        onError: (e) => notifyError(e, 'No se pudo correr'),
+        onError: (e) => {
+          if (!isRunInProgress(e)) return notifyError(e, 'No se pudo correr');
+          // Ya hay una en curso: se muestra en Pruebas. El borrador sigue en el estado (cambiar de pestaña no lo pierde).
+          void qc.invalidateQueries({ queryKey: testKeys.runs(agent.id) });
+          notifyInfo('Ya hay una corrida de pruebas en curso: seguí su avance en Pruebas.');
+          goTo('pruebas');
+        },
       },
     );
+  };
+
+  const openComparison = () => {
+    const id = compareRunId ?? latest.data?.id ?? null;
+    if (!id) return;
+    setCompareRunId(id);
+    setCompareOpen(true);
   };
 
   const doSave = async () => {
@@ -442,6 +473,16 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
                     disabled={!current}
                   >
                     Correr pruebas
+                  </Button>
+                )}
+                {(compareRunId || latestHasDraft) && (
+                  <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<IconEye size={16} />}
+                    onClick={openComparison}
+                  >
+                    Ver comparación
                   </Button>
                 )}
                 <Button

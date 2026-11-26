@@ -309,7 +309,7 @@
    "name": "get_agent_test_run",
    "toolset": "agents",
    "title": "Corrida de pruebas",
-   "description": "El progreso y las respuestas de una corrida de pruebas. Informa; no bloquea nada.",
+   "description": "El progreso y las respuestas de una corrida de pruebas: `queued`, `running` (con `done/total` y `cancel_requested_at` si se pidió cancelarla), `done`, `cancelled` (quedó lo que alcanzó a correr) o `failed` (con `error`). Con `include_results` en false, liviana: sin las respuestas. Informa; no bloquea nada.",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -543,8 +543,18 @@
    "name": "run_agent_tests",
    "toolset": "agents",
    "title": "Correr las pruebas de un agente",
-   "description": "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` prueba los cambios sin guardar contra la versión publicada.",
+   "description": "Encola una corrida de los casos del agente (o de los ids que pases): repite cada caso y dice pasa X/N. No llama ni manda nada y no ejecuta herramientas; informa, no bloquea. Con `definition` prueba los cambios sin guardar contra la versión publicada. Si ya hay una en curso, el error trae `run_id` (o cancelala con cancel_agent_test_run).",
    "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "cancel_agent_test_run",
+   "toolset": "agents",
+   "title": "Cancelar una corrida de pruebas",
+   "description": "Frena una corrida en cola o en curso: no manda más turnos al LLM; los que ya están en curso terminan (hasta 90 s) y queda `cancelled` con lo que alcanzó a correr.",
+   "kind": "confirmar",
    "features": [],
    "oauth": false,
    "api_key": false

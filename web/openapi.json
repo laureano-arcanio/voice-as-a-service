@@ -2768,7 +2768,7 @@
      "agent-tests"
     ],
     "summary": "Create Run",
-    "description": "Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:\ntodos los del agente; `draft_case`: un caso que no se guarda (\"Probar ahora\").",
+    "description": "Encola una corrida: la version guardada y, con `definition`, los cambios sin guardar. `case_ids` sin mandar:\ntodos los del agente; `draft_case`: un caso que no se guarda (\"Probar ahora\"). Con una corrida en curso, 409\ncon su `run_id`.",
     "operationId": "create_run_api_v1_agents__agent_id__test_runs_post",
     "security": [
      {
@@ -2824,6 +2824,7 @@
      "agent-tests"
     ],
     "summary": "List Runs",
+    "description": "Las últimas corridas del agente, de la más nueva a la más vieja. `include_results=false`: liviana (sin\nrespuestas ni la definición del borrador).",
     "operationId": "list_runs_api_v1_agents__agent_id__test_runs_get",
     "security": [
      {
@@ -2838,6 +2839,28 @@
       "schema": {
        "type": "string",
        "title": "Agent Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 30,
+       "minimum": 1,
+       "default": 30,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "include_results",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": true,
+       "title": "Include Results"
       }
      }
     ],
@@ -2876,6 +2899,73 @@
     ],
     "summary": "Read Run",
     "operationId": "read_run_api_v1_agents__agent_id__test_runs__run_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Run Id"
+      }
+     },
+     {
+      "name": "include_results",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": true,
+       "title": "Include Results"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/test-runs/{run_id}/cancel": {
+   "post": {
+    "tags": [
+     "agent-tests"
+    ],
+    "summary": "Cancel Run",
+    "description": "En cola la cancela en el acto; en curso pide que no mande mas turnos al LLM (los que ya estan terminan) y\nqueda `cancelled` con lo parcial. Una corrida terminada se devuelve sin cambios.",
+    "operationId": "cancel_run_api_v1_agents__agent_id__test_runs__run_id__cancel_post",
     "security": [
      {
       "HTTPBearer": []
@@ -33541,7 +33631,8 @@
        "queued",
        "running",
        "done",
-       "failed"
+       "failed",
+       "cancelled"
       ],
       "title": "Status"
      },
@@ -33635,6 +33726,18 @@
        }
       ],
       "title": "Finished At"
+     },
+     "cancel_requested_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cancel Requested At"
      }
     },
     "type": "object",
