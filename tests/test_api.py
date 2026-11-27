@@ -621,6 +621,31 @@ def test_reanalyze_call_conflicts(api, admin, monkeypatch):
     assert r.status_code == 409 and r.json()["code"] == "call_in_progress"
 
 
+def test_analysis_status_in_the_panel_and_reanalyze(api, admin):
+    """El detalle y la lista traen analysis_status; con el análisis en curso el re-análisis da 409
+    `analysis_in_progress` y con failed (o armed) lo toma el usuario: la fila queda NULL antes de correr."""
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    api.llm.turns = [AgentTurn(assistant_message="Gracias, Juan.", status="completed")]
+    cid = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()["conversation_id"]
+    admin.post(f"{V1}/conversations/{cid}/turns", json={"message": "Juan."})
+    with api.sessions() as s:
+        s.get(ConversationRow, cid).analysis_status = "pending"
+        s.commit()
+    assert admin.get(f"{V1}/calls/{cid}").json()["analysis_status"] == "pending"
+    items = admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["items"]
+    assert items[0]["analysis_status"] == "pending"
+    r = admin.post(f"{V1}/calls/{cid}/analyze")
+    assert r.status_code == 409 and r.json()["code"] == "analysis_in_progress"
+    with api.sessions() as s:
+        s.get(ConversationRow, cid).analysis_status = "failed"
+        s.commit()
+    api.llm.extractions = [{"contact_name": "Juan"}]
+    assert admin.post(f"{V1}/calls/{cid}/analyze").status_code == 200
+    with api.sessions() as s:
+        assert s.get(ConversationRow, cid).analysis_status is None
+
+
 def test_reanalyze_call_admin_only_isolated_and_limited(api, admin):
     """Re-correrlo es de un Admin del cliente: un Usuario no puede (403), el de otro cliente no la ve
     (404), la API key del cliente sí; y tiene tope por hora (429)."""

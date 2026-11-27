@@ -177,6 +177,10 @@ plan, variables, seguimiento) en `app/services/campaigns.py`.
   1 h y 6 h (`CAMPAIGN_CALLBACK_MAX_ATTEMPTS`, 6) y queda `failed`. Los eventos por contacto llevan `contact` con los
   campos del reporte más `summary` (el resumen del análisis) y `variables` (las visibles de la conversación, sin las
   ocultas); `campos` y `vars` siguen como JSON en texto.
+- El `contact.finished` de una llamada con la extracción final en la cola de la app (`analysis_status` en `armed`,
+  `pending` o `running`) se posterga 10 s, sin contar intento, hasta que termine o cumpla 20 minutos desde que se
+  creó: después sale igual, con lo que haya. El orden con `campaign.finished` no está garantizado: puede llegar antes
+  que el último `contact.finished`.
 - El secreto va cifrado con `WA_TOKEN_KEY`; si el cliente no manda uno se genera y se muestra una sola vez.
 - **SSRF:** solo https a un host público; al entregar se resuelve, se exige IP pública y se conecta a esa IP con el
   SNI y el `Host` originales, sin redirecciones. `CAMPAIGN_CALLBACK_ALLOW_PRIVATE=true` solo en desarrollo.

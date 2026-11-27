@@ -14,6 +14,7 @@ class ConversationRow(Base):
         Index("ix_conversations_created_at", "created_at"),
         Index("ix_conversations_client_created", "client_id", "created_at"),
         Index("ix_conversations_post_call", "post_call_status", "post_call_next_at"),
+        Index("ix_conversations_analysis", "analysis_status", "analysis_next_at"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     # RESTRICT: un cliente o agente con conversaciones no se borra (se desactiva o archiva).
@@ -48,5 +49,10 @@ class ConversationRow(Base):
     post_call_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     post_call_next_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     post_call_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Extraccion final de una llamada de voz, en la cola de la app: armed, pending, running, done o failed; NULL si
+    # no corresponde (WhatsApp, texto, sin analysis, tu propio agente) o es anterior. El post-call la espera.
+    analysis_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    analysis_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    analysis_next_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

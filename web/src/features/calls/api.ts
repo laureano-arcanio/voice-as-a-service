@@ -59,14 +59,25 @@ export function isCallLive(c: CallDetail | undefined): boolean {
 }
 
 /** Se puede volver a correr su análisis (POST /calls/{id}/analyze): el agente lo tiene (no es tu propio
- * agente) y la llamada no está en curso. */
-export function canReanalyze(c: { has_analysis?: boolean | null; status?: string | null }): boolean {
-  return !!c.has_analysis && !isLiveStatus(c.status);
+ * agente), la llamada no está en curso y la extracción final no está corriendo. */
+export function canReanalyze(c: {
+  has_analysis?: boolean | null;
+  status?: string | null;
+  analysis_status?: string | null;
+}): boolean {
+  return (
+    !!c.has_analysis &&
+    !isLiveStatus(c.status) &&
+    c.analysis_status !== 'pending' &&
+    c.analysis_status !== 'running'
+  );
 }
 
-/** Refresco del detalle: 1 s en una llamada en curso; 3 s en un chat de WhatsApp activo
- * (los mensajes llegan de a uno y el cliente puede volver a escribir horas despues). */
+/** Refresco del detalle: 2 s mientras la extracción final está en la cola (los datos aparecen sin recargar);
+ * 1 s en una llamada en curso; 3 s en un chat de WhatsApp activo (los mensajes llegan de a uno y el cliente
+ * puede volver a escribir horas despues). */
 export function detailRefetchMs(c: CallDetail | undefined): number | false {
+  if (c?.analysis_status === 'pending' || c?.analysis_status === 'running') return 2000;
   if (!isCallLive(c)) return false;
   return c?.whatsapp ? 3000 : 1000;
 }

@@ -121,7 +121,7 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
 
 @router.post("/calls/{conversation_id}/analyze", response_model=CallAnalyzeOut,
              dependencies=[_analyze_limit],
-             responses={409: {"description": "Sin análisis o agente propio (external), o llamada en curso"},
+             responses={409: {"description": "Sin análisis o agente propio (external), llamada o análisis en curso"},
                         429: {"description": "Límite por hora del cliente"}})
 async def reanalyze_call(conversation_id: str, p: ClientAdminPrincipal, db: DB,
                          definitions: Definitions, engine: Engine,
@@ -152,6 +152,12 @@ async def reanalyze_call(conversation_id: str, p: ClientAdminPrincipal, db: DB,
     call = db.get(CallRow, conversation_id)
     if call is not None and call.status in ACTIVE_CALL_STATUSES:
         raise Conflict("La llamada sigue en curso", "call_in_progress")
+    if conv.analysis_status in ("pending", "running"):
+        raise Conflict("El análisis de esta llamada todavía está corriendo", "analysis_in_progress")
+    if conv.analysis_status in ("armed", "failed"):
+        # Lo toma el usuario: la cola no lo vuelve a correr.
+        conv.analysis_status, conv.analysis_next_at = None, None
+        db.commit()
     await engine.analyze(conversation_id, timeout=15, reset=True, kind="reanalisis", workflow=selected)
     return CallAnalyzeOut(pending=bool(engine.extractions.get(conversation_id)))
 

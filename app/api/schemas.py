@@ -1419,6 +1419,10 @@ class CallSummary(BaseModel):
     # es tu propio agente (external).
     has_analysis: bool = Field(default=False, description="true si se puede volver a correr su análisis "
                                                            "(POST /calls/{id}/analyze)")
+    analysis_status: Literal["armed", "pending", "running", "done", "failed"] | None = Field(
+        default=None, description="Extracción final de una llamada de voz en la cola de la app: pending o running, "
+                                 "está corriendo y los datos todavía no están; failed, se puede volver a correr; "
+                                 "null, no corresponde")
 
 
 class CallPage(BaseModel):
@@ -1563,6 +1567,10 @@ class CallDetail(BaseModel):
     # es tu propio agente (external).
     has_analysis: bool = Field(default=False, description="true si se puede volver a correr su análisis "
                                                           "(POST /calls/{id}/analyze)")
+    analysis_status: Literal["armed", "pending", "running", "done", "failed"] | None = Field(
+        default=None, description="Extracción final de una llamada de voz en la cola de la app: pending o running, "
+                                 "está corriendo y los datos todavía no están; failed, se puede volver a correr; "
+                                 "null, no corresponde")
     call: CallInfo | None
     whatsapp: WhatsAppInfo | None = None
 

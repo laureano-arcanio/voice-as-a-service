@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..agents.definitions import DefinitionSource
 from ..config import settings
+from ..conversation import workflows
 from ..conversation.engine import ConversationEngine
 from ..db import utcnow
 from ..models import (
@@ -186,7 +187,8 @@ def call_result(s: Session, definitions: DefinitionSource, conversation_id: str,
     workflow = reports.workflow(conv)
     specs = list(workflow.analysis_fields.items()) if workflow else []
     return {
-        "final": call.status not in ACTIVE_CALL_STATUSES,
+        # La landing espera los datos: con la extraccion final en la cola, todavia no esta.
+        "final": call.status not in ACTIVE_CALL_STATUSES and conv.analysis_status not in workflows.ANALYSIS_BUSY,
         "status": call.status,
         "ended_reason": call.ended_reason,
         "duration_seconds": call.duration_seconds,

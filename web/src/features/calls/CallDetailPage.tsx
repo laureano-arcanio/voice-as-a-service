@@ -177,9 +177,15 @@ function FieldsCard({ c }: { c: CallDetail }) {
   const fresh = useFreshFields(c.fields);
   return (
     <Card>
-      <Title order={4} mb="sm">
-        Estado
-      </Title>
+      <Group gap="sm" mb="sm">
+        <Title order={4}>Estado</Title>
+        {(c.analysis_status === 'pending' || c.analysis_status === 'running') && (
+          <Badge color="blue" variant="light">
+            Analizando…
+          </Badge>
+        )}
+        {c.analysis_status === 'failed' && <Badge color="red">No se pudo analizar</Badge>}
+      </Group>
       <Table.ScrollContainer minWidth={360}>
         <Table>
           <Table.Thead>
@@ -540,7 +546,11 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
   const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
   const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
   // Re-analizar: con la llamada terminada; el propio botón se oculta si el usuario no es Admin del cliente.
-  const canRerun = canReanalyze({ has_analysis: c.has_analysis, status: c.call?.status });
+  const canRerun = canReanalyze({
+    has_analysis: c.has_analysis,
+    status: c.call?.status,
+    analysis_status: c.analysis_status,
+  });
   if (!canView && !canHangUp && !canBlock && !canClose && !canRerun) return null;
   return (
     <Group gap="sm">
@@ -562,6 +572,7 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
           agentVersion={c.agent_version}
           hasAnalysis={c.has_analysis}
           callStatus={c.call?.status}
+          analysisStatus={c.analysis_status}
         />
       )}
       {canBlock && <BlockCallerButton c={c} />}

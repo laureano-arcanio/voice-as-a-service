@@ -275,21 +275,29 @@ describe('volver a correr el análisis', () => {
         { ...CALL, id: 'cv-si', contact_name: 'Ana', has_analysis: true },
         { ...CALL, id: 'cv-no', contact_name: 'Beto' },
         { ...CALL, id: 'cv-live', contact_name: 'Caro', has_analysis: true, status: 'en_curso' },
+        { ...CALL, id: 'cv-analizando', contact_name: 'Eva', has_analysis: true, analysis_status: 'pending' },
       ]),
     );
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
-    const row = (contact: string) => screen.getByRole('row', { name: new RegExp(contact) });
+    // Con \b: la fila que está "Analizando…" también contiene "Ana".
+    const row = (contact: string) => screen.getByRole('row', { name: new RegExp(`\\b${contact}\\b`) });
     await screen.findAllByRole('link', { name: /Ver conversación del/ });
     expect(
       within(row('Ana')).getByRole('button', { name: 'Volver a correr el análisis' }),
     ).toBeInTheDocument();
-    // Sin análisis (o agente borrado) y con la llamada en vivo, no aparece.
+    // Sin análisis (o agente borrado), con la llamada en vivo y con la extracción final en curso, no aparece.
     expect(
       within(row('Beto')).queryByRole('button', { name: 'Volver a correr el análisis' }),
     ).not.toBeInTheDocument();
     expect(
       within(row('Caro')).queryByRole('button', { name: 'Volver a correr el análisis' }),
     ).not.toBeInTheDocument();
+    expect(
+      within(row('Eva')).queryByRole('button', { name: 'Volver a correr el análisis' }),
+    ).not.toBeInTheDocument();
+    // En la lista se ve que está analizando, en lugar de captured/total.
+    expect(within(row('Eva')).getByText('Analizando…')).toBeInTheDocument();
+    expect(within(row('Eva')).queryByText('3/3')).not.toBeInTheDocument();
   });
 
   it('un Usuario del cliente sin el rol de admin tampoco lo ve', async () => {

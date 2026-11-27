@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from app.config import settings
+from app.conversation import analysis
 from app.models import CallMode, CallRow, CallStatus, ConversationRow, Event, HandoffLeg, ToolRun, WaAccount
 from app.services import calls as call_service
 from app.voice import worker
@@ -306,7 +307,12 @@ def test_connected_operator_arms_handoff_accepted(api, agent, monkeypatch):
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=transfer(seen, api)))
     assert seen["status"] == "armed"
     conv = row(api, inbound_id(api))
-    assert conv.post_call_status == "pending" and conv.post_call_next_at is not None
+    # finalize deja la extraccion final en la cola: el post-call espera a que termine.
+    assert conv.analysis_status == "pending" and conv.post_call_status == "armed"
+    asyncio.run(analysis.run_once(api.sessions, api.engine))
+    conv = row(api, inbound_id(api))
+    assert conv.analysis_status == "done" and conv.post_call_status == "pending"
+    assert conv.post_call_next_at is not None
 
 
 def test_caller_keys_during_the_transfer_only(api, agent, monkeypatch):
@@ -364,7 +370,12 @@ def test_always_arms_when_connected(api, admin, client, mock_api_url, monkeypatc
         seen["status"] = row(api, inbound_id(api)).post_call_status
 
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
-    assert seen["status"] == "armed" and row(api, inbound_id(api)).post_call_status == "pending"
+    assert seen["status"] == "armed"
+    conv = row(api, inbound_id(api))
+    assert conv.analysis_status == "pending" and conv.post_call_status == "armed"
+    asyncio.run(analysis.run_once(api.sessions, api.engine))
+    conv = row(api, inbound_id(api))
+    assert conv.analysis_status == "done" and conv.post_call_status == "pending"
 
 
 def test_always_does_not_arm_when_the_call_never_connected(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
@@ -388,19 +399,12 @@ def test_test_modes_do_not_arm(api, admin, client, mock_api_url, monkeypatch, mo
 
 # --- finalize -------------------------------------------------------------------------------------
 
-def test_finalize_marks_pending_after_the_extraction(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
+def test_finalize_leaves_the_analysis_to_the_queue(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
+    """El worker no extrae ni espera: deja la extraccion final en pending y el post-call armed. La cola de la app
+    la corre y, recien ahi, el post-call pasa a pending con los datos."""
     always_agent(admin, client, mock_api_url)
-    from app.conversation import workflows
     from app.conversation.models import Message
     api.llm.extractions = [{"contact_name": "Juan"}]
-    seen = {}
-    real = workflows.mark_ended
-
-    def mark_ended(sessions, conversation_id):
-        seen["field"] = api.engine.store.get(conversation_id).fields["contact_name"]
-        real(sessions, conversation_id)
-
-    monkeypatch.setattr(workflows, "mark_ended", mark_ended)
 
     async def during(h):
         state = api.engine.store.get(inbound_id(api))
@@ -409,11 +413,18 @@ def test_finalize_marks_pending_after_the_extraction(api, admin, client, mock_ap
 
     h = Harness(api, monkeypatch)
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
-    assert seen["field"] == "Juan"      # el post-call ve lo extraido
-    assert row(api, inbound_id(api)).post_call_status == "pending"
+    conv = row(api, inbound_id(api))
+    assert api.llm.extract_calls == []      # el turno completed no extrajo en el proceso de la llamada
+    assert conv.analysis_status == "pending" and conv.fields["contact_name"] is None
+    assert conv.post_call_status == "armed"
+    asyncio.run(analysis.run_once(api.sessions, api.engine))
+    conv = row(api, inbound_id(api))
+    assert conv.analysis_status == "done" and conv.fields["contact_name"] == "Juan"
+    assert conv.post_call_status == "pending"       # el post-call ve lo extraido
 
 
-def test_finalize_marks_pending_even_if_finish_raises(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
+def test_finalize_does_not_call_engine_finish(api, admin, client, mock_api_url, monkeypatch):  # noqa: F811
+    """Un LLM lento o caido no alarga el cierre: finalize ya no espera la extraccion."""
     always_agent(admin, client, mock_api_url)
 
     async def boom(conversation_id, timeout=10):
@@ -421,9 +432,9 @@ def test_finalize_marks_pending_even_if_finish_raises(api, admin, client, mock_a
 
     monkeypatch.setattr(api.engine, "finish", boom)
     h = Harness(api, monkeypatch)
-    with pytest.raises(RuntimeError):
-        asyncio.run(h.run({}, attributes=inbound_attributes()))
-    assert row(api, inbound_id(api)).post_call_status == "pending"
+    asyncio.run(h.run({}, attributes=inbound_attributes()))
+    assert h.call(inbound_id(api)).status == CallStatus.finalizada
+    assert row(api, inbound_id(api)).analysis_status == "pending"
 
 
 @pytest.mark.parametrize("how", ["fallida", "borrada"])
@@ -445,6 +456,8 @@ def test_finalize_marks_pending_with_a_failed_or_missing_call(api, admin, client
     seen: list = []
     h = Harness(api, monkeypatch)
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
+    assert row(api, seen[0]).analysis_status == "pending"
+    asyncio.run(analysis.run_once(api.sessions, api.engine))
     assert row(api, seen[0]).post_call_status == "pending"
 
 
@@ -459,6 +472,8 @@ def test_customer_hangs_up_with_operator_connected_runs_post_call(api, agent, mo
 
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
     conversation_id = inbound_id(api)
+    assert row(api, conversation_id).post_call_status == "armed"
+    asyncio.run(analysis.run_once(api.sessions, api.engine))
     assert row(api, conversation_id).post_call_status == "pending"
     asyncio.run(workflows.run_once(api.sessions, api.engine))
     assert row(api, conversation_id).post_call_status == "done"
@@ -491,24 +506,11 @@ def test_customer_hangs_up_during_a_transfer_deletes_the_room_and_ends(api, agen
 
 
 def test_shutdown_process_timeout_covers_the_worst_finalize(api, agent, monkeypatch):
-    """El SDK mata el proceso al vencer shutdown_process_timeout: tiene que entrar la espera de los avisos y las dos de
-    engine.finish (la extraccion en curso y la final) con el timeout que le pasa finalize."""
-    real_finish = api.engine.finish
-    seen: dict = {}
-
-    async def finish(conversation_id, timeout=10):
-        seen["timeout"] = timeout
-        return await real_finish(conversation_id, timeout)
-
-    monkeypatch.setattr(api.engine, "finish", finish)
-    h = Harness(api, monkeypatch)
-
-    async def during(h):
-        h.ctx.room.leave(CUSTOMER)
-
-    asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
-    worst = worker.NOTICE_WAIT_SECONDS + 2 * seen["timeout"]
-    assert worker.worker_options().shutdown_process_timeout > worst
+    """El SDK mata el proceso al vencer shutdown_process_timeout: cubre los avisos de WhatsApp y el margen de las
+    escrituras. La extraccion final ya no se espera aca (la corre la cola de la app)."""
+    assert worker.SHUTDOWN_PROCESS_TIMEOUT == worker.NOTICE_WAIT_SECONDS + worker.SHUTDOWN_MARGIN_SECONDS
+    assert worker.worker_options().shutdown_process_timeout == worker.SHUTDOWN_PROCESS_TIMEOUT
+    assert worker.SHUTDOWN_PROCESS_TIMEOUT <= 20.0
 
 
 # --- Avisos por WhatsApp y variables en la llamada -------------------------------------------------
@@ -615,18 +617,18 @@ def test_customer_gone_before_the_notice_still_sends_it(api, consultas, monkeypa
 
 def test_customer_gone_during_a_slow_summary_finalize_waits_and_sends_once(api, consultas, monkeypatch):
     finished: list = []
-    real_finish = api.engine.finish
+    real_end = analysis.end
 
     async def slow(llm, conversation):
         await asyncio.sleep(0.2)
         return "Pide un turno"
 
-    async def finish(conversation_id, timeout=10):
+    def end(sessions, conversation_id):
         finished.append(len(consultas.sent))
-        return await real_finish(conversation_id, timeout)
+        real_end(sessions, conversation_id)
 
     monkeypatch.setattr(worker.transfer, "summarize", slow)
-    monkeypatch.setattr(api.engine, "finish", finish)
+    monkeypatch.setattr(worker.analysis, "end", end)
     h = Harness(api, monkeypatch)
 
     async def during(h):
@@ -638,7 +640,7 @@ def test_customer_gone_during_a_slow_summary_finalize_waits_and_sends_once(api, 
         await task
 
     asyncio.run(h.run({}, attributes=inbound_attributes(), during=during))
-    assert finished == [1], "finalize espera el aviso antes de engine.finish"
+    assert finished == [1], "finalize espera el aviso antes de cerrar el analisis"
     assert len(consultas.sent) == 1 and len(notified(api)) == 1
     # Corto: no se le dice que se avisó.
     assert ("say", "Ya le avisé a Consultas. Te van a contactar.") not in h.line.log
@@ -679,7 +681,7 @@ def test_customer_gone_before_an_emergency_changes_nothing(api, consultas, monke
 # --- duracion -------------------------------------------------------------------------------------
 
 def test_slow_finalize_does_not_add_seconds(api, admin, client, monkeypatch):  # noqa: F811
-    """Los segundos van hasta que corta el cliente: los avisos y la extraccion de finalize (90 s simulados) no suman."""
+    """Los segundos van hasta que corta el cliente: lo que tarde finalize (90 s simulados) no suma."""
     import datetime
 
     from app.voice import direct
@@ -688,13 +690,13 @@ def test_slow_finalize_does_not_add_seconds(api, admin, client, monkeypatch):  #
 
     add_agent(admin, client)
     clock = Clock(monkeypatch, worker, direct)
-    real_finish = api.engine.finish
+    real_end = analysis.end
 
-    async def slow_finish(conversation_id, timeout=10):
+    def slow_end(sessions, conversation_id):
         clock.skip(90)
-        return await real_finish(conversation_id, timeout)
+        real_end(sessions, conversation_id)
 
-    monkeypatch.setattr(api.engine, "finish", slow_finish)
+    monkeypatch.setattr(worker.analysis, "end", slow_end)
     cut = {}
 
     async def during(h):
