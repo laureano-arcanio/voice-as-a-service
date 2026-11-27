@@ -67,6 +67,7 @@ from .billing.loop import billing_loop
 from .campaigns.callbacks import callback_loop
 from .campaigns.loop import campaign_loop
 from .config import settings
+from .conversation.analysis import analysis_loop
 from .conversation.workflows import post_call_loop
 from .mcp import server as mcp_server
 from .services.demo import allowed_origins
@@ -97,6 +98,8 @@ async def lifespan(app: FastAPI):
     agent_tests = asyncio.create_task(agent_tests_loop())
     # Post-call de los agentes (app/conversation/workflows.py).
     post_calls = asyncio.create_task(post_call_loop())
+    # Extraccion final de las llamadas de voz, fuera del proceso de la llamada (app/conversation/analysis.py).
+    analyses = asyncio.create_task(analysis_loop())
     # Rotacion por WhatsApp de texto: tramos vencidos y entregas por retomar (app/whatsapp/handoffs.py).
     wa_handoffs = asyncio.create_task(handoff_loop())
     # Marcadores de la grabacion completa de las entrantes, como dice la base (app/services/line_spool.py).
@@ -111,6 +114,7 @@ async def lifespan(app: FastAPI):
     studio_jobs.cancel()
     agent_tests.cancel()
     post_calls.cancel()
+    analyses.cancel()
     wa_handoffs.cancel()
     line_spool.cancel()
     line_recordings.cancel()

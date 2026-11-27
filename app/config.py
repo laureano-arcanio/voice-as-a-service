@@ -361,6 +361,8 @@ class Settings(BaseSettings):
     # (app/conversation/workflows.py) y cuanto espera la entrega al operador a que termine.
     workflow_tick_seconds: float = 10
     post_call_wait_seconds: float = 3
+    # Barrido de la extraccion final de las llamadas de voz (app/conversation/analysis.py).
+    analysis_tick_seconds: float = 2
     # Rotacion por WhatsApp: su barrido, el tope de un toque tardio y el reenvio al operador que la tomo.
     wa_handoff_tick_seconds: float = 10
     wa_handoff_late_minutes: int = 30

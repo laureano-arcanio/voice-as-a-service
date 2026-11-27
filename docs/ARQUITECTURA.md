@@ -374,7 +374,15 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`
   (`summary` si se pide), un system message con el `analysis.prompt` (o el default) y un user message con el nombre
   del agente, los campos, las variables visibles y la conversación completa; una vez, al terminar (`end_call`) o al
-  cortar (`ConversationEngine.finish`).
+  cortar (`ConversationEngine.finish`). En voz la corre `app`, fuera del proceso de la llamada
+  (`app/conversation/analysis.py`): el worker la arma al conectar (`analysis_status` en `armed`, con vencimiento) y
+  `finalize` la deja en `pending`; el loop de la app (cada `ANALYSIS_TICK_SECONDS`, 2 s) reclama la fila y corre
+  `ConversationEngine.run_final_analysis` con un tope de 120 s, 3 intentos y reintentos solo de transporte (timeout,
+  conexión, 408/429/5xx: inmediato, 30 s y 5 min). Un JSON inválido o un 400 del modelo dan `failed` sin reintento.
+  Con `done` o `failed` el post-call pasa a `pending`: lo espera (`workflows.ANALYSIS_BUSY`). `armed` vencido (murió
+  el worker) y `running` vencido (lease de 180 s, murió `app`) se retoman; cada intento cuenta. Un intento vencido o
+  con 5xx pudo cobrarse igual en el proveedor de una conexión BYOK. WhatsApp y el texto lo corren en el proceso como
+  antes.
   `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
   inexistentes o de tipo inválido no se guardan). `conversion`: `complete` si el agente terminó la conversación y
   no fue fuera de tema, `partial` con algún dato capturado, `empty` el resto; `incompleta` ya no se asigna (las
