@@ -13,6 +13,7 @@ export function ReanalyzeButton({
   agentVersion,
   hasAnalysis,
   callStatus,
+  analysisStatus,
   compact = false,
 }: {
   conversationId: string;
@@ -20,11 +21,14 @@ export function ReanalyzeButton({
   agentVersion?: number | null;
   hasAnalysis?: boolean | null;
   callStatus?: string | null;
+  /** `pending` o `running`: la extracción final está corriendo y el botón no aplica. */
+  analysisStatus?: string | null;
   compact?: boolean;
 }) {
   const isClientAdmin = useIsClientAdmin();
   const reanalyze = useReanalyze(conversationId);
-  if (!isClientAdmin || !canReanalyze({ has_analysis: hasAnalysis, status: callStatus })) return null;
+  if (!isClientAdmin || !canReanalyze({ has_analysis: hasAnalysis, status: callStatus, analysis_status: analysisStatus }))
+    return null;
 
   const versionLabel = agentVersion != null ? ` (v${agentVersion})` : '';
   const run = async (version: ReanalyzeVersion) => {

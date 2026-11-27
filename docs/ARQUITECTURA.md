@@ -394,7 +394,9 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   `agent_version`. `progress.analysis_version` guarda la versión que produjo el último análisis y el detalle y la
   lista muestran sus campos (las viejas, sin ese dato, los de su `agent_version`).
   Espera hasta 15 s y responde `{pending}`: `true` si la extracción sigue en el fondo (no se cancela). 409 sin
-  `analysis`, con `external` o con la llamada en curso.
+  `analysis`, con `external`, con la llamada en curso o con el análisis final en la cola (`analysis_in_progress`).
+  `analysis_status` en la lista y el detalle dice si esa extracción sigue (`pending`, `running`), falló (`failed`) o
+  no corresponde (`null`).
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`

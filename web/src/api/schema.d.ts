@@ -5274,6 +5274,11 @@ export interface components {
              * @default false
              */
             has_analysis?: boolean;
+            /**
+             * Analysis Status
+             * @description Extracción final de una llamada de voz en la cola de la app: pending o running, está corriendo y los datos todavía no están; failed, se puede volver a correr; null, no corresponde
+             */
+            analysis_status?: ("armed" | "pending" | "running" | "done" | "failed") | null;
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
         };
@@ -5607,6 +5612,11 @@ export interface components {
              * @default false
              */
             has_analysis?: boolean;
+            /**
+             * Analysis Status
+             * @description Extracción final de una llamada de voz en la cola de la app: pending o running, está corriendo y los datos todavía no están; failed, se puede volver a correr; null, no corresponde
+             */
+            analysis_status?: ("armed" | "pending" | "running" | "done" | "failed") | null;
         };
         /** CallsUsageOut */
         CallsUsageOut: {
@@ -15115,7 +15125,7 @@ export interface operations {
                     "application/json": components["schemas"]["CallAnalyzeOut"];
                 };
             };
-            /** @description Sin análisis o agente propio (external), o llamada en curso */
+            /** @description Sin análisis o agente propio (external), llamada o análisis en curso */
             409: {
                 headers: {
                     [name: string]: unknown;

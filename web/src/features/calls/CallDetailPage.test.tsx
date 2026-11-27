@@ -5,6 +5,7 @@ import type { CallDetail } from '@/api/types';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import { CallDetailPage } from './CallDetailPage';
+import { detailRefetchMs } from './api';
 
 // Volver a correr el análisis en el detalle (POST /calls/{id}/analyze, docs/GUIA_UI.md).
 
@@ -162,5 +163,22 @@ describe('detalle: volver a correr el análisis', () => {
     const [err, title] = vi.mocked(notifyError).mock.calls[0];
     expect((err as Error).message).toBe('La conversación no tiene análisis');
     expect(title).toBe('No se pudo volver a correr el análisis');
+  });
+});
+
+describe('detalle: extracción final en la cola', () => {
+  it('muestra "Analizando…", oculta el re-análisis y refresca cada 2 s', async () => {
+    renderDetail({ ...DETAIL, analysis_status: 'pending' });
+    expect(await screen.findByText('Analizando…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Volver a correr el análisis' })).not.toBeInTheDocument();
+    expect(detailRefetchMs({ ...DETAIL, analysis_status: 'pending' })).toBe(2000);
+    expect(detailRefetchMs({ ...DETAIL, analysis_status: 'running' })).toBe(2000);
+    expect(detailRefetchMs({ ...DETAIL, analysis_status: 'done' })).toBe(false);
+  });
+
+  it('con failed, insignia roja y se puede volver a correr', async () => {
+    renderDetail({ ...DETAIL, analysis_status: 'failed' });
+    expect(await screen.findByText('No se pudo analizar')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Volver a correr el análisis' })).toBeInTheDocument();
   });
 });
