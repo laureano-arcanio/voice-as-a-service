@@ -194,10 +194,12 @@ class ConversationEngine:
 
     async def process_turn(self, conversation_id: str, user_message: str,
                            on_message: Callable[[str], None] | None = None, *,
-                           media: TurnMedia | None = None, actor: str | None = None, dtmf: str | None = None
-                           ) -> tuple[ConversationState, AgentTurn]:
+                           media: TurnMedia | None = None, actor: str | None = None, dtmf: str | None = None,
+                           analyze: bool = True) -> tuple[ConversationState, AgentTurn]:
         """on_message recibe assistant_message a medida que lo genera el LLM
         (agente de voz). Devuelve sin esperar la extraccion de este turno.
+        analyze: False, el turno que termina no lanza la extraccion (la corre la cola de la app,
+        run_final_analysis).
         media: si el mensaje vino por audio y si la respuesta sale como nota de
         voz (WhatsApp); cambia el prompt del turno y no se guarda.
         actor: quien escribe (wa:<wa_id>): el numero de {{call.from}} en las herramientas.
@@ -258,7 +260,7 @@ class ConversationEngine:
 
         # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
         # (finish: el corte de la llamada, o el cierre o vencimiento del chat).
-        if result.status == "completed" and workflow.analysis is not None:
+        if analyze and result.status == "completed" and workflow.analysis is not None:
             self._launch_extraction(conversation_id, len(state.messages) - 1)
         return state, result
 
@@ -340,11 +342,11 @@ class ConversationEngine:
         return False
 
     def _launch_extraction(self, conversation_id: str, reply: int, *, reset: bool = False, kind: str = "extraccion",
-                           workflow: Workflow | None = None) -> asyncio.Task:
+                           workflow: Workflow | None = None, raise_errors: bool = False) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None
         task = asyncio.create_task(self._extract(conversation_id, reply, previous, reset=reset, kind=kind,
-                                                 workflow=workflow))
+                                                 workflow=workflow, raise_errors=raise_errors))
         tasks.append(task)
         task.add_done_callback(lambda t: self._forget(conversation_id, t))
         return task
@@ -358,6 +360,20 @@ class ConversationEngine:
         if state is None or state.status == "completed" or len(state.messages) < 2:
             return
         await self._analyze_now(state, timeout)
+
+    async def run_final_analysis(self, conversation_id: str, timeout: float) -> None:
+        """La extraccion final de una conversacion terminada, para la cola del analisis de la app. Sin estado, con
+        menos de 2 mensajes, con tu propio agente o sin analysis, vuelve sin LLM. Pasa por _launch_extraction: queda
+        en orden con otra del mismo proceso. Lanza lo que lance la extraccion (el que llama decide si reintenta),
+        TimeoutError al vencer timeout (la extraccion se cancela y no guarda) y KeyError sin la version del agente."""
+        state = self.store.get(conversation_id)
+        if state is None or len(state.messages) < 2:
+            return
+        workflow = self.workflow(state)
+        if workflow.external is not None or workflow.analysis is None:
+            return
+        task = self._launch_extraction(conversation_id, len(state.messages) - 1, raise_errors=True)
+        await asyncio.wait_for(task, timeout)
 
     async def analyze(self, conversation_id: str, timeout: float = 10, *,
                       reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None) -> None:
@@ -398,9 +414,10 @@ class ConversationEngine:
             await asyncio.wait([tasks[-1]], timeout=timeout)
 
     async def _extract(self, conversation_id: str, reply: int, previous: asyncio.Task | None, *,
-                       reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None) -> None:
+                       reset: bool = False, kind: str = "extraccion", workflow: Workflow | None = None,
+                       raise_errors: bool = False) -> None:
         """Extrae los datos de toda la conversacion y los aplica. reply: indice
-        del mensaje del agente de este turno (ahi va la traza)."""
+        del mensaje del agente de este turno (ahi va la traza). raise_errors: la falla se loguea y se re-lanza."""
         if previous is not None:
             await asyncio.wait([previous])      # en orden; y cancelar esta no cancela la anterior
         try:
@@ -409,6 +426,8 @@ class ConversationEngine:
             await self._run_extraction(workflow, state, reply, kind, reset=reset)
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
+            if raise_errors:
+                raise
 
     async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str,
                               *, reset: bool = False) -> None:

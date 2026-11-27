@@ -76,13 +76,14 @@ RECORDING_PREROLL_SECONDS = 0.3
 RECORDING_NOTICE = direct.RECORDING_NOTICE
 # Al cerrar, cuanto se espera a los avisos por WhatsApp en curso: el resumen (4 s) mas el envio a Meta.
 NOTICE_WAIT_SECONDS = 8.0
-# Cada espera de engine.finish al cerrar: la extraccion en curso y despues la final.
-FINISH_TIMEOUT_SECONDS = 10.0
+# Cada espera de engine.finish al cerrar: la extraccion en curso y despues la final. 70 s: la extraccion con
+# razonamiento tardo 54 s (27-nov-2026) y con 10 s se perdia al cortar.
+FINISH_TIMEOUT_SECONDS = 70.0
 # Lo demas de finalize (linea, escrituras en la base) y la limpieza del SDK despues de los callbacks.
 SHUTDOWN_MARGIN_SECONDS = 10.0
 # Tope del SDK para que el proceso de la llamada termine (shutdown_process_timeout; 10 s por defecto en 1.8): al
-# vencer lo mata y, si finalize no llego a escribir, la llamada queda en_curso para siempre (server2, 26-nov-2026:
-# 2 de ~33 cierres en 8 h). Cubre el peor caso de finalize.
+# vencer lo mata y, si finalize no llego a escribir, la llamada queda en_curso para siempre. Cubre el peor caso
+# de finalize.
 SHUTDOWN_PROCESS_TIMEOUT = NOTICE_WAIT_SECONDS + 2 * FINISH_TIMEOUT_SECONDS + SHUTDOWN_MARGIN_SECONDS
 
 

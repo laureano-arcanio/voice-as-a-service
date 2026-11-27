@@ -564,6 +564,28 @@ def test_expired_armed_is_taken_by_the_loop(api, admin, client, http):  # noqa: 
     assert read(api, conversation_id).post_call_status == "done"
 
 
+@pytest.mark.parametrize("analysis", ["armed", "pending", "running"])
+def test_post_call_waits_for_the_analysis(api, admin, client, http, analysis):  # noqa: F811
+    """Con la extraccion final en la cola de la app, el post-call no corre: ni el loop lo trae ni un intento directo."""
+    agent = post_call_agent(admin, client)
+    conversation_id = pending_conversation(api, agent, client, analysis_status=analysis)
+    with api.sessions() as s:
+        assert conversation_id not in workflows.due_ids(s, utcnow())
+    assert run_post_call(api, conversation_id) is None
+    row = read(api, conversation_id)
+    assert row.post_call_status == "pending" and row.post_call_attempts == 0 and http.requests == []
+
+
+@pytest.mark.parametrize("analysis", [None, "done", "failed"])
+def test_post_call_runs_once_the_analysis_ended(api, admin, client, http, analysis):  # noqa: F811
+    agent = post_call_agent(admin, client)
+    conversation_id = pending_conversation(api, agent, client, analysis_status=analysis)
+    with api.sessions() as s:
+        assert conversation_id in workflows.due_ids(s, utcnow())
+    http.replies = [{"charged": True}]
+    assert run_post_call(api, conversation_id) == "done"
+
+
 def test_expired_running_resumes_with_the_same_key(api, admin, client, http):  # noqa: F811
     agent = post_call_agent(admin, client)
     conversation_id = pending_conversation(api, agent, client, status="running", post_call_attempts=1)
