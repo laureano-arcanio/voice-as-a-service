@@ -22,8 +22,9 @@ Convenciones y ambigüedades (una por línea):
 - Plata: "$", "ARS" -> pesos; "US$", "U$S", "USD" -> dólares; "€", "EUR" ->
   euros; centavos con "con ... centavos"; "un millón de pesos".
 - Horas "HH:MM": la hora en femenino ("la una", "veintiuna"); :00 solo la
-  hora, :15 "y cuarto", :30 "y media", el resto "y <minutos>" ("diez y
-  cinco"); un "hs" después se descarta.
+  hora; con minutos, siempre el número ("catorce treinta", "trece quince",
+  "diez cero cinco", "nueve cuarenta y cinco"), nunca "y media"/"y cuarto";
+  un "hs" después se descarta.
 - "21 hs"/"21h": "veintiuna horas" (1 -> "una hora"); "9-18 hs" -> "nueve a
   dieciocho horas". "10am"/"8 pm" -> "de la mañana/tarde/noche".
 - Fechas: "d/m", "d/m/aaaa", "d/m/aa" (20aa) y ISO "aaaa-mm-dd"; el día 1 es
@@ -340,12 +341,8 @@ def _hour_words(h: int) -> str:
 
 def _clock(h: int, mi: int) -> str:
     out = _hour_words(h)
-    if mi == 15:
-        return out + " y cuarto"
-    if mi == 30:
-        return out + " y media"
     if mi:
-        return out + " y " + number_words(mi)
+        return out + (" cero " if mi < 10 else " ") + number_words(mi)
     return out
 
 

@@ -30,13 +30,16 @@ CASES = [
     ("20 USD", "veinte dólares"),
     ("U$S 1", "un dólar"),
     # Horas
-    ("11:30", "once y media"),
-    ("11:15", "once y cuarto"),
+    ("11:30", "once treinta"),
+    ("11:15", "once quince"),
+    ("14:30", "catorce treinta"),
+    ("10:05", "diez cero cinco"),
+    ("9:45", "nueve cuarenta y cinco"),
+    ("13:30", "trece treinta"),
     ("09:00", "nueve"),
     ("9:00", "nueve"),
     ("09:00 hs", "nueve"),
-    ("16:45", "dieciséis y cuarenta y cinco"),
-    ("10:05", "diez y cinco"),
+    ("16:45", "dieciséis cuarenta y cinco"),
     ("a las 1:00", "a las una"),
     ("de 9:00-18:00", "de nueve a dieciocho"),
     ("21 hs", "veintiuna horas"),
@@ -104,7 +107,7 @@ CASES = [
     ("Acme S.A., Dr. Pérez, etc.", "Acme S.A., Dr. Pérez, etc."),
     # Ejemplo completo
     ("Tu turno es el 05/11 a las 11:30, cuesta $15.400,50. Escribí a ana.gomez@acme.com.ar",
-     ("Tu turno es el cinco de noviembre a las once y media, cuesta quince mil cuatrocientos "
+     ("Tu turno es el cinco de noviembre a las once treinta, cuesta quince mil cuatrocientos "
       "pesos con cincuenta centavos. Escribí a ana punto gomez arroba acme punto com punto ar")),
 ]
 

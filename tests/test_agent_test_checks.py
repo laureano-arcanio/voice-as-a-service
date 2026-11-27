@@ -57,9 +57,9 @@ def test_validate_tope_de_chequeos():
 # ---------- texto ----------
 
 def test_dice_por_texto_y_por_lo_que_dice_el_tts():
-    # "19:30" y "diecinueve y media" coinciden en los dos sentidos.
-    assert fails({"type": "dice", "text": "19:30"}, text="a las diecinueve y media") == []
-    assert fails({"type": "dice", "text": "diecinueve y media"}, text="a las 19:30") == []
+    # "19:30" y "diecinueve treinta" coinciden en los dos sentidos.
+    assert fails({"type": "dice", "text": "19:30"}, text="a las diecinueve treinta") == []
+    assert fails({"type": "dice", "text": "diecinueve treinta"}, text="a las 19:30") == []
 
 
 def test_dice_sin_tildes_ni_mayusculas():
