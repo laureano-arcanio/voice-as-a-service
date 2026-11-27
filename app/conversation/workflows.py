@@ -12,6 +12,9 @@ Estados en conversations.post_call_status:
 
 Solo se reintenta una falla de transporte (timeout, conexion, 429, 5xx): 4 intentos en 11 minutos. Si la app del
 cliente respondio, nunca se repite.
+
+Espera al analisis: con conversations.analysis_status en ANALYSIS_BUSY (la extraccion final de la cola de la app
+todavia no termino) no corre, aunque este pending o vencido. NULL, done o failed no lo frenan.
 """
 import asyncio
 import datetime
@@ -50,6 +53,8 @@ ARMED_MARGIN_SECONDS = 600
 TEXT_TEST_IDLE = datetime.timedelta(minutes=10)
 BATCH = 50
 NOTE_MAX_CHARS = 1000
+# Estados de conversations.analysis_status con la extraccion final sin terminar: el post-call espera.
+ANALYSIS_BUSY = ("armed", "pending", "running")
 
 
 def _post_call(workflow: Workflow):
@@ -118,7 +123,8 @@ def arm_text_end(s: Session, conversation_id: str, workflow: Workflow) -> None:
 
 
 def mark_ended(sessions: sessionmaker[Session], conversation_id: str) -> None:
-    """La conversacion termino y la extraccion ya corrio: de armed a pending. No lanza: si falla, armed vence."""
+    """La conversacion termino y la extraccion ya corrio (o fallo): de armed a pending. No lanza: si falla, armed
+    vence."""
     try:
         with sessions() as s:
             s.execute(update(ConversationRow)
@@ -177,6 +183,8 @@ async def run_post_call(sessions: sessionmaker[Session], engine, conversation_id
         row = s.get(ConversationRow, conversation_id)
         if row is None or row.post_call_status not in ("armed", "pending", "running"):
             return None
+        if row.analysis_status in ANALYSIS_BUSY:
+            return None
         # Antes de su hora no corre: un `running` vigente es de otro proceso y un `pending` puede esperar un reintento.
         if row.post_call_next_at is not None and row.post_call_next_at > now():
             return None
@@ -230,10 +238,12 @@ async def run_post_call(sessions: sessionmaker[Session], engine, conversation_id
 
 
 def due_ids(s: Session, now: datetime.datetime) -> list[str]:
-    """Lo que le toca al loop: pending, armed vencido (murio el worker) y running vencido (murio `app`)."""
+    """Lo que le toca al loop: pending, armed vencido (murio el worker) y running vencido (murio `app`), sin el
+    analisis en curso."""
     return list(s.scalars(select(ConversationRow.id).where(
         ConversationRow.post_call_status.in_(("pending", "armed", "running")),
-        or_(ConversationRow.post_call_next_at <= now, ConversationRow.post_call_next_at.is_(None)))
+        or_(ConversationRow.post_call_next_at <= now, ConversationRow.post_call_next_at.is_(None)),
+        or_(ConversationRow.analysis_status.is_(None), ConversationRow.analysis_status.not_in(ANALYSIS_BUSY)))
         .order_by(ConversationRow.post_call_next_at).limit(BATCH)))
 
 

@@ -3903,7 +3903,7 @@
       }
      },
      "409": {
-      "description": "Sin análisis o agente propio (external), o llamada en curso"
+      "description": "Sin análisis o agente propio (external), llamada o análisis en curso"
      },
      "429": {
       "description": "Límite por hora del cliente"
@@ -18448,6 +18448,25 @@
       "description": "true si se puede volver a correr su análisis (POST /calls/{id}/analyze)",
       "default": false
      },
+     "analysis_status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "armed",
+         "pending",
+         "running",
+         "done",
+         "failed"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Analysis Status",
+      "description": "Extracción final de una llamada de voz en la cola de la app: pending o running, está corriendo y los datos todavía no están; failed, se puede volver a correr; null, no corresponde"
+     },
      "call": {
       "anyOf": [
        {
@@ -19420,6 +19439,25 @@
       "title": "Has Analysis",
       "description": "true si se puede volver a correr su análisis (POST /calls/{id}/analyze)",
       "default": false
+     },
+     "analysis_status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "armed",
+         "pending",
+         "running",
+         "done",
+         "failed"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Analysis Status",
+      "description": "Extracción final de una llamada de voz en la cola de la app: pending o running, está corriendo y los datos todavía no están; failed, se puede volver a correr; null, no corresponde"
      }
     },
     "type": "object",

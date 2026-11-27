@@ -277,7 +277,9 @@ _READ: tuple[Tool, ...] = (
                  **_PAGE}),
     Tool("get_call", "calls", "Llamada",
          "Una conversación con su transcripción, los datos que tomó el agente y la grabación "
-         "por mensaje si la hay." + _UNTRUSTED, path="/calls/{conversation_id}",
+         "por mensaje si la hay. `analysis_status` de una llamada de voz: pending o running, la extracción final "
+         "sigue corriendo y los datos todavía no están; failed, se puede volver a correr con "
+         "POST /calls/{conversation_id}/analyze." + _UNTRUSTED, path="/calls/{conversation_id}",
          params={"conversation_id": _s("ID de la conversación.")}, required=("conversation_id",)),
     Tool("get_recording", "calls", "Grabación de un mensaje",
          "El audio (WAV) de un mensaje de la conversación, si el agente graba (`record_audio`). `n` es el "

@@ -24,7 +24,7 @@ from livekit import api, rtc
 
 from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
-from ..conversation import opening_audio, recordings, variables, workflows
+from ..conversation import analysis, opening_audio, recordings, variables, workflows
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Message, TurnAttention, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
@@ -76,14 +76,13 @@ RECORDING_PREROLL_SECONDS = 0.3
 RECORDING_NOTICE = direct.RECORDING_NOTICE
 # Al cerrar, cuanto se espera a los avisos por WhatsApp en curso: el resumen (4 s) mas el envio a Meta.
 NOTICE_WAIT_SECONDS = 8.0
-# Cada espera de engine.finish al cerrar: la extraccion en curso y despues la final.
-FINISH_TIMEOUT_SECONDS = 10.0
 # Lo demas de finalize (linea, escrituras en la base) y la limpieza del SDK despues de los callbacks.
 SHUTDOWN_MARGIN_SECONDS = 10.0
 # Tope del SDK para que el proceso de la llamada termine (shutdown_process_timeout; 10 s por defecto en 1.8): al
-# vencer lo mata y, si finalize no llego a escribir, la llamada queda en_curso para siempre (server2, 26-nov-2026:
-# 2 de ~33 cierres en 8 h). Cubre el peor caso de finalize.
-SHUTDOWN_PROCESS_TIMEOUT = NOTICE_WAIT_SECONDS + 2 * FINISH_TIMEOUT_SECONDS + SHUTDOWN_MARGIN_SECONDS
+# vencer lo mata y, si finalize no llego a escribir, la llamada queda en_curso para siempre. Cubre el peor caso
+# de finalize: avisos (8 s) mas margen. La extraccion final ya no se espera aca: la corre la cola de la app
+# (app/conversation/analysis.py).
+SHUTDOWN_PROCESS_TIMEOUT = NOTICE_WAIT_SECONDS + SHUTDOWN_MARGIN_SECONDS
 
 
 class _MonoResampler:
@@ -362,7 +361,7 @@ class WorkflowAgent(Agent):
             keys = self.pending_dtmf.pop(user_items[0].id, None) if len(user_items) == 1 else None
             result = await self.engine.process_turn(
                 self.conversation_id, " ".join(item.text_content for item in user_items), on_message=on_message,
-                dtmf=keys)
+                dtmf=keys, analyze=False)     # la extraccion final la corre la cola de la app (analysis.py)
             self.last_reply = speech
             self.last_user_ids = {item.id for item in user_items}
             self.consumed |= self.last_user_ids
@@ -638,7 +637,7 @@ async def entrypoint(ctx: JobContext):
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
-    end = direct.CallEnd()   # hora del corte: lo que tarda finalize (avisos, extraccion) no suma segundos
+    end = direct.CallEnd()   # hora del corte: lo que tarda finalize (avisos) no suma segundos
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
     # Derivacion en curso, su lado de LiveKit y los avisos por WhatsApp, que siguen aunque el cliente corte.
     current: dict = {"transfer": None, "line": None, "attempts": team_attempts, "notices": [], "handoffs": 0}
@@ -673,14 +672,13 @@ async def entrypoint(ctx: JobContext):
         if current["line"] is not None:
             await current["line"].aclose()
         agent.flush_recording()
-        # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
-        # de ahi); en el motor clasico, si corto el cliente, es la unica.
+        # La extraccion final no se espera aca: la corre la cola de la app con reintentos, aunque este proceso
+        # muera. analysis.end es la ultima escritura del worker sobre la conversacion (el store reescribe fields,
+        # messages y progress enteros: despues, la app extrae y guarda).
         try:
             await wait_notices()
-            await engine.finish(conversation_id, timeout=FINISH_TIMEOUT_SECONDS)
         finally:
-            # Antes de leer la llamada: una fallida o sin fila no pierde la marca, y el post-call ve lo extraido.
-            workflows.mark_ended(sessions, conversation_id)
+            analysis.end(sessions, conversation_id)
         with sessions() as s:
             call = s.get(CallRow, conversation_id)
             if call is None or call.status == CallStatus.fallida:
@@ -1057,6 +1055,7 @@ async def entrypoint(ctx: JobContext):
         started_at = time.time()
         update_call(status=CallStatus.en_curso, started_at=utcnow())
     workflows.arm(sessions, conversation_id, mode, workflow, only_when="always")
+    analysis.arm(sessions, conversation_id, workflow)
     if mode in quota.MINUTE_MODES:
         watchdogs.append(asyncio.create_task(quota_watchdog()))
     if not phone and metadata.get("max_duration_seconds"):

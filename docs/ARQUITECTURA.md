@@ -184,7 +184,7 @@ incluido.
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by` y `definition_legacy`. |
 | `agent_test_cases` | Caso de prueba: copia de la conversación (`snapshot` con mensajes, turno del usuario y variables sin las `tool:*`), resultados de herramienta grabados (`tool_results`), `checks`, `known_failure`, origen (`source_conversation_id`, SET NULL al borrar la llamada) y versión de origen. Por cliente y agente ([`features/CASOS_DE_PRUEBA.md`](features/CASOS_DE_PRUEBA.md)). |
 | `agent_test_runs` | Corrida: `status` (queued/running/done/failed/cancelled), `repetitions`, `variants` (publicada y, con cambios, borrador), copia de nombre y chequeos de cada caso, `results`, `summary` (el `pasa X/N` por variante, para lista e historial sin bajar `results`), `done/total`, tokens, `tool_revisions`, error, fechas y `cancel_requested_at` (pedido de cancelación de una en curso). Índice único parcial: una sola queued/running por agente. |
-| `conversations` | Estado del motor (`fields`, `messages`, `progress`; un mensaje con `dtmf` son teclas marcadas, texto `Marcó 123`: [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#teclas-marcadas)), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome` (solo plataforma: `fuera_de_tema`; `goal`, congelada con sus valores históricos, ya no se escribe), `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). `legacy_workflow_id` para las anteriores a los agentes. |
+| `conversations` | Estado del motor (`fields`, `messages`, `progress`; un mensaje con `dtmf` son teclas marcadas, texto `Marcó 123`: [EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#teclas-marcadas)), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome` (solo plataforma: `fuera_de_tema`; `goal`, congelada con sus valores históricos, ya no se escribe), `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. Post-call del agente: `post_call_status` (`armed`, `pending`, `running`, `done`, `failed`), `post_call_attempts`, `post_call_next_at` y `post_call_note` (solo el mensaje para el operador). Extracción final de una llamada de voz en la cola de la app: `analysis_status` (`armed`, `pending`, `running`, `done`, `failed`; NULL si no corresponde: WhatsApp, texto, sin `analysis`, tu propio agente o anterior), `analysis_attempts` y `analysis_next_at`; con `armed`, `pending` o `running` el post-call espera. `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`, `line_id` (entrante: `UNIQUEID` del canal de Asterisk, nombre de su grabación completa), `split_arm`/`split_reason`/`split_percent`/`split_experiment` (reparto agente/equipo de la entrante: brazo, motivo, porcentaje y experimento; NULL sin reparto). Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `strategy` (`sequential`/`round_robin`, con `last_member_id`: la última que atendió en su celular), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` (`agent`, `member`, `voicemail`, `hangup`), `team_fallback_member_id` (la persona de `member`; SET NULL), `team_fallback_message`, `team_connect_on_answer` (conecta apenas atiende el teléfono), `team_hold_music`, `team_retry_seconds`/`team_retry_interval_seconds`/`team_retry_message` (reintentos antes del respaldo), `team_busy_message`/`team_no_answer_message` (aviso apenas una persona da ocupado o no atiende, una vez por motivo), `record_full_call` (graba la llamada completa; marcador del spool en `app/services/line_spool.py`), y el reparto agente/equipo ([EQUIPO_TELEFONIA](features/EQUIPO_TELEFONIA.md#reparto-agenteequipo-ab)): `agent_percent` (0-100, con `team`), `split_experiment`/`split_started_at` y `split_max_agent_calls` (tope de activas del brazo agente); personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
@@ -374,7 +374,15 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **Análisis (extracción):** con `analysis`, una llamada guiada aparte con esquema `{"fields": {...}, "summary"}`
   (`summary` si se pide), un system message con el `analysis.prompt` (o el default) y un user message con el nombre
   del agente, los campos, las variables visibles y la conversación completa; una vez, al terminar (`end_call`) o al
-  cortar (`ConversationEngine.finish`).
+  cortar (`ConversationEngine.finish`). En voz la corre `app`, fuera del proceso de la llamada
+  (`app/conversation/analysis.py`): el worker la arma al conectar (`analysis_status` en `armed`, con vencimiento) y
+  `finalize` la deja en `pending`; el loop de la app (cada `ANALYSIS_TICK_SECONDS`, 2 s) reclama la fila y corre
+  `ConversationEngine.run_final_analysis` con un tope de 120 s, 3 intentos y reintentos solo de transporte (timeout,
+  conexión, 408/429/5xx: inmediato, 30 s y 5 min). Un JSON inválido o un 400 del modelo dan `failed` sin reintento.
+  Con `done` o `failed` el post-call pasa a `pending`: lo espera (`workflows.ANALYSIS_BUSY`). `armed` vencido (murió
+  el worker) y `running` vencido (lease de 180 s, murió `app`) se retoman; cada intento cuenta. Un intento vencido o
+  con 5xx pudo cobrarse igual en el proveedor de una conexión BYOK. WhatsApp y el texto lo corren en el proceso como
+  antes.
   `ConversationEngine.analyze` la corre sin terminar la conversación. La app solo valida los datos (campos
   inexistentes o de tipo inválido no se guardan). `conversion`: `complete` si el agente terminó la conversación y
   no fue fuera de tema, `partial` con algún dato capturado, `empty` el resto; `incompleta` ya no se asigna (las
@@ -386,7 +394,9 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   `agent_version`. `progress.analysis_version` guarda la versión que produjo el último análisis y el detalle y la
   lista muestran sus campos (las viejas, sin ese dato, los de su `agent_version`).
   Espera hasta 15 s y responde `{pending}`: `true` si la extracción sigue en el fondo (no se cancela). 409 sin
-  `analysis`, con `external` o con la llamada en curso.
+  `analysis`, con `external`, con la llamada en curso o con el análisis final en la cola (`analysis_in_progress`).
+  `analysis_status` en la lista y el detalle dice si esa extracción sigue (`pending`, `running`), falló (`failed`) o
+  no corresponde (`null`).
 - **Qué decide cada uno:** el LLM decide la respuesta, cuándo termina y si deriva; la app no corrige lo que dice
   (ver "Reglas de desarrollo" en `AGENTS.md`).
 - **Voz, interrupciones:** si el cliente sigue hablando y la respuesta sonó menos de `CONTINUATION_WINDOW`
@@ -487,14 +497,15 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   termina con `hangup_by_user`, que `finalize` no pisa.
 - **Fin de tema:** con `end_call` y `motivo=fuera_de_tema` el resultado es "Fuera de tema"
   (`ended_reason=off_topic`) y se corta aunque lo interrumpan.
-- **Al cortar:** `finalize` espera la extracción y guarda duración, fin, latencia y los datos de reportes. La duración y
+- **Al cortar:** `finalize` no espera la extracción: la deja en la cola de la app (`analysis_status` en `pending`) y
+  guarda duración, fin, latencia y los datos de reportes. La duración y
   el fin son los del primer corte (cuelga el cliente, corta el agente, se cierra la room: `direct.CallEnd`), no los de
   `finalize`; en el tope y sin minutos, al terminar el aviso de cierre (la línea sigue abierta y Anura cobra ese
   tiempo); sin corte (se cayó el worker), los del cierre. Las directas, igual. `finalize` corre en el proceso de la
   llamada, que el SDK de LiveKit mata al vencer `shutdown_process_timeout` (10 s por defecto); si muere antes de
-  escribir, la llamada queda `en_curso` para siempre. El worker lo fija en `SHUTDOWN_PROCESS_TIMEOUT` (38 s), derivado
-  del peor caso de `finalize`: avisos (8 s) más las dos esperas de `engine.finish` (10 s cada una) más margen. Al
-  alargar una espera de `finalize`, sumarla ahí (`app/voice/worker.py`).
+  escribir, la llamada queda `en_curso` para siempre. El worker lo fija en `SHUTDOWN_PROCESS_TIMEOUT`
+  (`NOTICE_WAIT_SECONDS` + `SHUTDOWN_MARGIN_SECONDS` = 18 s): avisos por WhatsApp (8 s) más el margen de las
+  escrituras. Al alargar una espera de `finalize`, sumarla ahí (`app/voice/worker.py`).
 
 ### Otros flujos (detalle en su doc)
 

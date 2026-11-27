@@ -12,6 +12,8 @@ from sqlalchemy import select
 from app.campaigns.callbacks import CallbackDispatcher, backoff
 from app.campaigns.voicemail import VoicemailDetector, looks_like_voicemail, normalize
 from app.config import settings
+from app.conversation import analysis
+from app.db import utcnow
 from app.models import (
     Campaign,
     CampaignCallback,
@@ -852,6 +854,56 @@ async def test_delivery_is_signed_and_has_the_report_fields(api, voice, private_
     assert "contact" not in done
     assert {e.status for e in events(api)} == {"sent"} and events(api)[0].delivered_at is not None
     assert await make_dispatcher(api, rx, now=now).tick() == 0       # nada mas que entregar
+
+
+def set_analysis(api, conversation_id, status) -> None:
+    with api.sessions() as s:
+        row = s.get(ConversationRow, conversation_id)
+        row.analysis_status, row.analysis_next_at = status, utcnow()
+        s.commit()
+
+
+async def test_contact_finished_waits_for_the_analysis(api, voice, private_hooks, monkeypatch):  # noqa: F811
+    """El payload del contact.finished lleva los campos y el resumen: con la extraccion final en la cola se posterga
+    10 s, sin contar intento, y sale cuando termina."""
+    _, camp = hook_env(api, voice, monkeypatch, n=1, max_attempts=1)
+    await dialer_for(api).tick()
+    (a,) = members(api, camp["id"])
+    close(api, a.id, "busy")
+    set_analysis(api, a.conversation_id, "pending")
+    rx = Receiver()
+    now = Now()
+    d = make_dispatcher(api, rx, now=now)
+    now.advance(seconds=1)
+    assert await d.tick() == 1               # solo el de la campaña
+    assert [r.headers["x-atentina-event"] for r in rx.requests] == ["campaign.finished"]
+    waiting = next(e for e in events(api) if e.event == "contact.finished")
+    assert (waiting.status, waiting.attempts) == ("pending", 0)
+    assert waiting.next_attempt_at == now.t + datetime.timedelta(seconds=10)
+    # Termina la extraccion final: recien ahora se entrega.
+    await analysis.run_once(api.sessions, api.engine)
+    now.advance(seconds=10)
+    assert await d.tick() == 1
+    assert rx.requests[-1].headers["x-atentina-event"] == "contact.finished"
+
+
+async def test_contact_finished_older_than_the_hold_goes_out(api, voice, private_hooks, monkeypatch):  # noqa: F811
+    """Uno que cumplio los 20 minutos sale igual, con lo que haya: la entrega no se posterga para siempre."""
+    _, camp = hook_env(api, voice, monkeypatch, n=1, max_attempts=1)
+    await dialer_for(api).tick()
+    (a,) = members(api, camp["id"])
+    close(api, a.id, "busy")
+    set_analysis(api, a.conversation_id, "pending")
+    with api.sessions() as s:
+        event = s.scalars(select(CampaignCallback).where(CampaignCallback.event == "contact.finished")).one()
+        event.created_at = utcnow() - datetime.timedelta(minutes=21)
+        s.commit()
+    rx = Receiver()
+    now = Now()
+    d = make_dispatcher(api, rx, now=now)
+    now.advance(seconds=1)
+    assert await d.tick() == 2
+    assert {r.headers["x-atentina-event"] for r in rx.requests} == {"contact.finished", "campaign.finished"}
 
 
 async def test_delivery_retries_with_backoff_and_gives_up(api, voice, private_hooks, monkeypatch):  # noqa: F811

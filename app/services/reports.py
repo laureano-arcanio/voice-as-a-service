@@ -216,6 +216,8 @@ class Reports:
             "opted_out_confirmed": bool(call.opted_out_confirmed) if call else False,
             # Si se puede volver a correr su analisis (POST /calls/{id}/analyze).
             "has_analysis": workflow is not None and workflow.analysis is not None and workflow.external is None,
+            # La extraccion final de una llamada de voz en la cola de la app (NULL: no corresponde).
+            "analysis_status": conv.analysis_status,
         }
 
     def page(self, flt: CallFilter, limit: int = 100, offset: int = 0) -> tuple[list[dict], int]:
@@ -289,6 +291,8 @@ class Reports:
             "full_recording": full_recording_path(conv.id).is_file(),
             # Si se puede volver a correr su analisis (POST /calls/{id}/analyze).
             "has_analysis": workflow is not None and workflow.analysis is not None and workflow.external is None,
+            # La extraccion final de una llamada de voz en la cola de la app (NULL: no corresponde).
+            "analysis_status": conv.analysis_status,
             "call": None if call is None else {
                 "mode": call.mode, "phone": call.phone, "status": call.status,
                 "client_number": number.e164 if number else None,

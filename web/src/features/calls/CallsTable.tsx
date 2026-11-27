@@ -375,7 +375,15 @@ export function CallsTable({
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    {c.total > 0 ? <ExtractionStatus captured={c.captured} total={c.total} /> : <Dash />}
+                    {c.analysis_status === 'pending' || c.analysis_status === 'running' ? (
+                      <Text size="sm" c="dimmed">
+                        Analizando…
+                      </Text>
+                    ) : c.total > 0 ? (
+                      <ExtractionStatus captured={c.captured} total={c.total} />
+                    ) : (
+                      <Dash />
+                    )}
                   </Table.Td>
                   {showActions && (
                     <Table.Td ta="right" className="row-actions" onClick={(e) => e.stopPropagation()}>
@@ -397,6 +405,7 @@ export function CallsTable({
                           agentVersion={c.agent_version}
                           hasAnalysis={c.has_analysis}
                           callStatus={c.status}
+                          analysisStatus={c.analysis_status}
                           compact
                         />
                         {selectable && (

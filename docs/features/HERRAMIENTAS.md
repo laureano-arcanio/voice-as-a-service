@@ -280,6 +280,10 @@ worker puede morir con la llamada. Corre **una sola vez por conversación**.
   un 3xx o un 4xx **nunca** se reintentan. Sin pedido hecho (URL bloqueada, secreto o variable faltante, herramienta
   borrada o editada después a `code` o `GET`): `failed` sin llamar a nada. Cada intento tiene tope de 150 s y el claim
   es condicional, así que dos retomas no corren a la vez.
+- **Espera al análisis:** con `conversations.analysis_status` en `armed`, `pending` o `running` (la extracción final de
+  una llamada de voz sin terminar, [ARQUITECTURA](../ARQUITECTURA.md#agentes-conversaciones-y-llamadas)) el loop no
+  lo toma ni un intento lo corre, aunque esté `pending` o vencido; así `{{fields.x}}` y `{{call.summary}}` llegan con
+  el dato.
 - **Cuándo se arma.** Por voz, `handoff_accepted`: al marcar 1 la persona y conectarse; `always`: con la llamada
   conectada. `finalize` pasa `armed` a `pending` después de la extracción. Por texto, `handoff_accepted` corre al aceptar el
   operador, como paso (b) de la entrega ([WHATSAPP.md](WHATSAPP.md#derivación-a-personas-del-equipo)): antes corre el

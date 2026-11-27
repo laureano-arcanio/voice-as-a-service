@@ -488,12 +488,14 @@ alcanza. En la navegación, arriba de todo.
   en curso suma la marca **En vivo** en la duración; las de WhatsApp no tienen duración.
 - **Estado:** los datos extraídos del análisis, `captured/total datos`, con un punto: verde si están todos,
   amarillo si falta alguno y rojo si no se extrajo ninguno. Sin datos que extraer (llamadas directas sin campos de
-  análisis) va una raya.
+  análisis) va una raya. Mientras la extracción final de una llamada de voz está en la cola de la app, dice
+  **Analizando…** en lugar de los datos, y el detalle se refresca cada 2 s hasta que aparecen.
 - **Volver a correr el análisis:** el ícono de la fila (y el botón del detalle, arriba a la derecha) abre un menú
   con **La última versión del agente** o **La versión de esta conversación (vN)**; la confirmación avisa que pisa
   los datos y el resumen actuales. La primera usa el análisis completo de la última versión (prompt, datos, tipos y
   etapa del LLM); la segunda, el de la versión con la que corrió. Solo aparece si el agente tiene análisis, no es tu
-  propio agente y la llamada no está en curso. Lo que la nueva corrida no extraiga queda vacío. Solo un Admin del
+  propio agente, la llamada no está en curso y la extracción final no está corriendo. Lo que la nueva corrida no
+  extraiga queda vacío. Solo un Admin del
   cliente o de la plataforma, con tope por hora; si la extracción no llega a tiempo, sigue en el fondo (aviso
   amarillo) y la lista, que se refresca sola, la muestra cuando termina.
 - Un click en la fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la
@@ -622,6 +624,9 @@ si ya terminó, "La llamada terminó" con el link al detalle. Sin entrar en 2 mi
 - **Volver a correr el análisis** (arriba a la derecha, terminada y con análisis, solo Admin del cliente):
   el mismo menú de la lista (la última versión del agente o la de la conversación); al terminar, el detalle se
   actualiza solo y muestra los campos de la versión que lo corrió.
+- **Analizando…** (en la tarjeta **Estado**, mientras la extracción final está en la cola): los datos todavía no
+  están y el detalle se refresca cada 2 s; el botón de re-análisis no se muestra. Con **No se pudo analizar**
+  (insignia roja) se puede volver a correr a mano.
 - **Bloquear número** (en las entrantes): las próximas llamadas de ese número a los números del cliente se
   cortan sin atender. Se desbloquea en Tus clientes, **Números bloqueados**.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y

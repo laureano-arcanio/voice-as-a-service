@@ -3,6 +3,8 @@ datos en segundo plano al terminar; la app valida y guarda."""
 import asyncio
 import json
 
+import pytest
+
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, Extraction, Message, TurnMedia
 from app.llm.prompt import classic_history
@@ -436,3 +438,77 @@ async def test_reanalyze_waits_for_the_running_extraction(store):
     state = store.get(cid)
     assert state.fields["contact_name"] == "Juan"
     assert state.messages[-1].llm[-1]["kind"] == "extraccion"
+
+
+# ---------- analisis final de la cola de la app (engine.run_final_analysis) ----------
+
+
+async def test_turn_without_analyze_does_not_extract(store):
+    """Voz: el turno que termina no extrae en el proceso de la llamada; lo hace la cola de la app."""
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"), extractions=[{"contact_name": "Juan"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    state, _ = await engine.process_turn(cid, "Soy Juan.", analyze=False)
+    assert state.status == "completed"
+    assert llm.extract_calls == [] and cid not in engine.extractions
+
+
+async def test_final_analysis_saves_fields_and_trace(store):
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"), extractions=[{"contact_name": "Juan"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    await engine.process_turn(cid, "Soy Juan.", analyze=False)
+    await engine.run_final_analysis(cid, timeout=5)
+    state = store.get(cid)
+    assert state.fields["contact_name"] == "Juan" and llm.extract_calls == [3]
+    assert [c["kind"] for c in state.messages[-1].llm] == ["turno", "extraccion"]
+    assert cid not in engine.extractions
+
+
+async def test_final_analysis_without_conversation_does_not_call_the_llm(store):
+    llm = FakeLLM()
+    engine = ConversationEngine(llm, store)
+    await engine.run_final_analysis("no-existe", timeout=5)
+    await engine.run_final_analysis(start_with(engine), timeout=5)     # solo la apertura
+    assert llm.extract_calls == []
+
+
+async def test_final_analysis_raises_the_extraction_error(store):
+    """La cola decide si reintenta: la falla le llega, y los datos no cambian."""
+    class Boom(FakeLLM):
+        async def extract(self, workflow, state):
+            raise ValueError("json invalido")
+
+    engine = ConversationEngine(Boom(AgentTurn(assistant_message="Chau.", status="completed")), store)
+    cid = start_with(engine, contact_name="Juan")
+    await engine.process_turn(cid, "Chau.", analyze=False)
+    with pytest.raises(ValueError):
+        await engine.run_final_analysis(cid, timeout=5)
+    assert store.get(cid).fields["contact_name"] == "Juan" and cid not in engine.extractions
+
+
+async def test_final_analysis_timeout_cancels_without_saving(store):
+    """Al vencer el tope la extraccion se cancela: no guarda tarde, despues de que otro intento la retomo."""
+    gate = asyncio.Event()
+    cancelled = []
+
+    class Slow(FakeLLM):
+        async def extract(self, workflow, state):
+            try:
+                await gate.wait()
+            except asyncio.CancelledError:
+                cancelled.append(True)
+                raise
+            return await super().extract(workflow, state)
+
+    llm = Slow(AgentTurn(assistant_message="Chau.", status="completed"), extractions=[{"contact_name": "Juan"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    await engine.process_turn(cid, "Soy Juan.", analyze=False)
+    with pytest.raises(TimeoutError):
+        await engine.run_final_analysis(cid, timeout=0.05)
+    assert cancelled == [True] and cid not in engine.extractions
+    gate.set()
+    await asyncio.sleep(0)
+    state = store.get(cid)
+    assert state.fields["contact_name"] is None and [c["kind"] for c in state.messages[-1].llm] == ["turno"]
