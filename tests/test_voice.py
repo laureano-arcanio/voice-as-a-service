@@ -188,7 +188,7 @@ class _StreamEngine:
         self.turn, self.stream = turn, stream
         self.store = SimpleNamespace(get=lambda cid: None, save=lambda st: None)
 
-    async def process_turn(self, conversation_id, message, on_message=None, dtmf=None):
+    async def process_turn(self, conversation_id, message, on_message=None, dtmf=None, analyze=True):
         for i in range(0, len(self.stream), 7):
             on_message(self.stream[i:i + 7])
         return SimpleNamespace(messages=[]), self.turn

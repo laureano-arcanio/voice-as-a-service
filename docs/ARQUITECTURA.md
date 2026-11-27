@@ -495,14 +495,15 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
   termina con `hangup_by_user`, que `finalize` no pisa.
 - **Fin de tema:** con `end_call` y `motivo=fuera_de_tema` el resultado es "Fuera de tema"
   (`ended_reason=off_topic`) y se corta aunque lo interrumpan.
-- **Al cortar:** `finalize` espera la extracción y guarda duración, fin, latencia y los datos de reportes. La duración y
+- **Al cortar:** `finalize` no espera la extracción: la deja en la cola de la app (`analysis_status` en `pending`) y
+  guarda duración, fin, latencia y los datos de reportes. La duración y
   el fin son los del primer corte (cuelga el cliente, corta el agente, se cierra la room: `direct.CallEnd`), no los de
   `finalize`; en el tope y sin minutos, al terminar el aviso de cierre (la línea sigue abierta y Anura cobra ese
   tiempo); sin corte (se cayó el worker), los del cierre. Las directas, igual. `finalize` corre en el proceso de la
   llamada, que el SDK de LiveKit mata al vencer `shutdown_process_timeout` (10 s por defecto); si muere antes de
-  escribir, la llamada queda `en_curso` para siempre. El worker lo fija en `SHUTDOWN_PROCESS_TIMEOUT` (158 s), derivado
-  del peor caso de `finalize`: avisos (8 s) más las dos esperas de `engine.finish` (70 s cada una: la extracción llegó a tardar 54 s) más margen. Al
-  alargar una espera de `finalize`, sumarla ahí (`app/voice/worker.py`).
+  escribir, la llamada queda `en_curso` para siempre. El worker lo fija en `SHUTDOWN_PROCESS_TIMEOUT`
+  (`NOTICE_WAIT_SECONDS` + `SHUTDOWN_MARGIN_SECONDS` = 18 s): avisos por WhatsApp (8 s) más el margen de las
+  escrituras. Al alargar una espera de `finalize`, sumarla ahí (`app/voice/worker.py`).
 
 ### Otros flujos (detalle en su doc)
 

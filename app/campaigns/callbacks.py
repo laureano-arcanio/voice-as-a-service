@@ -29,8 +29,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
+from ..conversation import workflows
 from ..db import utcnow
-from ..models import Campaign, CampaignCallback
+from ..models import Campaign, CampaignCallback, CampaignContact, ConversationRow
 from ..services import campaign_callbacks as callbacks
 from ..services import campaign_reports
 from ..services import campaigns as common
@@ -43,6 +44,10 @@ BACKOFF_SECONDS = (30, 120, 600, 3600, 21600)
 BATCH = 20
 CONCURRENCY = 5
 LEASE_SECONDS = 120     # lo que tiene para entregarse un evento reclamado antes de que otro lo tome
+# El contact.finished de una llamada cuya extraccion final sigue en la cola se posterga: el payload lleva los campos
+# y el resumen. Sin contar intento, y hasta que el evento cumpla 20 minutos (despues sale igual, con lo que haya).
+HOLD_SECONDS = 10
+HOLD_MAX = datetime.timedelta(minutes=20)
 
 
 def backoff(attempts: int) -> datetime.timedelta:
@@ -78,7 +83,8 @@ class CallbackDispatcher:
         self._resolve = resolve
 
     def _claim(self) -> list[str]:
-        """Los eventos que toca entregar; quedan reclamados (su proximo intento, dentro de LEASE_SECONDS)."""
+        """Los eventos que toca entregar; quedan reclamados (su proximo intento, dentro de LEASE_SECONDS). El
+        contact.finished con la extraccion final en curso se posterga HOLD_SECONDS, sin contar intento."""
         now = self.now()
         with self.sessions() as s:
             rows = list(s.scalars(
@@ -87,10 +93,27 @@ class CallbackDispatcher:
                 .order_by(CampaignCallback.next_attempt_at, CampaignCallback.created_at, CampaignCallback.id)
                 .limit(BATCH)
                 .with_for_update(skip_locked=True)))
+            holding = self._holding(s, rows, now)
             for r in rows:
-                r.next_attempt_at = now + datetime.timedelta(seconds=LEASE_SECONDS)
+                if r.campaign_contact_id in holding:
+                    r.next_attempt_at = now + datetime.timedelta(seconds=HOLD_SECONDS)
+                else:
+                    r.next_attempt_at = now + datetime.timedelta(seconds=LEASE_SECONDS)
             s.commit()
-            return [r.id for r in rows]
+            return [r.id for r in rows if r.campaign_contact_id not in holding]
+
+    @staticmethod
+    def _holding(s: Session, rows: list[CampaignCallback], now: datetime.datetime) -> set[str]:
+        """Los campaign_contact_id de esos eventos con el analisis de su conversacion en curso. Solo los eventos
+        creados hace menos de HOLD_MAX: uno viejo sale igual, con lo que haya."""
+        recent = [r.campaign_contact_id for r in rows
+                  if r.campaign_contact_id is not None and r.created_at > now - HOLD_MAX]
+        if not recent:
+            return set()
+        return set(s.scalars(select(CampaignContact.id)
+                             .join(ConversationRow, ConversationRow.id == CampaignContact.conversation_id)
+                             .where(CampaignContact.id.in_(recent),
+                                    ConversationRow.analysis_status.in_(workflows.ANALYSIS_BUSY))))
 
     def _prepare(self, callback_id: str) -> tuple[str, bytes, dict[str, str]] | None:
         """(url, cuerpo, headers) del evento, o None si ya no hay nada que entregar (queda registrado)."""

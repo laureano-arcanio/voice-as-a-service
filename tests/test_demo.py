@@ -131,6 +131,12 @@ def test_start_call_and_result(landing):
         conv.progress = {"summary": "Turno dado para el martes 10:00."}
         call_row = s.get(CallRow, started["conversation_id"])
         call_row.status, call_row.duration_seconds = CallStatus.finalizada, 95
+        conv.analysis_status = "pending"      # la extraccion final todavia esta en la cola
+        s.commit()
+    waiting = landing.client.get(url, headers=auth).json()
+    assert waiting["final"] is False
+    with landing.sessions() as s:
+        s.get(ConversationRow, started["conversation_id"]).analysis_status = "done"
         s.commit()
     done = landing.client.get(url, headers=auth).json()
     assert done["final"] and "outcome" not in done
