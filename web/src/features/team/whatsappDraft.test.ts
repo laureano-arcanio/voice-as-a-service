@@ -24,7 +24,7 @@ describe('whatsapp del área', () => {
     const empty = toWhatsappDraft(null);
     expect(whatsappError(empty, 'call')).toBeNull();
     expect(whatsappError(empty, 'whatsapp')).toMatch(/número de WhatsApp y la plantilla/);
-    expect(whatsappError({ ...empty, accountId: 'wa1' }, 'call')).toMatch(/al menos una plantilla/);
+    expect(whatsappError({ ...empty, accountId: 'wa1' }, 'call')).toMatch(/Prendé al menos un momento/);
     expect(whatsappError({ ...empty, accountId: 'wa1' }, 'whatsapp')).toMatch(/plantilla/);
   });
 
@@ -40,7 +40,9 @@ describe('whatsapp del área', () => {
       whatsappError({ ...d, callTemplate: { ...d.callTemplate!, params: ['cliente'] } }, 'call'),
     ).toMatch(/Plantilla de la llamada/);
     // Al aceptar, el teléfono ya se entregó: cliente puede ir.
-    expect(whatsappError({ ...d, acceptTemplate: { ...d.acceptTemplate!, params: ['cliente'] } }, 'call')).toBeNull();
+    expect(
+      whatsappError({ ...d, acceptTemplate: { ...d.acceptTemplate!, params: ['cliente'] } }, 'call'),
+    ).toBeNull();
     expect(whatsappError(withParam(''), 'call')).toMatch(/elegí qué valor va en \{\{1\}\}/);
     expect(whatsappError(withParam('Ficha'), 'call')).toMatch(/no es un nombre válido/);
     expect(whatsappError(withParam('ficha_2'), 'call')).toBeNull();
@@ -48,7 +50,7 @@ describe('whatsapp del área', () => {
 
   it('un área de llamada puede tener solo la plantilla al aceptar', () => {
     const d = toWhatsappDraft(SAVED);
-    const only = { ...d, template: null, callTemplate: null };
+    const only = { ...d, template: null, callTemplate: null, rotationOn: false, callOn: false };
     expect(whatsappError(only, 'call')).toBeNull();
     expect(fromWhatsappDraft(only, 'call')).toEqual({
       account_id: 'wa1',
@@ -57,6 +59,23 @@ describe('whatsapp del área', () => {
     });
     const bad = { ...only, acceptTemplate: { ...only.acceptTemplate!, params: [''] } };
     expect(whatsappError(bad, 'call')).toMatch(/Plantilla al aceptar: elegí qué valor va en \{\{1\}\}/);
+  });
+
+  it('los switches arrancan según haya plantilla y los errores nombran el momento', () => {
+    const d = toWhatsappDraft(SAVED);
+    expect([d.callOn, d.acceptOn, d.rotationOn]).toEqual([true, true, true]);
+    const none = toWhatsappDraft({ account_id: 'wa1', wait_seconds: 120 });
+    expect([none.callOn, none.acceptOn, none.rotationOn]).toEqual([false, false, false]);
+    expect(whatsappError(none, 'call')).toMatch(/Prendé al menos un momento o quitá el número/);
+    expect(whatsappError({ ...none, callOn: true }, 'call')).toBe('Al sonar: elegí la plantilla o apagalo.');
+    expect(whatsappError({ ...none, acceptOn: true }, 'call')).toMatch(/^Al aceptar: elegí/);
+    expect(whatsappError({ ...none, rotationOn: true }, 'call')).toMatch(
+      /^Rotación por WhatsApp de texto: elegí/,
+    );
+    // Apagar un momento deja su plantilla en null: el JSON no la lleva.
+    expect(fromWhatsappDraft({ ...d, callOn: false, callTemplate: null }, 'call')).not.toHaveProperty(
+      'call_template',
+    );
   });
 
   it('la espera va entre 30 y 3600 s en la rotación', () => {

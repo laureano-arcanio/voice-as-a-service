@@ -32,6 +32,7 @@ const VENTAS: HandoffArea = {
   delivery: 'call',
   connect_on_answer: false,
   whatsapp: null,
+  used_by: { agents: [], phone_numbers: [], whatsapp_accounts: [] },
   created_at: '2026-10-20T12:00:00Z',
 };
 const ADMINISTRACION: HandoffArea = {

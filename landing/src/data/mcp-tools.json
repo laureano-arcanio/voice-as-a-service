@@ -1499,7 +1499,7 @@
    "name": "list_handoff_areas",
    "toolset": "team",
    "title": "Áreas de derivación",
-   "description": "Las áreas de derivación (ventas, soporte...) con sus personas, horarios y qué hacer si no atienden.",
+   "description": "Las áreas de derivación (ventas, soporte...) con sus personas, horarios, qué hacer si no atienden y quién deriva a cada una (`used_by`: agentes, números y WhatsApp).",
    "kind": "lectura",
    "features": [
     "team"
@@ -1511,7 +1511,7 @@
    "name": "get_handoff_area",
    "toolset": "team",
    "title": "Área de derivación",
-   "description": "Un área de derivación con su configuración.",
+   "description": "Un área de derivación con su configuración y quién deriva a ella (`used_by`).",
    "kind": "lectura",
    "features": [
     "team"
@@ -1605,7 +1605,7 @@
    "name": "create_handoff_area",
    "toolset": "team",
    "title": "Crear un área de derivación",
-   "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`). El agente deriva a las áreas activas según su descripción.",
+   "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`). El agente deriva a las áreas activas según su descripción. Las plantillas de `whatsapp` tienen que estar aprobadas en la cuenta y llevar un valor por cada {{n}} del cuerpo.",
    "kind": "escritura",
    "features": [
     "team"
@@ -1617,7 +1617,7 @@
    "name": "update_handoff_area",
    "toolset": "team",
    "title": "Editar un área de derivación",
-   "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes. `connect_on_answer` conecta al atender, para una centralita o IVR (sin whisper ni tecla 1); no va con `delivery: whatsapp`.",
+   "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes. `connect_on_answer` conecta al atender, para una centralita o IVR (sin whisper ni tecla 1); no va con `delivery: whatsapp`. Las plantillas de `whatsapp` nuevas o cambiadas tienen que estar aprobadas en la cuenta y llevar un valor por cada {{n}} del cuerpo.",
    "kind": "escritura",
    "features": [
     "team"

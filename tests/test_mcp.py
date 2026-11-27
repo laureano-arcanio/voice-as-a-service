@@ -663,3 +663,20 @@ def test_agent_test_cases_by_mcp(api, admin, full):
                                  "agent_id": agent["id"], "conversation_id": "cv-caso",
                                  "message_index": 1, "name": "x"}}})
     assert "error" in r.json()
+
+
+def test_handoff_area_template_rejected_by_mcp(api, full, monkeypatch):
+    from app.models import WaAccount
+    from app.whatsapp import signup
+    c, agent, mcp = full
+    mcp = Mcp(api, mcp.key, "team")
+    with api.sessions() as s:
+        account = WaAccount(client_id=c["id"], agent_id=agent["id"], phone_number_id="9", waba_id="8", display_phone_number="+54 351 1")
+        s.add(account)
+        s.commit()
+        account_id = account.id
+    monkeypatch.setattr(signup, "templates_or_none", lambda *a, **k: [
+        {"name": "equipo", "language": "es_AR", "status": "PENDING", "components": []}])
+    out = mcp.call("create_handoff_area", name="Wa", whatsapp={
+        "account_id": account_id, "template": {"name": "equipo", "language": "es_AR"}})
+    assert out.get("isError") and "no está aprobada" in str(out), out

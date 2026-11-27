@@ -402,9 +402,9 @@ _READ: tuple[Tool, ...] = (
          "Las personas del equipo a las que el agente puede derivar llamadas y WhatsApp.", path="/team",
          features=("team",)),
     Tool("list_handoff_areas", "team", "Áreas de derivación",
-         "Las áreas de derivación (ventas, soporte...) con sus personas, horarios y qué hacer si no atienden.",
+         "Las áreas de derivación (ventas, soporte...) con sus personas, horarios, qué hacer si no atienden y quién deriva a cada una (`used_by`: agentes, números y WhatsApp).",
          path="/handoff-areas", features=("team",)),
-    Tool("get_handoff_area", "team", "Área de derivación", "Un área de derivación con su configuración.",
+    Tool("get_handoff_area", "team", "Área de derivación", "Un área de derivación con su configuración y quién deriva a ella (`used_by`).",
          path="/handoff-areas/{area_id}", params={"area_id": _s("ID del área.")}, required=("area_id",),
          features=("team",)),
     Tool("list_team_presence", "team", "Quién está disponible",
@@ -821,14 +821,16 @@ _WRITE: tuple[Tool, ...] = (
     Tool("create_handoff_area", "team", "Crear un área de derivación",
          "Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área pasa "
          "fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`). El agente deriva a las "
-         "áreas activas según su descripción.", method="POST", path="/handoff-areas",
+         "áreas activas según su descripción. Las plantillas de `whatsapp` tienen que estar aprobadas en la cuenta y "
+         "llevar un valor por cada {{n}} del cuerpo.", method="POST", path="/handoff-areas",
          body="HandoffAreaIn", features=("team",)),
     Tool("update_handoff_area", "team", "Editar un área de derivación",
          "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista; "
          "`after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la "
          "persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes. "
          "`connect_on_answer` conecta al atender, para una centralita o IVR (sin whisper ni tecla 1); no va con "
-         "`delivery: whatsapp`.",
+         "`delivery: whatsapp`. Las plantillas de `whatsapp` nuevas o cambiadas tienen que estar aprobadas en la cuenta "
+         "y llevar un valor por cada {{n}} del cuerpo.",
          method="PATCH", path="/handoff-areas/{area_id}", params={"area_id": _s("ID del área.")},
          required=("area_id",), body="HandoffAreaPatch", features=("team",)),
     Tool("delete_handoff_area", "team", "Borrar un área de derivación", "Borra un área de derivación.",

@@ -282,7 +282,7 @@ const agentHandoff = `"handoff": {
 const handoffEndpoints = [
   { path: "GET · POST /team", text: "Lista o suma personas: name, phone (para transferirle llamadas), active y whatsapp_notify (le avisamos por WhatsApp, a ese teléfono, de los pedidos de sus áreas)" },
   { path: "PATCH · DELETE /team/{id}", text: "Cambia o saca a una persona" },
-  { path: "GET · POST /handoff-areas", text: "Lista o crea áreas; cada una trae open_now y su horario en palabras (schedule_text)" },
+  { path: "GET · POST /handoff-areas", text: "Lista o crea áreas; cada una trae open_now, su horario en palabras (schedule_text) y used_by: los agentes que derivan a ella (con su when), sus números y, si el área tiene plantilla de rotación, sus cuentas de WhatsApp" },
   { path: "GET · PATCH · DELETE /handoff-areas/{id}", text: "Un área. Si un agente la usa no se borra (409 area_in_use)" },
   { path: "GET /handoff-areas/defaults", text: "Los textos que dice el agente al derivar, para cambiarlos por área en messages, y las variables que admite cada uno. Los de pre_accept_messages salen antes de que alguien acepte: solo admiten las de pre_accept_variables" },
   { path: "GET /hold-music", text: "Los temas de espera para hold_music.track" },

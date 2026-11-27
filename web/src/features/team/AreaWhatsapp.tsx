@@ -1,4 +1,4 @@
-import { Alert, Anchor, NumberInput, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, NumberInput, Stack, Switch, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import type { WaTemplate } from '@/api/types';
 import { QueryState } from '@/components/QueryState';
@@ -119,8 +119,8 @@ function TemplateField({
 
 /**
  * WhatsApp de un area (docs/features/EQUIPO_TELEFONIA.md): el numero, las plantillas aprobadas y la espera.
- * En un area de llamada, la plantilla rota entre las personas, la de la llamada acompana al timbre y la de al
- * aceptar le llega a quien toma la llamada; en un area de aviso, la plantilla es el aviso.
+ * En un area de llamada, un switch por momento: al sonar (acompana al timbre), al aceptar (le llega a quien toma la
+ * llamada) y la rotacion del WhatsApp de texto; en un area de aviso, la plantilla es el aviso.
  */
 export function AreaWhatsapp({
   value,
@@ -202,7 +202,13 @@ function WhatsappConnected({
                   id === value.accountId
                     ? value
                     : // Las plantillas son de la cuenta: al cambiarla se eligen de nuevo.
-                      { ...value, accountId: id ?? '', template: null, callTemplate: null, acceptTemplate: null },
+                      {
+                        ...value,
+                        accountId: id ?? '',
+                        template: null,
+                        callTemplate: null,
+                        acceptTemplate: null,
+                      },
                 )
               }
               clearable
@@ -212,54 +218,108 @@ function WhatsappConnected({
               <QueryState query={templates}>
                 {() => (
                   <Stack gap="md">
-                    <TemplateField
-                      label={notice ? 'Plantilla del aviso' : 'Plantilla de rotación'}
-                      description={
-                        notice
-                          ? 'Es lo que recibe la persona. Sin botón.'
-                          : 'Se la manda a una persona por vez; acepta tocando el botón de respuesta rápida. Si hay llamada, se usa antes de ella.'
-                      }
-                      templates={approved}
-                      value={value.template}
-                      onChange={(template) => onChange({ ...value, template })}
-                      variables={notice ? phoneVars : noPhoneVars}
-                      expect={notice ? 'no_button' : 'button'}
-                    />
-                    {!notice && (
+                    {notice ? (
                       <TemplateField
-                        label="Plantilla de la llamada"
-                        description="Acompaña al timbre: avisa que están llamando. Sin botón, para que no toquen Aceptar en vez de atender."
+                        label="Plantilla del aviso"
+                        description="Es lo que recibe la persona. Sin botón."
                         templates={approved}
-                        value={value.callTemplate}
-                        onChange={(callTemplate) => onChange({ ...value, callTemplate })}
-                        variables={noPhoneVars}
-                        expect="no_button"
-                      />
-                    )}
-                    {!notice && (
-                      <TemplateField
-                        label="Plantilla al aceptar"
-                        description="Le llega a la persona que acepta la derivación, con los datos que trajeron las herramientas de «Antes de la conversación», si los hay. Sin botón."
-                        templates={approved}
-                        value={value.acceptTemplate}
-                        onChange={(acceptTemplate) => onChange({ ...value, acceptTemplate })}
+                        value={value.template}
+                        onChange={(template) => onChange({ ...value, template })}
                         variables={phoneVars}
                         expect="no_button"
                       />
-                    )}
-                    {!notice && value.template && (
-                      <NumberInput
-                        label="Espera por persona"
-                        description="Segundos que espera a que acepte antes de pasar a la siguiente."
-                        min={WAIT_SECONDS.min}
-                        max={WAIT_SECONDS.max}
-                        suffix=" s"
-                        allowDecimal={false}
-                        allowNegative={false}
-                        value={value.waitSeconds}
-                        onChange={(waitSeconds) => onChange({ ...value, waitSeconds })}
-                        w={{ base: '100%', xs: 260 }}
-                      />
+                    ) : (
+                      <>
+                        <Stack gap="xs">
+                          <Switch
+                            label="Al sonar"
+                            description="Un WhatsApp a cada persona a la que se llama, junto con el timbre. Sin botón, para que no toquen Aceptar en vez de atender."
+                            checked={value.callOn}
+                            onChange={(e) =>
+                              onChange({
+                                ...value,
+                                callOn: e.currentTarget.checked,
+                                ...(e.currentTarget.checked ? {} : { callTemplate: null }),
+                              })
+                            }
+                          />
+                          {value.callOn && (
+                            <TemplateField
+                              label="Plantilla al sonar"
+                              description="Avisa que están llamando. Sin botón."
+                              templates={approved}
+                              value={value.callTemplate}
+                              onChange={(callTemplate) => onChange({ ...value, callTemplate })}
+                              variables={noPhoneVars}
+                              expect="no_button"
+                            />
+                          )}
+                        </Stack>
+                        <Stack gap="xs">
+                          <Switch
+                            label="Al aceptar"
+                            description="A quien marca 1 y queda conectada, con los datos de «Antes de la conversación»; puede llevar el teléfono (cliente). Sin botón."
+                            checked={value.acceptOn}
+                            onChange={(e) =>
+                              onChange({
+                                ...value,
+                                acceptOn: e.currentTarget.checked,
+                                ...(e.currentTarget.checked ? {} : { acceptTemplate: null }),
+                              })
+                            }
+                          />
+                          {value.acceptOn && (
+                            <TemplateField
+                              label="Plantilla al aceptar"
+                              description="Le llega a la persona que acepta la derivación."
+                              templates={approved}
+                              value={value.acceptTemplate}
+                              onChange={(acceptTemplate) => onChange({ ...value, acceptTemplate })}
+                              variables={phoneVars}
+                              expect="no_button"
+                            />
+                          )}
+                        </Stack>
+                        <Stack gap="xs">
+                          <Switch
+                            label="Rotación por WhatsApp de texto"
+                            description="Solo cuando el agente de WhatsApp deriva un chat: se manda a una persona por vez y acepta con el botón de respuesta rápida. Sin esto, el agente de WhatsApp no deriva a esta área. En una llamada no se usa."
+                            checked={value.rotationOn}
+                            onChange={(e) =>
+                              onChange({
+                                ...value,
+                                rotationOn: e.currentTarget.checked,
+                                ...(e.currentTarget.checked ? {} : { template: null }),
+                              })
+                            }
+                          />
+                          {value.rotationOn && (
+                            <>
+                              <TemplateField
+                                label="Plantilla de rotación"
+                                description="Se la manda a una persona por vez; acepta tocando el botón de respuesta rápida."
+                                templates={approved}
+                                value={value.template}
+                                onChange={(template) => onChange({ ...value, template })}
+                                variables={noPhoneVars}
+                                expect="button"
+                              />
+                              <NumberInput
+                                label="Espera por persona"
+                                description="Segundos que espera a que acepte antes de pasar a la siguiente."
+                                min={WAIT_SECONDS.min}
+                                max={WAIT_SECONDS.max}
+                                suffix=" s"
+                                allowDecimal={false}
+                                allowNegative={false}
+                                value={value.waitSeconds}
+                                onChange={(waitSeconds) => onChange({ ...value, waitSeconds })}
+                                w={{ base: '100%', xs: 260 }}
+                              />
+                            </>
+                          )}
+                        </Stack>
+                      </>
                     )}
                   </Stack>
                 )}

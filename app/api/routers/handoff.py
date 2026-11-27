@@ -8,12 +8,13 @@ from fastapi import APIRouter, Query
 
 from ...config import settings
 from ...mail import notify
-from ...models import Client, HandoffArea, User
+from ...models import Client, HandoffArea, User, WaAccount
 from ...services import events as events_service
 from ...services import handoff, team_access
 from ...services.errors import Forbidden, Invalid, NotFound
 from ...services.ratelimit import Limit, RateLimited
 from ...services.security import Principal
+from ...whatsapp import campaigns, signup
 from ..deps import DB, ClientAdminPrincipal, CurrentPrincipal, api_limiter, scoped_client_id
 from ..schemas import (
     EventOut,
@@ -68,14 +69,29 @@ def _out(db, member) -> TeamMemberOut:
     })
 
 
-def _area_out(db, area: HandoffArea) -> HandoffAreaOut:
+def _area_out(db, area: HandoffArea, usage: dict | None = None) -> HandoffAreaOut:
+    usage = usage if usage is not None else handoff.areas_usage(db, [area])[area.id]
     return HandoffAreaOut.model_validate({
         **{c: getattr(area, c) for c in HandoffAreaOut.model_fields if hasattr(area, c)},
         "member_ids": handoff.area_member_ids(db, area.id),
         "schedule_text": handoff.describe_schedule(area.schedule),
         "open_now": handoff.is_open(area.schedule),
         "messages": area.messages or {},
+        "used_by": usage,
     })
+
+
+def _check_whatsapp_templates(db, client_id: str, saved: dict | None, raw: dict | None) -> None:
+    """Las plantillas nuevas o cambiadas del `whatsapp` tienen que estar aprobadas en la cuenta y llevar un valor por
+    cada variable. Se pide a Meta antes de tocar la base (un token rechazado hace commit). Sin lista (cuenta de otro
+    cliente, Meta caida), no se comprueba: validate_whatsapp da su error o se guarda."""
+    changed = handoff.changed_templates(saved, raw)
+    account = db.get(WaAccount, raw.get("account_id") or "") if changed else None
+    if account is None or account.client_id != client_id:
+        return
+    templates = signup.templates_or_none(db, account)
+    if templates is not None:
+        handoff.check_templates(changed, templates, campaigns.body_params)
 
 
 # ---------- equipo ----------
@@ -206,7 +222,9 @@ def hold_music(p: CurrentPrincipal):
 
 @router.get("/handoff-areas", response_model=list[HandoffAreaOut])
 def list_areas(p: CurrentPrincipal, db: DB, client_id: str | None = None):
-    return [_area_out(db, a) for a in handoff.list_areas(db, scoped_client_id(p, client_id))]
+    areas = handoff.list_areas(db, scoped_client_id(p, client_id))
+    usage = handoff.areas_usage(db, areas)
+    return [_area_out(db, a, usage[a.id]) for a in areas]
 
 
 @router.post("/handoff-areas", response_model=HandoffAreaOut, status_code=201)
@@ -214,7 +232,9 @@ def create_area(body: HandoffAreaIn, p: ClientAdminPrincipal, db: DB, client_id:
     """Crea un área de derivación: a quién se llama, en qué orden y horario, qué dice el agente, a qué área
     pasa fuera de horario o si nadie acepta (otra área o una persona), y si solo avisa por WhatsApp (`delivery`)."""
     data = body.model_dump(mode="json")
-    area = handoff.create_area(db, _client(db, p, client_id).id, **data)
+    client = _client(db, p, client_id)
+    _check_whatsapp_templates(db, client.id, None, data.get("whatsapp"))
+    area = handoff.create_area(db, client.id, **data)
     db.commit()
     return _area_out(db, area)
 
@@ -230,7 +250,9 @@ def update_area(area_id: str, body: HandoffAreaPatch, p: ClientAdminPrincipal, d
     `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en null quitan la ruta, la
     persona de «si nadie atiende» o las plantillas. `no_answer_area_id` y `no_answer_member_id` son excluyentes."""
     area = handoff.get_area(db, scoped_client_id(p, None), area_id)
-    handoff.update_area(db, area, **body.model_dump(mode="json", exclude_unset=True))
+    changes = body.model_dump(mode="json", exclude_unset=True)
+    _check_whatsapp_templates(db, area.client_id, area.whatsapp, changes.get("whatsapp"))
+    handoff.update_area(db, area, **changes)
     db.commit()
     return _area_out(db, area)
 

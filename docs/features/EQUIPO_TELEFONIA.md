@@ -58,7 +58,7 @@ Todo bajo `/api/v1`. La UI usa la misma API; el MCP tiene una herramienta por fi
 | Ruta | Qué hace | MCP |
 |---|---|---|
 | `GET/POST /team`, `PATCH/DELETE /team/{id}` | Personas del equipo, con `whatsapp_notify`. `POST` con `email` (y `role`, default `user`) crea la persona y su usuario y manda la invitación: responde `invite`. `PATCH` con `email` da acceso a una persona sin usuario; `panel_access: false/true` desactiva/reactiva (sube `session_version`); `role` cambia el rol; `email` de una persona con usuario: 422 `email_readonly` (lo cambia en Perfil con un código). `DELETE` de una persona con usuario borra también su acceso. Solo desde el panel (sesión): email, rol, acceso, invitación y borrar con usuario | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member` (escritura solo Admin) |
-| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en `null` quitan la ruta, la persona o las plantillas. «Si nadie atiende» es un área o una persona: los dos juntos, una persona de otro cliente o sin teléfono, o que además esté en `member_ids`, dan 422 con `errors[{path: "no_answer_member_id", message}]`; borrar a la persona la limpia. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
+| `GET/POST /handoff-areas`, `GET/PATCH/DELETE /handoff-areas/{id}` | Áreas con miembros, horario, mensajes, rutas y `whatsapp`. `used_by` (solo lectura, también en `POST`/`PATCH`): `agents` `[{id, name, when}]` (los del cliente, sin archivar, con el área en `handoff.areas`; `when` vacío = usa la descripción), `phone_numbers` `[{id, e164, label, answer_mode}]` (los de esos agentes) y `whatsapp_accounts` `[{id, display_phone_number}]` (las de esos agentes, solo si el área tiene `template`; las `wa_routes` no cuentan). Es la misma regla que bloquea el borrado. Borrar un área que usa un agente o a la que pasa otra: 409 `area_in_use`. `after_hours_area_id`, `no_answer_area_id`, `no_answer_member_id` y `whatsapp` en `null` quitan la ruta, la persona o las plantillas. «Si nadie atiende» es un área o una persona: los dos juntos, una persona de otro cliente o sin teléfono, o que además esté en `member_ids`, dan 422 con `errors[{path: "no_answer_member_id", message}]`; borrar a la persona la limpia. Un mensaje con una variable no admitida o largo da 422 con `detail` (la clave) y `errors[{path: "messages.<clave>", message}]` | `*_handoff_area`, `list_handoff_areas` |
 | `GET /handoff-areas/defaults` | Mensajes por defecto, sus variables, y qué mensajes salen antes de aceptar (`pre_accept_messages`) con las únicas variables que admiten (`pre_accept_variables`: `area`, `persona`, `horario`) | `get_handoff_area_defaults` |
 | `GET /hold-music` | Temas de espera (`default` y los `.ogg`) | `list_hold_music` |
 | `GET /events` | Eventos por `conversation_id`, `type` (exacto o prefijo `handoff.`), `since`/`until`, cursor `after_id` | `list_events` |
@@ -267,6 +267,13 @@ texto).
   (caller oculto), `cliente` va `-`. El resumen del LLM (hasta 4 s) solo se pide si una plantilla lo lleva. El envío usa la
   cuenta del área, que tiene que ser del cliente, estar activa y conectada, con plan con WhatsApp; tope de 20 s. Si falla,
   queda `handoff.whatsapp_failed` con el motivo y la derivación sigue: nada de esto lanza.
+  **Al guardar** (API, UI y MCP), las plantillas nuevas o cambiadas (nombre, idioma, `params` o cuenta) se comprueban
+  contra la lista de Meta de la cuenta: tiene que existir, estar `APPROVED` y llevar un valor por cada `{{n}}` del cuerpo;
+  si no, 422 con `errors[].path = whatsapp.<clave>`. Las ya guardadas no se vuelven a comprobar (una pausada por Meta no
+  impide editar el horario). Si Meta no contesta en 5 s, falla o el token no sirve, se guarda sin comprobar (warning en el
+  log); con la lista llena (100, Meta no pagina acá) una plantilla que no aparece no se rechaza; una cuenta de otro
+  cliente no se consulta. Límite: `team_notify` manda solo los parámetros del cuerpo, así que una plantilla con variables o
+  imagen en el encabezado no se rechaza al guardar y falla al enviarse.
 - **Datos del pre-call en la voz:** los mensajes y las plantillas leen `progress.tool_vars` en cada área. Un whisper como
   `Derivación de {{area}}: {{resumen}}. {{nota_operador}}. Marcá 1 para atender.` le dice al operador quién es y si está
   al día; **no oye si se cobró**. Un mensaje `whisper` con `{{cliente}}` da el teléfono antes del 1 (comportamiento previo).
@@ -492,8 +499,10 @@ panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y 
   hacer si la persona corta; punto verde de presencia. La persona tiene el interruptor **Recibe WhatsApp** (necesita
   teléfono). El área elige **Cómo se avisa** (**Se llama** o **Solo aviso por WhatsApp**), **Fuera de horario, pasa a**,
   **Si nadie atiende** (el agente toma el mensaje, **Otra área** o **Una persona**: con teléfono, activa y fuera del área; si se
-  la suma al área se limpia; en un área de aviso no se ofrece la persona) y su WhatsApp: el número que envía, la plantilla (de rotación con botón de respuesta
-  rápida, de la llamada o del aviso, sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
+  la suma al área se limpia; en un área de aviso no se ofrece la persona) y su WhatsApp: el número que envía y, en un área de llamada, un switch por momento
+  (**Al sonar**, **Al aceptar**, **Rotación por WhatsApp de texto**: la rotación con botón de respuesta rápida, las otras sin
+  botón; apagar uno quita su plantilla, y la rotación es lo que habilita al agente de WhatsApp a derivar al área; en una
+  llamada no se usa) o, en un área de aviso, la plantilla del aviso (sin botón), el valor de cada `{{n}}` (una variable base o un dato de la herramienta
   de «Antes de la conversación»; si no llega, va «-») y la espera por persona. En un área de aviso no se validan ni se
   envían como inválidos el timbre, la tecla ni los mensajes ocultos: se conserva lo guardado. La ayuda de los cuatro
   mensajes de antes de aceptar dice qué variables admiten. El área con **Se llama** tiene también **Conectar al
@@ -502,6 +511,9 @@ panel, demo y WhatsApp. Sin aviso propio: valen `recording_notice` del agente y 
   (también un buzón: va en un área de una sola persona); la ayuda dice los minutos de la cola de la central y el
   riesgo del `*`. La fila dice "· conecta al atender", y con la opción prendida y sin persona de «Si nadie atiende» el
   aviso a la persona no se muestra (con persona de respaldo vuelve: lo usa ella); lo guardado se conserva.
+  Al editar un área, **Quién deriva acá** (debajo de «Qué atiende») lista los agentes que derivan a ella (link a su pestaña Herramientas, con su «cuándo» o «Usa «Qué atiende»»), sus números (**atiende el equipo** si el número es del equipo) y sus WhatsApp; los links abren en otra pestaña y los de Números y WhatsApp, solo para un Admin. Sin agentes, dice cómo marcarla.
+  En Mensajes, **Copiar mensajes de otra área** (áreas del mismo cliente, sin la propia, con mensajes propios) reemplaza
+  los del formulario por los de la elegida, con confirmación si ya había textos; no llama a la API, se guarda con el área.
 - **Teléfono del equipo** (Canales, `/telefono`, `PlanGate direct_calls`): agenda con búsqueda, "marcá un número",
   bajas con confirmación, bloqueados apagados; `/telefono/llamada/:id` entra a una llamada creada por API o MCP.
 - **Barra de llamada** (`CallProvider` en `AppLayout`, hooks `useDirectCall` y `usePresence`): estados, silenciar,

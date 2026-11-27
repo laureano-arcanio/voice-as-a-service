@@ -19,6 +19,7 @@ El token, el secret, el codigo y el PIN no van a los logs ni a las respuestas.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from collections.abc import Callable
@@ -289,6 +290,18 @@ async def list_templates(s: Session, account: WaAccount,
         raise MetaError(e) from None
     finally:
         await _close(graph)
+
+
+def templates_or_none(s: Session, account: WaAccount, timeout: float = 5,
+                      graph_factory: Callable[[str], GraphClient] | None = None) -> list[dict] | None:
+    """La lista de plantillas de la cuenta (para validar al guardar), o None si Meta no contesta a tiempo, falla o
+    el token no sirve: una caida de Meta no impide guardar. Pedido sincrono con tope de `timeout` segundos."""
+    try:
+        return asyncio.run(asyncio.wait_for(list_templates(s, account, graph_factory), timeout))
+    except (MetaError, TimeoutError, crypto.TokenKeyMissing) as e:
+        logger.warning("wa: no se pudieron listar las plantillas de la cuenta %s para validar: %s", account.id,
+                       type(e).__name__)
+        return None
 
 
 def _template_components(*, body: str, examples: list[str], header_text: str | None = None,

@@ -7385,6 +7385,7 @@ export interface components {
              */
             connect_on_answer: boolean;
             whatsapp: components["schemas"]["HandoffWhatsapp"] | null;
+            used_by: components["schemas"]["HandoffAreaUsage"];
             /**
              * Created At
              * Format: date-time
@@ -7433,6 +7434,24 @@ export interface components {
              */
             connect_on_answer?: boolean | null;
             whatsapp?: components["schemas"]["HandoffWhatsapp"] | null;
+        };
+        /**
+         * HandoffAreaUsage
+         * @description Quién deriva a esta área (solo lectura).
+         */
+        HandoffAreaUsage: {
+            /** Agents */
+            agents: components["schemas"]["HandoffUsageAgent"][];
+            /**
+             * Phone Numbers
+             * @description Números de esos agentes
+             */
+            phone_numbers: components["schemas"]["HandoffUsageNumber"][];
+            /**
+             * Whatsapp Accounts
+             * @description Cuentas de WhatsApp de esos agentes; solo si el área tiene plantilla de rotación
+             */
+            whatsapp_accounts: components["schemas"]["HandoffUsageWhatsapp"][];
         };
         /** HandoffDefaultsOut */
         HandoffDefaultsOut: {
@@ -7484,6 +7503,39 @@ export interface components {
             /** Closed */
             closed?: string[];
         };
+        /** HandoffUsageAgent */
+        HandoffUsageAgent: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * When
+             * @description Cuándo deriva este agente a esta área; vacío si usa la descripción del área
+             */
+            when: string;
+        };
+        /** HandoffUsageNumber */
+        HandoffUsageNumber: {
+            /** Id */
+            id: string;
+            /** E164 */
+            e164: string;
+            /** Label */
+            label: string;
+            /**
+             * Answer Mode
+             * @description `team`: atiende el equipo y el agente entra solo como respaldo o reparto
+             */
+            answer_mode: string;
+        };
+        /** HandoffUsageWhatsapp */
+        HandoffUsageWhatsapp: {
+            /** Id */
+            id: string;
+            /** Display Phone Number */
+            display_phone_number: string;
+        };
         /**
          * HandoffWhatsapp
          * @description WhatsApp del área: al menos una plantilla.
@@ -7509,7 +7561,8 @@ export interface components {
         };
         /**
          * HandoffWhatsappTemplate
-         * @description Una plantilla aprobada de Meta de la cuenta del área.
+         * @description Una plantilla aprobada de Meta de la cuenta del área. Al guardar, las plantillas nuevas o cambiadas tienen que
+         *     estar aprobadas en la cuenta y llevar un valor por cada {{n}} del cuerpo (si Meta no contesta, se guarda igual).
          */
         HandoffWhatsappTemplate: {
             /** Name */

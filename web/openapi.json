@@ -23761,6 +23761,9 @@
        }
       ]
      },
+     "used_by": {
+      "$ref": "#/components/schemas/HandoffAreaUsage"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -23790,6 +23793,7 @@
      "delivery",
      "connect_on_answer",
      "whatsapp",
+     "used_by",
      "created_at"
     ],
     "title": "HandoffAreaOut"
@@ -24012,6 +24016,41 @@
     "type": "object",
     "title": "HandoffAreaPatch"
    },
+   "HandoffAreaUsage": {
+    "properties": {
+     "agents": {
+      "items": {
+       "$ref": "#/components/schemas/HandoffUsageAgent"
+      },
+      "type": "array",
+      "title": "Agents"
+     },
+     "phone_numbers": {
+      "items": {
+       "$ref": "#/components/schemas/HandoffUsageNumber"
+      },
+      "type": "array",
+      "title": "Phone Numbers",
+      "description": "Números de esos agentes"
+     },
+     "whatsapp_accounts": {
+      "items": {
+       "$ref": "#/components/schemas/HandoffUsageWhatsapp"
+      },
+      "type": "array",
+      "title": "Whatsapp Accounts",
+      "description": "Cuentas de WhatsApp de esos agentes; solo si el área tiene plantilla de rotación"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agents",
+     "phone_numbers",
+     "whatsapp_accounts"
+    ],
+    "title": "HandoffAreaUsage",
+    "description": "Quién deriva a esta área (solo lectura)."
+   },
    "HandoffDefaultsOut": {
     "properties": {
      "messages": {
@@ -24120,6 +24159,77 @@
     "title": "HandoffSchedule",
     "description": "Horario semanal en la zona `tz`; `closed`: días sin atención (feriados). Sin horario = siempre."
    },
+   "HandoffUsageAgent": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "when": {
+      "type": "string",
+      "title": "When",
+      "description": "Cuándo deriva este agente a esta área; vacío si usa la descripción del área"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "when"
+    ],
+    "title": "HandoffUsageAgent"
+   },
+   "HandoffUsageNumber": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "e164": {
+      "type": "string",
+      "title": "E164"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "answer_mode": {
+      "type": "string",
+      "title": "Answer Mode",
+      "description": "`team`: atiende el equipo y el agente entra solo como respaldo o reparto"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "e164",
+     "label",
+     "answer_mode"
+    ],
+    "title": "HandoffUsageNumber"
+   },
+   "HandoffUsageWhatsapp": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "display_phone_number": {
+      "type": "string",
+      "title": "Display Phone Number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "display_phone_number"
+    ],
+    "title": "HandoffUsageWhatsapp"
+   },
    "HandoffWhatsapp": {
     "properties": {
      "account_id": {
@@ -24207,7 +24317,7 @@
      "language"
     ],
     "title": "HandoffWhatsappTemplate",
-    "description": "Una plantilla aprobada de Meta de la cuenta del área."
+    "description": "Una plantilla aprobada de Meta de la cuenta del área. Al guardar, las plantillas nuevas o cambiadas tienen que\nestar aprobadas en la cuenta y llevar un valor por cada {{n}} del cuerpo (si Meta no contesta, se guarda igual)."
    },
    "HoldMusicOut": {
     "properties": {

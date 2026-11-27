@@ -907,7 +907,7 @@ agente se elige en su definición, **Derivación a personas**.
      su acceso.
    - **Solo un Admin del cliente** agrega, edita, borra personas y áreas; un Usuario ve el equipo, las áreas y quién
      está Disponible, y marca su propia disponibilidad.
-2. **Áreas:** nombre y qué atiende (lo lee el agente para elegir el área), personas en el orden en que se las
+2. **Áreas:** nombre y qué atiende (lo lee el agente para elegir el área; al editar, **Quién deriva acá** muestra los agentes, números y WhatsApp que derivan a ella, con links), personas en el orden en que se las
    llama (**En orden** o **Rotativa**), timbre por persona (20 s por defecto: el buzón de Claro atiende a los
    ~33 s), horario por día con días cerrados (o **Atiende siempre**), qué hace el agente si la persona corta
    (vuelve con "¿Te puedo ayudar con algo más?" o se despide) y la tecla con la que la persona le devuelve la
@@ -931,19 +931,23 @@ agente se elige en su definición, **Derivación a personas**.
    - **Fuera de horario, pasa a:** otra área del cliente (vacío: el agente dice el mensaje).
    - **Si nadie atiende:** **El agente toma el mensaje** (por defecto), **Otra área** o **Una persona** (con teléfono, activa y
      fuera del área; no entra en la rotación). Un solo destino: para más pasos, encadená áreas.
-   - **WhatsApp:** el número que envía (de **WhatsApp**) y sus plantillas aprobadas: la de rotación (con botón de
-     respuesta rápida, para aceptar tocándolo; por WhatsApp de texto), la de la llamada (sin botón) o la del aviso (sin
-     botón). Para cada `{{n}}` de la plantilla se elige una variable (`area`, `persona`, `resumen`, `horario`, `cliente`
-     solo en el aviso) o se escribe un dato que traiga la herramienta de «Antes de la conversación»; si ese dato no llega,
-     va «-». **Espera por persona** (30 a 3600 s, 120): lo que espera la rotación a que acepte antes de pasar a la
-     siguiente.
+   - **WhatsApp:** el número que envía (de **WhatsApp**) y, en un área de llamada, un switch por momento, cada uno con
+     su plantilla aprobada: **Al sonar** (a cada persona a la que se llama, sin botón), **Al aceptar** (a quien marca 1
+     y queda conectada, sin botón, puede llevar `cliente`) y **Rotación por WhatsApp de texto** (solo cuando el agente
+     de WhatsApp deriva un chat; con botón de respuesta rápida para aceptar; sin ella ese agente no deriva al área; en
+     una llamada no se usa). Un área de aviso tiene una sola **Plantilla del aviso** (sin botón). Para cada `{{n}}` se
+     elige una variable (`area`, `persona`, `resumen`, `horario`, `cliente` solo en el aviso y al aceptar) o se
+     escribe un dato que traiga la herramienta de «Antes de la conversación»; si ese dato no llega, va «-». **Espera
+     por persona** (30 a 3600 s, 120), con la rotación: lo que espera a que acepte antes de pasar a la siguiente.
+     Apagar un switch quita su plantilla; con un número elegido hace falta al menos un momento prendido.
 3. **Mensajes:** cada momento (antes de transferir, el aviso a la persona, no atiende, ocupado, fuera de
    horario, vuelta y despedida; por WhatsApp de texto, además, lo que se le dice al operador y a la persona) tiene un
    texto por defecto; se cambia por área, con `{{area}}`, `{{persona}}`, `{{cliente}}`, `{{resumen}}`, `{{horario}}`,
    `{{nombre}}` y los datos de «Antes de la conversación» (al tipear `{{` aparece la lista con las de derivación y las
    que declaran los agentes del cliente). Los mensajes que salen antes de que alguien acepte solo
    admiten `{{area}}`, `{{persona}}` y `{{horario}}`: la ayuda del campo lo dice, y con otra variable el campo se marca
-   con su nombre y no se guarda.
+   con su nombre y no se guarda. **Copiar mensajes de otra área** (si otra área del cliente tiene mensajes propios)
+   reemplaza los de esta por los de la elegida, con confirmación si ya había textos; se guardan al guardar el área.
 
 ### Campañas (`/campaigns`)
 

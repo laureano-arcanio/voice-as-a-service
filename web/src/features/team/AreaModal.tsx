@@ -17,11 +17,13 @@ import { useForm } from '@mantine/form';
 import { ApiError } from '@/api/errors';
 import type { TeamMember } from '@/api/types';
 import { VariableField, useAgentVariables, useVariableCatalog } from '@/components/variables';
+import { confirmAction } from '@/components/confirm';
 import { ModalSelect } from '@/components/ModalDropdown';
 import { useAgents } from '@/features/agents/api';
 import { useCurrentUser } from '@/features/auth/api';
 import { notifyError, notifyInvalid, notifySuccess } from '@/lib/notify';
 import { type AreaRow, useAreaDefaults, useSaveArea } from './api';
+import { AreaUsage } from './AreaUsage';
 import { AreaWhatsapp } from './AreaWhatsapp';
 import {
   CONNECT_ON_ANSWER_AREA_HELP,
@@ -72,7 +74,12 @@ function noAnswerKind(area: AreaRow | null): AreaValues['no_answer_kind'] {
 function shownMessageFields(
   v: Pick<
     AreaValues,
-    'delivery' | 'on_person_hangup' | 'whatsapp' | 'connect_on_answer' | 'no_answer_kind' | 'no_answer_member_id'
+    | 'delivery'
+    | 'on_person_hangup'
+    | 'whatsapp'
+    | 'connect_on_answer'
+    | 'no_answer_kind'
+    | 'no_answer_member_id'
   >,
 ): MessageField[] {
   const rotation = v.delivery !== 'whatsapp' && !!v.whatsapp.template;
@@ -181,6 +188,39 @@ export function AreaModal({
     form.clearFieldError(`messages.${key}`);
   };
 
+  // Áreas del mismo cliente (menos esta) con mensajes propios: de ahí se pueden copiar.
+  const copySources = areas.filter(
+    (a) =>
+      a.id !== area?.id &&
+      !!clientId &&
+      a.client_id === clientId &&
+      Object.values(a.messages ?? {}).some((t) => t.trim()),
+  );
+  // Reemplaza los mensajes del formulario por los del área elegida; recién se guardan al guardar el área.
+  const copyMessages = async (id: string | null) => {
+    const source = copySources.find((a) => a.id === id);
+    if (!source) return;
+    const own = Object.values(form.getValues().messages).some((t) => t.trim());
+    if (
+      own &&
+      !(await confirmAction({
+        title: 'Copiar mensajes',
+        message: `Los mensajes de esta área se reemplazan por los de ${source.name}. Se guardan al guardar el área.`,
+        confirmLabel: 'Reemplazar',
+      }))
+    )
+      return;
+    const next = Object.fromEntries(Object.entries(source.messages ?? {}).filter(([, t]) => t.trim()));
+    form.setFieldValue('messages', next);
+    Object.keys(form.errors)
+      .filter((k) => k.startsWith('messages.'))
+      .forEach((k) => form.clearFieldError(k));
+    const n = Object.keys(next).length;
+    notifySuccess(
+      `Copiados ${n} ${n === 1 ? 'mensaje' : 'mensajes'} de ${source.name}. Se guardan al guardar el área.`,
+    );
+  };
+
   const submit = (values: AreaValues) => {
     const defaultsText = defaults.data?.messages ?? {};
     const saved = area?.messages ?? {};
@@ -268,11 +308,7 @@ export function AreaModal({
     .map((a) => ({ value: a.id, label: a.name }));
   // A quién se puede llamar si nadie acepta: con teléfono, activas y fuera del área (la guardada se conserva).
   const personOptions = members
-    .filter(
-      (m) =>
-        m.id === v.no_answer_member_id ||
-        (m.phone && m.active && !v.member_ids.includes(m.id)),
-    )
+    .filter((m) => m.id === v.no_answer_member_id || (m.phone && m.active && !v.member_ids.includes(m.id)))
     .map((m) => ({ value: m.id, label: m.phone ? `${m.name} · ${m.phone}` : m.name }));
   // Un área de aviso no llama a nadie: la persona solo se ofrece si ya estaba guardada, para no perderla.
   const noAnswerDestinations: NoAnswerDestination[] = [
@@ -342,6 +378,7 @@ export function AreaModal({
             maxLength={1000}
             {...form.getInputProps('description')}
           />
+          {area && <AreaUsage usage={area.used_by} />}
           <Switch
             label="Activa"
             description="Un área inactiva no recibe derivaciones."
@@ -508,6 +545,15 @@ export function AreaModal({
               ? ` Podés usar ${defaults.data.variables.map((x) => `{{${x}}}`).join(', ')}. Tipeá {{ para elegirlas.`
               : ''}
           </Text>
+          {copySources.length > 0 && (
+            <ModalSelect
+              label="Copiar mensajes de otra área"
+              placeholder="Elegí un área"
+              data={copySources.map((a) => ({ value: a.id, label: a.name }))}
+              value={null}
+              onChange={(id) => void copyMessages(id)}
+            />
+          )}
           {shownMessages.map((f) => {
             const text = v.messages[f.key] ?? '';
             return (

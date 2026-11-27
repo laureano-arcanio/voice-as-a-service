@@ -93,6 +93,18 @@ def _sin_red_de_openrouter(monkeypatch):
     monkeypatch.setattr(llm_warnings, "model_status", unknown)
 
 
+@pytest.fixture(autouse=True)
+def _sin_red_de_meta(monkeypatch):
+    """Al guardar un area, las plantillas de WhatsApp se comprueban contra Meta (signup.templates_or_none): en tests,
+    siempre 'no se pudo' (se guarda sin comprobar). Los tests de la validacion lo pisan con FakeMeta."""
+    from app.whatsapp import signup
+    def sin_red(*a, **k):
+        return None
+
+    sin_red.real = signup.templates_or_none
+    monkeypatch.setattr(signup, "templates_or_none", sin_red)
+
+
 @pytest.fixture
 def workflow():
     return load_reference("sales_discovery")

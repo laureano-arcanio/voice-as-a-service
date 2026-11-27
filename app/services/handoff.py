@@ -437,6 +437,51 @@ def validate_whatsapp(s: Session, client_id: str, raw: dict | None, delivery: st
     return out
 
 
+TEMPLATE_KEYS = ("template", "call_template", "accept_template")
+# Meta lista hasta 100 plantillas sin paginar: con la lista llena, una que no aparece puede existir.
+TEMPLATES_PAGE = 100
+
+
+def changed_templates(saved: dict | None, raw: dict | None) -> dict[str, dict]:
+    """Las plantillas de `raw` (el `whatsapp` del pedido) nuevas o cambiadas respecto de lo guardado: nombre,
+    idioma, params o cuenta, ya normalizadas. Las demas no se vuelven a comprobar con Meta."""
+    if not isinstance(raw, dict):
+        return {}
+    saved = saved or {}
+    same_account = saved.get("account_id") == raw.get("account_id")
+    out = {}
+    for key in TEMPLATE_KEYS:
+        if raw.get(key) is None:
+            continue
+        cfg = _template(raw[key], key)
+        before = _template(saved[key], key) if saved.get(key) else None
+        if not same_account or before != cfg:
+            out[key] = cfg
+    return out
+
+
+def check_templates(changed: dict[str, dict], templates: list[dict], count_params) -> None:
+    """Cada plantilla cambiada existe en la cuenta, esta aprobada y lleva un valor por cada {{n}} de su cuerpo.
+    `count_params(cuerpo)` cuenta las variables. Invalid (422) con el path `whatsapp.<clave>`."""
+    for key, cfg in changed.items():
+        def fail(message: str) -> Invalid:
+            return Invalid(f"whatsapp.{key}: {message}", details=[{"path": f"whatsapp.{key}", "message": message}])
+        found = next((t for t in templates if t.get("name") == cfg["name"] and t.get("language") == cfg["language"]),
+                     None)
+        if found is None:
+            if len(templates) >= TEMPLATES_PAGE:
+                continue
+            raise fail(f"la plantilla {cfg['name']} ({cfg['language']}) no existe en la cuenta de WhatsApp")
+        status = str(found.get("status") or "").upper()
+        if status != "APPROVED":
+            raise fail(f"la plantilla {cfg['name']} no está aprobada por Meta (estado: {status or 'desconocido'})")
+        body = next((str(c.get("text") or "") for c in found.get("components") or []
+                     if isinstance(c, dict) and str(c.get("type") or "").upper() == "BODY"), "")
+        expected = count_params(body)
+        if len(cfg["params"]) != expected:
+            raise fail(f"la plantilla {cfg['name']} lleva {expected} valores en el cuerpo y tiene {len(cfg['params'])}")
+
+
 def _route_target(s: Session, area: HandoffArea, key: str, target_id: str | None) -> str | None:
     """El area siguiente: del mismo cliente y no ella misma. Los ciclos largos se cortan al derivar."""
     if not target_id:
@@ -572,11 +617,50 @@ def update_area(s: Session, area: HandoffArea, *, member_ids: list[str] | None =
     return area
 
 
+def areas_usage(s: Session, areas: list[HandoffArea]) -> dict[str, dict]:
+    """Quien deriva a cada area: agentes del cliente (sin archivar) que la tienen en `handoff.areas`, sus numeros y,
+    si el area tiene plantilla de rotacion (sin ella el agente de WhatsApp no la ve), sus cuentas de WhatsApp.
+    Una lectura por tabla y por pedido, agrupada por cliente."""
+    out = {a.id: {"agents": [], "phone_numbers": [], "whatsapp_accounts": []} for a in areas}
+    clients = {a.client_id for a in areas}
+    if not clients:
+        return out
+    by_client: dict[str, list[Agent]] = {}
+    for agent in s.scalars(select(Agent).where(Agent.client_id.in_(clients), Agent.archived_at.is_(None))
+                           .order_by(Agent.name, Agent.id)):
+        by_client.setdefault(agent.client_id, []).append(agent)
+    agent_ids = [a.id for lst in by_client.values() for a in lst]
+    numbers: dict[str, list[PhoneNumber]] = {}
+    accounts: dict[str, list[WaAccount]] = {}
+    if agent_ids:
+        for n in s.scalars(select(PhoneNumber).where(PhoneNumber.agent_id.in_(agent_ids))
+                           .order_by(PhoneNumber.e164)):
+            numbers.setdefault(n.agent_id, []).append(n)
+        for w in s.scalars(select(WaAccount).where(WaAccount.agent_id.in_(agent_ids))
+                           .order_by(WaAccount.display_phone_number, WaAccount.id)):
+            accounts.setdefault(w.agent_id, []).append(w)
+    for area in areas:
+        use = out[area.id]
+        with_template = bool((area.whatsapp or {}).get("template"))
+        for agent in by_client.get(area.client_id, []):
+            targets = ((agent.definition or {}).get("handoff") or {}).get("areas") or []
+            target = next((t for t in targets if t.get("area_id") == area.id), None)
+            if target is None:
+                continue
+            use["agents"].append({"id": agent.id, "name": agent.name, "when": target.get("when") or ""})
+            use["phone_numbers"] += [
+                {"id": n.id, "e164": n.e164, "label": n.label, "answer_mode": n.answer_mode}
+                for n in numbers.get(agent.id, []) if n.client_id == area.client_id]
+            if with_template:
+                use["whatsapp_accounts"] += [
+                    {"id": w.id, "display_phone_number": w.display_phone_number}
+                    for w in accounts.get(agent.id, []) if w.client_id == area.client_id]
+    return out
+
+
 def agents_using(s: Session, area: HandoffArea) -> list[str]:
     """Nombres de los agentes del cliente (sin archivar) cuya version vigente puede derivar a esta area."""
-    rows = s.scalars(select(Agent).where(Agent.client_id == area.client_id, Agent.archived_at.is_(None)))
-    return [a.name for a in rows
-            if any(t.get("area_id") == area.id for t in ((a.definition or {}).get("handoff") or {}).get("areas") or [])]
+    return [a["name"] for a in areas_usage(s, [area])[area.id]["agents"]]
 
 
 def delete_area(s: Session, area: HandoffArea) -> None:

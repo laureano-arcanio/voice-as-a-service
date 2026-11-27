@@ -20,6 +20,10 @@ export interface WhatsappDraft {
   /** A la persona que acepta la derivacion; a diferencia de las otras, puede llevar cliente. */
   acceptTemplate: TemplateDraft | null;
   waitSeconds: number | string;
+  /** Un switch por momento (area de llamada); apagarlo deja la plantilla en null. */
+  callOn: boolean;
+  acceptOn: boolean;
+  rotationOn: boolean;
 }
 
 export const WAIT_SECONDS = { default: 120, min: 30, max: 3600 };
@@ -37,6 +41,9 @@ export function toWhatsappDraft(w: HandoffArea['whatsapp'] | undefined): Whatsap
     callTemplate: toTemplate(w?.call_template),
     acceptTemplate: toTemplate(w?.accept_template),
     waitSeconds: w?.wait_seconds ?? WAIT_SECONDS.default,
+    callOn: !!w?.call_template,
+    acceptOn: !!w?.accept_template,
+    rotationOn: !!w?.template,
   };
 }
 
@@ -46,7 +53,7 @@ const fromTemplate = (t: TemplateDraft) => ({
   params: t.params.map((p) => p.trim()),
 });
 
-/** El bloque a mandar, o null si el area no usa WhatsApp. En un area de aviso no hay plantilla de llamada ni de aceptar. */
+/** El bloque a mandar (las plantillas ya son null si su momento esta apagado), o null si el area no usa WhatsApp. En un area de aviso no hay plantilla de llamada ni de aceptar. */
 export function fromWhatsappDraft(d: WhatsappDraft, delivery: string): AreaWhatsapp | null {
   const call = delivery === 'call' ? d.callTemplate : null;
   const accept = delivery === 'call' ? d.acceptTemplate : null;
@@ -80,9 +87,17 @@ export function whatsappError(d: WhatsappDraft, delivery: string): string | null
   if (!d.accountId && !d.template && !call && !accept) {
     return notice ? 'Elegí el número de WhatsApp y la plantilla del aviso.' : null;
   }
+  if (!notice && !d.accountId && (d.callOn || d.acceptOn || d.rotationOn))
+    return 'Elegí el número de WhatsApp.';
   if (!d.accountId) return 'Elegí el número de WhatsApp.';
-  if (!d.template && !call && !accept) return 'Elegí al menos una plantilla.';
   if (notice && !d.template) return 'Elegí la plantilla del aviso.';
+  if (!notice) {
+    // Un switch prendido sin plantilla, o ningun momento prendido con una cuenta elegida.
+    if (d.callOn && !d.callTemplate) return 'Al sonar: elegí la plantilla o apagalo.';
+    if (d.acceptOn && !d.acceptTemplate) return 'Al aceptar: elegí la plantilla o apagalo.';
+    if (d.rotationOn && !d.template) return 'Rotación por WhatsApp de texto: elegí la plantilla o apagalo.';
+    if (!d.template && !call && !accept) return 'Prendé al menos un momento o quitá el número.';
+  }
   const label = notice ? 'Plantilla del aviso' : 'Plantilla de rotación';
   const err =
     (d.template && templateError(d.template, label, notice)) ||

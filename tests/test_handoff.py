@@ -11,7 +11,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.conversation.models import Workflow
 from app.llm.platform_tools import transfer_call_tool
-from app.models import CallRow, CallStatus, Event, HandoffArea, WaAccount
+from app.models import Agent, CallRow, CallStatus, Event, HandoffArea, WaAccount
 from app.services import calls as call_service
 from app.services import events as events_service
 from app.services import handoff
@@ -377,6 +377,58 @@ def test_call_areas_redirects_and_channel(api, admin):
     # Una conversacion en curso, guardada sin la clave, sigue funcionando.
     old = [{k: v for k, v in a.items() if k != "redirects"} for a in voice]
     assert "Entrada: con horario a confirmar, cerrada ahora" in transfer_call_tool(old)["function"]["description"]
+
+
+# ---------- quien deriva al area ----------
+
+def derive(admin, agent, *areas):
+    definition = {**admin.get(f"{V1}/agents/{agent['id']}").json()["definition"], "handoff": {"areas": [
+        {"area_id": a["id"], **({"when": "si piden ventas"} if i == 0 else {})} for i, a in enumerate(areas)]}}
+    r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
+    assert r.status_code == 200, r.text
+
+
+def used_by(admin, area_id):
+    return admin.get(f"{V1}/handoff-areas/{area_id}").json()["used_by"]
+
+
+def test_area_used_by(api, admin):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    agent, archived, bystander = make_agent(admin, c, name="qa-uno"), make_agent(admin, c, name="qa-dos"), \
+        make_agent(admin, c, name="qa-tres")
+    foreign = make_agent(admin, other, name="qa-ajeno")
+    plain = new_area(admin, c["id"], "Plana")
+    area = new_area(admin, c["id"], "Ventas")
+    assert used_by(admin, area["id"]) == {"agents": [], "phone_numbers": [], "whatsapp_accounts": []}
+    derive(admin, agent, area, plain)
+    derive(admin, archived, plain, area)
+    admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": DID, "agent_id": agent["id"]})
+    admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+541152630862", "agent_id": bystander["id"]})
+    account = wa_account(api, c, agent)
+    with api.sessions() as s:
+        # La API no deja a un agente de otro cliente apuntar al area; si un dato viejo lo hiciera, no cuenta.
+        row = s.get(Agent, foreign["id"])
+        row.definition = {**row.definition, "handoff": {"areas": [{"area_id": area["id"]}]}}
+        s.execute(sa.text("UPDATE phone_numbers SET answer_mode='team' WHERE e164=:e"), {"e": DID})
+        s.execute(sa.text("UPDATE agents SET archived_at=CURRENT_TIMESTAMP WHERE id=:i"), {"i": archived["id"]})
+        s.commit()
+    use = used_by(admin, area["id"])
+    # `when` vacio: el agente usa la descripcion del area; el archivado y el de otro cliente no aparecen.
+    assert use["agents"] == [{"id": agent["id"], "name": "qa-uno", "when": "si piden ventas"}]
+    assert [(n["e164"], n["answer_mode"]) for n in use["phone_numbers"]] == [(DID, "team")]
+    assert use["whatsapp_accounts"] == []  # sin plantilla de rotacion el agente de WhatsApp no ve el area
+    assert [a["when"] for a in used_by(admin, plain["id"])["agents"]] == [""]
+    r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"whatsapp": {
+        "account_id": account, "template": {"name": "rotacion", "language": "es_AR"}}})
+    assert r.status_code == 200, r.text
+    assert r.json()["used_by"]["whatsapp_accounts"] == [{"id": account, "display_phone_number": "+54 351 000"}]
+    # La lista sin client_id (admin) separa a los clientes.
+    theirs = new_area(admin, other["id"], "Ajena")
+    listed = {a["id"]: a["used_by"] for a in admin.get(f"{V1}/handoff-areas").json()}
+    assert [a["name"] for a in listed[area["id"]]["agents"]] == ["qa-uno"]
+    assert listed[theirs["id"]]["agents"] == []
+    # Con un agente que la usa, no se borra.
+    assert admin.delete(f"{V1}/handoff-areas/{area['id']}").status_code == 409
 
 
 # ---------- WhatsApp del area ----------
@@ -775,3 +827,114 @@ def test_0052_upgrade_downgrade(tmp_path):
     _run(engine, command.downgrade, "0051")
     assert "no_answer_member_id" not in {c["name"] for c in sa.inspect(engine).get_columns("handoff_areas")}
     _run(engine, command.upgrade, "0052")
+
+
+# ---------- plantillas validadas contra Meta al guardar ----------
+
+def _meta_templates(monkeypatch, templates, calls=None):
+    """Meta simulado: `templates_or_none` devuelve esta lista (None = Meta caida) y cuenta los pedidos."""
+    from app.whatsapp import signup
+
+    def fake(s, account, *a, **k):
+        if calls is not None:
+            calls.append(account.id)
+        return templates
+    monkeypatch.setattr(signup, "templates_or_none", fake)
+
+
+def _tpl(name, status="APPROVED", body="Hola {{1}} y {{2}}", language="es_AR"):
+    return {"name": name, "language": language, "status": status, "components": [{"type": "BODY", "text": body}]}
+
+
+def test_area_template_checked_against_meta(api, admin, monkeypatch):
+    c = make_client(admin)
+    account = wa_account(api, c, make_agent(admin, c))
+    area = new_area(admin, c["id"])
+    calls = []
+    _meta_templates(monkeypatch, [_tpl("equipo"), _tpl("pendiente", "PENDING"), _tpl("una", body="Hola {{1}}")], calls)
+
+    def patch(**whatsapp):
+        return admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"whatsapp": {"account_id": account, **whatsapp}})
+
+    def tpl(name, *params):
+        return {"name": name, "language": "es_AR", "params": list(params)}
+
+    for key, bad in (("template", tpl("nueva", "area", "persona")), ("call_template", tpl("pendiente", "area")),
+                     ("accept_template", tpl("equipo", "area"))):  # no existe, PENDING, faltan params
+        r = patch(**{key: bad})
+        assert r.status_code == 422, r.text
+        assert r.json()["errors"][0]["path"] == f"whatsapp.{key}"
+    assert admin.get(f"{V1}/handoff-areas/{area['id']}").json()["whatsapp"] is None
+    assert patch(template=tpl("equipo", "area", "persona")).status_code == 200
+    created = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]}, json={
+        "name": "Otra", "whatsapp": {"account_id": account, "call_template": tpl("una", "area")}})
+    assert created.status_code == 201
+    assert admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]}, json={
+        "name": "Mala", "whatsapp": {"account_id": account, "call_template": tpl("una")}}).status_code == 422
+
+    # Ya guardada y pausada por Meta: cambiar el horario o el nombre no la vuelve a comprobar; cambiarla, si.
+    _meta_templates(monkeypatch, [_tpl("equipo", "PAUSED")], calls)
+    n = len(calls)
+    assert admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"name": "Renombrada"}).status_code == 200
+    assert patch(template={"name": " equipo ", "language": "es_AR", "params": ["area", "persona"]}).status_code == 200
+    assert len(calls) == n
+    assert patch(template=tpl("equipo", "area", "persona", "resumen")).status_code == 422
+
+
+def test_area_template_meta_down_or_foreign_account(api, admin, monkeypatch):
+    c, other = make_client(admin), make_client(admin, slug="otro")
+    account = wa_account(api, c, make_agent(admin, c))
+    foreign = wa_account(api, other, make_agent(admin, other), pnid="333")
+    area = new_area(admin, c["id"])
+    calls = []
+    _meta_templates(monkeypatch, None, calls)  # Meta caida: se guarda sin comprobar
+    r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"whatsapp": {
+        "account_id": account, "template": {"name": "x", "language": "es_AR", "params": ["area"]}}})
+    assert r.status_code == 200 and calls == [account]
+    # Cuenta de otro cliente: no se le pide nada a Meta y el error es el de siempre.
+    _meta_templates(monkeypatch, [_tpl("x")], calls)
+    r = admin.patch(f"{V1}/handoff-areas/{area['id']}", json={"whatsapp": {
+        "account_id": foreign, "template": {"name": "x", "language": "es_AR", "params": ["area"]}}})
+    assert r.status_code == 422 and "otro cliente" in r.text and calls == [account]
+
+
+def test_check_templates_full_page_and_helpers():
+    from app.whatsapp import campaigns
+    changed = handoff.changed_templates(None, {"account_id": "a", "template": {"name": "n", "language": "es"}})
+    assert changed == {"template": {"name": "n", "language": "es", "params": []}}
+    full = [_tpl(f"t{i}") for i in range(100)]
+    handoff.check_templates(changed, full, campaigns.body_params)  # lista llena: no se rechaza
+    with pytest.raises(handoff.Invalid):
+        handoff.check_templates(changed, full[:5], campaigns.body_params)
+    saved = {"account_id": "a", "template": {"name": "n", "language": "es", "params": []}}
+    assert handoff.changed_templates(saved, {"account_id": "a", "template": {"name": " n", "language": "es"}}) == {}
+    assert handoff.changed_templates(saved, {"account_id": "b", "template": {"name": "n", "language": "es"}})
+
+
+def test_templates_or_none_falls_back(api, admin, monkeypatch):
+    import asyncio
+
+    from app.whatsapp import signup
+    from app.whatsapp.graph import GraphError
+    c = make_client(admin)
+    account = wa_account(api, c, make_agent(admin, c))
+
+    def factory(error=None, delay=0):
+        class G:
+            async def list_templates(self, waba):
+                await asyncio.sleep(delay)
+                if error:
+                    raise error
+                return [_tpl("x")]
+
+            async def aclose(self):
+                pass
+        return lambda token: G()
+
+    real = signup.templates_or_none.real
+    monkeypatch.setattr(signup.store, "token_for", lambda a: "tok")
+    with api.sessions() as s:
+        row = s.get(WaAccount, account)
+        assert real(s, row, graph_factory=factory())[0]["name"] == "x"
+        assert real(s, row, graph_factory=factory(GraphError("caido", code=2))) is None
+        assert real(s, row, timeout=0.05, graph_factory=factory(delay=1)) is None

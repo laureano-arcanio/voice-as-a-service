@@ -2653,7 +2653,8 @@ class HandoffSchedule(BaseModel):
 
 
 class HandoffWhatsappTemplate(BaseModel):
-    """Una plantilla aprobada de Meta de la cuenta del área."""
+    """Una plantilla aprobada de Meta de la cuenta del área. Al guardar, las plantillas nuevas o cambiadas tienen que
+    estar aprobadas en la cuenta y llevar un valor por cada {{n}} del cuerpo (si Meta no contesta, se guarda igual)."""
     name: str = Field(min_length=1, max_length=512)
     language: str = Field(min_length=1, max_length=16, description="Código de Meta (ej. es_AR)")
     params: list[str] = Field(default_factory=list, max_length=20, description=(
@@ -2727,6 +2728,58 @@ class HandoffAreaPatch(BaseModel):
     whatsapp: HandoffWhatsapp | None = None
 
 
+class HandoffUsageAgent(BaseModel):
+    id: str
+    name: str
+    when: str = Field(description="Cuándo deriva este agente a esta área; vacío si usa la descripción del área")
+
+
+class HandoffUsageNumber(BaseModel):
+    id: str
+    e164: str
+    label: str
+    answer_mode: str = Field(description="`team`: atiende el equipo y el agente entra solo como respaldo o reparto")
+
+
+class HandoffUsageWhatsapp(BaseModel):
+    id: str
+    display_phone_number: str
+
+
+class HandoffAreaUsage(BaseModel):
+    """Quién deriva a esta área (solo lectura)."""
+    agents: list[HandoffUsageAgent]
+    phone_numbers: list[HandoffUsageNumber] = Field(description="Números de esos agentes")
+    whatsapp_accounts: list[HandoffUsageWhatsapp] = Field(
+        description="Cuentas de WhatsApp de esos agentes; solo si el área tiene plantilla de rotación")
+
+
+class HandoffUsageAgent(BaseModel):
+    id: str
+    name: str
+    when: str = Field(description="Cuándo deriva este agente a esta área; vacío si usa la descripción del área")
+
+
+class HandoffUsageNumber(BaseModel):
+    id: str
+    e164: str
+    label: str
+    answer_mode: str = Field(description="`team`: atiende el equipo y el agente entra solo como respaldo o reparto")
+
+
+class HandoffUsageWhatsapp(BaseModel):
+    id: str
+    display_phone_number: str
+
+
+class HandoffAreaUsage(BaseModel):
+    """Quién deriva a esta área (solo lectura)."""
+    agents: list[HandoffUsageAgent]
+    phone_numbers: list[HandoffUsageNumber] = Field(description="Números de esos agentes")
+    whatsapp_accounts: list[HandoffUsageWhatsapp] = Field(
+        description="Cuentas de WhatsApp de esos agentes; solo si el área tiene plantilla de rotación")
+
+
 class HandoffAreaOut(ORM):
     id: str
     client_id: str
@@ -2749,6 +2802,7 @@ class HandoffAreaOut(ORM):
     delivery: str
     connect_on_answer: bool = Field(description=CONNECT_ON_ANSWER)
     whatsapp: HandoffWhatsapp | None
+    used_by: HandoffAreaUsage
     created_at: UTCDateTime
 
 
